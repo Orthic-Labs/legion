@@ -80,7 +80,7 @@ Audit never silently enables network to improve coverage.
 
 Native CLI external process execution has a separate owner-admission prerequisite. The frozen
 policy is `externalProcesses=owner-admission-required`, `admissionStatus=unavailable`, and
-`effectiveMode=deny-external`, with denial reason `native-owner-admission-unavailable`. External
+`effectiveMode=deny-external` when no host owner policy exists, with denial reason `native-owner-admission-unavailable`. Without the host-owned policy file `<state>/audit-owner-policy.json` (absolute executable path + sha256 pin per tool) this is the outcome; with it, admitted requests run under rightkit-sandbox containment (read-only frozen roots, one writable output root, network denied for static checks, child-tree kill). External
 scanner/check/tool/version/snapshot requests are denied before executable resolution, version
 probing, or spawn; typed effect receipts and provider gaps remain in the result. Environment
 variables, declared ownership argv, and network flags cannot grant admission. The network sandbox

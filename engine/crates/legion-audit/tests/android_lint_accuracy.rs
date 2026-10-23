@@ -112,7 +112,9 @@ fn variant(
             path: format!("{}/build/generated/res/{name}", &module[1..]),
             digest: format!("sha256:{}", "6".repeat(64)),
         }],
-        report_xml_path: format!("{}/build/reports/lint-results-{name}.xml", &module[1..]),
+        // The redirected location the init script reports (owner output root).
+        report_xml_path: format!("build/{}/reports/lint-results-{name}.xml", &module[1..]),
+        report_root: "owner-output".into(),
         report_sarif_path: None,
     }
 }
@@ -1105,4 +1107,556 @@ fn manifest_and_webview_facts_feed_existing_lenses() {
         ]
     );
     assert!(web.iter().all(|f| f.line.is_some() && f.lens == "security"));
+}
+
+// ---------------------------------------------------------------------------
+// Owner-contained Gradle model extraction (mocked contained runtime)
+// ---------------------------------------------------------------------------
+#[cfg(unix)]
+mod gradle_owner {
+    use super::*;
+    use async_trait::async_trait;
+    use legion_audit::{
+        host_owner::{HostPolicyOwner, OwnerRequestContext, POLICY_FILE},
+        native_providers::code::{
+            android::plan_with_owner,
+            gradle_model::{extract_android_model, GradlePins, WRAPPER_JAR, WRAPPER_PROPERTIES},
+        },
+    };
+    use legion_effects::{
+        platform::ProcessFuture, receipt::ProcessTreeEvidence, PlatformProcess, ProcessLaunch,
+        ProcessOutput,
+    };
+    use legion_provider_sdk::{
+        ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
+    };
+    use std::{
+        collections::BTreeSet,
+        os::unix::fs::PermissionsExt,
+        sync::{
+            atomic::{AtomicU64, AtomicUsize, Ordering},
+            Mutex,
+        },
+    };
+    use tokio_util::sync::CancellationToken;
+
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    const JAR: &[u8] = b"pinned-wrapper-jar";
+    const DIST_SUM: &str = "1111111111111111111111111111111111111111111111111111111111111111";
+
+    struct Env {
+        root: PathBuf,
+        out: PathBuf,
+        java: PathBuf,
+        ctx: OwnerRequestContext,
+    }
+
+    fn env(properties_sum: Option<&str>) -> Env {
+        let base = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "legion-gradle-model-{}-{}",
+                std::process::id(),
+                SEQ.fetch_add(1, Ordering::Relaxed)
+            ));
+        let root = base.join("project");
+        let out = base.join("out");
+        let state = base.join("state");
+        let tools = base.join("tools");
+        for dir in [&root, &out, &state, &tools, &root.join("gradle/wrapper")] {
+            fs::create_dir_all(dir).unwrap();
+        }
+        fs::set_permissions(&state, fs::Permissions::from_mode(0o700)).unwrap();
+        fs::write(root.join(WRAPPER_JAR), JAR).unwrap();
+        let props = match properties_sum {
+            Some(sum) => format!("distributionUrl=x\ndistributionSha256Sum={sum}\n"),
+            None => "distributionUrl=x\n".to_string(),
+        };
+        fs::write(root.join(WRAPPER_PROPERTIES), props).unwrap();
+        let java = tools.join("java");
+        fs::write(&java, b"#!/bin/sh\n").unwrap();
+        let policy = state.join(POLICY_FILE);
+        fs::write(
+            &policy,
+            serde_json::to_vec(&serde_json::json!({
+                "schemaVersion": 1,
+                "policyRevision": "t1",
+                "tools": [{
+                    "providers": [PROVIDER_ID],
+                    "executable": java,
+                    "sha256": sha(b"#!/bin/sh\n"),
+                    "class": "project-executing",
+                    "environmentNames": []
+                }]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::set_permissions(&policy, fs::Permissions::from_mode(0o600)).unwrap();
+        let owner = HostPolicyOwner::load(&policy, &[root.clone(), out.clone()])
+            .unwrap()
+            .unwrap();
+        let config = owner.owner_config("plan-1", &root, &out).unwrap();
+        let ctx = owner.request_context(&config);
+        Env {
+            root,
+            out,
+            java,
+            ctx,
+        }
+    }
+
+    fn pins(env: &Env) -> GradlePins {
+        GradlePins {
+            java: env.java.clone(),
+            wrapper_jar_sha256: [sha(JAR)].into_iter().collect::<BTreeSet<_>>(),
+            distribution_sha256: [DIST_SUM.to_string()].into_iter().collect(),
+            dependency_cache_root: None,
+        }
+    }
+
+    struct Mock {
+        json: Option<Vec<u8>>,
+        exit: i32,
+        /// Real platform launches (what an unadmitted path would start).
+        launches: AtomicUsize,
+        /// Submitted owner requests, in order.
+        requests: Mutex<Vec<ExternalToolRequest>>,
+        /// Whether the owner authorizer admits requests.
+        admit: bool,
+    }
+
+    impl Mock {
+        fn new(json: Option<Vec<u8>>, exit: i32) -> Self {
+            Self {
+                json,
+                exit,
+                launches: AtomicUsize::new(0),
+                requests: Mutex::new(Vec::new()),
+                admit: true,
+            }
+        }
+        fn denying() -> Self {
+            Self {
+                admit: false,
+                ..Self::new(Some(Vec::new()), 0)
+            }
+        }
+    }
+
+    /// Stands in for the owner-backed executor: authorizes every request, and
+    /// only an admitted one reaches the (counting) platform process.
+    #[async_trait]
+    impl ExternalProjectTool for Mock {
+        async fn execute(
+            &self,
+            request: ExternalToolRequest,
+            _cancellation: CancellationToken,
+        ) -> ExecutionReceipt {
+            self.requests.lock().unwrap().push(request.clone());
+            if !self.admit {
+                return ExecutionReceipt::failure(
+                    &request,
+                    ExecutionState::UnauthorizedEffect,
+                    "owner-denied",
+                );
+            }
+            let launch = ProcessLaunch {
+                executable: request.executable.clone(),
+                args: request.args.clone(),
+                cwd: request.cwd.clone(),
+                environment: request.environment.clone(),
+                stdout_limit: request.stdout_limit,
+                stderr_limit: request.stderr_limit,
+                timeout_ms: request.timeout_ms,
+                termination_grace_ms: 2_000,
+                cancellation: CancellationToken::new(),
+            };
+            match self.run(launch).await {
+                Ok(output) => {
+                    let mut receipt =
+                        ExecutionReceipt::failure(&request, ExecutionState::Completed, "");
+                    receipt.gaps.clear();
+                    receipt.complete = output
+                        .exit_code
+                        .is_some_and(|c| request.accepted_exit_codes.contains(&c));
+                    if !receipt.complete {
+                        receipt.state = ExecutionState::Failed;
+                    }
+                    receipt.exit_code = output.exit_code;
+                    receipt.process_tree = output.process_tree;
+                    receipt
+                }
+                Err(_) => ExecutionReceipt::failure(&request, ExecutionState::SpawnFailed, "spawn"),
+            }
+        }
+    }
+
+    impl PlatformProcess for Mock {
+        fn run<'a>(&'a self, launch: ProcessLaunch) -> ProcessFuture<'a> {
+            self.launches.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                assert!(launch.args.iter().any(|a| a == "--offline"));
+                assert!(!launch.executable.ends_with("gradlew"));
+                let target = launch
+                    .args
+                    .iter()
+                    .find_map(|a| a.strip_prefix("-Dlegion.model.out="))
+                    .unwrap();
+                if let Some(json) = &self.json {
+                    fs::write(target, json).unwrap();
+                }
+                Ok(ProcessOutput {
+                    stdout: vec![],
+                    stderr: vec![],
+                    exit_code: Some(self.exit),
+                    signal: None,
+                    timed_out: false,
+                    cancelled: false,
+                    output_limited: false,
+                    kill_succeeded: true,
+                    process_tree: ProcessTreeEvidence {
+                        started: true,
+                        terminated: true,
+                        hard_killed: false,
+                        reaped: true,
+                        detail: None,
+                    },
+                    started_at_ms: 1,
+                    completed_at_ms: 2,
+                })
+            })
+        }
+    }
+
+    fn model_json(with_provenance: bool) -> Vec<u8> {
+        let model = build_model(&entries());
+        let mut value = serde_json::to_value(&model).unwrap();
+        if !with_provenance {
+            value.as_object_mut().unwrap().remove("provenance");
+        }
+        let typed = serde_json::json!({
+            ":app:phoneRelease": {
+                "classpath": [{"path": "libs/a.jar", "digest": sha(b"a")}],
+                "generatedSources": [],
+                "compilationTarget": "android-35",
+                "variant": "phoneRelease"
+            }
+        });
+        serde_json::to_vec(&serde_json::json!({"model": value, "typedClasspath": typed})).unwrap()
+    }
+
+    fn run(
+        env: &Env,
+        mock: &Mock,
+        pins: Option<&GradlePins>,
+        with_ctx: bool,
+    ) -> Result<
+        legion_audit::native_providers::code::gradle_model::ExtractedAndroidModel,
+        Vec<String>,
+    > {
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
+            .block_on(extract_android_model(
+                with_ctx.then_some(&env.ctx),
+                with_ctx.then_some(mock as &dyn ExternalProjectTool),
+                "plan-1",
+                &env.root,
+                &env.out,
+                pins,
+                &entries(),
+            ))
+    }
+
+    fn gap_plan(gaps: &[String]) -> AndroidLintPlan {
+        plan_with_owner(
+            &entries(),
+            &build_texts(),
+            Err(gaps),
+            &admitted(AuditProfile::Release),
+        )
+    }
+
+    #[test]
+    fn unpinned_wrapper_is_a_gap_and_nothing_runs() {
+        let mock = Mock::new(Some(model_json(false)), 0);
+        // Distribution sum absent.
+        let e = env(None);
+        let gaps = run(&e, &mock, Some(&pins(&e)), true).unwrap_err();
+        assert_eq!(
+            gaps,
+            vec!["code.android.lint:gradle-wrapper-unpinned".to_string()]
+        );
+        // Distribution sum present but not pinned.
+        let e = env(Some(&"2".repeat(64)));
+        let gaps = run(&e, &mock, Some(&pins(&e)), true).unwrap_err();
+        assert_eq!(
+            gaps,
+            vec!["code.android.lint:gradle-wrapper-unpinned".to_string()]
+        );
+        // Jar digest not pinned.
+        let e = env(Some(DIST_SUM));
+        let mut p = pins(&e);
+        p.wrapper_jar_sha256.clear();
+        let gaps = run(&e, &mock, Some(&p), true).unwrap_err();
+        assert_eq!(
+            gaps,
+            vec!["code.android.lint:gradle-wrapper-unpinned".to_string()]
+        );
+        let plan = gap_plan(&gaps);
+        assert!(plan.obligations.is_empty());
+        assert!(plan
+            .gaps
+            .iter()
+            .any(|g| g.ends_with("android-model-missing")));
+        assert!(plan
+            .gaps
+            .iter()
+            .any(|g| g.ends_with("gradle-wrapper-unpinned")));
+    }
+
+    #[test]
+    fn missing_owner_is_a_gap() {
+        let e = env(Some(DIST_SUM));
+        let mock = Mock::new(None, 0);
+        let gaps = run(&e, &mock, Some(&pins(&e)), false).unwrap_err();
+        assert_eq!(
+            gaps,
+            vec!["code.android.lint:gradle-owner-missing".to_string()]
+        );
+    }
+
+    #[test]
+    fn contained_model_binds_receipt_and_plans_pinned_offline_runner() {
+        let e = env(Some(DIST_SUM));
+        let mock = Mock::new(Some(model_json(false)), 0);
+        let extracted = run(&e, &mock, Some(&pins(&e)), true).unwrap();
+        match &extracted.model.provenance {
+            TypedProvenance::AdmittedBuild {
+                receipt_id,
+                artifact_digest,
+            } => {
+                assert!(receipt_id.ends_with(":gradle-model"));
+                assert_eq!(
+                    *artifact_digest,
+                    sha(&fs::read(e.out.join("legion-android-model.json")).unwrap())
+                );
+            }
+            other => panic!("unexpected provenance {other:?}"),
+        }
+        let typed = extracted.typed_classpath(":app", "phoneRelease").unwrap();
+        assert_eq!(typed.compilation_target, "android-35");
+        assert!(matches!(
+            typed.provenance,
+            TypedProvenance::AdmittedBuild { .. }
+        ));
+        let plan = plan_with_owner(
+            &entries(),
+            &build_texts(),
+            Ok(&extracted),
+            &admitted(AuditProfile::Release),
+        );
+        assert!(!plan.obligations.is_empty());
+        let runner = plan
+            .obligations
+            .iter()
+            .find(|o| o.variant == "phoneRelease")
+            .and_then(|o| o.runner.as_ref())
+            .expect("runner");
+        assert_eq!(runner.program, e.java.to_string_lossy());
+        assert!(runner.argv.iter().any(|a| a == "--offline"));
+        assert!(runner.argv.iter().any(|a| a == ":app:lintPhoneRelease"));
+        assert!(!plan
+            .gaps
+            .iter()
+            .any(|g| g.ends_with("android-model-missing")));
+    }
+
+    #[test]
+    fn denied_admission_is_a_gap_and_no_process_launches() {
+        let e = env(Some(DIST_SUM));
+        let mock = Mock::denying();
+        let gaps = run(&e, &mock, Some(&pins(&e)), true).unwrap_err();
+        assert!(
+            gaps.iter()
+                .any(|g| g.contains("gradle-model-admission-denied")),
+            "{gaps:?}"
+        );
+        assert_eq!(
+            mock.launches.load(Ordering::SeqCst),
+            0,
+            "denied request must not launch"
+        );
+        // The denied request was still a typed, owner-shaped request.
+        assert_eq!(mock.requests.lock().unwrap().len(), 1);
+        let plan = gap_plan(&gaps);
+        assert!(plan.obligations.is_empty());
+        assert!(plan
+            .gaps
+            .iter()
+            .any(|g| g.contains("gradle-model-admission-denied")));
+    }
+
+    #[test]
+    fn admitted_request_carries_owner_shape_and_runtime_output_is_used() {
+        let e = env(Some(DIST_SUM));
+        let mock = Mock::new(Some(model_json(false)), 0);
+        let extracted = run(&e, &mock, Some(&pins(&e)), true).unwrap();
+        assert_eq!(mock.launches.load(Ordering::SeqCst), 1);
+        let requests = mock.requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        let request = &requests[0];
+        assert_eq!(request.provider_id, PROVIDER_ID);
+        assert_eq!(request.plan_id, "plan-1");
+        assert_eq!(
+            request.policy_id,
+            legion_audit::execution_policy::OWNER_POLICY_ID
+        );
+        assert_eq!(request.executable, e.java.to_string_lossy());
+        assert_eq!(
+            request.expected_digest.as_deref(),
+            Some(sha(b"#!/bin/sh\n").as_str())
+        );
+        assert!(request.requires_network_sandbox && request.skip_version_probe && !request.shell);
+        assert_eq!(
+            request.sandbox.as_ref().unwrap().id,
+            e.ctx.sandbox_receipt().id
+        );
+        assert_eq!(
+            extracted.model.modules.len(),
+            build_model(&entries()).modules.len()
+        );
+    }
+
+    #[test]
+    fn report_paths_come_from_the_model_and_the_lint_run_reuses_the_redirect() {
+        let e = env(Some(DIST_SUM));
+        let mock = Mock::new(Some(model_json(false)), 0);
+        let extracted = run(&e, &mock, Some(&pins(&e)), true).unwrap();
+        let variant = &extracted.model.modules[0].variants[0];
+        assert_eq!(variant.report_root, "owner-output");
+        assert!(
+            variant.report_xml_path.starts_with("build/"),
+            "{}",
+            variant.report_xml_path
+        );
+        let plan = plan_with_owner(
+            &entries(),
+            &build_texts(),
+            Ok(&extracted),
+            &admitted(AuditProfile::Release),
+        );
+        let obligation = plan
+            .obligations
+            .iter()
+            .find(|o| o.variant == "phoneRelease")
+            .expect("obligation");
+        let runner = obligation.runner.as_ref().expect("runner");
+        let expected = format!(
+            "build/{}/reports/lint-results-phoneRelease.xml",
+            &obligation.module[1..]
+        );
+        assert_eq!(obligation.report_xml_path, expected);
+        assert_eq!(runner.report_path, expected);
+        assert_eq!(runner.report_root, "owner-output");
+        assert!(!runner
+            .report_path
+            .starts_with(&format!("{}/build", obligation.module_dir)));
+        // The lint run replays the init script's build-dir redirect, no re-emit.
+        assert!(runner.argv.iter().any(|a| a == "-I"));
+        assert!(runner.argv.iter().any(|a| a == "-Dlegion.model.emit=false"));
+        let records = plan.runner_records();
+        assert!(records
+            .iter()
+            .any(|r| r["reportRoot"] == "owner-output" && r["reportPath"] == expected.as_str()));
+    }
+
+    #[test]
+    fn malformed_failed_or_self_attested_models_are_gaps() {
+        let e = env(Some(DIST_SUM));
+        let p = pins(&e);
+        for (json, exit, expect) in [
+            (Some(b"{not json".to_vec()), 0, "gradle-model-malformed"),
+            (
+                Some(br#"{"model":{"schemaVersion":1}}"#.to_vec()),
+                0,
+                "gradle-model-malformed",
+            ),
+            (Some(model_json(true)), 0, "gradle-model-self-attested"),
+            (Some(model_json(false)), 1, "gradle-model-execution-failed"),
+            (None, 0, "gradle-model-output-missing"),
+        ] {
+            let mock = Mock::new(json, exit);
+            let gaps = run(&e, &mock, Some(&p), true).unwrap_err();
+            assert!(
+                gaps.iter().any(|g| g.contains(expect)),
+                "{gaps:?} vs {expect}"
+            );
+            assert!(gap_plan(&gaps).obligations.is_empty());
+        }
+    }
+}
+
+mod adapter_without_owner {
+    use super::*;
+    use legion_audit::{
+        native_providers::code::ProviderExecutorAdapter, AuditProvider, InventoryEnvelope,
+        ProviderExecutor, ProviderKind,
+    };
+
+    fn provider(id: &str) -> AuditProvider {
+        AuditProvider {
+            id: id.into(),
+            version: "1.0.0".into(),
+            role: "diagnose".into(),
+            phase: "p1".into(),
+            lens_ids: Vec::new(),
+            dependencies: Vec::new(),
+            kind: ProviderKind::RustAlgorithm,
+            configuration: BTreeMap::from([(
+                "selector".into(),
+                serde_json::json!({"op": "always"}),
+            )]),
+            bounds: BTreeMap::new(),
+            clean_claim: "evidence-only".into(),
+            benchmark_status: "unproven".into(),
+            benchmark_required_for_clean_claim: false,
+            qualification_digest: None,
+            required: false,
+        }
+    }
+
+    fn project_root() -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("legion-android-adapter-{}", std::process::id()));
+        for path in PROJECT_FILES {
+            let full = root.join(path);
+            fs::create_dir_all(full.parent().unwrap()).unwrap();
+            fs::write(full, fixture(&format!("project/{path}"))).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn no_owner_keeps_the_model_missing_gap_and_runs_nothing() {
+        let root = project_root();
+        let inventory = InventoryEnvelope::new("app", "generation", entries()).unwrap();
+        let adapter = ProviderExecutorAdapter::new().with_root(&root);
+        for id in ["code.android.lint", "code.kotlin.detekt-typed"] {
+            let result = adapter.execute(&provider(id), &inventory).expect("result");
+            assert!(!result.complete, "{id}");
+            let gaps = result.coverage_gaps.join("\n");
+            if id == "code.android.lint" {
+                assert!(gaps.contains("android-model-missing"), "{gaps}");
+                let produced = result.details.get("nativeProducer").unwrap();
+                assert_eq!(produced["modelExtracted"], serde_json::json!(false));
+                assert_eq!(produced["executed"], serde_json::json!(false));
+            } else {
+                assert!(gaps.contains("typed-classpath-missing"), "{gaps}");
+            }
+            assert!(!gaps.contains("gradle-"), "{gaps}");
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
 }

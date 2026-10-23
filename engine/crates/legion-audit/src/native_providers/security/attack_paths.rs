@@ -166,7 +166,29 @@ impl Registry {
     pub fn embedded() -> Result<Self, String> {
         let objectives: Value = serde_json::from_str(OBJECTIVES_JSON).map_err(|e| e.to_string())?;
         let bridges: Value = serde_json::from_str(BRIDGES_JSON).map_err(|e| e.to_string())?;
-        Self::from_values(&objectives, &bridges)
+        let mut registry = Self::from_values(&objectives, &bridges)?;
+        registry.add_supplemental_bridges();
+        Ok(registry)
+    }
+
+    /// Bridges the pipeline adds on top of the packaged data so
+    /// credential-possession composes even when the surface model has no
+    /// `authenticates-as` relation: the registry bridge then yields an
+    /// unsupported edge, and this fallback yields a `possible`-strength one
+    /// that can never reach `strong-inference` adjudication on its own.
+    fn add_supplemental_bridges(&mut self) {
+        let id = "bridge.credential-to-principal-access.model-unbound";
+        if self.bridges.iter().any(|b| b.id == id) {
+            return;
+        }
+        self.bridges.push(Bridge {
+            id: id.to_owned(),
+            from: json!({"kind": "credential-possession", "action": "possess"}),
+            to: json!({"kind": "principal-access", "action": "authenticate"}),
+            requires_relation: None,
+            strength: Strength::Possible,
+            relation: "grants".to_owned(),
+        });
     }
 
     pub fn from_values(objectives: &Value, bridges: &Value) -> Result<Self, String> {

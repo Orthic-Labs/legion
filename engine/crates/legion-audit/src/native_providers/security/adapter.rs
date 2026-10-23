@@ -73,6 +73,22 @@ impl SecurityProviderExecutor {
         self
     }
 
+    /// Feed independent chain verdicts (returned by the reasoning verifier for
+    /// the `chainReviewRequests` of a prior chain-adjudication result) into the
+    /// artifact `security.chain-adjudication` consumes. Rejects, leaving every
+    /// hypothesis pending, on any unrequested, duplicate or non-separate
+    /// return (see `pipeline::ingest_chain_verdicts`).
+    pub fn with_chain_verdicts(
+        mut self,
+        requests: &[Value],
+        returned: &Value,
+    ) -> Result<Self, String> {
+        let artifact = super::pipeline::ingest_chain_verdicts(requests, returned)?;
+        self.artifacts
+            .insert(super::chain_adjudication::PROVIDER_ID.to_owned(), artifact);
+        Ok(self)
+    }
+
     pub fn analyze(&self, provider: &AuditProvider) -> Option<Value> {
         let input = self
             .artifacts

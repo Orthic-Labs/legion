@@ -11,6 +11,7 @@ mod attested_runs;
 mod contracts;
 mod disposable_copy;
 mod node_outdated;
+mod owner_request;
 pub(crate) mod parsers;
 mod python_requirements;
 mod registry;
@@ -85,6 +86,21 @@ where
         mut request: ExternalToolRequest,
         cancellation: CancellationToken,
     ) -> legion_provider_sdk::ExecutionReceipt {
+        // Owner-admitted requests carry the host policy's pin and an already
+        // resolved canonical executable/cwd: nothing here may re-resolve or
+        // re-pin them. Only the artifact location is rewritten; a request that
+        // claims the owner policy without a pin fails closed.
+        if request.policy_id == crate::execution_policy::OWNER_POLICY_ID {
+            if request.expected_digest.is_none() || !Path::new(&request.executable).is_absolute() {
+                return legion_provider_sdk::ExecutionReceipt::failure(
+                    &request,
+                    legion_provider_sdk::ExecutionState::UnauthorizedEffect,
+                    "owner-backed request must carry an absolute executable and the host policy pin",
+                );
+            }
+            request.request_id = audit_artifact_request_id(&request.request_id);
+            return self.inner.execute(request, cancellation).await;
+        }
         let requested_executable = request.executable.clone();
         let resolved = match resolve_request(
             &PathBuf::from(&request.cwd),
@@ -177,11 +193,27 @@ struct ReportTempDir {
 }
 
 impl ReportTempDir {
+    /// Fresh owner-only (0700) directory with an unpredictable name, created
+    /// exclusively (`create_dir` fails if the name exists) and verified empty
+    /// before the tool runs. Nothing pre-existing can be read back as a report.
     fn create(base: &Path, check: &str) -> std::io::Result<Self> {
+        std::fs::create_dir_all(base)?;
         let sequence = AUDIT_ARTIFACT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let path = base.join(format!("report-{check}-{sequence}"));
-        std::fs::create_dir_all(&path)?;
-        Ok(Self { path })
+        let mut nonce = [0u8; 16];
+        getrandom::fill(&mut nonce).map_err(|error| std::io::Error::other(error.to_string()))?;
+        let path = base.join(format!("report-{check}-{sequence}-{}", hex::encode(nonce)));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            std::fs::DirBuilder::new().mode(0o700).create(&path)?;
+        }
+        #[cfg(not(unix))]
+        std::fs::create_dir(&path)?;
+        let this = Self { path };
+        if std::fs::read_dir(&this.path)?.next().is_some() {
+            return Err(std::io::Error::other("report directory not empty"));
+        }
+        Ok(this)
     }
 }
 
@@ -209,9 +241,14 @@ fn read_report_artifact(dir: &Path, source: ReportSource) -> Option<ReportArtifa
         return None;
     };
     let (name, bytes) = names.iter().find_map(|name| {
-        std::fs::read(dir.join(name))
-            .ok()
-            .map(|bytes| (*name, bytes))
+        let path = dir.join(name);
+        // Only a regular file inside this provider's own directory; a symlink
+        // (pointing anywhere) is never followed.
+        let meta = std::fs::symlink_metadata(&path).ok()?;
+        if !meta.file_type().is_file() {
+            return None;
+        }
+        std::fs::read(&path).ok().map(|bytes| (*name, bytes))
     })?;
     if bytes.len() > REPORT_ARTIFACT_LIMIT {
         return None;
@@ -247,12 +284,27 @@ static AUDIT_SCRATCH_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 /// checks: sandbox profiles, effect artifacts (stdout/stderr), file-backed tool
 /// reports, temp files and tool caches. It always lives outside the audited
 /// tree and is removed on drop (best effort) when the executor created it.
-#[derive(Debug)]
 pub struct AuditScratch {
     root: PathBuf,
     remove_on_drop: bool,
     retained: std::sync::atomic::AtomicBool,
     pending_attested: std::sync::atomic::AtomicUsize,
+    /// Set once by the host when an owner-backed authorizer is active.
+    owner: OnceLock<Arc<crate::host_owner::OwnerRequestContext>>,
+    /// Set once by the host alongside `owner`: the owner-backed authorizer
+    /// that decides the attested-run preparation request.
+    owner_authorizer: OnceLock<Arc<dyn legion_effects::PolicyAuthorizer>>,
+}
+
+impl std::fmt::Debug for AuditScratch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuditScratch")
+            .field("root", &self.root)
+            .field("remove_on_drop", &self.remove_on_drop)
+            .field("owner", &self.owner.get().is_some())
+            .field("owner_authorizer", &self.owner_authorizer.get().is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 impl AuditScratch {
@@ -289,6 +341,8 @@ impl AuditScratch {
                         remove_on_drop: true,
                         retained: std::sync::atomic::AtomicBool::new(false),
                         pending_attested: std::sync::atomic::AtomicUsize::new(0),
+                        owner: OnceLock::new(),
+                        owner_authorizer: OnceLock::new(),
                     });
                 }
                 Err(error) => last = format!("cannot create {}: {error}", root.display()),
@@ -325,6 +379,8 @@ impl AuditScratch {
             remove_on_drop: false,
             retained: std::sync::atomic::AtomicBool::new(false),
             pending_attested: std::sync::atomic::AtomicUsize::new(0),
+            owner: OnceLock::new(),
+            owner_authorizer: OnceLock::new(),
         })
     }
 
@@ -338,6 +394,30 @@ impl AuditScratch {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Record the active owner-backed request context (host wiring only; set
+    /// once). Without it, request builders keep the no-owner request shape.
+    pub fn set_owner_context(&self, context: crate::host_owner::OwnerRequestContext) -> bool {
+        self.owner.set(Arc::new(context)).is_ok()
+    }
+
+    /// Record the owner-backed authorizer for the attested-run preparation
+    /// request (host wiring only; set once, with `set_owner_context`). With an
+    /// owner context but no authorizer, preparation keeps denying.
+    pub fn set_owner_authorizer(
+        &self,
+        authorizer: Arc<dyn legion_effects::PolicyAuthorizer>,
+    ) -> bool {
+        self.owner_authorizer.set(authorizer).is_ok()
+    }
+
+    pub(crate) fn owner_authorizer(&self) -> Option<Arc<dyn legion_effects::PolicyAuthorizer>> {
+        self.owner_authorizer.get().cloned()
+    }
+
+    pub(crate) fn owner_context(&self) -> Option<Arc<crate::host_owner::OwnerRequestContext>> {
+        self.owner.get().cloned()
     }
 
     pub(super) fn retain_after_drop(&self) {
@@ -1065,8 +1145,18 @@ impl NativeLegacyCheckExecutor {
                 .get("timeoutMs")
                 .and_then(Value::as_u64)
                 .unwrap_or(120_000);
+            let pinned_tool = scratch
+                .owner_context()
+                .map(|ctx| owner_request::OwnerPinnedTool {
+                    inner: tool.as_ref(),
+                    ctx,
+                });
+            let effective_tool: &dyn ExternalProjectTool = match &pinned_tool {
+                Some(pinned) => pinned,
+                None => tool.as_ref(),
+            };
             let execution = disposable_copy::execute(
-                tool.as_ref(),
+                effective_tool,
                 plan.digest(),
                 self.fixture_policy_authorizer.as_deref(),
                 &self.root,
@@ -1277,98 +1367,181 @@ impl NativeLegacyCheckExecutor {
         } else {
             None
         };
-        let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
-            let mode = sandbox_mode_for_check(contract.check);
-            let profile_dir = scratch.sandbox_dir();
-            // `executable` here is still the bare tool name (e.g. "jscpd").
-            // sandbox-exec runs the wrapped command with a scrubbed
-            // environment, so a bare name relying on PATH lookup inside the
-            // sandbox is not guaranteed to resolve (node_modules/.bin tools
-            // in particular are not on PATH at all). Resolve to the same
-            // sealed absolute path `AuditExternalProjectTool::execute` would
-            // resolve later, and wrap *that* path so both the sandboxed run
-            // and its `--version` probe target a real, fixed executable.
-            // Only macOS wraps in sandbox-exec, which scrubs PATH, so resolve
-            // the tool to its sealed absolute path there.
-            // If the tool cannot be resolved (for example `project-types` in a
-            // tree with no tsconfig.json), do not wrap the bare symbolic name:
-            // `sandbox-exec -- project-types` would fail its version probe and
-            // be misreported as an unqualified executable. Leaving the request
-            // unwrapped lets `AuditExternalProjectTool` report the real
-            // resolution failure as a typed gap.
-            let wrap_target: Option<(String, Vec<String>)> = if cfg!(target_os = "macos") {
-                resolve_request(&self.root, &executable, &args)
-                    .ok()
-                    .map(|resolved| {
-                        if rust_outdated_resolution.is_none() {
-                            tool_cwd = Some(resolved.cwd.clone());
-                        }
-                        (
-                            resolved.executable.to_string_lossy().into_owned(),
-                            resolved.args,
-                        )
-                    })
-            } else {
-                Some((executable.to_string(), args.clone()))
-            };
-            let authenticated = wrap_target.map(|(resolved_executable, resolved_args)| {
-                legion_effects::authenticate_sandbox(
-                    &resolved_executable,
-                    &resolved_args,
-                    &self.root.to_string_lossy(),
-                    mode,
-                    &profile_dir,
-                )
-            });
-            match authenticated {
-                Some(Ok(auth)) => {
-                    // The executor's identity check re-invokes the resolved
-                    // `executable` with `--version` to confirm it is the
-                    // real tool (executor.rs's version-probe qualification).
-                    // Once `executable` is `sandbox-exec`, bare `--version`
-                    // is not a valid `sandbox-exec` invocation (it requires
-                    // `-f <profile> -- <command>` first) and the probe
-                    // fails as an unqualified/unsealed executable even
-                    // though the wrapped command itself is fine. Route the
-                    // probe through the same wrapper prefix so it actually
-                    // exercises the real tool's `--version`.
-                    // `wrapped_args` is `["-f", profile, "--", executable,
-                    // ...check_args]` (see `legion_effects::sandbox`); keep
-                    // only the fixed sandbox-invocation prefix (the first
-                    // four elements) plus the real executable, so the probe
-                    // asks the actual tool for its version rather than
-                    // re-running the check's own argv with `--version`
-                    // tacked on.
-                    let mut probe_args: Vec<String> =
-                        auth.wrapped_args.iter().take(4).cloned().collect();
-                    probe_args.push(legacy_version_probe_flag(contract.check).into());
-                    (
-                        auth.wrapped_executable,
-                        auth.wrapped_args,
-                        Some(legion_effects::SandboxReceipt {
-                            id: auth.id,
-                            network: auth.network,
-                            filesystem_scope: auth.filesystem_scope,
-                        }),
-                        Some(probe_args),
+        // An active owner provides the containment (rightkit-sandbox) and the
+        // executable pin; the macOS `sandbox-exec` wrapper must not also wrap it.
+        let owner_ctx = scratch.owner_context();
+        let (executable, args, sandbox_receipt, version_args) =
+            if needs_sandbox && owner_ctx.is_none() {
+                let mode = sandbox_mode_for_check(contract.check);
+                let profile_dir = scratch.sandbox_dir();
+                // `executable` here is still the bare tool name (e.g. "jscpd").
+                // sandbox-exec runs the wrapped command with a scrubbed
+                // environment, so a bare name relying on PATH lookup inside the
+                // sandbox is not guaranteed to resolve (node_modules/.bin tools
+                // in particular are not on PATH at all). Resolve to the same
+                // sealed absolute path `AuditExternalProjectTool::execute` would
+                // resolve later, and wrap *that* path so both the sandboxed run
+                // and its `--version` probe target a real, fixed executable.
+                // Only macOS wraps in sandbox-exec, which scrubs PATH, so resolve
+                // the tool to its sealed absolute path there.
+                // If the tool cannot be resolved (for example `project-types` in a
+                // tree with no tsconfig.json), do not wrap the bare symbolic name:
+                // `sandbox-exec -- project-types` would fail its version probe and
+                // be misreported as an unqualified executable. Leaving the request
+                // unwrapped lets `AuditExternalProjectTool` report the real
+                // resolution failure as a typed gap.
+                let wrap_target: Option<(String, Vec<String>)> = if cfg!(target_os = "macos") {
+                    resolve_request(&self.root, &executable, &args)
+                        .ok()
+                        .map(|resolved| {
+                            if rust_outdated_resolution.is_none() {
+                                tool_cwd = Some(resolved.cwd.clone());
+                            }
+                            (
+                                resolved.executable.to_string_lossy().into_owned(),
+                                resolved.args,
+                            )
+                        })
+                } else {
+                    Some((executable.to_string(), args.clone()))
+                };
+                let authenticated = wrap_target.map(|(resolved_executable, resolved_args)| {
+                    legion_effects::authenticate_sandbox(
+                        &resolved_executable,
+                        &resolved_args,
+                        &self.root.to_string_lossy(),
+                        mode,
+                        &profile_dir,
                     )
+                });
+                match authenticated {
+                    Some(Ok(auth)) => {
+                        // The executor's identity check re-invokes the resolved
+                        // `executable` with `--version` to confirm it is the
+                        // real tool (executor.rs's version-probe qualification).
+                        // Once `executable` is `sandbox-exec`, bare `--version`
+                        // is not a valid `sandbox-exec` invocation (it requires
+                        // `-f <profile> -- <command>` first) and the probe
+                        // fails as an unqualified/unsealed executable even
+                        // though the wrapped command itself is fine. Route the
+                        // probe through the same wrapper prefix so it actually
+                        // exercises the real tool's `--version`.
+                        // `wrapped_args` is `["-f", profile, "--", executable,
+                        // ...check_args]` (see `legion_effects::sandbox`); keep
+                        // only the fixed sandbox-invocation prefix (the first
+                        // four elements) plus the real executable, so the probe
+                        // asks the actual tool for its version rather than
+                        // re-running the check's own argv with `--version`
+                        // tacked on.
+                        let mut probe_args: Vec<String> =
+                            auth.wrapped_args.iter().take(4).cloned().collect();
+                        probe_args.push(legacy_version_probe_flag(contract.check).into());
+                        (
+                            auth.wrapped_executable,
+                            auth.wrapped_args,
+                            Some(legion_effects::SandboxReceipt {
+                                id: auth.id,
+                                network: auth.network,
+                                filesystem_scope: auth.filesystem_scope,
+                            }),
+                            Some(probe_args),
+                        )
+                    }
+                    Some(Err(_)) | None => {
+                        // Typed degradation: no authenticator is available on
+                        // this host/platform. Leave sandbox unset so the
+                        // effects executor keeps refusing rather than run the
+                        // check unsandboxed.
+                        (executable.to_string(), args, None, None)
+                    }
                 }
-                Some(Err(_)) | None => {
-                    // Typed degradation: no authenticator is available on
-                    // this host/platform. Leave sandbox unset so the
-                    // effects executor keeps refusing rather than run the
-                    // check unsandboxed.
-                    (executable.to_string(), args, None, None)
-                }
-            }
-        } else {
-            (executable.to_string(), args, None, None)
-        };
+            } else {
+                (executable.to_string(), args, None, None)
+            };
         if let Some(resolved) = &test_command {
             // Sandbox wrapping can resolve an absolute executable relative to
             // the repository root; preserve the frozen runner's selected cwd.
             tool_cwd = Some(resolved.cwd.clone());
         }
+        // Owner-backed admission: bind the run's frozen plan, resolve the tool to
+        // its canonical path and take the executable pin from the host policy
+        // entry (never from the file about to run). No policy entry, no request.
+        let mut owner_pin: Option<crate::host_owner::ToolPin> = None;
+        let (executable, args, environment, environment_allowlist) = if let Some(ctx) = &owner_ctx {
+            let gate = |state: LegacyCheckProcessState, gap: String| {
+                let mut output = empty_output(vec![gap.clone()]);
+                output.coverage = Some(Coverage {
+                    denominator_digest: input.denominator.digest.clone(),
+                    expected: input.denominator.entries.len() as u64,
+                    examined: 0,
+                    gaps: vec![gap.clone()],
+                });
+                let execution = terminal_execution(
+                    &input,
+                    contract.command,
+                    state,
+                    None,
+                    Vec::new(),
+                    Vec::new(),
+                    output,
+                    vec![gap.clone()],
+                    now_ms(),
+                    false,
+                    Some(&gap),
+                );
+                dispatcher
+                    .project_result(provider, &input, execution)
+                    .map_err(|error| AuditError::Provider(error.to_string()))
+            };
+            if let Err(error) = ctx.plan().bind(plan.digest()) {
+                return gate(
+                    LegacyCheckProcessState::Unauthorized,
+                    format!("owner-plan-binding-conflict:{error}"),
+                );
+            }
+            let resolved = match resolve_request(&self.root, &executable, &args) {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    let state = match error {
+                        ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_) => {
+                            LegacyCheckProcessState::MissingExecutable
+                        }
+                        ResolveError::Unavailable(_) => LegacyCheckProcessState::Failed,
+                    };
+                    return gate(state, error.message());
+                }
+            };
+            let Ok(canonical) = std::fs::canonicalize(&resolved.executable) else {
+                return gate(
+                    LegacyCheckProcessState::MissingExecutable,
+                    format!("owner-policy-missing-tool:{executable}"),
+                );
+            };
+            let Some(pin) = ctx.pin_for(provider.id.as_str(), &canonical) else {
+                return gate(
+                    LegacyCheckProcessState::Unauthorized,
+                    format!("owner-policy-missing-tool:{executable}"),
+                );
+            };
+            if rust_outdated_resolution.is_none() {
+                tool_cwd = Some(resolved.cwd.clone());
+            }
+            // Only environment names the policy entry admits reach the tool.
+            let mut environment = environment;
+            let mut environment_allowlist = environment_allowlist;
+            environment.retain(|name, _| pin.environment_names.contains(name));
+            environment_allowlist.retain(|name| pin.environment_names.contains(name));
+            let executable = canonical.to_string_lossy().into_owned();
+            owner_pin = Some(pin.clone());
+            (
+                executable,
+                resolved.args,
+                environment,
+                environment_allowlist,
+            )
+        } else {
+            (executable, args, environment, environment_allowlist)
+        };
         // `cargo-outdated` is a cargo subcommand binary: its identity probe
         // is `cargo-outdated outdated --version`, not `cargo-outdated --version`.
         let version_args = if contract.check == "cargo_outdated" {
@@ -1384,22 +1557,31 @@ impl NativeLegacyCheckExecutor {
             version_args
         };
         let request_cwd = tool_cwd.unwrap_or_else(|| self.root.clone());
+        let request_cwd = if owner_pin.is_some() {
+            std::fs::canonicalize(&request_cwd).unwrap_or(request_cwd)
+        } else {
+            request_cwd
+        };
         let request = ExternalToolRequest {
             request_id,
             provider_id: provider.id.clone(),
             plan_id: plan.digest().into(),
-            policy_id: provider
-                .configuration
-                .get("policyId")
-                .and_then(Value::as_str)
-                .unwrap_or("audit")
-                .into(),
+            policy_id: if owner_pin.is_some() {
+                crate::execution_policy::OWNER_POLICY_ID.into()
+            } else {
+                provider
+                    .configuration
+                    .get("policyId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("audit")
+                    .into()
+            },
             task_id: Some(contract.check.into()),
             executable,
             args,
             cwd: request_cwd.to_string_lossy().into_owned(),
             shell: false,
-            expected_digest: None,
+            expected_digest: owner_pin.as_ref().map(|pin| pin.digest.clone()),
             accepted_exit_codes: exit_codes,
             version_requirement: test_command_source
                 .as_ref()
@@ -1422,8 +1604,11 @@ impl NativeLegacyCheckExecutor {
             // typed degradation. Safe read-only git and gitleaks checks
             // remain executable under the explicit Audit policy without a
             // sandbox.
-            requires_network_sandbox: needs_sandbox,
-            sandbox: sandbox_receipt,
+            requires_network_sandbox: needs_sandbox || owner_ctx.is_some(),
+            sandbox: match &owner_ctx {
+                Some(ctx) => Some(ctx.sandbox_receipt()),
+                None => sandbox_receipt,
+            },
             timeout_ms: provider
                 .bounds
                 .get("timeoutMs")
@@ -1450,6 +1635,9 @@ impl NativeLegacyCheckExecutor {
             )
         });
         let receipt = tool.execute(request, cancellation).await;
+        let owner_admitted = receipt.policy.as_ref().is_some_and(|policy| {
+            policy.allowed && policy.id == crate::execution_policy::OWNER_POLICY_ID
+        });
         let report_artifact = report_temp_dir
             .as_ref()
             .and_then(|dir| read_report_artifact(&dir.path, report_source));
@@ -1469,6 +1657,23 @@ impl NativeLegacyCheckExecutor {
             report_artifact,
             test_command_source,
         );
+        // The executed toolchain is the admitted host-policy entry (tool name and
+        // policy version, else pinned digest), never a value the tool reports.
+        if let (true, Some(pin)) = (owner_admitted, owner_pin.as_ref()) {
+            if let Some(Value::Object(receipt)) = execution
+                .output
+                .as_mut()
+                .and_then(|output| output.details.get_mut("executionReceipt"))
+            {
+                receipt.insert(
+                    "tool".into(),
+                    json!({
+                        "name": pin.name, "version": pin.version, "digest": pin.digest,
+                        "source": "host-owner-policy",
+                    }),
+                );
+            }
+        }
         if !python_sources_unchanged {
             if let Some(output) = execution.output.as_mut() {
                 output.complete = false;
@@ -4113,6 +4318,35 @@ mod tests {
             ReportSource::File(_)
         ));
         assert_eq!(report_source_for("secrets"), ReportSource::Stdout);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn report_dirs_are_unique_fresh_and_planted_files_are_not_read() {
+        let base = temp_root().join("reports");
+        let planted_sibling = base.join("report-duplication-0");
+        fs::create_dir_all(&planted_sibling).unwrap();
+        fs::write(
+            planted_sibling.join("jscpd-report.json"),
+            b"{\"planted\":1}",
+        )
+        .unwrap();
+        let first = ReportTempDir::create(&base, "duplication").unwrap();
+        let second = ReportTempDir::create(&base, "duplication").unwrap();
+        assert_ne!(first.path, second.path);
+        assert!(
+            first.path.starts_with(&base) && fs::read_dir(&first.path).unwrap().next().is_none()
+        );
+        // Nothing was produced by the tool: planted sibling is never read.
+        assert!(read_report_artifact(&first.path, report_source_for("duplication")).is_none());
+        // A symlink planted inside the dir is not followed.
+        std::os::unix::fs::symlink(
+            planted_sibling.join("jscpd-report.json"),
+            first.path.join("jscpd-report.json"),
+        )
+        .unwrap();
+        assert!(read_report_artifact(&first.path, report_source_for("duplication")).is_none());
+        let _ = fs::remove_dir_all(base.parent().unwrap());
     }
 
     #[test]

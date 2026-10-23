@@ -1419,3 +1419,351 @@ pub fn evaluate_performance(
         reasons,
     }
 }
+
+// ---------------------------------------------------------------------------
+// Production wiring: repository declarations -> provider results / obligations
+// ---------------------------------------------------------------------------
+
+/// Conventional repository declaration of runtime journeys:
+/// `{"schemaVersion":1,"stacks":[<stack>...],"journeys":[<JourneyDeclaration>...]}`.
+/// Declarations only ever add obligations; they never discharge one.
+pub const JOURNEY_DECLARATION_PATH: &str = ".legion/journeys.json";
+/// Conventional repository declaration of the Rust target matrix
+/// (`code::rust_targets::RustTargetMatrix` JSON).
+pub const RUST_MATRIX_DECLARATION_PATH: &str = ".legion/rust-targets.json";
+const MAX_DECLARATION_BYTES: usize = 1024 * 1024;
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JourneyFile {
+    #[serde(default)]
+    stacks: Vec<Stack>,
+    #[serde(default)]
+    journeys: Vec<JourneyDeclaration>,
+}
+
+/// Everything the audit can say about runtime obligations from the frozen
+/// repository alone. Absence is represented explicitly.
+#[derive(Clone, Debug, Default)]
+pub struct RuntimeDeclarations {
+    /// Stacks the frozen inventory (or the declaration) makes applicable.
+    pub stacks: BTreeSet<Stack>,
+    pub journeys: Vec<JourneyDeclaration>,
+    pub journeys_declared: bool,
+    pub rust_matrix: Option<crate::native_providers::code::rust_targets::RustTargetMatrix>,
+    pub rust_matrix_declared: bool,
+    /// Cargo package name -> features its manifest declares.
+    pub cargo_features: BTreeMap<String, Vec<String>>,
+    /// Declaration defects; each one is also a gap.
+    pub problems: Vec<String>,
+}
+
+fn detect_stacks(inventory: &crate::inventory::InventoryEnvelope) -> BTreeSet<Stack> {
+    let mut stacks = BTreeSet::new();
+    for entry in &inventory.entries {
+        let path = entry.path.as_str();
+        let lower = path.to_ascii_lowercase();
+        let name = lower.rsplit('/').next().unwrap_or(&lower);
+        if name == "cargo.toml" {
+            stacks.insert(Stack::RustCore);
+        }
+        if name == "tauri.conf.json" || lower.contains("src-tauri/") {
+            stacks.insert(Stack::TauriReact);
+        }
+        if lower.ends_with(".sql") || lower.contains("/migrat") || lower.starts_with("migrat") {
+            stacks.insert(Stack::Postgres);
+        }
+        if name == "nginx.conf" || lower.contains("nginx") {
+            stacks.insert(Stack::Nginx);
+        }
+        // Swift platform is not provable from paths: both stacks stay open
+        // until a declaration narrows them.
+        if name == "package.swift" || lower.ends_with(".swift") || lower.contains(".xcodeproj/") {
+            stacks.insert(Stack::SwiftMacos);
+            stacks.insert(Stack::SwiftIos);
+        }
+        if name == "androidmanifest.xml" {
+            stacks.insert(Stack::KotlinAndroid);
+        }
+        if name == "package.json" {
+            for dependency in &entry.dependencies {
+                match dependency.as_str() {
+                    "react-admin" => {
+                        stacks.insert(Stack::ReactAdmin);
+                    }
+                    "@builder.io/qwik" | "@builder.io/qwik-city" => {
+                        stacks.insert(Stack::QwikStorefront);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    stacks
+}
+
+fn cargo_features(text: &str) -> Option<(String, Vec<String>)> {
+    let doc: toml::Value = toml::from_str(text).ok()?;
+    let package = doc.get("package")?.get("name")?.as_str()?.to_owned();
+    let mut features: Vec<String> = doc
+        .get("features")
+        .and_then(toml::Value::as_table)
+        .map(|table| table.keys().cloned().collect())
+        .unwrap_or_default();
+    features.sort();
+    Some((package, features))
+}
+
+const RUST_KINDS: [crate::native_providers::code::rust_targets::RustObligationKind; 5] = [
+    crate::native_providers::code::rust_targets::RustObligationKind::Build,
+    crate::native_providers::code::rust_targets::RustObligationKind::Lint,
+    crate::native_providers::code::rust_targets::RustObligationKind::Test,
+    crate::native_providers::code::rust_targets::RustObligationKind::Miri,
+    crate::native_providers::code::rust_targets::RustObligationKind::UnsafeReview,
+];
+
+impl RuntimeDeclarations {
+    /// Read declarations from the frozen inventory. `read` returns a file's
+    /// frozen bytes (digest-verified by the caller); an unreadable declared
+    /// file is a problem, never an absent declaration.
+    pub fn from_inventory(
+        inventory: &crate::inventory::InventoryEnvelope,
+        mut read: impl FnMut(&str) -> Option<Vec<u8>>,
+    ) -> Self {
+        let mut out = Self {
+            stacks: detect_stacks(inventory),
+            ..Self::default()
+        };
+        let declared = |path: &str| inventory.entries.iter().any(|entry| entry.path == path);
+        if declared(JOURNEY_DECLARATION_PATH) {
+            out.journeys_declared = true;
+            match read(JOURNEY_DECLARATION_PATH).filter(|b| b.len() <= MAX_DECLARATION_BYTES) {
+                None => out
+                    .problems
+                    .push(format!("declaration-unreadable:{JOURNEY_DECLARATION_PATH}")),
+                Some(bytes) => match serde_json::from_slice::<JourneyFile>(&bytes) {
+                    Ok(file) => {
+                        out.stacks.extend(file.stacks);
+                        let mut seen = BTreeSet::new();
+                        for journey in file.journeys {
+                            match journey.validate() {
+                                Err(error) => out.problems.push(format!(
+                                    "journey-declaration-invalid:{}:{error}",
+                                    journey.id
+                                )),
+                                Ok(()) if !seen.insert(journey.id.clone()) => out
+                                    .problems
+                                    .push(format!("journey-declaration-duplicate:{}", journey.id)),
+                                Ok(()) => {
+                                    out.stacks.insert(journey.stack);
+                                    out.journeys.push(journey);
+                                }
+                            }
+                        }
+                    }
+                    Err(error) => out
+                        .problems
+                        .push(format!("journey-declaration-unparsed:{error}")),
+                },
+            }
+        }
+        if declared(RUST_MATRIX_DECLARATION_PATH) {
+            out.rust_matrix_declared = true;
+            match read(RUST_MATRIX_DECLARATION_PATH).filter(|b| b.len() <= MAX_DECLARATION_BYTES) {
+                None => out.problems.push(format!(
+                    "declaration-unreadable:{RUST_MATRIX_DECLARATION_PATH}"
+                )),
+                Some(bytes) => match serde_json::from_slice(&bytes) {
+                    Ok(matrix) => out.rust_matrix = Some(matrix),
+                    Err(error) => out
+                        .problems
+                        .push(format!("rust-matrix-declaration-unparsed:{error}")),
+                },
+            }
+        }
+        let manifests: Vec<String> = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.path.rsplit('/').next() == Some("Cargo.toml"))
+            .map(|entry| entry.path.clone())
+            .collect();
+        for path in manifests {
+            // A workspace-only manifest has no [package]; that is not a defect.
+            if let Some((package, features)) = read(&path)
+                .and_then(|bytes| String::from_utf8(bytes).ok())
+                .and_then(|text| cargo_features(&text))
+            {
+                out.cargo_features.insert(package, features);
+            }
+        }
+        out.problems.sort();
+        out.problems.dedup();
+        out
+    }
+
+    fn rows(&self) -> Vec<CoverageRow> {
+        stack_inventory(&self.stacks, &self.journeys)
+    }
+
+    /// Explicit gaps, one family per applicable stack. Never empty for an
+    /// applicable stack: a declared journey is still unmet until authenticated
+    /// evidence is imported, and an undeclared category is a gap.
+    pub fn gaps(&self) -> Vec<String> {
+        let mut gaps: Vec<String> = inventory_gaps(&self.rows())
+            .into_iter()
+            .map(|row| format!("runtime-journey-gap:{row}"))
+            .collect();
+        for journey in &self.journeys {
+            if self.stacks.contains(&journey.stack) {
+                gaps.push(format!(
+                    "runtime-journey-evidence-not-imported:{}:{}",
+                    journey.stack.label(),
+                    journey.id
+                ));
+            }
+        }
+        for problem in &self.problems {
+            gaps.push(format!("runtime-declaration-problem:{problem}"));
+        }
+        if self.stacks.contains(&Stack::RustCore) {
+            match &self.rust_matrix {
+                None if !self.rust_matrix_declared => {
+                    gaps.push("runtime-rust-target-matrix-undeclared:rust-core".into());
+                }
+                None => gaps.push("runtime-rust-target-matrix-invalid:rust-core".into()),
+                Some(matrix) => {
+                    let plan = crate::native_providers::code::rust_targets::plan_rust_obligations(
+                        matrix,
+                        &RUST_KINDS,
+                    );
+                    gaps.extend(
+                        plan.gaps
+                            .iter()
+                            .map(|gap| format!("runtime-rust-target-plan:{gap}")),
+                    );
+                    for obligation in &plan.obligations {
+                        gaps.push(format!("runtime-rust-obligation-unmet:{}", obligation.id));
+                    }
+                    for (package, features) in &self.cargo_features {
+                        let selected: BTreeSet<String> = matrix
+                            .entries
+                            .iter()
+                            .filter(|entry| &entry.package == package)
+                            .flat_map(|entry| entry.features.explicit_features())
+                            .collect();
+                        let unselected: Vec<&str> = features
+                            .iter()
+                            .filter(|feature| {
+                                !selected.contains(*feature) && !selected.contains("all-features")
+                            })
+                            .map(String::as_str)
+                            .collect();
+                        if !unselected.is_empty() {
+                            gaps.push(format!(
+                                "runtime-rust-features-unselected:{package}:{}",
+                                unselected.join("+")
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        gaps.sort();
+        gaps.dedup();
+        gaps
+    }
+
+    /// The gaps of [`Self::gaps`] that belong to one stack. Declaration
+    /// problems are not stack-bound and belong to every stack.
+    pub fn gaps_for_stack(&self, stack: Stack) -> Vec<String> {
+        let label = stack.label();
+        self.gaps()
+            .into_iter()
+            .filter(|gap| {
+                if gap.starts_with("runtime-declaration-problem:") {
+                    return true;
+                }
+                if gap.starts_with("runtime-rust-") {
+                    return stack == Stack::RustCore;
+                }
+                gap.split(':').nth(1) == Some(label)
+            })
+            .collect()
+    }
+
+    /// Provider-result detail: declarations, per-stack coverage rows and every
+    /// gap. `claims.journeysDischarged` is always false here.
+    pub fn provider_report(&self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "runtime-obligation-declarations",
+            "schemaVersion": RUNTIME_OBLIGATIONS_SCHEMA_VERSION,
+            "declarationPaths": [JOURNEY_DECLARATION_PATH, RUST_MATRIX_DECLARATION_PATH],
+            "journeysDeclared": self.journeys_declared,
+            "journeyCount": self.journeys.len(),
+            "rustMatrixDeclared": self.rust_matrix_declared,
+            "stacks": self.stacks.iter().map(|s| s.label()).collect::<Vec<_>>(),
+            "coverageRows": self.rows(),
+            "gaps": self.gaps(),
+            "claims": {"journeysDischarged": false, "evidenceImported": false},
+        })
+    }
+
+    /// Obligation candidates to freeze into the assurance inventory. Gap rows
+    /// still yield a candidate (`unmet`), so absence never disappears.
+    pub fn obligation_candidates(
+        &self,
+        required_in: &[AuditProfile],
+    ) -> Result<Vec<ObligationCandidate>, AuditError> {
+        let candidate = |concern: String, evidence_kind: EvidenceKind| ObligationCandidate {
+            concern,
+            evidence_kind,
+            required_in: required_in.to_vec(),
+            provider_ids: Vec::new(),
+            required_denominator_digest: None,
+            proven_inapplicable_reason: None,
+        };
+        let mut out = journey_candidates(&self.journeys, required_in)?;
+        let declared: BTreeSet<&str> = self.journeys.iter().map(|j| j.id.as_str()).collect();
+        for row in self.rows() {
+            if row
+                .journey_id
+                .as_deref()
+                .is_some_and(|id| declared.contains(id))
+            {
+                continue;
+            }
+            out.push(candidate(
+                format!(
+                    "journey:{}:gap:{}:{}",
+                    row.axis.label(),
+                    row.stack.label(),
+                    row.category
+                ),
+                row.axis.evidence_kind(),
+            ));
+        }
+        if self.stacks.contains(&Stack::RustCore) {
+            let plan = self.rust_matrix.as_ref().map(|matrix| {
+                crate::native_providers::code::rust_targets::plan_rust_obligations(
+                    matrix,
+                    &RUST_KINDS,
+                )
+            });
+            match plan {
+                Some(plan) if !plan.obligations.is_empty() => {
+                    for obligation in plan.obligations {
+                        out.push(candidate(
+                            format!("{}:{}", obligation.kind.concern(), obligation.id),
+                            obligation.kind.evidence_kind(),
+                        ));
+                    }
+                }
+                _ => out.push(candidate(
+                    "rust-target-matrix:undeclared".into(),
+                    EvidenceKind::Build,
+                )),
+            }
+        }
+        Ok(out)
+    }
+}

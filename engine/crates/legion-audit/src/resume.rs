@@ -483,6 +483,89 @@ pub fn load_receipts(dir: &Path, key: &[u8]) -> Result<Vec<ReceiptRecord>, Audit
     Ok(records)
 }
 
+/// Verify every retained provider receipt of a run against its journal: each
+/// receipt file must verify (name, content digest, signature under the run plan
+/// key), be bound to a plan digest the journal records, and equal the payload
+/// digest of its provider's last terminal event; each provider whose last
+/// terminal event is not an explicit resume gap must have such a receipt, and a
+/// receipt for a provider the journal never saw is refused. Returns one
+/// message per defect (empty when everything agrees).
+pub fn verify_retained_receipts(dir: &Path, key: &[u8], events: &[AuditEvent]) -> Vec<String> {
+    let mut defects = Vec::new();
+    let plan_digests: BTreeSet<&str> = events.iter().map(|e| e.plan_digest.as_str()).collect();
+    let mut terminal: BTreeMap<&str, &AuditEvent> = BTreeMap::new();
+    for event in events {
+        if matches!(
+            event.kind,
+            EventKind::ProviderFinished | EventKind::ProviderFailed | EventKind::ProviderSkipped
+        ) {
+            terminal.insert(event.subject.as_str(), event);
+        }
+    }
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let receipts = dir.join(RECEIPT_DIR);
+    match std::fs::read_dir(&receipts) {
+        Ok(entries) => {
+            for entry in entries {
+                let Ok(entry) = entry else {
+                    defects.push(format!("{RECEIPT_DIR} cannot be listed"));
+                    continue;
+                };
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if name.starts_with('.') {
+                    continue;
+                }
+                let Some(provider) = name.strip_suffix(".json") else {
+                    defects.push(format!("unexpected file {name:?} in {RECEIPT_DIR}"));
+                    continue;
+                };
+                seen.insert(provider.to_owned());
+                match read_verified_receipt(dir, provider, key) {
+                    Err(reason) => defects.push(format!(
+                        "receipt for {provider} failed verification: {reason}"
+                    )),
+                    Ok(stored) => {
+                        if !plan_digests.contains(stored.body.plan_digest.as_str()) {
+                            defects.push(format!(
+                                "receipt for {provider} is bound to a plan the journal does not record"
+                            ));
+                        }
+                        match terminal.get(provider) {
+                            None => defects.push(format!(
+                                "receipt for {provider} has no terminal journal event"
+                            )),
+                            Some(event) => {
+                                let explicit_gap = event.kind == EventKind::ProviderFailed
+                                    && (event.payload_digest == gap_payload_digest(provider)
+                                        || event.payload_digest
+                                            == interrupted_payload_digest(provider));
+                                if !explicit_gap && event.payload_digest != stored.digest {
+                                    defects.push(format!(
+                                        "receipt for {provider} does not match the journaled digest"
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => defects.push(format!("{RECEIPT_DIR} cannot be read: {error}")),
+    }
+    for (provider, event) in &terminal {
+        let explicit_gap = event.kind == EventKind::ProviderFailed
+            && (event.payload_digest == gap_payload_digest(provider)
+                || event.payload_digest == interrupted_payload_digest(provider));
+        if !explicit_gap && !seen.contains(*provider) {
+            defects.push(format!(
+                "provider {provider} has a terminal journal event but its receipt is missing"
+            ));
+        }
+    }
+    defects
+}
+
 /// What a resumed run feeds back into the engine instead of executing.
 #[derive(Clone, Debug)]
 pub enum ProviderSeed {

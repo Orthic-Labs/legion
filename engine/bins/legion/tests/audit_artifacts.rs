@@ -550,11 +550,37 @@ fn findings_lifecycle_is_exposed_and_refuses_invalid_transitions() {
         repo.join(".audit/audit/findings.jsonl").as_path()
     );
 
-    let resolved = findings_cli(&repo, &["resolve", id, "--generation", "g2"]);
-    assert_eq!(resolved.status.code(), Some(0));
-    let resolved: serde_json::Value = serde_json::from_slice(&resolved.stdout).unwrap();
-    assert_eq!(resolved["finding"]["status"], "resolved");
-    assert_eq!(resolved["finding"]["resolvedGeneration"], "g2");
+    // A bare resolve is never a fix: it needs ResolutionEvidence plus a report.
+    let bare = findings_cli(&repo, &["resolve", id, "--generation", "g2"]);
+    assert_eq!(bare.status.code(), Some(4));
+    // A dismissal without both an authority and a reason is refused too.
+    let no_reason = findings_cli(&repo, &["dismiss", id, "--authority", "owner"]);
+    assert_eq!(no_reason.status.code(), Some(4));
+    let still_open = findings_cli(&repo, &["list", "--active"]);
+    let still_open: serde_json::Value = serde_json::from_slice(&still_open.stdout).unwrap();
+    assert_eq!(still_open["count"], 1);
+
+    let dismissed = findings_cli(
+        &repo,
+        &[
+            "dismiss",
+            id,
+            "--authority",
+            "owner",
+            "--reason",
+            "accepted risk",
+        ],
+    );
+    assert_eq!(
+        dismissed.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&dismissed.stderr)
+    );
+    let dismissed: serde_json::Value = serde_json::from_slice(&dismissed.stdout).unwrap();
+    assert_eq!(dismissed["finding"]["status"], "dismissed");
+    assert_eq!(dismissed["finding"]["dismissal"]["authority"], "owner");
+    assert_eq!(dismissed["finding"]["dismissal"]["reason"], "accepted risk");
 
     let active = findings_cli(&repo, &["list", "--active"]);
     let active: serde_json::Value = serde_json::from_slice(&active.stdout).unwrap();
@@ -622,16 +648,40 @@ fn findings_positional_root_and_repo_flag_resolve_the_store_under_the_root() {
     );
 
     // Id-taking actions take the root only through --repo.
-    let resolved = Command::new(env!("CARGO_BIN_EXE_legion"))
+    let bare = Command::new(env!("CARGO_BIN_EXE_legion"))
         .current_dir(&elsewhere)
         .args(["audit", "findings", "resolve", id, "--generation", "g2"])
         .arg("--repo")
         .arg(&repo)
         .output()
         .unwrap();
-    assert_eq!(resolved.status.code(), Some(0));
+    assert_eq!(bare.status.code(), Some(4));
+    let resolved = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .current_dir(&elsewhere)
+        .args([
+            "audit",
+            "findings",
+            "dismiss",
+            id,
+            "--generation",
+            "g2",
+            "--authority",
+            "owner",
+            "--reason",
+            "accepted risk",
+        ])
+        .arg("--repo")
+        .arg(&repo)
+        .output()
+        .unwrap();
+    assert_eq!(
+        resolved.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&resolved.stderr)
+    );
     let resolved: serde_json::Value = serde_json::from_slice(&resolved.stdout).unwrap();
-    assert_eq!(resolved["finding"]["status"], "resolved");
+    assert_eq!(resolved["finding"]["status"], "dismissed");
     assert_eq!(
         std::path::Path::new(resolved["store"].as_str().unwrap()),
         store.as_path()
@@ -656,4 +706,62 @@ fn findings_positional_root_and_repo_flag_resolve_the_store_under_the_root() {
         .unwrap();
     assert_eq!(extra.status.code(), Some(4));
     std::fs::remove_dir_all(repo).unwrap();
+}
+
+#[test]
+fn findings_resolve_refuses_unverified_run_and_the_old_report_flag() {
+    let repo = std::env::temp_dir().join(format!("legion-findings-run-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&repo);
+    std::fs::create_dir_all(repo.join(".audit/audit")).unwrap();
+    let repo = std::fs::canonicalize(repo).unwrap();
+    let id = "audit:rule:abc1234-R1:src/a.rs:def5678";
+    let record = serde_json::json!({
+        "schemaVersion": 1, "id": id, "repositoryId": "repo-1", "scopeId": "scope-1",
+        "auditGeneration": "g1", "linkedGraphGeneration": "", "severity": "medium",
+        "category": "security", "title": "a finding",
+        "evidenceLoci": [{"path": "src/a.rs", "startLine": 3, "endLine": 5}],
+        "confidence": 1.0, "status": "open", "supersedes": [], "supersededBy": null,
+        "firstSeenGeneration": "g1", "lastSeenGeneration": "g1",
+        "firstSeenAt": "2026-01-01T00:00:00Z", "lastSeenAt": "2026-01-01T00:00:00Z",
+        "resolvedGeneration": null, "resolvedAt": null,
+        "provenance": {"kind": "manual", "name": "R1", "version": "1", "ruleId": "R1"}
+    });
+    std::fs::write(
+        repo.join(".audit/audit/findings.jsonl"),
+        format!("{}\n", serde_json::to_string(&record).unwrap()),
+    )
+    .unwrap();
+    // A forged "clean" run directory: report and evidence, no journal or signature.
+    let fake = repo.join("fake-run");
+    std::fs::create_dir_all(&fake).unwrap();
+    let report = br#"{"schemaVersion":1,"status":"clean","findings":[],"gaps":[]}"#;
+    std::fs::write(fake.join("report.json"), report).unwrap();
+    let digest = format!("sha256:{}", {
+        use sha2::{Digest, Sha256};
+        hex::encode(Sha256::digest(report))
+    });
+    let evidence = serde_json::json!({
+        "findingId": id, "kind": "reviewed-repair", "reportDigest": digest,
+        "ruleId": "R1", "ruleRevision": "1", "regressionCondition": "test x",
+        "acceptedBy": "mallory", "evidenceDigest": digest
+    });
+    std::fs::write(repo.join("evidence.json"), evidence.to_string()).unwrap();
+    for flag in ["--run", "--report"] {
+        let out = findings_cli(
+            &repo,
+            &[
+                "resolve",
+                id,
+                "--evidence",
+                repo.join("evidence.json").to_str().unwrap(),
+                flag,
+                fake.to_str().unwrap(),
+            ],
+        );
+        assert_ne!(out.status.code(), Some(0), "{flag}");
+    }
+    let active = findings_cli(&repo, &["list", "--active"]);
+    let active: serde_json::Value = serde_json::from_slice(&active.stdout).unwrap();
+    assert_eq!(active["count"], 1);
+    let _ = std::fs::remove_dir_all(&repo);
 }

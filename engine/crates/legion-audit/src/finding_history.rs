@@ -335,13 +335,25 @@ impl ResolutionEvidence {
         {
             return Err("rule was not executed at the evidence revision".into());
         }
-        if self.kind == ResolutionKind::ReviewedRepair
-            && self
-                .accepted_by
-                .as_deref()
-                .map_or(true, |a| a.trim().is_empty())
-        {
-            return Err("reviewed repair has no accepting reviewer".into());
+        if self.kind == ResolutionKind::ReviewedRepair {
+            let reviewer = self.accepted_by.as_deref().map(str::trim).unwrap_or("");
+            if reviewer.is_empty() {
+                return Err("reviewed repair has no accepting reviewer".into());
+            }
+            let folded = reviewer.to_lowercase();
+            if run
+                .producers
+                .iter()
+                .any(|p| p.trim().to_lowercase() == folded)
+            {
+                return Err("reviewer must be distinct from the run producer".into());
+            }
+            if !run.vouched_artifacts.contains(&self.evidence_digest) {
+                return Err(
+                    "reviewed repair evidence digest does not refer to an artifact of the verified run"
+                        .into(),
+                );
+            }
         }
         Ok(())
     }
@@ -412,6 +424,15 @@ pub struct RunView {
     /// Current reuse key per id, for reuse validation.
     pub reuse_keys: BTreeMap<String, ReuseKey>,
     pub evidence: BTreeMap<String, ResolutionEvidence>,
+    /// True only for a view built by [`verified_run_view`] from a run that
+    /// passed the journal, signature and receipt checks of the gate.
+    pub verified: bool,
+    /// Identities that produced the run (run id, plan key id, machine actors);
+    /// a reviewer must be none of them.
+    pub producers: BTreeSet<String>,
+    /// Digests of artifacts the verified journal vouches for (receipts and
+    /// the finalized report); `ReviewedRepair` evidence must name one.
+    pub vouched_artifacts: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -849,4 +870,543 @@ pub fn load_or_rebuild(root: &Path) -> Result<(HistoryIndex, bool), AuditError> 
         .write(INDEX_FILE, &bytes)
         .map_err(|e| invalid(e.to_string()))?;
     Ok((index, true))
+}
+
+// ------------------------------------------------ finalization / resolution
+
+/// Prior findings that keep a run from completing: stored findings absent
+/// from the current run that no valid [`ResolutionEvidence`], dismissal
+/// authority or supersession accounts for. Each entry is `(id, reason)`.
+pub fn open_history_blockers(
+    root: &Path,
+    present_ids: &BTreeSet<String>,
+    report_complete: bool,
+    report_digest: &str,
+) -> Result<Vec<(String, String)>, AuditError> {
+    let store = crate::p12_pipeline::store::FindingStore::new(root);
+    let records = store.load().map_err(|error| invalid(error.to_string()))?;
+    let mut priors = Vec::new();
+    let mut blockers = Vec::new();
+    for record in &records {
+        match PriorFinding::from_record(record) {
+            Some(prior) => priors.push(prior),
+            None => {
+                let id = record.get("id").and_then(Value::as_str).unwrap_or("?");
+                if record.get("status").and_then(Value::as_str) != Some("superseded") {
+                    blockers.push((id.to_owned(), "stored record cannot be assessed".to_owned()));
+                }
+            }
+        }
+    }
+    // The run view is deliberately conservative: it names no executed rules
+    // and no covered paths, so absence alone can never verify a fix. Only a
+    // stored, previously validated verified-fixed disposition is carried.
+    let run = RunView {
+        report_digest: report_digest.to_owned(),
+        complete: report_complete,
+        present: present_ids.clone(),
+        ..RunView::default()
+    };
+    for assessment in reconcile(&priors, &run, None)? {
+        if assessment.disposition == Disposition::New || present_ids.contains(&assessment.id) {
+            continue;
+        }
+        let authorized_dismissal = priors.iter().any(|prior| {
+            prior.id == assessment.id
+                && prior
+                    .dismissal
+                    .as_ref()
+                    .is_some_and(|d| !d.authority.trim().is_empty() && !d.reason.trim().is_empty())
+        });
+        let blocks = match assessment.standing {
+            Standing::Dismissed => !authorized_dismissal,
+            Standing::Superseded => false,
+            Standing::Active | Standing::LegacyResolvedUnverified => {
+                assessment.disposition != Disposition::VerifiedFixed
+            }
+        };
+        if blocks {
+            blockers.push((
+                assessment.id.clone(),
+                format!(
+                    "{:?}: {}",
+                    assessment.disposition,
+                    assessment.reasons.join("; ")
+                ),
+            ));
+        }
+    }
+    blockers.sort();
+    blockers.dedup();
+    Ok(blockers)
+}
+
+/// Applies history reconciliation to a finalized report: prior findings that
+/// are not accounted for become gaps and a clean/findings report becomes
+/// `incomplete`. A missing store is a no-op; an unreadable one fails closed.
+pub fn apply_history_gate(
+    root: &Path,
+    report: &mut legion_contracts::ReportV1,
+) -> Result<(), AuditError> {
+    let custody = history_custody_gaps(root);
+    if !custody.is_empty() {
+        report.gaps.extend(custody);
+        downgrade(report);
+    }
+    if !root
+        .join(".audit")
+        .join("audit")
+        .join("findings.jsonl")
+        .is_file()
+    {
+        report.gaps.sort();
+        report.gaps.dedup();
+        return Ok(());
+    }
+    let present: BTreeSet<String> = report
+        .findings
+        .iter()
+        .map(|finding| finding.id.as_str().to_owned())
+        .collect();
+    let complete = matches!(
+        report.status,
+        legion_contracts::ReportStatus::Clean | legion_contracts::ReportStatus::Findings
+    ) && report.gaps.is_empty();
+    let digest = sha256_value(&json!({"id": report.report_id.as_str(), "findings": present}));
+    let digest = if digest.starts_with("sha256:") {
+        digest
+    } else {
+        format!("sha256:{digest}")
+    };
+    match open_history_blockers(root, &present, complete, &digest) {
+        Ok(blockers) => {
+            for (id, _) in &blockers {
+                report.gaps.push(format!("finding-history-unresolved:{id}"));
+            }
+            if !blockers.is_empty() {
+                downgrade(report);
+            }
+        }
+        Err(error) => {
+            report
+                .gaps
+                .push(format!("finding-history-unreadable:{error}"));
+            downgrade(report);
+        }
+    }
+    report.gaps.sort();
+    report.gaps.dedup();
+    Ok(())
+}
+
+fn downgrade(report: &mut legion_contracts::ReportV1) {
+    if matches!(
+        report.status,
+        legion_contracts::ReportStatus::Clean | legion_contracts::ReportStatus::Findings
+    ) {
+        report.status = legion_contracts::ReportStatus::Incomplete;
+    }
+}
+
+/// `findings resolve`/`dismiss` semantics. `verified-fixed` needs valid
+/// [`ResolutionEvidence`] bound to a complete run; without evidence only a
+/// dismissal with authority and reason is recorded (never a repair claim).
+pub fn resolve_finding(
+    store: &crate::p12_pipeline::store::FindingStore,
+    id: &str,
+    evidence: Option<(&ResolutionEvidence, &RunView)>,
+    dismissal: Option<Dismissal>,
+    generation: Option<&str>,
+) -> Result<Value, AuditError> {
+    let record = store
+        .get(id)
+        .map_err(|error| invalid(error.to_string()))?
+        .ok_or_else(|| invalid(format!("unknown finding: {id}")))?;
+    let prior = PriorFinding::from_record(&record)
+        .ok_or_else(|| invalid("stored finding record cannot be assessed"))?;
+    let mut merged = record.clone();
+    let object = merged
+        .as_object_mut()
+        .ok_or_else(|| invalid("finding record must be an object"))?;
+    let now = crate::p12_pipeline::store::utc_now();
+    match (evidence, dismissal) {
+        (Some((evidence, run)), _) => {
+            if !run.verified {
+                return Err(invalid(
+                    "resolution evidence rejected: the run was not verified by the gate",
+                ));
+            }
+            evidence.validate(&prior, run).map_err(|why| {
+                invalid(format!(
+                    "resolution evidence rejected: {why}; resolve requires valid evidence"
+                ))
+            })?;
+            let assessment = Assessment {
+                id: prior.id.clone(),
+                disposition: Disposition::VerifiedFixed,
+                basis: Basis::Executed,
+                standing: Standing::Active,
+                reasons: vec![format!("verified by {:?} evidence", evidence.kind)],
+            };
+            if let Some(patch) = assurance_patch(&assessment, prior.reuse_key.as_ref())
+                .get("assurance")
+                .cloned()
+            {
+                let mut patch = patch;
+                patch["resolutionEvidence"] =
+                    serde_json::to_value(evidence).map_err(|error| invalid(error.to_string()))?;
+                object.insert("assurance".into(), patch);
+            }
+            object.insert("status".into(), json!("resolved"));
+            let resolved = generation
+                .map(str::to_owned)
+                .or_else(|| {
+                    record
+                        .get("lastSeenGeneration")
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                })
+                .unwrap_or_default();
+            object.insert("resolvedGeneration".into(), json!(resolved));
+            object.insert("resolvedAt".into(), json!(now));
+        }
+        (None, Some(dismissal)) => {
+            if dismissal.authority.trim().is_empty() || dismissal.reason.trim().is_empty() {
+                return Err(invalid(
+                    "a dismissal needs an authority and a reason; without resolution evidence a finding is never resolved",
+                ));
+            }
+            object.insert("status".into(), json!("dismissed"));
+            object.insert(
+                "dismissal".into(),
+                serde_json::to_value(Dismissal {
+                    at: dismissal.at.or_else(|| Some(now.clone())),
+                    ..dismissal
+                })
+                .map_err(|error| invalid(error.to_string()))?,
+            );
+            object.insert("resolvedAt".into(), json!(now));
+        }
+        (None, None) => {
+            return Err(invalid(
+                "resolve requires ResolutionEvidence; otherwise dismiss with an authority and reason",
+            ));
+        }
+    }
+    store
+        .upsert(&merged, None)
+        .map_err(|error| invalid(error.to_string()))
+}
+
+/// Builds the verification [`RunView`] from a run directory that passes the
+/// same verification as `legion audit gate`: signed plan, hash-chained and
+/// anchored journal, signed receipts. The run must be complete, belong to
+/// `repo`, and `report.json` must be the report the journal last vouched for.
+/// Executed rules and covered paths stay empty: this view can validate
+/// `RegressionTestPasses` and `ReviewedRepair` evidence bound to the report
+/// digest, never rule-rerun absence.
+pub fn verified_run_view(run: &Path, repo: &Path) -> Result<RunView, AuditError> {
+    use crate::assurance::{gate_run, GateVerdict};
+    use crate::journal::{
+        bytes_digest, current_report_digest, verify_dir, Expectation, JournalAnchor,
+    };
+
+    let gate = gate_run(run, None, &crate::p12_pipeline::store::utc_now())
+        .map_err(|error| invalid(format!("run failed gate verification: {error:?}")))?;
+    if gate.verdict == GateVerdict::Incomplete {
+        return Err(invalid(format!(
+            "run failed gate verification: {}",
+            gate.reasons.join("; ")
+        )));
+    }
+    let read = |name: &str| -> Result<Vec<u8>, AuditError> {
+        std::fs::read(run.join(name)).map_err(|e| invalid(format!("{name}: {e}")))
+    };
+    let outer: Value = serde_json::from_slice(&read("plan.json")?)
+        .map_err(|e| invalid(format!("plan.json: {e}")))?;
+    let native = outer
+        .get("nativePlan")
+        .ok_or_else(|| invalid("plan.json carries no nativePlan"))?;
+    let plan_digest = native
+        .get("digest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("nativePlan digest is missing"))?;
+    if plan_digest != gate.plan_digest {
+        return Err(invalid("plan digest differs from the gated plan"));
+    }
+    let planned_repo = native
+        .pointer("/plan/repositoryId")
+        .or_else(|| native.pointer("/plan/repository_id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("run plan names no repository"))?;
+    let planned_repo = std::fs::canonicalize(planned_repo)
+        .map_err(|e| invalid(format!("run repository is not resolvable: {e}")))?;
+    let repo = std::fs::canonicalize(repo).map_err(|e| invalid(e.to_string()))?;
+    // The plan names the frozen snapshot tree; its sealed manifest (verified
+    // before use) names the source repository it was captured from.
+    let source_repo = match planned_repo
+        .parent()
+        .map(|object| object.join("manifest.json"))
+        .filter(|manifest| manifest.is_file())
+    {
+        Some(manifest) => {
+            let snapshot = crate::snapshot::FrozenSnapshot::open(&manifest)?;
+            if snapshot.manifest.execution_root != planned_repo {
+                return Err(invalid(
+                    "run plan does not name its snapshot's execution root",
+                ));
+            }
+            std::fs::canonicalize(&snapshot.manifest.scope.source_root)
+                .map_err(|e| invalid(format!("snapshot source is not resolvable: {e}")))?
+        }
+        None => planned_repo,
+    };
+    if source_repo != repo {
+        return Err(invalid("run belongs to a different repository"));
+    }
+    let anchor =
+        JournalAnchor::read(run)?.ok_or_else(|| invalid("run has no signed journal anchor"))?;
+    let verification = verify_dir(
+        run,
+        plan_digest,
+        &Expectation {
+            require_finalized: true,
+            expected_head: None,
+            final_plan_digest: Some(anchor.effective_plan_digest.clone()),
+        },
+    );
+    if !verification.defects.is_empty() || verification.unsealed_tail > 0 {
+        return Err(invalid("run journal is not intact"));
+    }
+    let report_bytes = read("report.json")?;
+    let report_digest = bytes_digest(&report_bytes);
+    if current_report_digest(&verification.events) != Some(report_digest.as_str()) {
+        return Err(invalid(
+            "report.json is not the report the run journal last vouched for",
+        ));
+    }
+    let report: Value =
+        serde_json::from_slice(&report_bytes).map_err(|e| invalid(e.to_string()))?;
+    let status = report.get("status").and_then(Value::as_str).unwrap_or("");
+    let gaps_empty = report
+        .get("gaps")
+        .and_then(Value::as_array)
+        .is_some_and(Vec::is_empty);
+    if !(matches!(status, "clean" | "findings") && gaps_empty) {
+        return Err(invalid("run is not a complete run"));
+    }
+    let mut producers: BTreeSet<String> = ["legion", "audit", "system", "auto", "automation"]
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect();
+    if let Some(binding) = outer.get("planKey") {
+        for key in ["runId", "keyId"] {
+            if let Some(value) = binding.get(key).and_then(Value::as_str) {
+                producers.insert(value.to_owned());
+            }
+        }
+    }
+    let vouched_artifacts = verification
+        .events
+        .iter()
+        .map(|event| event.payload_digest.clone())
+        .chain(std::iter::once(report_digest.clone()))
+        .collect();
+    Ok(RunView {
+        report_digest,
+        complete: true,
+        present: report
+            .get("findings")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|f| f.get("id").and_then(Value::as_str).map(str::to_owned))
+            .collect(),
+        verified: true,
+        producers,
+        vouched_artifacts,
+        ..RunView::default()
+    })
+}
+
+// ------------------------------------------------- host history custody
+
+const HOST_LEDGER_DIR: &str = "audit-finding-history";
+pub const GAP_STORE_MISSING: &str = "finding-history-store-missing-or-rolled-back";
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HostLedger {
+    schema_version: u32,
+    repo_digest: String,
+    store_digest: String,
+    open_finding_ids: Vec<String>,
+    known_finding_ids: Vec<String>,
+    generation: u64,
+}
+
+fn host_ledger_path(repo: &Path) -> Result<std::path::PathBuf, AuditError> {
+    let state = crate::integrity::host_plan_key_dir()?
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| invalid("Legion state root unavailable"))?;
+    let repo = std::fs::canonicalize(repo).map_err(|e| invalid(e.to_string()))?;
+    if state.starts_with(&repo) {
+        return Err(invalid(
+            "host state root lies inside the audited repository",
+        ));
+    }
+    let id = hex::encode(Sha256::digest(repo.to_string_lossy().as_bytes()));
+    Ok(state.join(HOST_LEDGER_DIR).join(format!("{id}.json")))
+}
+
+/// `Ok(None)` only when no ledger exists. Same hardening as the host owner
+/// policy: no symlinks, regular file, owned by this user, mode 0600, private
+/// parent directory.
+fn load_host_ledger(path: &Path) -> Result<Option<HostLedger>, AuditError> {
+    match std::fs::symlink_metadata(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(invalid(format!("{}: {e}", path.display()))),
+        Ok(_) => {}
+    }
+    #[cfg(unix)]
+    let bytes = {
+        use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+        let uid = legion_effects::sandbox_runtime::effective_uid();
+        let parent = path
+            .parent()
+            .ok_or_else(|| invalid("ledger has no parent"))?;
+        let pm = std::fs::metadata(parent).map_err(|e| invalid(e.to_string()))?;
+        if pm.mode() & 0o022 != 0 || (pm.uid() != uid && pm.uid() != 0) {
+            return Err(invalid(
+                "ledger directory is group/world writable or foreign-owned",
+            ));
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(legion_effects::sandbox_runtime::o_nofollow())
+            .open(path)
+            .map_err(|e| invalid(e.to_string()))?;
+        let meta = file.metadata().map_err(|e| invalid(e.to_string()))?;
+        if !meta.is_file() || meta.uid() != uid || meta.mode() & 0o077 != 0 {
+            return Err(invalid(
+                "ledger must be a regular 0600 file owned by this user",
+            ));
+        }
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(&mut std::io::Read::take(&mut file, 1 << 20), &mut bytes)
+            .map_err(|e| invalid(e.to_string()))?;
+        bytes
+    };
+    #[cfg(not(unix))]
+    let bytes = std::fs::read(path).map_err(|e| invalid(e.to_string()))?;
+    let ledger: HostLedger =
+        serde_json::from_slice(&bytes).map_err(|e| invalid(format!("ledger: {e}")))?;
+    if ledger.schema_version != 1 {
+        return Err(invalid("unsupported ledger schema version"));
+    }
+    Ok(Some(ledger))
+}
+
+fn write_host_ledger(path: &Path, ledger: &HostLedger) -> Result<(), AuditError> {
+    use std::io::Write;
+    let dir = path
+        .parent()
+        .ok_or_else(|| invalid("ledger has no parent"))?;
+    std::fs::create_dir_all(dir).map_err(|e| invalid(e.to_string()))?;
+    let bytes = serde_json::to_vec(ledger).map_err(|e| invalid(e.to_string()))?;
+    let tmp = path.with_extension("tmp");
+    let _ = std::fs::remove_file(&tmp);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        options.mode(0o600);
+        let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
+    }
+    let mut file = options.open(&tmp).map_err(|e| invalid(e.to_string()))?;
+    file.write_all(&bytes).map_err(|e| invalid(e.to_string()))?;
+    file.sync_all().map_err(|e| invalid(e.to_string()))?;
+    std::fs::rename(&tmp, path).map_err(|e| invalid(e.to_string()))
+}
+
+/// Compares the repository's finding store with the host-held ledger and, when
+/// the store is consistent, refreshes the ledger. Returns gap strings; any
+/// gap means history cannot be trusted and the caller must not pass.
+pub fn history_custody_gaps(repo: &Path) -> Vec<String> {
+    use crate::p12_pipeline::store::FindingStore;
+    let ledger_path = match host_ledger_path(repo) {
+        Ok(path) => path,
+        Err(error) => return vec![format!("finding-history-ledger-unavailable:{error}")],
+    };
+    let ledger = match load_host_ledger(&ledger_path) {
+        Ok(ledger) => ledger,
+        Err(error) => return vec![format!("finding-history-ledger-unreadable:{error}")],
+    };
+    let store = FindingStore::new(repo);
+    let had_findings = ledger
+        .as_ref()
+        .is_some_and(|l| !l.known_finding_ids.is_empty());
+    let bytes = match std::fs::read(store.path()) {
+        Ok(bytes) => Some(bytes),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return vec![format!("finding-history-unreadable:{e}")],
+    };
+    let Some(bytes) = bytes else {
+        return if had_findings {
+            vec![GAP_STORE_MISSING.to_owned()]
+        } else {
+            Vec::new()
+        };
+    };
+    let records = match store.load() {
+        Ok(records) => records,
+        Err(error) => {
+            return vec![if had_findings {
+                GAP_STORE_MISSING.to_owned()
+            } else {
+                format!("finding-history-unreadable:{error}")
+            }]
+        }
+    };
+    let mut known = BTreeSet::new();
+    let mut open = BTreeSet::new();
+    for record in &records {
+        if let Some(id) = record.get("id").and_then(Value::as_str) {
+            known.insert(id.to_owned());
+            if record.get("status").and_then(Value::as_str) == Some("open") {
+                open.insert(id.to_owned());
+            }
+        }
+    }
+    if let Some(ledger) = &ledger {
+        if ledger
+            .known_finding_ids
+            .iter()
+            .any(|id| !known.contains(id))
+        {
+            return vec![GAP_STORE_MISSING.to_owned()];
+        }
+    }
+    if known.is_empty() && ledger.is_none() {
+        return Vec::new();
+    }
+    let next = HostLedger {
+        schema_version: 1,
+        repo_digest: hex::encode(Sha256::digest(
+            std::fs::canonicalize(repo)
+                .unwrap_or_default()
+                .to_string_lossy()
+                .as_bytes(),
+        )),
+        store_digest: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
+        open_finding_ids: open.into_iter().collect(),
+        known_finding_ids: known.into_iter().collect(),
+        generation: ledger.map_or(1, |l| l.generation + 1),
+    };
+    match write_host_ledger(&ledger_path, &next) {
+        Ok(()) => Vec::new(),
+        Err(error) => vec![format!("finding-history-ledger-unwritable:{error}")],
+    }
 }

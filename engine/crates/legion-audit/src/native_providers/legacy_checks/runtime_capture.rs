@@ -1033,6 +1033,8 @@ struct Ctx<'a> {
     shot_dir: &'a Path,
     roots: &'a [&'a Path],
     cancellation: &'a CancellationToken,
+    owner: Option<std::sync::Arc<crate::host_owner::OwnerRequestContext>>,
+    root: &'a Path,
 }
 
 /// Prefer axe-core from the audited project's Node dependency tree, then use
@@ -1212,6 +1214,29 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
         return outcome;
     }
 
+    let mut request = request;
+    if let Some(owner) = &ctx.owner {
+        if let Err(gap) = super::owner_request::apply_owner(
+            owner,
+            ctx.root,
+            ctx.provider.id.as_str(),
+            ctx.plan_digest,
+            &mut request,
+        ) {
+            let state = if gap.missing {
+                ExecutionState::MissingExecutable
+            } else {
+                ExecutionState::UnauthorizedEffect
+            };
+            let receipt = ExecutionReceipt::failure(&request, state, gap.gap.clone());
+            let mut outcome = SurfaceOutcome::new(index, label, url, &receipt);
+            outcome.gaps.push(format!(
+                "runtime-surface-capture-failed:{label}:{}",
+                gap.gap
+            ));
+            return outcome;
+        }
+    }
     let receipt = ctx.tool.execute(request, ctx.cancellation.clone()).await;
     let mut outcome = SurfaceOutcome::new(index, label, url, &receipt);
     let stdout = receipt
@@ -2102,6 +2127,8 @@ pub(super) async fn execute(
         shot_dir: &shot_dir,
         roots: &roots,
         cancellation: &cancellation,
+        owner: scratch.owner_context(),
+        root: &executor.root,
     };
     let mut outcomes = Vec::new();
     for (index, label, url) in params.live_surfaces() {

@@ -1448,7 +1448,7 @@ pub(super) async fn execute(
     }
     // Enrollment authenticates the broker; it does not admit Git inventory,
     // disposable-copy preparation, or the managed test operation itself.
-    let preparation = ExternalToolRequest {
+    let mut preparation = ExternalToolRequest {
         request_id: format!(
             "audit:{}:{}:managed-test-preparation",
             provider.id, plan_digest
@@ -1463,14 +1463,11 @@ pub(super) async fn execute(
         timeout_ms,
         ..ExternalToolRequest::default()
     };
-    let decision = preparation_authorizer.map_or_else(
-        || {
-            legion_effects::PolicyAuthorizer::authorize(
-                &crate::execution_policy::OwnerAdmissionRequired,
-                &preparation,
-            )
-        },
-        |authorizer| authorizer.authorize(&preparation),
+    let decision = super::owner_request::authorize_preparation(
+        scratch.owner_context().as_deref(),
+        scratch.owner_authorizer().as_deref(),
+        preparation_authorizer,
+        &mut preparation,
     );
     if !decision.allowed {
         #[cfg(unix)]
@@ -2121,22 +2118,23 @@ fn source_inventory_paths(
     deadline: Instant,
     cancellation: &CancellationToken,
 ) -> Result<Vec<String>, CopyError> {
-    let mut command = Command::new("git");
-    hide_process_console(&mut command);
-    let mut child = command
-        .arg("-C")
-        .arg(root)
-        .args([
-            "ls-files",
-            "-z",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok();
+    let mut child = crate::trusted_git::std_command(root).and_then(|mut command| {
+        hide_process_console(&mut command);
+        command
+            .arg("-C")
+            .arg(root)
+            .args([
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()
+    });
     let git_bytes = if let Some(process) = child.as_mut() {
         let Some(mut stdout) = process.stdout.take() else {
             let _ = process.kill();
@@ -3344,14 +3342,16 @@ mod tests {
         fs::write(root.join("Cargo.toml"), b"[package]\nname='f'\n").unwrap();
         fs::write(root.join("src/lib.rs"), b"pub fn f() {}\n").unwrap();
         fs::write(root.join(".gitignore"), b"ignored.log\n").unwrap();
-        let init = Command::new("git")
+        let init = crate::trusted_git::std_command(&root)
+            .expect("trusted git")
             .arg("-C")
             .arg(&root)
             .args(["init", "-q"])
             .status()
             .unwrap();
         assert!(init.success());
-        let add = Command::new("git")
+        let add = crate::trusted_git::std_command(&root)
+            .expect("trusted git")
             .arg("-C")
             .arg(&root)
             .args(["add", "Cargo.toml", "src/lib.rs", ".gitignore"])

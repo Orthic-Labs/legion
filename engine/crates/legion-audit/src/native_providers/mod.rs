@@ -219,6 +219,15 @@ impl ProviderExecutor for NativeProviderRegistry {
         inventory: &InventoryEnvelope,
         context: &ExecutionContext<'_>,
     ) -> Result<ProviderResult, AuditError> {
+        if security::pipeline::is_pipeline_provider(&provider.id) {
+            return security::pipeline::execute_with_prior(
+                self.security.root.as_deref(),
+                &self.security.artifacts,
+                context.prior_results,
+                provider,
+                inventory,
+            );
+        }
         if provider.id == legacy::visual::VISUAL_PROVIDER_ID {
             let capture = self.runtime_visual_capture(plan, provider, context);
             return self.legacy.execute_with_runtime_visual_capture(
@@ -292,6 +301,15 @@ impl ProviderExecutor for NativeProviderRegistry {
         cancellation: CancellationToken,
         context: &ExecutionContext<'_>,
     ) -> Result<ProviderResult, AuditError> {
+        if security::pipeline::is_pipeline_provider(&provider.id) {
+            return security::pipeline::execute_with_prior(
+                self.security.root.as_deref(),
+                &self.security.artifacts,
+                context.prior_results,
+                provider,
+                inventory,
+            );
+        }
         if provider.id == legacy::visual::VISUAL_PROVIDER_ID {
             let capture = self.runtime_visual_capture(plan, provider, context);
             return self.legacy.execute_with_runtime_visual_capture(

@@ -226,6 +226,45 @@ fn provider_edges(
     Ok(edges)
 }
 
+/// Producer provider ids for every artifact kind each provider consumes,
+/// excluding itself and frozen fact sources. Unlike `provider_edges` this never
+/// errors: a consumed kind with no producer in the plan contributes nothing
+/// here (plan compilation rejects it separately), so the scheduler can add the
+/// frozen producer -> consumer edges without changing legacy plans' validity.
+pub(crate) fn artifact_producers_of(
+    providers: &[AuditProvider],
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut producers: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    for provider in providers {
+        if let Ok(kinds) = artifact_list(provider, "produces") {
+            for kind in kinds {
+                producers
+                    .entry(kind)
+                    .or_default()
+                    .insert(provider.id.as_str());
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    for provider in providers {
+        let mut deps = BTreeSet::new();
+        if let Ok(kinds) = artifact_list(provider, "consumes") {
+            for kind in kinds {
+                if let Some(sources) = producers.get(&kind) {
+                    deps.extend(
+                        sources
+                            .iter()
+                            .filter(|id| **id != provider.id)
+                            .map(|id| (*id).to_owned()),
+                    );
+                }
+            }
+        }
+        out.insert(provider.id.clone(), deps);
+    }
+    out
+}
+
 /// Deterministic order (alphabetical tie-break) over the given dependency map;
 /// errors on a cycle.
 fn order_edges(
@@ -478,4 +517,54 @@ pub enum Observation {
     Running,
     Done { proof: ProofState },
     Failed,
+}
+
+#[cfg(test)]
+mod artifact_edge_tests {
+    use super::*;
+    use crate::plan::ProviderKind;
+    use serde_json::json;
+
+    fn provider(id: &str, consumes: &[&str], produces: &[&str]) -> AuditProvider {
+        AuditProvider {
+            id: id.into(),
+            version: "1".into(),
+            role: "deterministic".into(),
+            phase: "source".into(),
+            lens_ids: Vec::new(),
+            dependencies: Vec::new(),
+            kind: ProviderKind::RustAlgorithm,
+            configuration: BTreeMap::from([
+                ("consumes".to_owned(), json!(consumes)),
+                ("produces".to_owned(), json!(produces)),
+            ]),
+            bounds: BTreeMap::new(),
+            clean_claim: "evidence-only".into(),
+            benchmark_status: "unproven".into(),
+            benchmark_required_for_clean_claim: false,
+            qualification_digest: None,
+            required: true,
+        }
+    }
+
+    #[test]
+    fn consumer_depends_on_every_producer_of_a_consumed_kind() {
+        let providers = vec![
+            provider("a.scan", &[], &["security-candidates"]),
+            provider("b.scan", &[], &["security-candidates"]),
+            provider("c.synth", &["security-candidates", "blueprint-packet"], &[]),
+        ];
+        let edges = artifact_producers_of(&providers);
+        assert_eq!(
+            edges["c.synth"],
+            BTreeSet::from(["a.scan".to_owned(), "b.scan".to_owned()])
+        );
+        assert!(edges["a.scan"].is_empty());
+    }
+
+    #[test]
+    fn a_provider_never_depends_on_itself_and_missing_producers_are_skipped() {
+        let providers = vec![provider("x", &["k", "missing"], &["k"])];
+        assert!(artifact_producers_of(&providers)["x"].is_empty());
+    }
 }

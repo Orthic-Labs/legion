@@ -20,6 +20,7 @@
 //! verified, fresh, scheme-linked test/build envelope with an xcresult summary.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 use std::sync::OnceLock;
 
 use regex::Regex;
@@ -30,7 +31,7 @@ use sha2::{Digest, Sha256};
 use crate::artifact_evidence::{
     verify_artifact_evidence, ArtifactBinding, ArtifactEvidenceEnvelope, CommandBinding,
     EvidenceOutcome, ExpectedEvidence, ImportKind, ImportVerdict, ImportedEvidenceRecord,
-    ProvenanceVerifier, ReplayPolicy, RepositoryBinding, TrustEnrollment,
+    ProvenanceVerifier, ReplayPolicy, RepositoryBinding, RetainedArtifact, TrustEnrollment,
 };
 use crate::error::AuditError;
 
@@ -2065,13 +2066,84 @@ pub struct AppleOperationRequest {
     pub expected_variant: String,
 }
 
-/// Authenticated result envelope returned by the host adapter. Verified by
-/// A03 before anything is trusted.
+/// Evidence basis recorded when the host itself ran the operation through the
+/// owner-admitted contained runtime (not an imported attestation).
+pub const EVIDENCE_BASIS_HOST_EXECUTED: &str = "host-executed";
+/// Evidence basis for A03-verified imports.
+pub const EVIDENCE_BASIS_IMPORTED: &str = "imported-attestation";
+
+/// One owner-admitted process run, as recorded from the owner's execution
+/// receipt (never from the tool's own claims).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnerRunRef {
+    pub receipt_id: String,
+    pub request_id: String,
+    pub executable: String,
+    /// Digest of the executable bytes as the executor verified them against
+    /// the host-policy pin.
+    pub executable_digest: String,
+    pub argv_digest: String,
+    /// Debug name of the executor `ExecutionState`; only `Completed` counts.
+    pub state: String,
+    pub exit_code: Option<i32>,
+    pub stdout_digest: Option<String>,
+    pub stderr_digest: Option<String>,
+    pub sandbox_id: Option<String>,
+    pub started_at_ms: u64,
+    pub completed_at_ms: u64,
+    pub tree_reaped: bool,
+}
+
+/// Self-attested host execution receipt. Its digest binds the evidence to the
+/// owner receipts of the runs that produced it.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostExecutionReceipt {
+    pub schema_version: u32,
+    /// Always [`EVIDENCE_BASIS_HOST_EXECUTED`].
+    pub basis: String,
+    pub owner_id: String,
+    pub plan_id: String,
+    pub operation: AppleOperation,
+    pub target: String,
+    pub variant: String,
+    /// `<pinned xcode version>/<sdk><os>`.
+    pub toolchain: String,
+    pub output_root: String,
+    /// Exact `xcodebuild` arguments that ran.
+    pub args: Vec<String>,
+    pub build_run: OwnerRunRef,
+    pub summary_run: Option<OwnerRunRef>,
+    pub artifacts: Vec<ArtifactBinding>,
+    pub outcome: EvidenceOutcome,
+}
+
+impl HostExecutionReceipt {
+    pub fn digest(&self) -> Result<String, AuditError> {
+        crate::integrity::digest(self)
+    }
+}
+
+/// Evidence the host produced by running the operation itself.
 #[derive(Clone, Debug)]
-pub struct AppleBridgeResult {
-    pub envelope: ArtifactEvidenceEnvelope,
+pub struct HostExecutedEvidence {
+    pub receipt: HostExecutionReceipt,
+    /// `receipt.digest()`; recomputed and compared at discharge.
+    pub receipt_digest: String,
     pub raw_artifacts: BTreeMap<String, Vec<u8>>,
-    pub attestation: Vec<u8>,
+}
+
+/// Result returned by a bridge. `Imported` is the authenticated envelope that
+/// A03 verifies; `HostExecuted` is host-run evidence bound to an owner receipt.
+#[derive(Clone, Debug)]
+pub enum AppleBridgeResult {
+    Imported {
+        envelope: ArtifactEvidenceEnvelope,
+        raw_artifacts: BTreeMap<String, Vec<u8>>,
+        attestation: Vec<u8>,
+    },
+    HostExecuted(HostExecutedEvidence),
 }
 
 /// Root implements this over the existing Apple host operations
@@ -2079,6 +2151,11 @@ pub struct AppleBridgeResult {
 pub trait AppleTargetBridge {
     fn bridge_id(&self) -> &str;
     fn execute(&self, request: &AppleOperationRequest) -> Result<AppleBridgeResult, Gap>;
+    /// `(xcodebuild policy version, xcodebuild policy digest)` when backed by a
+    /// host policy pin; used to derive the evidence context on the host.
+    fn host_binding(&self) -> Option<(String, String)> {
+        None
+    }
 }
 
 pub struct UnconfiguredAppleBridge;
@@ -2113,6 +2190,292 @@ pub fn request_for(
     }
 }
 
+pub const ADAPTER_ID_TEST: &str = "apple.project.test";
+pub const ADAPTER_ID_BUILD: &str = "apple.project.build";
+const ARGV_RESULT_BUNDLE: &str = "$RESULT_BUNDLE";
+const ARGV_DERIVED_DATA: &str = "$DERIVED_DATA";
+
+/// Toolchain label bound into evidence: `<policy xcodebuild version>/<sdk><os>`.
+pub fn toolchain_label(xcodebuild_version: &str, destination: &DestinationSpec) -> String {
+    format!(
+        "{xcodebuild_version}/{}{}",
+        destination.sdk,
+        destination.os.as_deref().unwrap_or("")
+    )
+}
+
+/// Digest of the canonical command for `request`: the exact xcodebuild argv
+/// with the container kept repository-relative and the two run-specific output
+/// paths replaced by fixed placeholders, so it is stable across runs.
+pub fn canonical_command_digest(request: &AppleOperationRequest) -> Result<String, Gap> {
+    let argv = xcodebuild_argv(
+        request,
+        Path::new(&request.container),
+        Path::new(ARGV_RESULT_BUNDLE),
+        Path::new(ARGV_DERIVED_DATA),
+    )?;
+    crate::integrity::digest(&argv)
+        .map_err(|error| gap("command-digest-unavailable", error.to_string()))
+}
+
+/// The same canonical digest computed from an argv that actually ran.
+/// Absolute container / output paths are normalised to the canonical form.
+pub fn executed_command_digest(request: &AppleOperationRequest, argv: &[String]) -> Option<String> {
+    let mut normalised = Vec::with_capacity(argv.len());
+    let mut index = 0;
+    while index < argv.len() {
+        let arg = &argv[index];
+        normalised.push(arg.clone());
+        index += 1;
+        let replacement = match arg.as_str() {
+            "-project" | "-workspace" => Some(request.container.clone()),
+            "-resultBundlePath" => Some(ARGV_RESULT_BUNDLE.to_string()),
+            "-derivedDataPath" => Some(ARGV_DERIVED_DATA.to_string()),
+            _ => None,
+        };
+        if let Some(replacement) = replacement {
+            argv.get(index)?;
+            normalised.push(replacement);
+            index += 1;
+        }
+    }
+    crate::integrity::digest(&normalised).ok()
+}
+
+/// Host-owned binding facts the evidence context is derived from. Nothing in
+/// it comes from repository input: repositories from the frozen inventory,
+/// the xcodebuild version/digest from the host policy pin.
+#[derive(Clone, Debug)]
+pub struct HostEvidenceBinding {
+    pub repositories: Vec<RepositoryBinding>,
+    pub xcodebuild_version: String,
+    pub xcodebuild_digest: String,
+}
+
+/// Deterministic expected-evidence context for one obligation, derived on the
+/// host. Always `Test` (xcodebuild test builds first; a scheme with no tests
+/// cannot satisfy it), replay denied.
+pub fn host_expected_context(
+    obligation: &XcodeObligation,
+    coverage: &StaticCoverage,
+    binding: &HostEvidenceBinding,
+) -> Result<ExpectedContext, Gap> {
+    let request = request_for(obligation, AppleOperation::Test);
+    let mut scope = coverage.targets.clone();
+    scope.sort();
+    scope.dedup();
+    if scope.is_empty() {
+        return Err(gap("xcode-required-scope-empty", obligation.scheme.clone()));
+    }
+    Ok(ExpectedContext {
+        kind: ImportKind::Test,
+        repositories: binding.repositories.clone(),
+        toolchain: toolchain_label(&binding.xcodebuild_version, &obligation.destination),
+        command: CommandBinding {
+            adapter_id: ADAPTER_ID_TEST.into(),
+            command_digest: canonical_command_digest(&request)?,
+            executable_digest: Some(binding.xcodebuild_digest.clone()),
+        },
+        required_scope: scope,
+        replay_policy: ReplayPolicy::Deny,
+        upstream_runtime: None,
+    })
+}
+
+/// `-destination` value for an obligation. Only the two supported simulator /
+/// host destinations are representable; free-form values are refused so a
+/// destination cannot smuggle extra specifier keys.
+pub fn destination_string(destination: &DestinationSpec) -> Result<String, Gap> {
+    let clean = |value: &str| {
+        !value.is_empty()
+            && value.chars().all(|c| {
+                c.is_ascii_alphanumeric() || matches!(c, ' ' | '.' | '_' | '-' | '(' | ')')
+            })
+    };
+    if !destination.supported() {
+        return Err(gap(
+            "destination-unsupported",
+            format!("{} / {}", destination.platform, destination.sdk),
+        ));
+    }
+    match destination.sdk.as_str() {
+        "macosx" => Ok("platform=macOS".into()),
+        _ => {
+            let name = destination
+                .name
+                .as_deref()
+                .filter(|n| clean(n))
+                .ok_or_else(|| gap("destination-name-invalid", "simulator name required"))?;
+            let mut out = format!("platform=iOS Simulator,name={name}");
+            if let Some(os) = &destination.os {
+                if !clean(os) {
+                    return Err(gap("destination-os-invalid", os.clone()));
+                }
+                out.push_str(&format!(",OS={os}"));
+            }
+            Ok(out)
+        }
+    }
+}
+
+fn operation_word(operation: AppleOperation) -> &'static str {
+    match operation {
+        AppleOperation::Build => "build",
+        AppleOperation::Test => "test",
+    }
+}
+
+/// The only `xcodebuild` argv this module builds: one `build`/`test` action,
+/// signing disabled, destination exactly from the obligation, and result
+/// bundle / derived data under the caller's owner output root.
+pub fn xcodebuild_argv(
+    request: &AppleOperationRequest,
+    container: &Path,
+    result_bundle: &Path,
+    derived_data: &Path,
+) -> Result<Vec<String>, Gap> {
+    let mut argv = vec![operation_word(request.operation).to_string()];
+    let flag = if request.container.ends_with(".xcworkspace") {
+        "-workspace"
+    } else if request.container.ends_with(".xcodeproj") {
+        "-project"
+    } else {
+        return Err(gap("container-kind-unsupported", request.container.clone()));
+    };
+    let text = |p: &Path| p.to_string_lossy().into_owned();
+    argv.extend([flag.into(), text(container)]);
+    argv.extend(["-scheme".into(), request.scheme.clone()]);
+    argv.extend(["-configuration".into(), request.configuration.clone()]);
+    argv.extend([
+        "-destination".into(),
+        destination_string(&request.destination)?,
+    ]);
+    if let Some(plan) = &request.test_plan {
+        argv.extend(["-testPlan".into(), plan.clone()]);
+    }
+    argv.extend(["-resultBundlePath".into(), text(result_bundle)]);
+    argv.extend(["-derivedDataPath".into(), text(derived_data)]);
+    argv.push("CODE_SIGNING_ALLOWED=NO".into());
+    argv.push("CODE_SIGN_IDENTITY=".into());
+    Ok(argv)
+}
+
+/// Refuse any argv that is not exactly a signing-disabled `build`/`test` of
+/// the requested scheme/configuration/destination with outputs inside
+/// `output_root`. Used by the bridge before launch and again at discharge.
+pub fn validate_xcodebuild_argv(
+    request: &AppleOperationRequest,
+    argv: &[String],
+    output_root: &Path,
+) -> Result<(), Gap> {
+    let refuse = |code: &str, detail: String| Err(gap(code, detail));
+    if request.code_signing != CodeSigningPosture::Disabled {
+        return refuse("signing-enabled", "request does not disable signing".into());
+    }
+    let want_dest = destination_string(&request.destination)?;
+    let mut action: Option<String> = None;
+    let mut container: Option<(String, Option<String>)> = None;
+    let mut scheme: Option<String> = None;
+    let mut configuration: Option<String> = None;
+    let mut destination: Option<Option<String>> = None;
+    let mut plan: Option<String> = None;
+    let mut bundle: Option<String> = None;
+    let mut derived: Option<String> = None;
+    let (mut signing_allowed, mut identity) = (false, false);
+    let mut index = 0;
+    while index < argv.len() {
+        let arg = argv[index].as_str();
+        index += 1;
+        let mut value = || -> Option<String> {
+            let next = argv.get(index).cloned();
+            index += 1;
+            next
+        };
+        match arg {
+            "build" | "test" => {
+                if action.replace(arg.to_string()).is_some() {
+                    return refuse("xcodebuild-multiple-actions", arg.into());
+                }
+            }
+            "-project" | "-workspace" => {
+                if container.replace((arg.to_string(), value())).is_some() {
+                    return refuse("xcodebuild-duplicate-argument", arg.into());
+                }
+            }
+            "-scheme" => scheme = value(),
+            "-configuration" => configuration = value(),
+            "-destination" => {
+                if destination.replace(value()).is_some() {
+                    return refuse("xcodebuild-duplicate-argument", arg.into());
+                }
+            }
+            "-testPlan" => plan = value(),
+            "-resultBundlePath" => bundle = value(),
+            "-derivedDataPath" => derived = value(),
+            "CODE_SIGNING_ALLOWED=NO" => signing_allowed = true,
+            "CODE_SIGN_IDENTITY=" => identity = true,
+            other if other.starts_with("CODE_SIGN") || other.contains("PROVISIONING") => {
+                return refuse("signing-enabled", other.into());
+            }
+            other => {
+                return refuse(
+                    "xcodebuild-argument-not-allowed",
+                    format!("`{other}` (only build/test with signing disabled)"),
+                );
+            }
+        }
+    }
+    if action.as_deref() != Some(operation_word(request.operation)) {
+        return refuse(
+            "xcodebuild-action-mismatch",
+            format!("{action:?} != {}", operation_word(request.operation)),
+        );
+    }
+    if !(signing_allowed && identity) {
+        return refuse(
+            "signing-not-disabled",
+            "CODE_SIGNING_ALLOWED=NO and CODE_SIGN_IDENTITY= are required".into(),
+        );
+    }
+    match destination {
+        Some(Some(got)) if got == want_dest => {}
+        got => return refuse("destination-mismatch", format!("{got:?} != `{want_dest}`")),
+    }
+    let kind_ok = match &container {
+        Some((flag, Some(path))) => {
+            path.ends_with(&request.container)
+                && ((flag == "-workspace") == request.container.ends_with(".xcworkspace"))
+        }
+        _ => false,
+    };
+    if !kind_ok {
+        return refuse("container-mismatch", request.container.clone());
+    }
+    if scheme.as_deref() != Some(request.scheme.as_str())
+        || configuration.as_deref() != Some(request.configuration.as_str())
+        || plan != request.test_plan
+    {
+        return refuse(
+            "xcodebuild-binding-mismatch",
+            "scheme, configuration or test plan differ from the obligation".into(),
+        );
+    }
+    for (name, path) in [("resultBundlePath", bundle), ("derivedDataPath", derived)] {
+        let inside = path.as_deref().is_some_and(|p| {
+            let p = Path::new(p);
+            p.is_absolute()
+                && p.starts_with(output_root)
+                && !p
+                    .components()
+                    .any(|c| matches!(c, std::path::Component::ParentDir))
+        });
+        if !inside {
+            return refuse("output-outside-owner-root", name.into());
+        }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ObligationOutcome {
@@ -2122,6 +2485,12 @@ pub struct ObligationOutcome {
     pub gaps: Vec<Gap>,
     pub evidence_id: Option<String>,
     pub newly_executed: bool,
+    /// `host-executed` or `imported-attestation` when satisfied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_basis: Option<String>,
+    /// Owner execution receipt digest for host-executed evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_receipt_digest: Option<String>,
 }
 
 fn unmet(obligation: &XcodeObligation, gaps: Vec<Gap>) -> ObligationOutcome {
@@ -2131,6 +2500,8 @@ fn unmet(obligation: &XcodeObligation, gaps: Vec<Gap>) -> ObligationOutcome {
         gaps,
         evidence_id: None,
         newly_executed: false,
+        evidence_basis: None,
+        owner_receipt_digest: None,
     }
 }
 
@@ -2155,14 +2526,32 @@ pub fn discharge_via_bridge(
     } else {
         AppleOperation::Build
     };
-    let result = match bridge.execute(&request_for(obligation, operation)) {
+    let request = request_for(obligation, operation);
+    let result = match bridge.execute(&request) {
         Ok(result) => result,
         Err(gap) => return unmet(obligation, vec![gap]),
     };
+    let (envelope, raw_artifacts, attestation) = match result {
+        AppleBridgeResult::HostExecuted(host) => {
+            return discharge_host_executed(
+                obligation,
+                &request,
+                &expected,
+                context,
+                &host,
+                now_rfc3339_utc,
+            );
+        }
+        AppleBridgeResult::Imported {
+            envelope,
+            raw_artifacts,
+            attestation,
+        } => (envelope, raw_artifacts, attestation),
+    };
     let verdict: ImportVerdict = verify_artifact_evidence(
-        &result.envelope,
-        &result.raw_artifacts,
-        &result.attestation,
+        &envelope,
+        &raw_artifacts,
+        &attestation,
         &expected,
         trust,
         verifier,
@@ -2190,7 +2579,7 @@ pub fn discharge_via_bridge(
         obligation,
         &expected,
         record,
-        &result.raw_artifacts,
+        &raw_artifacts,
         now_rfc3339_utc,
     );
     if gaps.is_empty() {
@@ -2200,6 +2589,208 @@ pub fn discharge_via_bridge(
             gaps,
             evidence_id: Some(record.evidence_id.clone()),
             newly_executed: record.newly_executed,
+            evidence_basis: Some(EVIDENCE_BASIS_IMPORTED.into()),
+            owner_receipt_digest: None,
+        }
+    } else {
+        unmet(obligation, gaps)
+    }
+}
+
+fn host_artifact<'a>(receipt: &'a HostExecutionReceipt, role: &str) -> Option<&'a ArtifactBinding> {
+    receipt.artifacts.iter().find(|a| a.role == role)
+}
+
+/// Host-executed evidence is fresh for 24 hours after the run completes.
+pub const HOST_EVIDENCE_FRESH_SECONDS: u64 = 24 * 60 * 60;
+
+/// Verify host-executed evidence against its owner receipt, build the
+/// host-authenticated record, then link it exactly like imported evidence.
+/// Nothing the bridge asserts is trusted beyond what the receipt digest, the
+/// re-validated argv, and the retained artifact bytes prove.
+fn discharge_host_executed(
+    obligation: &XcodeObligation,
+    request: &AppleOperationRequest,
+    expected: &ExpectedEvidence,
+    context: &ExpectedContext,
+    host: &HostExecutedEvidence,
+    now_rfc3339_utc: &str,
+) -> ObligationOutcome {
+    let receipt = &host.receipt;
+    let mut gaps = Vec::new();
+    match receipt.digest() {
+        Ok(digest) if digest == host.receipt_digest => {}
+        _ => gaps.push(gap(
+            "host-receipt-digest-mismatch",
+            "host execution receipt does not hash to its bound digest",
+        )),
+    }
+    if receipt.basis != EVIDENCE_BASIS_HOST_EXECUTED || receipt.owner_id.trim().is_empty() {
+        gaps.push(gap(
+            "host-receipt-basis-invalid",
+            "receipt is not a host-executed owner receipt",
+        ));
+    }
+    if receipt.operation != request.operation
+        || receipt.target != expected.target
+        || Some(&receipt.variant) != expected.variant.as_ref()
+    {
+        gaps.push(gap(
+            "host-receipt-binding-mismatch",
+            "receipt operation/target/variant differ from the obligation",
+        ));
+    }
+    if receipt.toolchain != expected.toolchain {
+        gaps.push(gap(
+            "evidence-toolchain-mismatch",
+            "toolchain/SDK label differs from plan",
+        ));
+    }
+    if let Err(argv_gap) =
+        validate_xcodebuild_argv(request, &receipt.args, Path::new(&receipt.output_root))
+    {
+        gaps.push(argv_gap);
+    }
+    match crate::integrity::digest(&receipt.args) {
+        Ok(digest) if digest == receipt.build_run.argv_digest => {}
+        _ => gaps.push(gap(
+            "host-receipt-argv-mismatch",
+            "recorded argv digest differs from the argv that ran",
+        )),
+    }
+    let run_ok = |run: &OwnerRunRef| {
+        run.state == "Completed"
+            && run.tree_reaped
+            && run.sandbox_id.is_some()
+            && run.executable_digest.starts_with("sha256:")
+    };
+    if !run_ok(&receipt.build_run) {
+        gaps.push(gap(
+            "host-receipt-run-incomplete",
+            "xcodebuild owner run is not a completed, contained, reaped run",
+        ));
+    }
+    // The planned command binding must equal the digest of the argv that
+    // actually ran (container/output paths normalised), never a recorded claim.
+    match executed_command_digest(request, &receipt.args) {
+        Some(ran) if ran == expected.command.command_digest => {}
+        _ => gaps.push(gap(
+            "command-digest-mismatch",
+            "planned command digest differs from the host-executed argv digest",
+        )),
+    }
+    if let Some(want) = expected.command.executable_digest.as_deref() {
+        if want != receipt.build_run.executable_digest {
+            gaps.push(gap(
+                "executable-digest-mismatch",
+                "xcodebuild digest differs from the planned executable digest",
+            ));
+        }
+    }
+    if context.kind == ImportKind::Test {
+        match &receipt.summary_run {
+            None => gaps.push(gap(
+                "host-receipt-summary-run-missing",
+                "no owner-admitted xcresulttool run recorded",
+            )),
+            Some(run) => {
+                if !run_ok(run) || run.exit_code != Some(0) {
+                    gaps.push(gap(
+                        "host-receipt-run-incomplete",
+                        "xcresulttool owner run is not a completed, contained, reaped run",
+                    ));
+                }
+                let summary = host_artifact(receipt, ROLE_TEST_SUMMARY);
+                if summary.map(|a| a.digest.as_str()) != run.stdout_digest.as_deref() {
+                    gaps.push(gap(
+                        "xcresult-summary-digest-mismatch",
+                        "test summary is not the owner-recorded xcresulttool output",
+                    ));
+                }
+            }
+        }
+    }
+    for artifact in &receipt.artifacts {
+        match host.raw_artifacts.get(&artifact.path) {
+            Some(bytes)
+                if bytes.len() as u64 == artifact.bytes
+                    && sha256_bytes(bytes) == artifact.digest => {}
+            _ => gaps.push(gap("artifact-substitution", artifact.path.clone())),
+        }
+    }
+    if !gaps.is_empty() {
+        gaps.sort();
+        gaps.dedup();
+        return unmet(obligation, gaps);
+    }
+    let completed_seconds = receipt.build_run.completed_at_ms / 1000;
+    let issued =
+        crate::p12_pipeline::store::format_utc(completed_seconds.min(i64::MAX as u64) as i64);
+    let fresh_until = crate::p12_pipeline::store::format_utc(
+        (completed_seconds + HOST_EVIDENCE_FRESH_SECONDS).min(i64::MAX as u64) as i64,
+    );
+    let primary = host_artifact(receipt, ROLE_XCRESULT)
+        .map(|a| a.digest.clone())
+        .unwrap_or_default();
+    let denominator_digest = crate::integrity::digest(&json!({
+        "required": expected.required_scope,
+        "examined": context.required_scope,
+        "missing": Vec::<String>::new(),
+    }))
+    .unwrap_or_default();
+    let record = ImportedEvidenceRecord {
+        schema_version: 1,
+        evidence_id: format!("host-executed:{}", host.receipt_digest),
+        claims_digest: host.receipt_digest.clone(),
+        kind: context.kind,
+        // Host-executed under the owner's contained runtime: authenticated by
+        // the owner receipt, not by an issuer attestation.
+        authenticated: true,
+        attestor: format!("host-executed:{}", receipt.owner_id),
+        trust_root_id: receipt.build_run.sandbox_id.clone().unwrap_or_default(),
+        verifier_id: "host-execution-receipt".into(),
+        outcome: receipt.outcome,
+        repositories: expected.repositories.clone(),
+        target: receipt.target.clone(),
+        variant: Some(receipt.variant.clone()),
+        toolchain: receipt.toolchain.clone(),
+        upstream_runtime: expected.upstream_runtime.clone(),
+        artifacts: receipt
+            .artifacts
+            .iter()
+            .map(|a| RetainedArtifact {
+                path: a.path.clone(),
+                digest: a.digest.clone(),
+                bytes: a.bytes,
+                role: a.role.clone(),
+                immutable: true,
+            })
+            .collect(),
+        artifact_digest: primary,
+        denominator_digest,
+        examined_scope: context.required_scope.clone(),
+        missing_scope: Vec::new(),
+        newly_executed: true,
+        replay_of: None,
+        issued_at: issued,
+        fresh_until,
+    };
+    let gaps = link_evidence(
+        obligation,
+        expected,
+        &record,
+        &host.raw_artifacts,
+        now_rfc3339_utc,
+    );
+    if gaps.is_empty() {
+        ObligationOutcome {
+            id: obligation.id.clone(),
+            status: "satisfied".into(),
+            gaps,
+            evidence_id: Some(record.evidence_id.clone()),
+            newly_executed: true,
+            evidence_basis: Some(EVIDENCE_BASIS_HOST_EXECUTED.into()),
+            owner_receipt_digest: Some(host.receipt_digest.clone()),
         }
     } else {
         unmet(obligation, gaps)

@@ -78,3 +78,25 @@ fn replay_digest_is_distinct_from_byte_integrity_digest() {
         legion_audit::digest(&other).unwrap()
     );
 }
+
+#[test]
+fn configured_bounds_are_semantic_but_known_timestamps_are_ignored() {
+    let a = json!({"provider": {"timeoutMs": 1000}, "createdAt": "a", "durationMs": 1});
+    let b = json!({"provider": {"timeoutMs": 2000}, "createdAt": "b", "durationMs": 2});
+    assert_ne!(replay_digest(&a).unwrap(), replay_digest(&b).unwrap());
+    let c = json!({"provider": {"timeoutMs": 1000}, "createdAt": "z", "durationMs": 9});
+    assert_eq!(replay_digest(&a).unwrap(), replay_digest(&c).unwrap());
+}
+
+#[test]
+fn temp_path_rewrite_keeps_message_and_distinct_subpaths() {
+    let msg = |t: &str| json!({"note": t});
+    assert_ne!(
+        replay_digest(&msg("writes /tmp/x.sh then deletes data")).unwrap(),
+        replay_digest(&msg("writes /tmp/x.sh then reads data")).unwrap()
+    );
+    assert_ne!(
+        replay_digest(&msg("/tmp/a/f")).unwrap(),
+        replay_digest(&msg("/tmp/b/f")).unwrap()
+    );
+}

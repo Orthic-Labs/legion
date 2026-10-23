@@ -243,7 +243,8 @@ async fn probe(
     let mut executable = "npm".to_owned();
     let mut sandbox = None;
     let mut version_args = vec!["--version".into()];
-    if cfg!(target_os = "macos") {
+    let owner_ctx = scratch.owner_context();
+    if cfg!(target_os = "macos") && owner_ctx.is_none() {
         if let Ok(resolved) = resolve_request(&executor.root, "npm", &args) {
             if let Ok(auth) = legion_effects::authenticate_sandbox(
                 &resolved.executable.to_string_lossy(),
@@ -268,7 +269,7 @@ async fn probe(
             }
         }
     }
-    let request = ExternalToolRequest {
+    let mut request = ExternalToolRequest {
         request_id: format!(
             "audit:{}:{}:npm:{ordinal}:{label}",
             provider.id,
@@ -309,6 +310,27 @@ async fn probe(
         version_args,
         ..ExternalToolRequest::default()
     };
+    if let Some(ctx) = &owner_ctx {
+        if let Err(gap) = super::owner_request::apply_owner(
+            ctx,
+            &executor.root,
+            provider.id.as_str(),
+            plan.digest(),
+            &mut request,
+        ) {
+            return Ok(Probe {
+                value: None,
+                raw: json!({"label": label, "ownerGap": gap.gap}),
+                state: if gap.missing {
+                    LegacyCheckProcessState::MissingExecutable
+                } else {
+                    LegacyCheckProcessState::Unauthorized
+                },
+                exit: None,
+                gaps: vec![gap.gap],
+            });
+        }
+    }
     let receipt = executor
         .external_project_tool
         .as_ref()

@@ -10,6 +10,7 @@ pub mod platform;
 pub mod receipt;
 pub mod request;
 pub mod sandbox;
+pub mod sandbox_runtime;
 
 pub use artifact::{ArtifactRecord, ArtifactSink, ArtifactWriter};
 pub use error::EffectError;

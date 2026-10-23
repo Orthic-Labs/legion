@@ -327,3 +327,58 @@ fn a02_fixture_only_stale_qualification_is_not_applicable() {
     assert_eq!(missing["applicable"].as_bool(), Some(false));
     assert_eq!(fixture["expectedApplicable"], false);
 }
+
+fn scope_and_context(
+    record_rule: Option<&str>,
+    run_rule: Option<&str>,
+    record_features: &[&str],
+    run_features: &[&str],
+) -> (
+    legion_audit::assurance::QualificationScope,
+    legion_audit::assurance::QualificationContext,
+) {
+    let mut scope = serde_json::json!({
+        "providerId": "p", "providerVersion": "1", "host": "h",
+        "toolchain": "t", "target": "x", "evidenceBasis": "production",
+        "fixtureScope": "corpus",
+        "digest": format!("sha256:{}", "a".repeat(64)),
+        "features": record_features,
+    });
+    let mut context = serde_json::json!({
+        "providerId": "p", "providerVersion": "1", "host": "h",
+        "toolchain": "t", "target": "x",
+        "features": run_features,
+        "requiresProductionEvidence": true,
+    });
+    if let Some(r) = record_rule {
+        scope["ruleVersion"] = r.into();
+    }
+    if let Some(r) = run_rule {
+        context["ruleVersion"] = r.into();
+    }
+    (
+        serde_json::from_value(scope).unwrap(),
+        serde_json::from_value(context).unwrap(),
+    )
+}
+
+#[test]
+fn rule_version_and_feature_drift_are_not_qualified() {
+    use legion_audit::assurance::evaluate_qualification;
+    let now = "2026-10-23T00:00:00Z";
+    let (s, c) = scope_and_context(Some("r1"), Some("r1"), &["a"], &["a"]);
+    assert!(evaluate_qualification(Some(&s), &c, now).applicable);
+    let (s, c) = scope_and_context(Some("r1"), Some("r2"), &["a"], &["a"]);
+    let v = evaluate_qualification(Some(&s), &c, now);
+    assert!(!v.applicable && v.mismatches.iter().any(|m| m.starts_with("ruleVersion")));
+    let (s, c) = scope_and_context(Some("r1"), None, &["a"], &["a"]);
+    assert!(!evaluate_qualification(Some(&s), &c, now).applicable);
+    let (s, c) = scope_and_context(Some("r1"), Some("r1"), &["a"], &["a", "b"]);
+    let v = evaluate_qualification(Some(&s), &c, now);
+    assert!(v
+        .mismatches
+        .contains(&"feature-not-qualified:b".to_string()));
+    let (s, c) = scope_and_context(Some("r1"), Some("r1"), &["a", "z"], &["a"]);
+    let v = evaluate_qualification(Some(&s), &c, now);
+    assert!(v.mismatches.contains(&"feature-not-executed:z".to_string()));
+}

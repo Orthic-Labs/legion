@@ -1,0 +1,67 @@
+{
+  "schema": "legion-native-lint-pins/1",
+  "linters": {
+    "oxlint": {
+      "version": "1.89.0",
+      "releaseTag": "oxlint_v1.89.0",
+      "repository": "oxc-project/oxc",
+      "assets": {
+        "darwin-arm64": {
+          "name": "oxlint-aarch64-apple-darwin.tar.gz",
+          "url": "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.89.0/oxlint-aarch64-apple-darwin.tar.gz",
+          "digest": "sha256:fa4349f33b24221e2d303ace66de3dac2ff756eab48126b2cb58429ed36bccbc",
+          "kind": "archive"
+        },
+        "darwin-x64": {
+          "name": "oxlint-x86_64-apple-darwin.tar.gz",
+          "url": "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.89.0/oxlint-x86_64-apple-darwin.tar.gz",
+          "digest": "sha256:198261cfb91c0f0387c55642ba5c2c4aa2c3cf9593188f86187c759f280bae88",
+          "kind": "archive"
+        },
+        "linux-x64": {
+          "name": "oxlint-x86_64-unknown-linux-gnu.tar.gz",
+          "url": "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.89.0/oxlint-x86_64-unknown-linux-gnu.tar.gz",
+          "digest": "sha256:88492c336807a34062fa540416fe75037c04bcce1ed77824e3db3aaec215949a",
+          "kind": "archive"
+        },
+        "windows-x64": {
+          "name": "oxlint-x86_64-pc-windows-msvc.zip",
+          "url": "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.89.0/oxlint-x86_64-pc-windows-msvc.zip",
+          "digest": "sha256:50be9b3d180a48f2a33fb9ab6d92383c6464d38e4df347b08b1bce6b999c8c15",
+          "kind": "archive"
+        }
+      }
+    },
+    "biome": {
+      "version": "2.6.2",
+      "releaseTag": "@biomejs/biome@2.6.2",
+      "repository": "biomejs/biome",
+      "assets": {
+        "darwin-arm64": {
+          "name": "biome-darwin-arm64",
+          "url": "https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.2/biome-darwin-arm64",
+          "digest": "sha256:be66b76dcb930b1e365bd36c4f5d8557c2dda70b31567f8bd15509e487753a69",
+          "kind": "binary"
+        },
+        "darwin-x64": {
+          "name": "biome-darwin-x64",
+          "url": "https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.2/biome-darwin-x64",
+          "digest": "sha256:9bba9be8c50bf2a58bc6de8023b599e57613588800bd843273e9ccaa4deba52c",
+          "kind": "binary"
+        },
+        "linux-x64": {
+          "name": "biome-linux-x64",
+          "url": "https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.2/biome-linux-x64",
+          "digest": "sha256:43c08f3454d375d38c6441939acc8a557702bc8459272dd513f4f7474a4ed352",
+          "kind": "binary"
+        },
+        "windows-x64": {
+          "name": "biome-win32-x64.exe",
+          "url": "https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.2/biome-win32-x64.exe",
+          "digest": "sha256:283639d771d82502b7498e87cee2e703f84aa040144b04ea1bcfc0ab942a9184",
+          "kind": "binary"
+        }
+      }
+    }
+  }
+}

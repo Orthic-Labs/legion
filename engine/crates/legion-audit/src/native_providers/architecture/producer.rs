@@ -2145,6 +2145,359 @@ pub mod assurance {
         path::Path,
     };
 
+    /// Repository declaration of infrastructure facts the source cannot
+    /// prove: `{"postgres": {...}, "nginx": {"default"|"roots": {...}}}`.
+    /// Declared facts only bind version/phase context; they never replace
+    /// authenticated evidence (`contractCompatVerified` and `tableRows` are
+    /// refused) and never override template/rendered origin.
+    pub const INFRASTRUCTURE_DECLARATION_PATH: &str = ".legion/infrastructure.json";
+
+    /// Frozen repository declarations for the architecture providers.
+    #[derive(Clone, Debug, Default)]
+    pub struct DeclaredContext {
+        pub infrastructure: Option<Value>,
+        pub infrastructure_declared: bool,
+        /// Declaration read/parse defects and refused fields; always gaps.
+        pub gaps: BTreeSet<String>,
+        pub runtime: crate::runtime_obligations::RuntimeDeclarations,
+    }
+
+    /// Read `.legion/infrastructure.json`, `.legion/journeys.json`,
+    /// `.legion/rust-targets.json` and Cargo manifests from the frozen
+    /// inventory (digest-verified). An unreadable declared file is a gap.
+    pub fn load_declared_context(
+        root: Option<&Path>,
+        inventory: &crate::inventory::InventoryEnvelope,
+    ) -> DeclaredContext {
+        let wanted: Vec<&InventoryEntry> = inventory
+            .entries
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    entry.path.as_str(),
+                    INFRASTRUCTURE_DECLARATION_PATH
+                        | crate::runtime_obligations::JOURNEY_DECLARATION_PATH
+                        | crate::runtime_obligations::RUST_MATRIX_DECLARATION_PATH
+                ) || file_name(&entry.path) == "Cargo.toml"
+            })
+            .collect();
+        let read = read_frozen(root, wanted, MAX_FILE_BYTES, MAX_TOTAL_BYTES);
+        let mut out = DeclaredContext {
+            runtime: crate::runtime_obligations::RuntimeDeclarations::from_inventory(
+                inventory,
+                |path| read.files.get(path).cloned(),
+            ),
+            ..DeclaredContext::default()
+        };
+        if inventory
+            .entries
+            .iter()
+            .any(|entry| entry.path == INFRASTRUCTURE_DECLARATION_PATH)
+        {
+            out.infrastructure_declared = true;
+            match read
+                .files
+                .get(INFRASTRUCTURE_DECLARATION_PATH)
+                .map(|bytes| serde_json::from_slice::<Value>(bytes))
+            {
+                Some(Ok(value)) if value.is_object() => out.infrastructure = Some(value),
+                Some(_) => {
+                    out.gaps.insert(format!(
+                        "infrastructure-declaration-invalid:{INFRASTRUCTURE_DECLARATION_PATH}"
+                    ));
+                }
+                None => {
+                    out.gaps.insert(format!(
+                        "infrastructure-declaration-unreadable:{INFRASTRUCTURE_DECLARATION_PATH}"
+                    ));
+                }
+            }
+        }
+        out
+    }
+
+    /// Fields that only authenticated evidence may supply.
+    const EVIDENCE_ONLY_POSTGRES: &[&str] = &["contractCompatVerified", "tableRows"];
+
+    /// PostgresContext from the declaration. Unknown stays unset (a gap in the
+    /// analyzer); refused fields and malformed values become gaps.
+    pub fn postgres_context(declared: &DeclaredContext) -> (PostgresContext, BTreeSet<String>) {
+        let mut context = PostgresContext::default();
+        let mut gaps = BTreeSet::new();
+        let Some(section) = declared
+            .infrastructure
+            .as_ref()
+            .and_then(|value| value.get("postgres"))
+        else {
+            return (context, gaps);
+        };
+        let Some(object) = section.as_object() else {
+            gaps.insert("infrastructure-declaration-invalid:postgres".into());
+            return (context, gaps);
+        };
+        for field in EVIDENCE_ONLY_POSTGRES {
+            if object.contains_key(*field) {
+                gaps.insert(format!(
+                    "infrastructure-declaration-refused:postgres.{field}:requires-authenticated-evidence"
+                ));
+            }
+        }
+        if let Some(value) = object.get("serverMajor") {
+            match value.as_u64().and_then(|n| u32::try_from(n).ok()) {
+                Some(major) if major > 0 => context.server_major = Some(major),
+                _ => {
+                    gaps.insert("infrastructure-declaration-invalid:postgres.serverMajor".into());
+                }
+            }
+        }
+        if let Some(value) = object.get("searchPath") {
+            match value.as_array().map(|items| {
+                items
+                    .iter()
+                    .map(|i| i.as_str().map(str::to_owned))
+                    .collect::<Option<Vec<_>>>()
+            }) {
+                Some(Some(path)) => context.search_path = Some(path),
+                _ => {
+                    gaps.insert("infrastructure-declaration-invalid:postgres.searchPath".into());
+                }
+            }
+        }
+        if let Some(value) = object.get("baselineTables") {
+            match value.as_array().map(|items| {
+                items
+                    .iter()
+                    .map(|i| i.as_str().map(str::to_owned))
+                    .collect::<Option<BTreeSet<_>>>()
+            }) {
+                Some(Some(tables)) => context.baseline_tables = tables,
+                _ => {
+                    gaps.insert(
+                        "infrastructure-declaration-invalid:postgres.baselineTables".into(),
+                    );
+                }
+            }
+        }
+        if let Some(value) = object.get("phases") {
+            match value.as_object() {
+                Some(phases) => {
+                    for (path, phase) in phases {
+                        match phase.as_str() {
+                            Some("expand") => {
+                                context
+                                    .phases
+                                    .insert(path.clone(), postgres::MigrationPhase::Expand);
+                            }
+                            Some("contract") => {
+                                context
+                                    .phases
+                                    .insert(path.clone(), postgres::MigrationPhase::Contract);
+                            }
+                            _ => {
+                                gaps.insert(format!(
+                                    "infrastructure-declaration-invalid:postgres.phases:{path}"
+                                ));
+                            }
+                        }
+                    }
+                }
+                None => {
+                    gaps.insert("infrastructure-declaration-invalid:postgres.phases".into());
+                }
+            }
+        }
+        if let Some(value) = object.get("transactionWrapped") {
+            match value.as_object() {
+                Some(map) => {
+                    for (path, wrapped) in map {
+                        match wrapped.as_bool() {
+                            Some(flag) => {
+                                context.transaction_wrapped.insert(path.clone(), flag);
+                            }
+                            None => {
+                                gaps.insert(format!(
+                                    "infrastructure-declaration-invalid:postgres.transactionWrapped:{path}"
+                                ));
+                            }
+                        }
+                    }
+                }
+                None => {
+                    gaps.insert(
+                        "infrastructure-declaration-invalid:postgres.transactionWrapped".into(),
+                    );
+                }
+            }
+        }
+        if let Some(value) = object.get("lockTimeoutDeclared") {
+            match value.as_bool() {
+                Some(flag) => context.lock_timeout_declared = flag,
+                None => {
+                    gaps.insert(
+                        "infrastructure-declaration-invalid:postgres.lockTimeoutDeclared".into(),
+                    );
+                }
+            }
+        }
+        (context, gaps)
+    }
+
+    fn valid_semver(version: &str) -> bool {
+        let parts: Vec<&str> = version.split('.').collect();
+        parts.len() == 3
+            && parts
+                .iter()
+                .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+    }
+
+    /// Declared nginx binding for the configuration root `dir` (`""` = repository
+    /// root): `nginx.roots[dir]`, else `nginx.default`. Origin is not
+    /// declarable. `None` leaves the analyzer's unbound-context gaps in force.
+    pub fn nginx_context_for_root(
+        declared: &DeclaredContext,
+        dir: &str,
+        origin: ConfigOrigin,
+    ) -> (NginxContext, BTreeSet<String>) {
+        let mut context = NginxContext {
+            origin,
+            ..NginxContext::default()
+        };
+        let mut gaps = BTreeSet::new();
+        let Some(nginx) = declared
+            .infrastructure
+            .as_ref()
+            .and_then(|value| value.get("nginx"))
+        else {
+            return (context, gaps);
+        };
+        let key = if dir.is_empty() { "." } else { dir };
+        let Some(section) = nginx
+            .get("roots")
+            .and_then(|roots| roots.get(key))
+            .or_else(|| nginx.get("default"))
+        else {
+            return (context, gaps);
+        };
+        let Some(object) = section.as_object() else {
+            gaps.insert(format!("infrastructure-declaration-invalid:nginx.{key}"));
+            return (context, gaps);
+        };
+        if object.contains_key("origin") {
+            gaps.insert(format!(
+                "infrastructure-declaration-refused:nginx.{key}.origin:derived-from-files"
+            ));
+        }
+        if let Some(value) = object.get("mainFile") {
+            match value
+                .as_str()
+                .filter(|v| !v.is_empty() && !v.starts_with('/') && !v.contains(".."))
+            {
+                Some(main) => context.main_file = main.to_owned(),
+                None => {
+                    gaps.insert(format!(
+                        "infrastructure-declaration-invalid:nginx.{key}.mainFile"
+                    ));
+                }
+            }
+        }
+        if let Some(value) = object.get("confPrefix") {
+            match value
+                .as_str()
+                .filter(|v| v.starts_with('/') && !v.contains(".."))
+            {
+                Some(prefix) => context.conf_prefix = prefix.to_owned(),
+                None => {
+                    gaps.insert(format!(
+                        "infrastructure-declaration-invalid:nginx.{key}.confPrefix"
+                    ));
+                }
+            }
+        }
+        if let Some(value) = object.get("version") {
+            match value.as_str().filter(|v| valid_semver(v)) {
+                Some(version) => context.version = Some(version.to_owned()),
+                None => {
+                    gaps.insert(format!(
+                        "infrastructure-declaration-invalid:nginx.{key}.version"
+                    ));
+                }
+            }
+        }
+        if let Some(value) = object.get("modules") {
+            match value.as_array().map(|items| {
+                items
+                    .iter()
+                    .map(|i| i.as_str().map(str::to_owned))
+                    .collect::<Option<Vec<_>>>()
+            }) {
+                Some(Some(modules)) => context.modules = Some(modules),
+                _ => {
+                    gaps.insert(format!(
+                        "infrastructure-declaration-invalid:nginx.{key}.modules"
+                    ));
+                }
+            }
+        }
+        (context, gaps)
+    }
+
+    /// Attach the stack's runtime-obligation gaps and detail to `analysis`.
+    /// Absence of declared journeys is an explicit gap, never silence.
+    pub fn attach_runtime_obligations(
+        analysis: &mut Analysis,
+        declared: &DeclaredContext,
+        stack: crate::runtime_obligations::Stack,
+    ) {
+        if !declared.runtime.stacks.contains(&stack) {
+            return;
+        }
+        let gaps = declared.runtime.gaps_for_stack(stack);
+        let known: BTreeSet<String> = analysis.coverage_gaps.iter().map(string_gap).collect();
+        for item in &gaps {
+            if !known.contains(item) {
+                analysis.coverage_gaps.push(gap(item));
+            }
+        }
+        analysis.extras.insert(
+            "runtimeObligations".into(),
+            json!({
+                "stack": stack.label(),
+                "gaps": gaps,
+                "report": declared.runtime.provider_report(),
+            }),
+        );
+        if !analysis.coverage_gaps.is_empty() {
+            analysis.complete = false;
+            if analysis.status == "pass" || analysis.status == "measured" {
+                analysis.status = "unproven".into();
+            }
+        }
+    }
+
+    /// Frozen Blueprint artifact for structure analysis. The plan carries it
+    /// in the provider configuration: `blueprintArtifact` (a `legion-graph/1`
+    /// document) and `blueprintResolverDigest`.
+    #[derive(Clone, Debug)]
+    pub struct BlueprintInput {
+        pub artifact: Value,
+        pub resolver_config_digest: String,
+    }
+
+    /// The plan-carried Blueprint input, when both pieces are frozen.
+    pub fn blueprint_from_configuration(
+        configuration: &BTreeMap<String, Value>,
+    ) -> Option<BlueprintInput> {
+        let artifact = configuration.get("blueprintArtifact")?.clone();
+        let resolver = configuration
+            .get("blueprintResolverDigest")
+            .and_then(Value::as_str)
+            .filter(|digest| !digest.is_empty())?;
+        Some(BlueprintInput {
+            artifact,
+            resolver_config_digest: resolver.to_owned(),
+        })
+    }
+
     pub const STRUCTURE_PROVIDER_ID: &str = "architecture.structure";
     pub const NGINX_PROVIDER_ID: &str = "framework.nginx";
 
@@ -2158,6 +2511,18 @@ pub mod assurance {
     /// never a verdict: with no Blueprint graph the analyzer names
     /// `blueprint-unavailable` and the result is `unproven`.
     pub fn produce_structure(root: Option<&Path>, entries: &[InventoryEntry]) -> Analysis {
+        produce_structure_with(root, entries, None)
+    }
+
+    /// `produce_structure` with the plan-carried Blueprint graph. The graph is
+    /// passed to the analyzer only when it validates against the exact frozen
+    /// bytes read (`bound-to-frozen-covered-bytes`); a rejected or absent graph
+    /// is an explicit gap and the lexical floor remains.
+    pub fn produce_structure_with(
+        root: Option<&Path>,
+        entries: &[InventoryEntry],
+        blueprint: Option<&BlueprintInput>,
+    ) -> Analysis {
         let read = read_frozen(root, entries.iter(), MAX_FILE_BYTES, MAX_TOTAL_BYTES);
         let mut gaps: BTreeSet<String> = read
             .skips
@@ -2176,7 +2541,21 @@ pub mod assurance {
                 }
             }
         }
-        let facts = structure::analyze_structure(&inputs, None, &StructureConfig::default());
+        let graph = blueprint.and_then(|blueprint| {
+            let context = crate::graph_context::build_graph_context(
+                &read.files,
+                Some(&blueprint.artifact),
+                &blueprint.resolver_config_digest,
+            );
+            if context.freshness == "bound-to-frozen-covered-bytes" {
+                Some(context)
+            } else {
+                gaps.insert(format!("graph-context-rejected:{}", context.freshness));
+                None
+            }
+        });
+        let facts =
+            structure::analyze_structure(&inputs, graph.as_ref(), &StructureConfig::default());
         gaps.extend(facts.gaps.iter().cloned());
         if facts.partial {
             gaps.insert("structure-partial".into());
@@ -2225,6 +2604,17 @@ pub mod assurance {
         root: Option<&Path>,
         entries: &[InventoryEntry],
         input: &Value,
+    ) -> Analysis {
+        produce_nginx_with(root, entries, input, &DeclaredContext::default())
+    }
+
+    /// `produce_nginx` with repository-declared per-root context
+    /// (`nginx.roots[<dir>]` / `nginx.default`). Undeclared fields stay unbound.
+    pub fn produce_nginx_with(
+        root: Option<&Path>,
+        entries: &[InventoryEntry],
+        input: &Value,
+        declared: &DeclaredContext,
     ) -> Analysis {
         let read = read_frozen(root, entries.iter(), MAX_FILE_BYTES, MAX_TOTAL_BYTES);
         let mut gaps: BTreeSet<String> = read
@@ -2298,14 +2688,16 @@ pub mod assurance {
         let mut findings: Vec<Value> = Vec::new();
         let mut rows: Vec<Value> = Vec::new();
         for (dir, inputs) in &groups {
-            let context = NginxContext {
-                origin: if template_roots.contains(dir) {
+            let (context, context_gaps) = nginx_context_for_root(
+                declared,
+                dir,
+                if template_roots.contains(dir) {
                     ConfigOrigin::Template
                 } else {
                     ConfigOrigin::Source
                 },
-                ..NginxContext::default()
-            };
+            );
+            gaps.extend(context_gaps);
             let analysis = nginx::analyze_nginx(inputs, &context, &policy, &[]);
             let label = if dir.is_empty() { "." } else { dir.as_str() };
             for finding in &analysis.findings {
@@ -2364,9 +2756,29 @@ pub mod assurance {
         );
         analysis.findings = findings;
         analysis.coverage_gaps = gaps.iter().map(|item| gap(item)).collect();
+        analysis.extras.insert(
+            "nginxContextSource".into(),
+            json!(if declared.infrastructure.is_some() {
+                "repository-declaration"
+            } else {
+                "default-unbound"
+            }),
+        );
         analysis
             .extras
             .insert("nginxRoots".into(), Value::Array(rows));
+        for item in &declared.gaps {
+            analysis.coverage_gaps.push(gap(item));
+        }
+        attach_runtime_obligations(
+            &mut analysis,
+            declared,
+            crate::runtime_obligations::Stack::Nginx,
+        );
+        if !analysis.coverage_gaps.is_empty() && analysis.complete {
+            analysis.complete = false;
+            analysis.status = "unproven".into();
+        }
         analysis
     }
 
@@ -2390,6 +2802,17 @@ pub mod assurance {
     pub fn analyze_postgres_denominator(
         root: Option<&Path>,
         entries: &[InventoryEntry],
+    ) -> Option<PostgresAnalysis> {
+        analyze_postgres_denominator_with(root, entries, &DeclaredContext::default())
+    }
+
+    /// `analyze_postgres_denominator` with the repository-declared context
+    /// (`postgres` section of `.legion/infrastructure.json`). Refused or
+    /// malformed declarations become gaps; unknown stays unset.
+    pub fn analyze_postgres_denominator_with(
+        root: Option<&Path>,
+        entries: &[InventoryEntry],
+        declared: &DeclaredContext,
     ) -> Option<PostgresAnalysis> {
         let mut candidates: Vec<&InventoryEntry> = entries
             .iter()
@@ -2429,9 +2852,17 @@ pub mod assurance {
         if files.is_empty() {
             return None;
         }
-        let mut analysis = postgres::analyze_postgres(&files, &PostgresContext::default());
+        let (context, context_gaps) = postgres_context(declared);
+        let mut analysis = postgres::analyze_postgres(&files, &context);
         if analysis.applicable {
             analysis.gaps.extend(skipped);
+            analysis.gaps.extend(context_gaps);
+            analysis.gaps.extend(declared.gaps.iter().cloned());
+            analysis.gaps.extend(
+                declared
+                    .runtime
+                    .gaps_for_stack(crate::runtime_obligations::Stack::Postgres),
+            );
         }
         Some(analysis)
     }

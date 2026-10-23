@@ -235,6 +235,12 @@ pub struct DependencyInventory {
     pub complete: bool,
 }
 
+/// Whether `path` names a file this inventory parses, declares unsupported or
+/// declares as declared-only. Name-based; reads no content.
+pub fn is_dependency_input(path: &str) -> bool {
+    parse_input(path, "").is_some()
+}
+
 /// Builds the inventory from frozen inputs. Pure and deterministic.
 pub fn inventory(
     manifests: &[ManifestInput],

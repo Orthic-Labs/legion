@@ -994,6 +994,71 @@ impl DomainEvaluation {
     }
 }
 
+// ------------------------------------------------- repository declarations
+
+/// Conventional location of repository-declared domain contract files. Files
+/// are frozen with the inventory; they are evidence, never execution authority.
+pub const DOMAIN_CONTRACT_DIR: &str = ".legion/domain-contracts/";
+/// A file at this path declares that the repository requires domain contracts;
+/// an absent or unresolvable set is then an explicit `missing-contracts` gap.
+pub const DOMAIN_CONTRACT_REQUIRED_MARKER: &str = ".legion/domain-contracts/REQUIRED";
+/// Per-file read bound.
+pub const DOMAIN_CONTRACT_MAX_BYTES: usize = 1024 * 1024;
+
+/// Whether `path` is a declared contract file (`.json`, `.yaml`, `.yml` under
+/// [`DOMAIN_CONTRACT_DIR`]).
+pub fn is_contract_path(path: &str) -> bool {
+    path.starts_with(DOMAIN_CONTRACT_DIR)
+        && [".json", ".yaml", ".yml"]
+            .iter()
+            .any(|ext| path.ends_with(ext))
+}
+
+/// Whether the frozen inventory declares that contracts are required.
+pub fn contracts_required(inventory: &crate::inventory::InventoryEnvelope) -> bool {
+    inventory
+        .entries
+        .iter()
+        .any(|entry| entry.path == DOMAIN_CONTRACT_REQUIRED_MARKER)
+}
+
+/// Contract inputs from the frozen inventory. `read` returns the file's frozen
+/// bytes. A declared file that cannot be read keeps its inventory digest with
+/// empty bytes, so `build` reports `digest-mismatch`: a declared contract is
+/// never silently dropped.
+pub fn contract_inputs_from_inventory(
+    inventory: &crate::inventory::InventoryEnvelope,
+    mut read: impl FnMut(&str) -> Option<Vec<u8>>,
+) -> Vec<ContractFileInput> {
+    inventory
+        .entries
+        .iter()
+        .filter(|entry| is_contract_path(&entry.path))
+        .map(|entry| {
+            let bytes = read(&entry.path).unwrap_or_default();
+            ContractFileInput {
+                repository_id: inventory.repository_id.clone(),
+                path: entry.path.clone(),
+                bytes,
+                expected_digest: Some(
+                    entry
+                        .digest
+                        .clone()
+                        .unwrap_or_else(|| "unrecorded".to_owned()),
+                ),
+            }
+        })
+        .collect()
+}
+
+/// Snapshot identity of the frozen inventory for [`DomainContractSet::build`].
+pub fn inventory_snapshot(inventory: &crate::inventory::InventoryEnvelope) -> SnapshotRef {
+    SnapshotRef {
+        repository_id: inventory.repository_id.clone(),
+        snapshot_digest: inventory.digest.clone(),
+    }
+}
+
 // ---------------------------------------------------------------- checks
 
 fn norm_tz(value: &str) -> String {

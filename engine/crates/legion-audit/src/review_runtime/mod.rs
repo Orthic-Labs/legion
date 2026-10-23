@@ -1593,6 +1593,23 @@ fn reservation_available(run: &Path, id: &str) -> bool {
         == Some(false)
 }
 
+/// Validate a candidate host (`--claude`) executable without spawning it:
+/// canonical, regular, native (Mach-O/ELF/PE, never a `#!` script), and outside
+/// `forbidden` roots and every temp directory.
+pub fn validate_host_executable(path: &Path, forbidden: &[PathBuf]) -> Result<PathBuf, AuditError> {
+    native::validate_executable(path, forbidden)
+}
+
+/// Full pre-spawn path validation plus the contained `--help` capability probe,
+/// exactly as `run` performs it. A rejected path is never executed.
+pub fn probe_host_executable(
+    options: &RuntimeOptions,
+    cwd: &Path,
+    forbidden: &[PathBuf],
+) -> Result<PathBuf, AuditError> {
+    native::resolve(options, cwd, forbidden)
+}
+
 /// Runs frozen Audit dispatch to its explicit terminal state. Every physical
 /// model attempt is budget-authorized; no unmetered correction/retry exists.
 pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError> {
@@ -1625,7 +1642,13 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
     next::enforce_native_accounting(options.budget_run.as_deref().unwrap_or(&run))?;
     let cwd = run.join("runtime-host");
     fs::create_dir_all(&cwd).map_err(|error| invalid(error.to_string()))?;
-    let binary = match native::resolve(options, &cwd) {
+    let forbidden_roots = [
+        snapshot.manifest.execution_root.clone(),
+        snapshot.manifest.baseline_root.clone(),
+        snapshot.manifest.scope.source_root.clone(),
+        run.clone(),
+    ];
+    let binary = match native::resolve(options, &cwd, &forbidden_roots) {
         Ok(binary) => binary,
         Err(error) => {
             return Ok(

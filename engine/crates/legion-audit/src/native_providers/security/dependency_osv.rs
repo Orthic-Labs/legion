@@ -2,7 +2,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::common::{array, files, same_binding, valid_digest};
-use crate::dependency_inventory::{AdvisoryDatabase, AdvisoryRecord, Ecosystem, SourceStatus};
+use crate::dependency_inventory::{
+    self, AdvisoryDatabase, AdvisoryRecord, Ecosystem, ManifestInput, SourceStatus,
+};
+use crate::{inventory::InventoryEnvelope, source_cache::bytes_digest};
+use std::path::{Component, Path};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -267,6 +271,15 @@ pub fn analyze(input: &Value) -> Value {
             gaps.push(json!({"kind":"dependency-receipt-invalid","path":path}));
         }
     }
+    // Frozen dependency inventory (A08): digests, freshness and unsupported or
+    // unreadable lock inputs reach this provider's result. Absent inventory is
+    // recorded, never invented; unsupported formats are blocking gaps.
+    let inventory_summary = summarize_inventory(
+        input
+            .get("artifacts")
+            .and_then(|a| a.get(INVENTORY_ARTIFACT)),
+        &mut gaps,
+    );
     // Findings are located at the manifest whose receipt carried them.
     let findings = receipts
         .iter()
@@ -282,7 +295,129 @@ pub fn analyze(input: &Value) -> Value {
                 })
         })
         .collect::<Vec<_>>();
-    json!({"status":if gaps.is_empty(){"pass"}else{"unproven"},"complete":gaps.is_empty(),"denominator":{"kind":"dependency-manifests","expected":manifests.len(),"examined":receipts.len()},"findings":findings,"coverageGaps":gaps})
+    json!({"status":if gaps.is_empty(){"pass"}else{"unproven"},"complete":gaps.is_empty(),"denominator":{"kind":"dependency-manifests","expected":manifests.len(),"examined":receipts.len()},"findings":findings,"coverageGaps":gaps,"dependencyInventory":inventory_summary})
+}
+
+/// Artifact key under `artifacts` carrying `frozen_inventory_artifact` output.
+pub const INVENTORY_ARTIFACT: &str = "dependencyInventory";
+const MAX_LOCK_BYTES: u64 = 8 * 1024 * 1024;
+
+fn safe_relative(path: &str) -> bool {
+    let p = Path::new(path);
+    !path.is_empty()
+        && !p.is_absolute()
+        && p.components().all(|c| matches!(c, Component::Normal(_)))
+}
+
+/// Production wiring of `dependency_inventory::inventory`: read every frozen
+/// lock/manifest input of `inventory` from `root` (bounded, symlink-free,
+/// digest-verified against the frozen inventory), build the inventory, and
+/// return the artifact `analyze` consumes. `scan` is the raw OSV scan that
+/// supplied the advisory database (`None` leaves the advisory source absent,
+/// which the inventory reports as its own gap).
+pub fn frozen_inventory_artifact(
+    root: &Path,
+    inventory: &InventoryEnvelope,
+    scan: Option<(&Value, &str, &str)>,
+) -> Value {
+    let mut manifests = Vec::new();
+    let mut read_gaps = Vec::new();
+    for entry in &inventory.entries {
+        if !dependency_inventory::is_dependency_input(&entry.path) {
+            continue;
+        }
+        let gap = |kind: &str| json!({"kind": kind, "path": entry.path});
+        if !safe_relative(&entry.path) {
+            read_gaps.push(gap("dependency-inventory-path-unsafe"));
+            continue;
+        }
+        let full = root.join(&entry.path);
+        let meta = match std::fs::symlink_metadata(&full) {
+            Ok(meta) if meta.is_file() && !meta.file_type().is_symlink() => meta,
+            _ => {
+                read_gaps.push(gap("dependency-inventory-unreadable"));
+                continue;
+            }
+        };
+        if meta.len() > MAX_LOCK_BYTES {
+            read_gaps.push(gap("dependency-inventory-oversize"));
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(&full) else {
+            read_gaps.push(gap("dependency-inventory-unreadable"));
+            continue;
+        };
+        let frozen = entry
+            .digest
+            .as_deref()
+            .and_then(|d| d.strip_prefix("sha256:"));
+        if frozen != Some(bytes_digest(&bytes).as_str()) {
+            read_gaps.push(gap("dependency-lock-digest-mismatch"));
+            continue;
+        }
+        let Ok(raw) = String::from_utf8(bytes) else {
+            read_gaps.push(gap("dependency-inventory-not-utf8"));
+            continue;
+        };
+        manifests.push(ManifestInput {
+            path: entry.path.clone(),
+            raw,
+            target: String::new(),
+        });
+    }
+    let database =
+        scan.map(|(raw, version, digest)| advisory_database_from_scan(raw, version, digest));
+    let built = dependency_inventory::inventory(&manifests, database.as_ref(), &[]);
+    json!({
+        "inventory": serde_json::to_value(&built).unwrap_or(Value::Null),
+        "readGaps": read_gaps,
+    })
+}
+
+/// Summary for `analysis.dependencyInventory`; pushes blocking gaps for
+/// unsupported or unreadable inputs onto `gaps`.
+fn summarize_inventory(artifact: Option<&Value>, gaps: &mut Vec<Value>) -> Value {
+    let Some(artifact) = artifact else {
+        return json!({"state": "absent", "claims": {"advisoryCurrent": false}});
+    };
+    let Some(inventory) = artifact.get("inventory").filter(|v| v.is_object()) else {
+        gaps.push(json!({"kind": "dependency-inventory-invalid"}));
+        return json!({"state": "invalid", "claims": {"advisoryCurrent": false}});
+    };
+    for gap in array(artifact.get("readGaps")) {
+        gaps.push(gap);
+    }
+    for item in array(inventory.get("unsupported")) {
+        gaps.push(json!({
+            "kind": "dependency-lock-unsupported",
+            "path": item.get("path").cloned().unwrap_or(Value::Null),
+            "reason": item.get("reason").cloned().unwrap_or(Value::Null),
+        }));
+    }
+    let freshness = inventory.get("freshness").cloned().unwrap_or(Value::Null);
+    let advisory_current = freshness.get("advisory").and_then(Value::as_str) == Some("current");
+    let mut gap_counts = serde_json::Map::new();
+    for gap in array(inventory.get("gaps")) {
+        if let Some(kind) = gap.get("kind").and_then(Value::as_str) {
+            let slot = gap_counts.entry(kind.to_owned()).or_insert(json!(0));
+            *slot = json!(slot.as_u64().unwrap_or(0) + 1);
+        }
+    }
+    json!({
+        "state": "present",
+        "schemaVersion": inventory.get("schemaVersion").cloned().unwrap_or(Value::Null),
+        "graphDigest": inventory.get("graphDigest").cloned().unwrap_or(Value::Null),
+        "sourceDigest": inventory.get("sourceDigest").cloned().unwrap_or(Value::Null),
+        "metadataDigest": inventory.get("metadataDigest").cloned().unwrap_or(Value::Null),
+        "freshness": freshness,
+        "manifestCount": array(inventory.get("manifests")).len(),
+        "packageCount": array(inventory.get("packages")).len(),
+        "unsupportedCount": array(inventory.get("unsupported")).len(),
+        "inventoryComplete": inventory.get("complete").cloned().unwrap_or(json!(false)),
+        "inventoryGapCounts": Value::Object(gap_counts),
+        // Currency is never claimed unless the advisory source proved it.
+        "claims": {"advisoryCurrent": advisory_current},
+    })
 }
 
 // --- Advisory bridge into dependency_inventory (A08) ---

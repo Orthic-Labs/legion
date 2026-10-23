@@ -434,7 +434,8 @@ pub fn evaluate_qualification(
     match (&record.rule_version, &context.rule_version) {
         (Some(r), Some(c)) => check("ruleVersion", r, c, &mut mismatches),
         (None, Some(_)) => mismatches.push("ruleVersion: record missing".into()),
-        _ => {}
+        (Some(_), None) => mismatches.push("ruleVersion: run unknown".into()),
+        (None, None) => {}
     }
     check("host", &record.host, &context.host, &mut mismatches);
     check(
@@ -451,6 +452,14 @@ pub fn evaluate_qualification(
     for feature in &context.features {
         if !record_features.contains(feature.as_str()) {
             mismatches.push(format!("feature-not-qualified:{feature}"));
+        }
+    }
+    // Exact comparison: a record qualified with features the run did not
+    // enable describes a different configuration.
+    let context_features: BTreeSet<&str> = context.features.iter().map(String::as_str).collect();
+    for feature in &record_features {
+        if !context_features.contains(feature) {
+            mismatches.push(format!("feature-not-executed:{feature}"));
         }
     }
     if context.requires_production_evidence && record.evidence_basis != "production" {
@@ -1035,8 +1044,15 @@ impl AuditAssuranceV1 {
             }
         }
         for kind in profile.profile.mandatory_evidence_kinds() {
+            // A proven-inapplicable candidate never satisfies a profile
+            // minimum: the minimum then freezes as its own unmet obligation.
             let covered = merged.iter().any(|candidate| {
-                candidate.evidence_kind == kind && candidate.required_in.contains(&profile.profile)
+                candidate.evidence_kind == kind
+                    && candidate.required_in.contains(&profile.profile)
+                    && candidate
+                        .proven_inapplicable_reason
+                        .as_deref()
+                        .is_none_or(|reason| reason.trim().is_empty())
             });
             if covered {
                 continue;
@@ -1203,6 +1219,18 @@ pub fn run_host_label() -> String {
 /// Plan-bound key under which the registry's qualification scope record is
 /// frozen into `AuditProvider.bounds`.
 pub const QUALIFICATION_SCOPE_BOUND_KEY: &str = "qualificationScope";
+/// `ProviderResult.details` key under which a provider execution records the
+/// toolchain it actually ran with. Qualification compares against this value,
+/// never against the qualification record's own claim.
+pub const EXECUTED_TOOLCHAIN_DETAIL_KEY: &str = "executedToolchain";
+/// `ProviderResult.details` key recording the rule/rule-pack version (and
+/// ruleset digest, `version+sha256:...`) the execution actually applied.
+pub const EXECUTED_RULE_VERSION_DETAIL_KEY: &str = "executedRuleVersion";
+/// `ProviderResult.details` key recording the sorted list of features the
+/// execution actually enabled. Absent means UNKNOWN; `[]` means none.
+pub const EXECUTED_FEATURES_DETAIL_KEY: &str = "executedFeatures";
+/// Toolchain label when the execution recorded none.
+pub const TOOLCHAIN_UNKNOWN: &str = "UNKNOWN";
 /// Plan-bound key carrying the registry claim scope (e.g.
 /// `known-answer-fixture-cases`) when no full scope record exists.
 pub const CLAIM_SCOPE_BOUND_KEY: &str = "claimScope";
@@ -1215,6 +1243,9 @@ pub const CLAIM_SCOPE_BOUND_KEY: &str = "claimScope";
 fn provider_qualification_mismatches(
     provider: &crate::plan::AuditProvider,
     frozen: &AuditAssuranceV1,
+    executed_toolchain: Option<&str>,
+    executed_rule_version: Option<&str>,
+    executed_features: Option<&[String]>,
 ) -> Vec<String> {
     let id = &provider.id;
     if provider.benchmark_status != "qualified" || provider.qualification_digest.is_none() {
@@ -1238,18 +1269,65 @@ fn provider_qualification_mismatches(
     }
     match record {
         Some(record) => {
+            // The record's own digest must be the digest frozen for the
+            // provider, exactly: a record cannot vouch for itself.
+            if provider.qualification_digest.as_deref() != Some(record.digest.as_str()) {
+                out.push(format!(
+                    "provider-qualification:{id}:digest-mismatch: record={} frozen={}",
+                    record.digest,
+                    provider.qualification_digest.as_deref().unwrap_or("none")
+                ));
+            }
+            // The toolchain comes from what the execution recorded, never from
+            // the qualification record. When the execution recorded none the
+            // dimension is UNKNOWN: that cannot qualify a production claim.
+            let (toolchain, unknown) = match executed_toolchain.filter(|t| !t.trim().is_empty()) {
+                Some(executed) => (executed.to_owned(), false),
+                None => (TOOLCHAIN_UNKNOWN.to_owned(), true),
+            };
+            if unknown && production {
+                out.push(format!(
+                    "provider-qualification:{id}:toolchain-unknown: execution recorded no toolchain"
+                ));
+            }
+            // Rule version and features come from the execution, never the
+            // record. Unrecorded: UNKNOWN, which cannot qualify a production
+            // claim; outside production the record's value is borrowed as a
+            // disclosed gap.
+            let rule_version = executed_rule_version.filter(|v| !v.trim().is_empty());
+            if production && rule_version.is_none() {
+                out.push(format!(
+                    "provider-qualification:{id}:rule-version-unknown: execution recorded no rule version"
+                ));
+            }
+            if production && executed_features.is_none() {
+                out.push(format!(
+                    "provider-qualification:{id}:features-unknown: execution recorded no feature set"
+                ));
+            }
             let context = QualificationContext {
                 provider_id: provider.id.clone(),
                 provider_version: provider.version.clone(),
-                rule_version: None,
+                rule_version: match rule_version {
+                    Some(v) => Some(v.to_owned()),
+                    None if production => Some("UNKNOWN".to_owned()),
+                    None => record.rule_version.clone(),
+                },
                 host: run_host_label(),
-                // The execution report records no toolchain, so that one
-                // dimension is taken from the record and remains a documented
-                // gap; target and variant come from the frozen product target.
-                toolchain: record.toolchain.clone(),
+                // Outside production an unrecorded toolchain is a disclosed gap
+                // (the record's value is borrowed for that one dimension only).
+                toolchain: if unknown && !production {
+                    record.toolchain.clone()
+                } else {
+                    toolchain
+                },
                 target: frozen.product_target.target.clone(),
                 variant: frozen.product_target.variant.clone(),
-                features: Vec::new(),
+                features: match executed_features {
+                    Some(f) => f.to_vec(),
+                    None if production => vec!["UNKNOWN".to_owned()],
+                    None => record.features.clone(),
+                },
                 requires_production_evidence: production,
             };
             let verdict = evaluate_qualification(Some(&record), &context, &now_utc_for_freshness());
@@ -1344,8 +1422,34 @@ pub fn evidence_from_execution(
             for finding in &row.result.findings {
                 finding_ids.insert(finding.id.as_str().to_owned());
             }
+            let executed_toolchain = row
+                .result
+                .details
+                .get(EXECUTED_TOOLCHAIN_DETAIL_KEY)
+                .and_then(Value::as_str);
+            let executed_rule_version = row
+                .result
+                .details
+                .get(EXECUTED_RULE_VERSION_DETAIL_KEY)
+                .and_then(Value::as_str);
+            let executed_features: Option<Vec<String>> = row
+                .result
+                .details
+                .get(EXECUTED_FEATURES_DETAIL_KEY)
+                .and_then(Value::as_array)
+                .and_then(|list| {
+                    list.iter()
+                        .map(|v| v.as_str().map(str::to_owned))
+                        .collect::<Option<Vec<_>>>()
+                });
             match plan.provider(provider_id) {
-                Some(p) => mismatches.extend(provider_qualification_mismatches(p, frozen)),
+                Some(p) => mismatches.extend(provider_qualification_mismatches(
+                    p,
+                    frozen,
+                    executed_toolchain,
+                    executed_rule_version,
+                    executed_features.as_deref(),
+                )),
                 None => mismatches.push(format!("provider-unqualified:{provider_id}")),
             }
         }
@@ -1626,6 +1730,599 @@ pub fn gate_report_v2(
         required,
         now_rfc3339_utc,
     )
+}
+
+// ---------------------------------------------------------------------------
+// Frozen selection scope
+// ---------------------------------------------------------------------------
+
+/// `AuditPlan::bounds` key holding the frozen provider/scope selection.
+pub const SELECTION_SCOPE_BOUND: &str = "auditSelectionScopeV1";
+
+/// What the operator selected at freeze time, signed into the plan. An
+/// assurance gate treats any narrowing (provider filters, diff or directory
+/// scope, fewer providers than the configured universe) as a partial run
+/// regardless of profile: omitted work cannot be proven examined.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SelectionScope {
+    pub schema_version: u32,
+    pub only: Vec<String>,
+    pub skip: Vec<String>,
+    /// `whole-repo` or `diff`.
+    pub scope_mode: String,
+    pub scope_type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_commit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dir: Option<String>,
+    pub selected_provider_ids: Vec<String>,
+    /// Every provider the application configures, before any filter.
+    pub universe_provider_ids: Vec<String>,
+}
+
+impl SelectionScope {
+    pub const SCHEMA_VERSION: u32 = 1;
+
+    pub fn validate(&self) -> Result<(), AuditError> {
+        if self.schema_version != Self::SCHEMA_VERSION {
+            return Err(invalid(
+                "selectionScope.schemaVersion",
+                "unsupported version",
+            ));
+        }
+        if self.scope_mode.trim().is_empty() {
+            return Err(invalid("selectionScope.scopeMode", "must be non-empty"));
+        }
+        Ok(())
+    }
+
+    /// Every reason this selection is narrower than the whole repository with
+    /// the whole provider universe. Empty means a full-scope run.
+    pub fn filter_reasons(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if !self.only.is_empty() {
+            out.push(format!("only={}", self.only.join(",")));
+        }
+        if !self.skip.is_empty() {
+            out.push(format!("skip={}", self.skip.join(",")));
+        }
+        if self.scope_mode != "whole-repo" {
+            out.push(format!("scope-mode={}", self.scope_mode));
+        }
+        if let Some(dir) = &self.dir {
+            out.push(format!("dir={dir}"));
+        }
+        if let Some(base) = &self.base {
+            out.push(format!("base={base}"));
+        }
+        if let Some(base) = &self.base_commit {
+            out.push(format!("base-commit={base}"));
+        }
+        let selected: BTreeSet<&str> = self
+            .selected_provider_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let omitted: Vec<&str> = self
+            .universe_provider_ids
+            .iter()
+            .map(String::as_str)
+            .filter(|id| !selected.contains(id))
+            .collect();
+        if !omitted.is_empty() {
+            out.push(format!("providers-omitted={}", omitted.join(",")));
+        }
+        out
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.filter_reasons().is_empty()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Verified rebuild of obligation outcomes
+// ---------------------------------------------------------------------------
+
+/// Derive `ProviderExecution` evidence from verified signed provider receipts
+/// (never from `report.json`). The evidence refs are the receipts' own
+/// digests. Receipts must already be signature- and journal-verified.
+pub fn evidence_from_receipts(
+    frozen: &AuditAssuranceV1,
+    plan: &FrozenPlan,
+    receipts: &[crate::resume::StoredReceipt],
+) -> Vec<ObligationEvidence> {
+    let by_provider: BTreeMap<&str, &crate::resume::StoredReceipt> = receipts
+        .iter()
+        .filter(|receipt| receipt.body.execution.provider == receipt.body.provider)
+        .map(|receipt| (receipt.body.provider.as_str(), receipt))
+        .collect();
+    let execution = ExecutionReport {
+        plan_digest: plan.digest().to_owned(),
+        plan_signature: plan.signature().map(str::to_owned),
+        planned_providers: plan.providers().iter().map(|p| p.id.clone()).collect(),
+        results: plan
+            .providers()
+            .iter()
+            .filter_map(|p| by_provider.get(p.id.as_str()))
+            .map(|receipt| receipt.body.execution.clone())
+            .collect(),
+        ..ExecutionReport::default()
+    };
+    let mut out = evidence_from_execution(frozen, plan, &execution);
+    for item in &mut out {
+        let providers: Vec<String> = frozen
+            .obligations
+            .iter()
+            .find(|obligation| obligation.id == item.obligation)
+            .map(|obligation| obligation.provider_ids.clone())
+            .unwrap_or_default();
+        item.evidence_refs = providers
+            .iter()
+            .filter_map(|id| by_provider.get(id.as_str()).map(|r| r.digest.clone()))
+            .collect();
+    }
+    out
+}
+
+/// Reconcile the frozen denominator against verified receipts alone.
+pub fn rebuild_from_receipts(
+    frozen: &AuditAssuranceV1,
+    plan: &FrozenPlan,
+    receipts: &[crate::resume::StoredReceipt],
+    now_rfc3339_utc: &str,
+) -> Result<Reconciliation, AuditError> {
+    reconcile(
+        frozen,
+        &evidence_from_receipts(frozen, plan, receipts),
+        &[],
+        now_rfc3339_utc,
+    )
+}
+
+/// Compare what a report claims against the outcome rebuilt from verified
+/// receipts. Any status disagreement, and any `evidenceRefs` entry that is not
+/// the digest of a verified receipt for the obligation's providers (or the
+/// derived execution ref over them), is named. A claim never upgrades.
+pub fn claim_disagreements(
+    reported: &AuditAssuranceV1,
+    rebuilt: &AuditAssuranceV1,
+    plan_digest: &str,
+    receipts: &[crate::resume::StoredReceipt],
+) -> Vec<String> {
+    let rebuilt_by: BTreeMap<&ObligationId, &ProductionObligation> =
+        rebuilt.obligations.iter().map(|o| (&o.id, o)).collect();
+    let digest_of: BTreeMap<&str, &str> = receipts
+        .iter()
+        .map(|r| (r.body.provider.as_str(), r.digest.as_str()))
+        .collect();
+    let mut out = Vec::new();
+    for claim in &reported.obligations {
+        let Some(verified) = rebuilt_by.get(&claim.id) else {
+            continue; // reported only: frozen_mismatches names it
+        };
+        if claim.status != verified.status {
+            out.push(format!(
+                "claim-mismatch:{}: reported={:?} verified={:?}",
+                label(&claim.id),
+                claim.status,
+                verified.status
+            ));
+        }
+        if claim.status.was_examined() {
+            let mut allowed: BTreeSet<String> = BTreeSet::new();
+            for provider in &claim.provider_ids {
+                if let Some(digest) = digest_of.get(provider.as_str()) {
+                    allowed.insert((*digest).to_owned());
+                }
+            }
+            allowed.insert(format!(
+                "execution:{plan_digest}:{}",
+                claim.provider_ids.join("+")
+            ));
+            let backed = !claim.provider_ids.is_empty()
+                && claim
+                    .provider_ids
+                    .iter()
+                    .all(|p| digest_of.contains_key(p.as_str()));
+            for reference in &claim.evidence_refs {
+                if !backed || !allowed.contains(reference) {
+                    out.push(format!(
+                        "evidence-ref-unverified:{}:{reference}",
+                        label(&claim.id)
+                    ));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Profile minimums re-derived from the frozen profile: every evidence kind
+/// `required` mandates must have a frozen obligation of that kind that is
+/// required in the frozen profile and is not inapplicable. An inapplicable
+/// obligation never satisfies a minimum.
+pub fn profile_minimum_gaps(frozen: &AuditAssuranceV1, required: AuditProfile) -> Vec<String> {
+    required
+        .mandatory_evidence_kinds()
+        .into_iter()
+        .filter(|kind| {
+            !frozen.obligations.iter().any(|obligation| {
+                obligation.id.evidence_kind == *kind
+                    && obligation.status != ObligationStatus::Inapplicable
+                    && obligation.required_in.contains(&frozen.profile.profile)
+            })
+        })
+        .map(|kind| format!("profile-minimum-missing:{kind:?}"))
+        .collect()
+}
+
+/// Why `gate_run` could not produce a verdict.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RunGateError {
+    /// Run artifacts are missing or unreadable (exit 2).
+    Incomplete(String),
+    /// Run artifacts are present but forged, unsigned or inconsistent (exit 5).
+    Integrity(String),
+}
+
+/// A gate verdict over a persisted run, rebuilt from verified evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RunGate {
+    pub verdict: GateVerdict,
+    pub reasons: Vec<String>,
+    pub required: AuditProfile,
+    /// True when the caller named the required profile; false means the
+    /// release default applied.
+    pub required_explicit: bool,
+    pub frozen_profile: Option<AuditProfile>,
+    pub plan_digest: String,
+    /// `None` when the plan froze no selection scope.
+    pub full_scope: Option<bool>,
+    pub verified_providers: Vec<String>,
+    /// Custody the plan key was resolved from (`host-state`, `environment`,
+    /// `legacy-run-dir-epoch`).
+    pub key_custody: String,
+    /// SHA-256 over the provider universe the plan froze; `None` when the
+    /// plan froze no selection scope. Makes a reduced registry visible.
+    pub registry_digest: Option<String>,
+}
+
+fn custody_label(source: &crate::integrity::PlanKeySource) -> &'static str {
+    match source {
+        crate::integrity::PlanKeySource::Environment => "environment",
+        crate::integrity::PlanKeySource::HostState => "host-state",
+        crate::integrity::PlanKeySource::LegacyRunDirEpoch => "legacy-run-dir-epoch",
+    }
+}
+
+fn resolve_gate_key(
+    run: &std::path::Path,
+    outer: &Value,
+    host_only: bool,
+) -> Result<(Vec<u8>, &'static str), RunGateError> {
+    if host_only && outer.get("planKey").is_none_or(Value::is_null) {
+        return Err(integrity(
+            "plan-key-custody:missing-host-binding: assurance and schema-2 plans must carry a host planKey binding",
+        ));
+    }
+    match crate::integrity::resolve_plan_key(run, outer) {
+        crate::integrity::PlanKeyResolution::Found { key, source } => {
+            let label = custody_label(&source);
+            if host_only && source != crate::integrity::PlanKeySource::HostState {
+                return Err(integrity(format!("plan-key-custody:{label}")));
+            }
+            Ok((key, label))
+        }
+        crate::integrity::PlanKeyResolution::Unverifiable { reason } => {
+            Err(integrity(format!("unverifiable-signature: {reason}")))
+        }
+    }
+}
+
+fn integrity(reason: impl Into<String>) -> RunGateError {
+    RunGateError::Integrity(reason.into())
+}
+
+/// Gate a persisted run directory without trusting any editable claim.
+///
+/// * The plan must be signed and verify under the run's plan key whenever it
+///   froze an assurance denominator or is schema 2; unsigned is refused.
+///   A legacy plan can only ever yield `Incomplete`.
+/// * The journal must be finalized, hash-chained and match the signed anchor.
+/// * Obligation outcomes are rebuilt from the signed provider receipts that the
+///   journal vouches for; `report.json` assurance claims are cross-checked and
+///   any disagreement is `Incomplete` with a named reason.
+/// * A filtered or narrowed selection is `Incomplete` for every profile.
+/// * `required == None` means release strength.
+pub fn gate_run(
+    run: &std::path::Path,
+    required: Option<AuditProfile>,
+    now_rfc3339_utc: &str,
+) -> Result<RunGate, RunGateError> {
+    use crate::journal::{bytes_digest, verify_dir, EventKind, Expectation, JournalAnchor};
+
+    let read = |name: &str| -> Result<Vec<u8>, RunGateError> {
+        std::fs::read(run.join(name))
+            .map_err(|error| RunGateError::Incomplete(format!("{name}: {error}")))
+    };
+    let parse = |name: &str, bytes: &[u8]| -> Result<Value, RunGateError> {
+        serde_json::from_slice(bytes)
+            .map_err(|error| integrity(format!("{name} is invalid: {error}")))
+    };
+    let outer = parse("plan.json", &read("plan.json")?)?;
+    let native = outer
+        .get("nativePlan")
+        .ok_or_else(|| integrity("plan.json carries no nativePlan"))?;
+    let plan: crate::plan::AuditPlan = serde_json::from_value(
+        native
+            .get("plan")
+            .cloned()
+            .ok_or_else(|| integrity("nativePlan body is missing"))?,
+    )
+    .map_err(|error| integrity(format!("nativePlan body is invalid: {error}")))?;
+    let plan_repository_id = plan.repository_id.clone();
+    let digest = native
+        .get("digest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| integrity("nativePlan digest is missing"))?
+        .to_owned();
+    if outer.pointer("/seal/digest").and_then(Value::as_str) != Some(digest.as_str()) {
+        return Err(integrity("plan seal differs from nativePlan"));
+    }
+    let signature = native.get("signature").and_then(Value::as_str);
+    let binding = plan
+        .assurance_binding()
+        .map_err(|error| integrity(error.to_string()))?;
+    let required_explicit = required.is_some();
+    let required = required.unwrap_or(AuditProfile::Release);
+
+    let signed_required = binding.is_some() || plan.schema_version >= crate::plan::PLAN_SCHEMA_V2;
+    if signature.is_none() && signed_required {
+        return Err(integrity(
+            "unsigned-plan: assurance and schema-2 plans must carry a verifiable plan signature",
+        ));
+    }
+    let Some(frozen) = binding else {
+        // Legacy path: integrity-checked, but it can only ever be incomplete.
+        let mut legacy_custody = "none";
+        let key = match signature {
+            Some(_) => {
+                let (key, label) = resolve_gate_key(
+                    run,
+                    &outer,
+                    plan.schema_version >= crate::plan::PLAN_SCHEMA_V2,
+                )?;
+                legacy_custody = label;
+                Some(key)
+            }
+            None => None,
+        };
+        crate::integrity::verify(&plan, &digest, signature, key.as_deref())
+            .map_err(|error| integrity(error.to_string()))?;
+        return Ok(RunGate {
+            verdict: GateVerdict::Incomplete,
+            reasons: vec!["legacy-run: plan froze no assurance denominator".to_owned()],
+            required,
+            required_explicit,
+            frozen_profile: None,
+            plan_digest: digest,
+            full_scope: None,
+            verified_providers: Vec::new(),
+            key_custody: legacy_custody.to_owned(),
+            registry_digest: None,
+        });
+    };
+    let signature = signature.ok_or_else(|| integrity("unsigned-plan"))?;
+    let (key, key_custody) = resolve_gate_key(run, &outer, true)?;
+    let frozen_plan = FrozenPlan::restore_verified(plan, &digest, signature, &key)
+        .map_err(|error| integrity(error.to_string()))?;
+
+    let mut extra: Vec<String> = Vec::new();
+
+    // Frozen scope: any narrowing is incomplete regardless of profile.
+    let selection = frozen_plan
+        .plan()
+        .selection_scope()
+        .map_err(|error| integrity(error.to_string()))?;
+    let full_scope = match &selection {
+        None => {
+            extra.push("selection-scope-not-frozen: plan cannot prove full scope".to_owned());
+            None
+        }
+        Some(selection) => {
+            let reasons = selection.filter_reasons();
+            for reason in &reasons {
+                extra.push(format!("filtered-run:{reason}"));
+            }
+            Some(reasons.is_empty())
+        }
+    };
+
+    // Journal: finalized, chained, bound to the signed anchor.
+    let anchor = match JournalAnchor::read(run) {
+        Ok(anchor) => anchor,
+        Err(error) => {
+            extra.push(format!("journal-anchor-invalid:{error}"));
+            None
+        }
+    };
+    let mut events = Vec::new();
+    match &anchor {
+        None => extra.push("journal-anchor-missing: run has no signed journal anchor".to_owned()),
+        Some(anchor) => {
+            if !anchor.verify(&key) {
+                extra.push(
+                    "journal-anchor-signature: does not verify under the run plan key".to_owned(),
+                );
+            }
+            if anchor.plan_digest != digest {
+                extra.push("journal-anchor-plan-mismatch".to_owned());
+            }
+            if anchor.effective_plan_digest != digest {
+                extra.push(
+                    "amended-run: effective plan differs from the frozen plan; receipts are not rebuildable here"
+                        .to_owned(),
+                );
+            }
+            let verification = verify_dir(
+                run,
+                &digest,
+                &Expectation {
+                    require_finalized: true,
+                    expected_head: None,
+                    final_plan_digest: Some(anchor.effective_plan_digest.clone()),
+                },
+            );
+            for defect in &verification.defects {
+                extra.push(format!("journal-defect:{defect}"));
+            }
+            if verification.unsealed_tail > 0 {
+                extra.push("journal-defect:committed events lie past the sealed head".to_owned());
+            }
+            if verification.events.len() as u64 != anchor.sequence
+                || verification.events.last().map(|e| e.digest.as_str())
+                    != Some(anchor.digest.as_str())
+            {
+                extra.push(
+                    "journal-anchor-mismatch: journal does not end at the signed head".to_owned(),
+                );
+            }
+            events = verification.events;
+        }
+    }
+
+    // Report bytes must be the ones the journal finalized.
+    let report_bytes = read("report.json")?;
+    let report_value = parse("report.json", &report_bytes)?;
+    if let Some(last) = events.last() {
+        if last.kind == EventKind::ReportFinalized
+            && last.payload_digest != bytes_digest(&report_bytes)
+        {
+            extra.push(
+                "report-differs-from-finalized-digest: report.json is not the report the journal finalized"
+                    .to_owned(),
+            );
+        }
+    }
+    let report = legion_contracts::Report::read_any(&report_value)
+        .map_err(|error| integrity(format!("report.json is invalid: {error}")))?;
+
+    // Receipts: signed, bound to this plan and to a journal settle event.
+    let mut settled: BTreeMap<&str, &str> = BTreeMap::new();
+    for event in &events {
+        if matches!(
+            event.kind,
+            EventKind::ProviderFinished | EventKind::ProviderFailed | EventKind::ProviderSkipped
+        ) {
+            settled.insert(event.subject.as_str(), event.payload_digest.as_str());
+        }
+    }
+    let mut receipts: Vec<crate::resume::StoredReceipt> = Vec::new();
+    for provider in frozen_plan.providers() {
+        match crate::resume::read_verified_receipt(run, &provider.id, &key) {
+            Err(error) => extra.push(format!("receipt-unverified:{}:{error}", provider.id)),
+            Ok(receipt) => {
+                if receipt.body.plan_digest != digest {
+                    extra.push(format!("receipt-plan-mismatch:{}", provider.id));
+                } else if settled.get(provider.id.as_str()) != Some(&receipt.digest.as_str()) {
+                    extra.push(format!("receipt-journal-mismatch:{}", provider.id));
+                } else {
+                    receipts.push(receipt);
+                }
+            }
+        }
+    }
+    let verified_providers: Vec<String> =
+        receipts.iter().map(|r| r.body.provider.clone()).collect();
+
+    let rebuilt = rebuild_from_receipts(&frozen, &frozen_plan, &receipts, now_rfc3339_utc)
+        .map_err(|error| integrity(error.to_string()))?;
+    for rejected in &rebuilt.rejected {
+        extra.push(format!("rebuild-rejected:{rejected}"));
+    }
+
+    // Cross-check the report's assurance claims against the rebuilt outcome.
+    match report.assurance_extension() {
+        None => extra.push("assurance-extension-absent".to_owned()),
+        Some(value) => match AuditAssuranceV1::from_value(value, now_rfc3339_utc) {
+            Err(error) => extra.push(format!("assurance-extension-invalid:{error}")),
+            Ok(reported) => {
+                for mismatch in frozen_mismatches(&frozen, &reported) {
+                    extra.push(format!("frozen-mismatch:{mismatch}"));
+                }
+                extra.extend(claim_disagreements(
+                    &reported,
+                    &rebuilt.assurance,
+                    &digest,
+                    &receipts,
+                ));
+            }
+        },
+    }
+    extra.extend(profile_minimum_gaps(&frozen, required));
+
+    // The verdict is computed over the rebuilt assurance, never the claim.
+    let mut extensions = report.extensions.clone();
+    extensions.insert(
+        AUDIT_ASSURANCE_EXTENSION_KEY.to_owned(),
+        rebuilt
+            .assurance
+            .to_value()
+            .map_err(|error| integrity(error.to_string()))?,
+    );
+    let subject = GateSubject {
+        status: report.status,
+        finding_count: blocking_count(
+            report.findings.iter().map(|f| f.id.as_str()),
+            &report.extensions,
+        ),
+        gaps: &report.gaps,
+        extensions: &extensions,
+    };
+    // A rolled-back or deleted finding-history store for the audited source
+    // repository blocks eligibility (host-custody ledger, finding_history.rs).
+    let planned = std::path::Path::new(&plan_repository_id);
+    let source_repo = planned
+        .parent()
+        .map(|object| object.join("manifest.json"))
+        .filter(|manifest| manifest.is_file())
+        .and_then(|manifest| crate::snapshot::FrozenSnapshot::open(&manifest).ok())
+        .map(|snapshot| snapshot.manifest.scope.source_root)
+        .unwrap_or_else(|| planned.to_path_buf());
+    extra.extend(crate::finding_history::history_custody_gaps(&source_repo));
+    let decision = gate(&subject, Some(&frozen), required, now_rfc3339_utc);
+    extra.sort();
+    extra.dedup();
+    let (verdict, reasons) = match decision.verdict {
+        GateVerdict::Eligible if extra.is_empty() => (GateVerdict::Eligible, decision.reasons),
+        GateVerdict::Eligible => (GateVerdict::Incomplete, extra),
+        other => {
+            let mut reasons = decision.reasons;
+            reasons.extend(extra);
+            (other, reasons)
+        }
+    };
+    Ok(RunGate {
+        verdict,
+        reasons,
+        required,
+        required_explicit,
+        frozen_profile: Some(frozen.profile.profile),
+        plan_digest: digest,
+        full_scope,
+        verified_providers,
+        key_custody: key_custody.to_owned(),
+        registry_digest: selection.as_ref().map(|selection| {
+            let mut ids = selection.universe_provider_ids.clone();
+            ids.sort();
+            ids.dedup();
+            bytes_digest(ids.join("\n").as_bytes())
+        }),
+    })
 }
 
 fn invalid(path: impl Into<String>, reason: impl Into<String>) -> AuditError {

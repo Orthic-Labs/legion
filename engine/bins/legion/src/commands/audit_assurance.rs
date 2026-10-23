@@ -7,13 +7,15 @@ use super::{CommandError, CommandResult};
 use clap::Args;
 use legion_audit::{
     artifact_evidence::{
-        verify_artifact_evidence, ArtifactEvidenceEnvelope, ExpectedEvidence, TrustEnrollment,
-        UnconfiguredVerifier, ARTIFACT_EVIDENCE_SCHEMA_VERSION, MAX_RAW_ARTIFACT_BYTES,
+        verify_artifact_evidence, ArtifactEvidenceEnvelope, ExpectedEvidence, ProvenanceVerifier,
+        TrustEnrollment, UnconfiguredVerifier, ARTIFACT_EVIDENCE_SCHEMA_VERSION,
+        MAX_RAW_ARTIFACT_BYTES,
     },
     assurance::{
-        gate_report_v2, AuditAssuranceV1, EvidenceKind, GateVerdict, ObligationCandidate,
-        ObligationEvidence, ObligationId, ProductTarget, SnapshotRef,
+        gate_run, AuditAssuranceV1, EvidenceKind, GateVerdict, ObligationCandidate,
+        ObligationEvidence, ObligationId, ProductTarget, RunGateError, SelectionScope, SnapshotRef,
     },
+    evidence_issuers::{default_issuers_path, HostEvidenceVerifier},
     profiles::{AuditProfile, FrozenProfile, RuntimeConstraint},
     AuditPlan,
 };
@@ -78,15 +80,29 @@ pub struct AssuranceRequest {
     pub imported: Vec<ObligationEvidence>,
     pub import_gaps: Vec<String>,
     pub import_records: Vec<Value>,
+    /// Frozen provider/scope selection, set by `audit` once filters resolve.
+    /// Building without it is refused: a plan that cannot prove its scope is
+    /// never assurance-eligible.
+    selection: Option<SelectionScope>,
 }
 
-/// Legacy names (`standard` and any other non-new name) stay legacy and
-/// reject assurance-only flags rather than silently ignoring them.
+/// Profile used when `--profile` is not given. The legacy `standard` profile
+/// is reachable only by naming it.
+pub const DEFAULT_PROFILE: &str = "repository";
+
+/// The explicit legacy profile name. It freezes no denominator and can never
+/// pass the assurance gate; it rejects assurance-only flags.
+pub const LEGACY_PROFILE: &str = "standard";
+
+/// `standard` (named explicitly) stays legacy and rejects assurance-only flags
+/// rather than silently ignoring them. Any other name must be one of
+/// `pre-pr`, `repository`, `release`: an unknown or mistyped name is a usage
+/// error (exit 4), never a silent fall back to legacy behaviour.
 pub fn request(
     profile: &str,
     args: &AssuranceArgs,
 ) -> Result<Option<AssuranceRequest>, CommandError> {
-    let Some(profile) = AuditProfile::parse(profile) else {
+    if profile == LEGACY_PROFILE {
         if args.runtime_policy.is_some()
             || args.product_contract.is_some()
             || !args.artifact_manifests.is_empty()
@@ -96,6 +112,11 @@ pub fn request(
             ));
         }
         return Ok(None);
+    }
+    let Some(profile) = AuditProfile::parse(profile) else {
+        return Err(CommandError::usage(format!(
+            "unknown --profile `{profile}`: expected pre-pr, repository or release (or `standard` for the legacy profile)"
+        )));
     };
     let constraint = match args.runtime_policy.as_deref() {
         None | Some("no-node-python") => RuntimeConstraint::NoNodePython,
@@ -121,9 +142,15 @@ pub fn request(
         imported: Vec::new(),
         import_gaps: Vec::new(),
         import_records: Vec::new(),
+        selection: None,
+    };
+    let enrolled = if args.artifact_manifests.is_empty() {
+        None
+    } else {
+        load_issuers(&args.artifact_manifests, &mut request)
     };
     for manifest in &args.artifact_manifests {
-        import_manifest(&mut request, manifest)?;
+        import_manifest(&mut request, manifest, enrolled.as_ref())?;
     }
     Ok(Some(request))
 }
@@ -169,10 +196,47 @@ fn read_bounded(path: &Path) -> Result<Vec<u8>, CommandError> {
     std::fs::read(path).map_err(super::io_error)
 }
 
-/// Verify one imported manifest. No verifier or trust is enrolled in this CLI,
-/// so verification fails closed with named reasons: the import is recorded and
-/// the obligation stays unmet. It is never turned into satisfied evidence.
-fn import_manifest(request: &mut AssuranceRequest, path: &Path) -> Result<(), CommandError> {
+/// Load the host-owned issuer enrollment (`audit-evidence-issuers.json` in the
+/// LEGION state root). Absent file: no enrollment (imports stay unmet). An
+/// untrustworthy file is recorded as a gap and also yields no enrollment. The
+/// working directory and every manifest directory count as audited roots, so a
+/// repository-supplied enrollment can never be loaded.
+fn load_issuers(
+    manifests: &[PathBuf],
+    request: &mut AssuranceRequest,
+) -> Option<(HostEvidenceVerifier, TrustEnrollment)> {
+    let path = default_issuers_path()?;
+    let mut roots: Vec<PathBuf> = std::env::current_dir().into_iter().collect();
+    for manifest in manifests {
+        if let Some(parent) = manifest.parent() {
+            let parent = if parent.as_os_str().is_empty() {
+                Path::new(".")
+            } else {
+                parent
+            };
+            roots.push(parent.to_path_buf());
+        }
+    }
+    match HostEvidenceVerifier::load(&path, &roots) {
+        Ok(found) => found,
+        Err(reason) => {
+            request
+                .import_gaps
+                .push(format!("evidence-issuer-enrollment-untrusted:{reason}"));
+            None
+        }
+    }
+}
+
+/// Verify one imported manifest. With no host-owned issuer enrollment the
+/// verifier is unconfigured and verification fails closed with named reasons:
+/// the import is recorded and the obligation stays unmet. Only a signature by
+/// an enrolled issuer, bound to the expected subject, can satisfy it.
+fn import_manifest(
+    request: &mut AssuranceRequest,
+    path: &Path,
+    enrolled: Option<&(HostEvidenceVerifier, TrustEnrollment)>,
+) -> Result<(), CommandError> {
     let manifest: ArtifactManifest = serde_json::from_value(read_json(path, "artifact manifest")?)
         .map_err(|error| CommandError::usage(format!("invalid artifact manifest: {error}")))?;
     let base = path
@@ -186,17 +250,21 @@ fn import_manifest(request: &mut AssuranceRequest, path: &Path) -> Result<(), Co
         raw.insert(name.clone(), read_bounded(&contained(&base, relative)?)?);
     }
     let attestation = read_bounded(&contained(&base, &manifest.attestation_path)?)?;
-    let trust = TrustEnrollment {
+    let empty = TrustEnrollment {
         schema_version: ARTIFACT_EVIDENCE_SCHEMA_VERSION,
         issuers: Vec::new(),
+    };
+    let (trust, verifier): (&TrustEnrollment, &dyn ProvenanceVerifier) = match enrolled {
+        Some((verifier, trust)) => (trust, verifier),
+        None => (&empty, &UnconfiguredVerifier),
     };
     let verdict = verify_artifact_evidence(
         &envelope,
         &raw,
         &attestation,
         &manifest.expected,
-        &trust,
-        &UnconfiguredVerifier,
+        trust,
+        verifier,
         &now_rfc3339_utc(),
     );
     let upstream = envelope.upstream_runtime.clone();
@@ -243,10 +311,27 @@ fn import_manifest(request: &mut AssuranceRequest, path: &Path) -> Result<(), Co
 }
 
 impl AssuranceRequest {
+    /// Record the resolved provider/scope selection to freeze into the plan.
+    pub fn set_selection(&mut self, selection: SelectionScope) {
+        self.selection = Some(selection);
+    }
+
+    /// The selection to bind into the plan, or a refusal when none was set.
+    pub fn selection(&self) -> Result<&SelectionScope, String> {
+        self.selection
+            .as_ref()
+            .ok_or_else(|| "assurance plan requires a frozen selection scope".to_owned())
+    }
+
     /// Freeze the denominator against the compiled plan: one provider-execution
     /// candidate per compiled provider (proven inapplicable ones freeze as
     /// `inapplicable`), plus contract-declared candidates.
-    pub fn build(&self, plan: &AuditPlan, root: &Path) -> Result<AuditAssuranceV1, String> {
+    pub fn build(
+        &self,
+        plan: &AuditPlan,
+        root: &Path,
+        runtime: &[ObligationCandidate],
+    ) -> Result<AuditAssuranceV1, String> {
         let digest = if plan.inventory_digest.starts_with("sha256:") {
             plan.inventory_digest.clone()
         } else {
@@ -289,7 +374,7 @@ impl AssuranceRequest {
         // Host/plan-derived obligations only; the unauthenticated contract
         // may add or tighten (see `AuditAssuranceV1::freeze_for_profile`)
         // but never replace, de-require or mark these inapplicable.
-        let candidates: Vec<ObligationCandidate> = plan
+        let mut candidates: Vec<ObligationCandidate> = plan
             .providers
             .iter()
             .map(|provider| ObligationCandidate {
@@ -307,6 +392,9 @@ impl AssuranceRequest {
                 }),
             })
             .collect();
+        // Repository-declared runtime journeys / target obligations (host reads
+        // them from the frozen inventory); they only add obligations.
+        candidates.extend(runtime.iter().cloned());
         let profile = FrozenProfile::freeze(self.profile, PROFILE_REVISION, self.constraint)
             .map_err(|error| error.to_string())?;
         AuditAssuranceV1::freeze_for_profile(profile, target, &candidates, &declared)
@@ -329,79 +417,38 @@ impl AssuranceRequest {
 
 #[derive(Debug, Clone, Args)]
 pub struct GateArgs {
-    /// Frozen audit run directory (plan.json + report.json).
+    /// Frozen audit run directory (plan.json, report.json, journal, receipts).
     #[arg(long)]
     pub run: PathBuf,
-    /// Required claim strength; defaults to the run's own frozen profile.
+    /// Required claim strength. When omitted the required strength is
+    /// `release` (never the run's own profile); the output always states it.
     #[arg(long, value_parser = ["pre-pr", "repository", "release"])]
     pub profile: Option<String>,
 }
 
 /// Exit codes follow the repository convention: 0 success, 1 policy/findings
 /// block, 2 incomplete, 5 integrity failure.
+///
+/// The verdict is rebuilt from verified evidence (signed plan, finalized
+/// journal, signed provider receipts); `report.json` claims are cross-checked,
+/// never trusted. Unsigned assurance plans are refused, and filtered runs are
+/// incomplete for every profile.
 pub fn gate(args: GateArgs) -> CommandResult {
     let run = std::fs::canonicalize(&args.run)
         .map_err(|error| CommandError::incomplete(format!("{}: {error}", args.run.display())))?;
-    let read = |name: &str| -> Result<Value, CommandError> {
-        let bytes = std::fs::read(run.join(name))
-            .map_err(|error| CommandError::incomplete(format!("{name}: {error}")))?;
-        serde_json::from_slice(&bytes)
-            .map_err(|error| CommandError::integrity(format!("{name} is invalid: {error}")))
-    };
-    let outer = read("plan.json")?;
-    let native = outer
-        .get("nativePlan")
-        .ok_or_else(|| CommandError::integrity("plan.json carries no nativePlan"))?;
-    let plan: AuditPlan = serde_json::from_value(
-        native
-            .get("plan")
-            .cloned()
-            .ok_or_else(|| CommandError::integrity("nativePlan body is missing"))?,
-    )
-    .map_err(|error| CommandError::integrity(format!("nativePlan body is invalid: {error}")))?;
-    let digest = native
-        .get("digest")
-        .and_then(Value::as_str)
-        .ok_or_else(|| CommandError::integrity("nativePlan digest is missing"))?;
-    if outer.pointer("/seal/digest").and_then(Value::as_str) != Some(digest) {
-        return Err(CommandError::integrity("plan seal differs from nativePlan"));
-    }
-    let signature = native.get("signature").and_then(Value::as_str);
-    let key = match signature {
-        None => None,
-        Some(_) => Some(
-            legion_audit::plan_signing_key_for_run(&run)
-                .map_err(|error| CommandError::integrity(error.to_string()))?,
-        ),
-    };
-    legion_audit::verify(&plan, digest, signature, key.as_deref())
-        .map_err(|error| CommandError::integrity(error.to_string()))?;
-    let frozen = plan
-        .assurance_binding()
-        .map_err(|error| CommandError::integrity(error.to_string()))?;
-    let report_value = read("report.json")?;
-    let report = legion_contracts::Report::read_any(&report_value)
-        .map_err(|error| CommandError::integrity(format!("report.json is invalid: {error}")))?;
-    let (verdict, reasons, required) = match &frozen {
-        None => (
-            GateVerdict::Incomplete,
-            vec!["legacy-run: plan froze no assurance denominator".to_owned()],
-            args.profile
-                .as_deref()
-                .and_then(AuditProfile::parse)
-                .unwrap_or(AuditProfile::Release),
-        ),
-        Some(frozen) => {
-            let required = args
-                .profile
-                .as_deref()
-                .and_then(AuditProfile::parse)
-                .unwrap_or(frozen.profile.profile);
-            let decision = gate_report_v2(&report, Some(frozen), required, &now_rfc3339_utc());
-            (decision.verdict, decision.reasons, required)
-        }
-    };
-    let (label, code) = match verdict {
+    let required = args
+        .profile
+        .as_deref()
+        .map(|name| {
+            AuditProfile::parse(name)
+                .ok_or_else(|| CommandError::usage(format!("unknown --profile `{name}`")))
+        })
+        .transpose()?;
+    let decision = gate_run(&run, required, &now_rfc3339_utc()).map_err(|error| match error {
+        RunGateError::Incomplete(message) => CommandError::incomplete(message),
+        RunGateError::Integrity(message) => CommandError::integrity(message),
+    })?;
+    let (label, code) = match decision.verdict {
         GateVerdict::Eligible => ("eligible", 0),
         GateVerdict::BlockedFindings => ("blocked-findings", 1),
         GateVerdict::Incomplete => ("incomplete", 2),
@@ -411,10 +458,16 @@ pub fn gate(args: GateArgs) -> CommandResult {
         "kind": "legion-audit-gate",
         "run": run,
         "verdict": label,
-        "reasons": reasons,
-        "requiredProfile": required.as_str(),
-        "frozenProfile": frozen.as_ref().map(|item| item.profile.profile.as_str()),
-        "planDigest": digest,
+        "reasons": decision.reasons,
+        "requiredProfile": decision.required.as_str(),
+        "requiredProfileSource": if decision.required_explicit { "explicit" } else { "default-release" },
+        "frozenProfile": decision.frozen_profile.map(|profile| profile.as_str()),
+        "fullScope": decision.full_scope,
+        "verifiedProviders": decision.verified_providers,
+        "planDigest": decision.plan_digest,
+        "keyCustody": decision.key_custody,
+        "registryDigest": decision.registry_digest,
+        "importsCounted": false,
         "__json_exit_code": code,
     }))
 }
@@ -690,6 +743,11 @@ mod tests {
         assert!(request("standard", &AssuranceArgs::default())
             .unwrap()
             .is_none());
+        // A typo or wrong-case name is never a silent legacy fallback.
+        for bad in ["releaes", "Release", "", "pre_pr"] {
+            assert_eq!(request(bad, &AssuranceArgs::default()).unwrap_err().code, 4);
+        }
+        assert_eq!(DEFAULT_PROFILE, "repository");
         let args = AssuranceArgs {
             runtime_policy: Some("no-node-python".into()),
             ..AssuranceArgs::default()

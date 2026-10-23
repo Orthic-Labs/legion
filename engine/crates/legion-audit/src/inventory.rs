@@ -712,26 +712,21 @@ fn swift_package_dependencies(text: &str) -> BTreeSet<String> {
 /// project, or `None` when `root` is not inside a git work tree or git is
 /// unavailable, in which case the plain walk is the inventory.
 fn git_project_files(root: &Path) -> Option<std::collections::HashSet<String>> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args([
+    const MAX_GIT_OUTPUT: u64 = 256 * 1024 * 1024;
+    let stdout = crate::trusted_git::run_stdout(
+        root,
+        &[
             "ls-files",
             "-z",
             "--cached",
             "--others",
             "--exclude-standard",
-        ])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
+        ],
+        std::time::Duration::from_secs(120),
+        MAX_GIT_OUTPUT,
+    )?;
     Some(
-        output
-            .stdout
+        stdout
             .split(|byte| *byte == 0)
             .filter(|path| !path.is_empty())
             .map(|path| String::from_utf8_lossy(path).into_owned())
@@ -1562,11 +1557,16 @@ mod tests {
         std::fs::write(root.join(".gitignore"), "dist/\n").unwrap();
         std::fs::write(root.join("src/lib.rs"), "fn one() {}\n").unwrap();
         std::fs::write(root.join("dist/bundle.js"), "generated\n").unwrap();
-        let init = std::process::Command::new("git")
-            .arg("-C")
-            .arg(&root)
-            .args(["init", "-q"])
-            .status();
+        let init = crate::trusted_git::std_command(&root)
+            .ok_or(())
+            .and_then(|mut command| {
+                command
+                    .arg("-C")
+                    .arg(&root)
+                    .args(["init", "-q"])
+                    .status()
+                    .map_err(|_| ())
+            });
         if !init.is_ok_and(|status| status.success()) {
             // No git on this host: the plain walk applies and is covered above.
             let _ = std::fs::remove_dir_all(&root);

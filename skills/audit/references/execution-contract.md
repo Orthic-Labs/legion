@@ -34,7 +34,7 @@ Companions: `legion verify <run-dir>` re-checks the persisted facts against the 
 ### Native external execution admission
 
 The native CLI freezes `executionPolicy.externalProcesses=owner-admission-required`,
-`admissionStatus=unavailable`, and `effectiveMode=deny-external`. External scanner, check, tool,
+`admissionStatus=unavailable`, and `effectiveMode=deny-external` when no host owner policy exists. Without the host-owned policy file `<state>/audit-owner-policy.json` (absolute executable path + sha256 pin per tool) this is the outcome; with it, admitted requests run under rightkit-sandbox containment (read-only frozen roots, one writable output root, network denied for static checks, child-tree kill). External scanner, check, tool,
 version, and snapshot processes are denied before executable resolution, version probing, or spawn
 with reason `native-owner-admission-unavailable`. Caller environment, declared ownership argv, and
 network flags cannot grant owner admission. Preserve typed denial receipts and coverage gaps; no
@@ -97,11 +97,10 @@ mandatory universe and digest, selected/deferred mandatory paths and digests, ex
 sampled strata. Confidence applies only to eligible random strata; it never closes or softens a mandatory
 coverage gap. Statistical statements are defined in [coverage and trajectory](coverage-and-trajectory.md#whole-repository-coverage-statistics).
 
-## Production assurance profiles (target CLI)
+## Production assurance profiles (CLI)
 
-Status: the engine module (`legion-audit` profiles, assurance, gate inputs) is authored; root
-integration wires the CLI after compile and CI. Until a built `legion` binary demonstrates a flag, these
-are target behavior only.
+Status: implemented in the `legion` CLI source (`bins/legion/src/commands/audit_assurance.rs`). Describe a flag
+as run only after a built binary demonstrates it.
 
 - **Profiles** `pre-pr`, `repository`, `release` are strength-ordered and frozen before solving. A pass
   under a weaker profile never projects to a stronger one; a release run cannot inherit a `pre-pr`
@@ -126,15 +125,18 @@ are target behavior only.
   false-negative counts, excluded cases); *host-qualified* (trusted owner invocation, containment,
   termination, receipt validation, exact host and toolchain); *app-qualified* (exact repository set,
   target and deployed artifacts, required journeys, current receipts for the selected profile).
-- **External tools** require native owner admission. Absent admission, each tool is an explicit typed
+- **External tools** run only through the host-owned policy file `<state>/audit-owner-policy.json` (absolute path and
+  `sha256` pin per tool) under rightkit-sandbox containment. Absent that policy, each tool is an explicit typed
   gap; it is never a clean result and never a direct fallback. Caller environment cannot grant admission.
 - **Report selectors**: `legion report <report.json> --report review|ponytail` (existing) and, for the
   extension, `--report assurance|trend|debt --format json|markdown`. `assurance` projects the four claims
   from a saved report; `trend` and `debt` project finding history and debt from saved reports or the
   store. Projections never re-scan and never change verdicts.
 - **Gate**: `legion audit gate --run <dir>` validates a frozen run against its requirements and returns
-  `eligible`, `blocked-findings`, or `incomplete`, with structured reasons. The CLI maps these to exit
-  codes; there is no second policy engine. Only `eligible` supports a profile-level claim, and even then
+  `eligible`, `blocked-findings`, or `incomplete`, with structured reasons. Exit codes: 0 eligible, 1 blocked-findings,
+  2 incomplete, 5 integrity failure. A bare gate requires release strength. The verdict is rebuilt from the signed
+  plan, the finalized journal, and signed provider receipts; `report.json` is cross-checked, never trusted;
+  filtered (`--only`/`--skip`) runs are incomplete for every profile. There is no second policy engine. Only `eligible` supports a profile-level claim, and even then
   it claims only the four-claim state actually reached.
 
 ## Native reasoning runtime (step 7 detail)

@@ -38,6 +38,10 @@ pub enum EventKind {
     FallbackUsed,
     AmendmentApplied,
     ReportFinalized,
+    /// The report was rewritten after finalization (for example lens results
+    /// were ingested). Payload digest: the new report bytes. The only event
+    /// kind allowed after `report_finalized`.
+    ReportUpdated,
     RunResumed,
 }
 
@@ -208,6 +212,59 @@ impl JournalAnchor {
     }
 }
 
+/// Digest of the report the journal currently vouches for: the payload of the
+/// last `report_updated`, else of `report_finalized`. `None` before finalization.
+pub fn current_report_digest(events: &[AuditEvent]) -> Option<&str> {
+    events
+        .iter()
+        .rev()
+        .find(|event| {
+            matches!(
+                event.kind,
+                EventKind::ReportFinalized | EventKind::ReportUpdated
+            )
+        })
+        .map(|event| event.payload_digest.as_str())
+}
+
+/// Record a report rewrite after finalization: append `report_updated` with
+/// the new report digest and re-sign the anchor over the new head under the
+/// run plan key. A journal that is absent or not yet finalized is left alone
+/// (`Ok(false)`: the first finalization will bind the report). Returns
+/// `Ok(true)` when an event was appended.
+pub fn record_report_update(
+    dir: &Path,
+    plan_digest: &str,
+    key: &[u8],
+    report_digest: &str,
+) -> Result<bool, AuditError> {
+    if !dir.join(EVENTS_FILE).exists() {
+        return Ok(false);
+    }
+    let mut journal = Journal::open(dir, plan_digest)?;
+    if !journal.is_finalized() {
+        return Ok(false);
+    }
+    if current_report_digest(journal.events()) == Some(report_digest) {
+        return Ok(false);
+    }
+    journal.append(EventKind::ReportUpdated, "run", report_digest, now_ms())?;
+    let head = journal.head();
+    let digest = head
+        .digest
+        .clone()
+        .ok_or_else(|| AuditError::Invalid("journal has no head digest".into()))?;
+    JournalAnchor::sign(
+        plan_digest,
+        journal.effective_plan_digest(),
+        head.sequence,
+        &digest,
+        key,
+    )?
+    .write(dir)?;
+    Ok(true)
+}
+
 /// Remove the data files of a previous, finalized run so a fresh run can reuse
 /// the directory. Never removes the run lock and refuses an unfinalized or
 /// defective journal (it may be resumable evidence).
@@ -221,7 +278,12 @@ pub fn clear_finalized_run(dir: &Path) -> Result<(), AuditError> {
     let finalized = parse_defects.is_empty()
         && events
             .last()
-            .map(|e| e.kind == EventKind::ReportFinalized)
+            .map(|e| {
+                matches!(
+                    e.kind,
+                    EventKind::ReportFinalized | EventKind::ReportUpdated
+                )
+            })
             .unwrap_or(false);
     if !finalized {
         return Err(AuditError::Invalid(format!(
@@ -393,10 +455,19 @@ pub fn verify_events(
                 format!("event {} repeats plan_frozen", event.sequence),
             ));
         }
-        if finalized {
+        if finalized && event.kind != EventKind::ReportUpdated {
             defects.push(defect(
                 DefectCode::AfterFinalized,
                 format!("event {} follows report_finalized", event.sequence),
+            ));
+        }
+        if !finalized && event.kind == EventKind::ReportUpdated {
+            defects.push(defect(
+                DefectCode::Ordering,
+                format!(
+                    "event {} is report_updated before report_finalized",
+                    event.sequence
+                ),
             ));
         }
         if event.kind == EventKind::AmendmentApplied {

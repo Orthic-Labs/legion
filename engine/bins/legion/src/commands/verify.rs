@@ -167,10 +167,30 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     // whose key cannot be found is unverifiable, never a pass.
     let mut signature_unverifiable = false;
     let mut warnings: Vec<String> = Vec::new();
+    let lens_key_custody = if plan.pointer("/epoch/digest").is_some() {
+        use legion_audit::native_providers::reasoning::ingest::{
+            load_epoch_with_source, EpochKeySource,
+        };
+        match load_epoch_with_source(&root) {
+            Ok((_, _, EpochKeySource::HostState)) => "host-state",
+            Ok((_, _, EpochKeySource::LegacyRunDir)) => {
+                warnings.push(
+                    "weak-custody: the lens receipt key was read from <run>/epoch.key beside the receipts it MACs; re-run to move it into host state"
+                        .into(),
+                );
+                "legacy-run-dir"
+            }
+            Err(_) => "unavailable",
+        }
+    } else {
+        "none"
+    };
     let mut key_custody = "none";
+    let mut key_source: Option<legion_audit::PlanKeySource> = None;
     let signing_key = if errors.is_empty() {
         match legion_audit::resolve_plan_key(&root, &plan) {
             legion_audit::PlanKeyResolution::Found { key, source } => {
+                key_source = Some(source.clone());
                 key_custody = match source {
                     legion_audit::PlanKeySource::Environment => "environment",
                     legion_audit::PlanKeySource::HostState => "host-state",
@@ -197,6 +217,7 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         &root,
         &plan,
         signing_key.as_deref(),
+        key_source.as_ref(),
         &mut errors,
         &mut warnings,
     );
@@ -281,6 +302,11 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
         "schemaVersion":1,
         "kind":"legion-verify",
         "keyCustody":key_custody,
+        "lensKeyCustody":lens_key_custody,
+        // Receipts and seals are keyed by the invoking user's key custody. No
+        // out-of-process signer exists, so verification makes no claim of
+        // protection against an agent running as the same user.
+        "signingAuthority":legion_audit::native_providers::reasoning::ingest::SIGNING_AUTHORITY,
         "warnings":warnings,
         "replay":replay,
         "status":status,
@@ -297,59 +323,195 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     }))
 }
 
-/// Verify the run's hash-chained event journal. A run that records no journal
-/// at all (it predates journaling) is a `journal-absent` warning, never a
-/// failure; any run that shows evidence of a journal (files, a plan marker or a
-/// report claim) must verify completely: chain, plan binding, ordering, head
-/// seal, finalization, the report's recorded head and the signed anchor.
+/// Verify the run's hash-chained event journal.
+///
+/// Whether a journal is REQUIRED is derived from the signature-verified native
+/// plan (schema 2 or later) and from host-custody key binding, never from
+/// unsigned outer markers (`plan.journal`, the report's `journalSealedAt`, a
+/// continuation file, event files). A required journal that is missing or
+/// defective fails verification; only a genuine schema-1 legacy run (legacy
+/// run-directory key, no host binding) may report `journal-absent`. Continuation
+/// and follow-up runs keep their journal in the parent run, which is verified
+/// in their place. Verified: chain, plan binding, ordering, head seal,
+/// finalization, the report's recorded head, the signed anchor, that
+/// `report.json` matches the last `report_finalized`/`report_updated` digest,
+/// and every retained provider receipt (signature, plan binding, journal
+/// payload digest).
 fn verify_journal(
     root: &Path,
     plan: &Value,
     key: Option<&[u8]>,
+    key_source: Option<&legion_audit::PlanKeySource>,
     errors: &mut Vec<String>,
     warnings: &mut Vec<String>,
 ) -> Value {
-    use legion_audit::journal::{
-        bytes_digest, verify_dir, EventKind, Expectation, JournalAnchor, SealedHead, ANCHOR_FILE,
-        EVENTS_FILE, HEAD_FILE,
-    };
-    let report_bytes = std::fs::read(root.join("report.json")).ok();
-    let report: Option<Value> = report_bytes
-        .as_deref()
-        .and_then(|bytes| serde_json::from_slice(bytes).ok());
-    let claim = report
-        .as_ref()
-        .and_then(|report| report.pointer("/claims/journalSealedAt"))
-        .filter(|value| !value.is_null())
-        .cloned();
-    let plan_marker = plan.get("journal").is_some_and(|value| !value.is_null());
-    let files_present = [EVENTS_FILE, HEAD_FILE, ANCHOR_FILE]
-        .iter()
-        .any(|name| std::fs::symlink_metadata(root.join(name)).is_ok());
-    // A continuation run copies plan.json and report.json (with their journal
-    // marker) but never the parent's events: its history stays with the parent.
-    if !files_present
-        && root
-            .join(legion_audit::continuation::CONTINUATION_FILE)
-            .is_file()
-    {
-        warnings.push(
-            "journal-absent: continuation run; the event journal belongs to the parent run and was not carried over"
-                .into(),
-        );
-        return json!({"status": "absent", "reason": "continuation"});
-    }
-    if !files_present && claim.is_none() && !plan_marker {
-        warnings.push(
-            "journal-absent: the run records no event journal (it predates journaling); its history is not verifiable"
-                .into(),
-        );
-        return json!({"status": "absent"});
-    }
+    use legion_audit::journal::{ANCHOR_FILE, EVENTS_FILE, HEAD_FILE};
     fn defect(errors: &mut Vec<String>, code: &str, detail: String) {
         errors.push(format!("journal-defect:{code}: {detail}"));
     }
-    let Some(plan_digest) = plan.pointer("/seal/digest").and_then(Value::as_str) else {
+    let files_present = [EVENTS_FILE, HEAD_FILE, ANCHOR_FILE]
+        .iter()
+        .any(|name| std::fs::symlink_metadata(root.join(name)).is_ok());
+    let host_custody = plan.get("planKey").is_some_and(|value| !value.is_null());
+    let legacy_key = matches!(
+        key_source,
+        Some(legion_audit::PlanKeySource::LegacyRunDirEpoch)
+    );
+    let native_present = plan.get("nativePlan").is_some_and(|value| !value.is_null());
+    let plan_digest = plan.pointer("/seal/digest").and_then(Value::as_str);
+
+    // Signed facts: only a native plan whose signature verifies under the run
+    // key says what this run is.
+    let mut signed: Option<legion_audit::AuditPlan> = None;
+    if let (true, Some(key), Some(digest)) = (native_present, key, plan_digest) {
+        let native = &plan["nativePlan"];
+        let parsed = native
+            .get("plan")
+            .cloned()
+            .ok_or_else(|| "nativePlan body is missing".to_owned())
+            .and_then(|body| {
+                serde_json::from_value::<legion_audit::AuditPlan>(body)
+                    .map_err(|error| format!("nativePlan body is invalid: {error}"))
+            })
+            .and_then(|body| {
+                if native.get("digest").and_then(Value::as_str) != Some(digest) {
+                    return Err("nativePlan digest differs from the plan seal".to_owned());
+                }
+                legion_audit::verify(
+                    &body,
+                    digest,
+                    native.get("signature").and_then(Value::as_str),
+                    Some(key),
+                )
+                .map(|_| body)
+                .map_err(|error| error.to_string())
+            });
+        match parsed {
+            Ok(body) => signed = Some(body),
+            Err(error) => defect(errors, "plan_unsigned", error),
+        }
+    }
+    let schema = signed.as_ref().map(|body| body.schema_version);
+    let modern = match &signed {
+        Some(body) => body.schema_version >= 2 || host_custody,
+        None => host_custody || !legacy_key || native_present,
+    };
+    if schema.is_some_and(|version| version >= 2) && legacy_key {
+        defect(
+            errors,
+            "weak_custody_current_plan",
+            "a schema-2 plan cannot be verified under a run-directory key".into(),
+        );
+    }
+
+    // Where the journal lives: the run itself, or the parent for a validated
+    // continuation or a signed follow-up binding.
+    let mut home: Option<(PathBuf, &'static str)> = None;
+    if !files_present {
+        if root
+            .join(legion_audit::continuation::CONTINUATION_FILE)
+            .is_file()
+        {
+            match legion_audit::continuation::validate_lineage(root) {
+                Ok(Some(lineage)) => {
+                    if let Some(parent) = lineage.get("parent").and_then(Value::as_str) {
+                        home = Some((PathBuf::from(parent), "continuation"));
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => defect(errors, "continuation_lineage", error.to_string()),
+            }
+        } else if let Some(binding) = signed.as_ref().and_then(|body| body.followup_binding()) {
+            let parent = (root.file_name().is_some_and(|name| {
+                name == legion_audit::native_providers::reasoning::followup::FOLLOWUP_DIR
+            }))
+            .then(|| root.parent().map(Path::to_path_buf))
+            .flatten();
+            match (
+                parent,
+                binding.get("parentPlanDigest").and_then(Value::as_str),
+            ) {
+                (Some(parent), Some(expected)) => {
+                    let parent_digest = std::fs::read(parent.join("plan.json"))
+                        .ok()
+                        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                        .and_then(|value| {
+                            value
+                                .pointer("/seal/digest")
+                                .and_then(Value::as_str)
+                                .map(ToOwned::to_owned)
+                        });
+                    if parent_digest.as_deref() == Some(expected) {
+                        home = Some((parent, "followup"));
+                    } else {
+                        defect(
+                            errors,
+                            "followup_parent",
+                            "the follow-up's signed parent binding does not match the parent plan"
+                                .into(),
+                        );
+                    }
+                }
+                _ => defect(
+                    errors,
+                    "followup_parent",
+                    "the follow-up run is outside its fixed parent directory".into(),
+                ),
+            }
+        }
+    }
+    if let Some((parent, reason)) = home {
+        let parent_plan: Option<Value> = std::fs::read(parent.join("plan.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+        let parent_key = legion_audit::plan_signing_key_for_run(&parent);
+        let parent_digest = parent_plan
+            .as_ref()
+            .and_then(|value| value.pointer("/seal/digest"))
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned);
+        return match (parent_digest, parent_key) {
+            (Some(digest), Ok(parent_key)) => {
+                let mut value = verify_journal_dir(
+                    &parent,
+                    &digest,
+                    Some(parent_key.as_slice()),
+                    None,
+                    None,
+                    errors,
+                );
+                value["home"] = json!(reason);
+                warnings.push(format!(
+                    "journal-in-parent: {reason} run; its journal and receipts were verified in the parent run"
+                ));
+                value
+            }
+            _ => {
+                defect(
+                    errors,
+                    "parent_unverifiable",
+                    format!("the parent run's journal cannot be verified for this {reason} run"),
+                );
+                json!({"status": "failed", "home": reason})
+            }
+        };
+    }
+
+    let report_bytes = std::fs::read(root.join("report.json")).ok();
+    let claim = report_bytes
+        .as_deref()
+        .and_then(|bytes| serde_json::from_slice::<Value>(bytes).ok())
+        .and_then(|report| report.pointer("/claims/journalSealedAt").cloned())
+        .filter(|value| !value.is_null());
+    let plan_marker = plan.get("journal").is_some_and(|value| !value.is_null());
+    if !modern && !files_present && claim.is_none() && !plan_marker {
+        warnings.push(
+            "journal-absent: legacy schema-1 run records no event journal (it predates journaling); its history is not verifiable"
+                .into(),
+        );
+        return json!({"status": "absent", "legacy": true});
+    }
+    let Some(plan_digest) = plan_digest else {
         defect(
             errors,
             "plan_mismatch",
@@ -357,7 +519,35 @@ fn verify_journal(
         );
         return json!({"status": "failed"});
     };
-    let expected_head = match &claim {
+    verify_journal_dir(
+        root,
+        plan_digest,
+        key,
+        claim.as_ref(),
+        Some(report_bytes.as_deref()),
+        errors,
+    )
+}
+
+/// Verify one journal directory. `report` is `Some` only for the run that owns
+/// the journal: its `report.json` bytes (`None` when unreadable) must match the
+/// digest the journal last vouched for.
+fn verify_journal_dir(
+    dir: &Path,
+    plan_digest: &str,
+    key: Option<&[u8]>,
+    claim: Option<&Value>,
+    report: Option<Option<&[u8]>>,
+    errors: &mut Vec<String>,
+) -> Value {
+    use legion_audit::journal::{
+        bytes_digest, current_report_digest, verify_dir, Expectation, JournalAnchor, SealedHead,
+        ANCHOR_FILE,
+    };
+    fn defect(errors: &mut Vec<String>, code: &str, detail: String) {
+        errors.push(format!("journal-defect:{code}: {detail}"));
+    }
+    let expected_head = match claim {
         None => None,
         Some(claim) => match (
             claim.get("sequence").and_then(Value::as_u64),
@@ -379,7 +569,7 @@ fn verify_journal(
             }
         },
     };
-    let anchor = match JournalAnchor::read(root) {
+    let anchor = match JournalAnchor::read(dir) {
         Ok(anchor) => anchor,
         Err(error) => {
             defect(errors, "anchor_invalid", error.to_string());
@@ -423,7 +613,7 @@ fn verify_journal(
             .as_ref()
             .map(|anchor| anchor.effective_plan_digest.clone()),
     };
-    let verification = verify_dir(root, plan_digest, &expectation);
+    let verification = verify_dir(dir, plan_digest, &expectation);
     for item in &verification.defects {
         let code = serde_json::to_value(item.code)
             .ok()
@@ -453,15 +643,35 @@ fn verify_journal(
             );
         }
     }
-    if let (Some(last), Some(bytes)) = (verification.events.last(), report_bytes.as_deref()) {
-        if last.kind == EventKind::ReportFinalized && last.payload_digest != bytes_digest(bytes) {
-            // Expected after lens results are ingested: the report is rewritten
-            // after finalization while the journal keeps the original digest.
-            warnings.push(
-                "report-rewritten-after-finalization: report.json differs from the digest recorded by report_finalized"
+    // The report must be the one the journal last vouched for: the finalized
+    // digest, or the newest `report_updated` (lens ingest rewrites the report
+    // after finalization and journals each rewrite).
+    if let Some(report_bytes) = report {
+        match (report_bytes, current_report_digest(&verification.events)) {
+            (Some(bytes), Some(vouched)) if vouched != bytes_digest(bytes) => defect(
+                errors,
+                "report_digest_mismatch",
+                "report.json matches neither the report_finalized digest nor the last report_updated digest"
                     .into(),
-            );
+            ),
+            (None, _) => defect(errors, "report_missing", "report.json is unreadable".into()),
+            _ => {}
         }
+    }
+    match key {
+        Some(key) => {
+            for detail in
+                legion_audit::resume::verify_retained_receipts(dir, key, &verification.events)
+            {
+                defect(errors, "receipt", detail);
+            }
+        }
+        None => defect(
+            errors,
+            "receipt_unverifiable",
+            "the run plan key is unavailable, so retained provider receipts cannot be checked"
+                .into(),
+        ),
     }
     json!({
         "status": if verification.is_valid() && errors.iter().all(|e| !e.starts_with("journal-defect:")) { "verified" } else { "failed" },
@@ -1208,6 +1418,94 @@ fn matches_optional_claim(stored: &Value, name: &str, expected: Option<&Value>) 
 mod tests {
     use super::*;
 
+    fn scratch_run(tag: &str) -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+        let run = std::env::temp_dir().join(format!(
+            "legion-verify-{tag}-{}-{}",
+            std::process::id(),
+            SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&run).unwrap();
+        run
+    }
+
+    fn sealed_outer(extra: Value) -> Value {
+        let mut plan = json!({"seal": {"digest": format!("sha256:{}", "ab".repeat(32))}});
+        plan.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        plan
+    }
+
+    /// A genuine legacy run (legacy run-directory key, no host binding, no
+    /// native plan) may still report `journal-absent` as a warning.
+    #[test]
+    fn legacy_run_without_journal_still_warns() {
+        let run = scratch_run("legacy-journal");
+        let (mut errors, mut warnings) = (Vec::new(), Vec::new());
+        let journal = verify_journal(
+            &run,
+            &sealed_outer(json!({})),
+            Some(&[7u8; 32][..]),
+            Some(&legion_audit::PlanKeySource::LegacyRunDirEpoch),
+            &mut errors,
+            &mut warnings,
+        );
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(journal["status"], "absent");
+        assert!(warnings.iter().any(|w| w.starts_with("journal-absent")));
+        let _ = std::fs::remove_dir_all(run);
+    }
+
+    /// A run under host custody (what every current run records) must have a
+    /// journal even when every unsigned outer marker was stripped.
+    #[test]
+    fn host_custody_run_without_journal_or_markers_fails() {
+        let run = scratch_run("modern-journal");
+        let plan = sealed_outer(json!({"planKey": {"runId": "run-x", "keyId": "sha256:00"}}));
+        for source in [
+            Some(legion_audit::PlanKeySource::HostState),
+            Some(legion_audit::PlanKeySource::Environment),
+            None,
+        ] {
+            let (mut errors, mut warnings) = (Vec::new(), Vec::new());
+            let journal = verify_journal(
+                &run,
+                &plan,
+                Some(&[7u8; 32][..]),
+                source.as_ref(),
+                &mut errors,
+                &mut warnings,
+            );
+            assert_eq!(journal["status"], "failed");
+            assert!(
+                errors.iter().any(|e| e.starts_with("journal-defect:")),
+                "{errors:?}"
+            );
+            assert!(warnings.iter().all(|w| !w.starts_with("journal-absent")));
+        }
+        let _ = std::fs::remove_dir_all(run);
+    }
+
+    /// Without any host binding, a non-legacy key source still requires the
+    /// journal (the run cannot be shown to be legacy).
+    #[test]
+    fn non_legacy_key_source_requires_journal_even_without_binding() {
+        let run = scratch_run("env-journal");
+        let (mut errors, mut warnings) = (Vec::new(), Vec::new());
+        verify_journal(
+            &run,
+            &sealed_outer(json!({})),
+            Some(&[7u8; 32][..]),
+            Some(&legion_audit::PlanKeySource::Environment),
+            &mut errors,
+            &mut warnings,
+        );
+        assert!(errors.iter().any(|e| e.starts_with("journal-defect:")));
+        let _ = std::fs::remove_dir_all(run);
+    }
+
     struct RuntimeFixture(PathBuf);
     impl RuntimeFixture {
         fn new() -> Self {
@@ -1353,7 +1651,9 @@ mod tests {
             inherited["leases"] = json!({});
             inherited["terminalStatus"] = json!("incomplete:budget-overrun");
             put(&parent.0.join(state_file), &inherited);
-            for name in ["plan.json", "epoch.key"] {
+            // The copied plan names the parent's epoch; its key lives in host
+            // custody, so only the plan is carried into the child run.
+            for name in ["plan.json"] {
                 std::fs::copy(parent.0.join(name), child.0.join(name)).unwrap();
             }
             put(

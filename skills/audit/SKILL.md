@@ -52,6 +52,12 @@ overrides it.
    Blueprint generation, denominators, & reasoning contracts freeze together. The native binary
    is the only runner; there is no Node or Python runner. `legion verify <run-dir>` re-checks the run
    and `legion report <run-dir>/report.json --format md` renders it.
+   Plain `legion audit <root>` defaults to profile `repository`; an unknown `--profile` name is a usage
+   error (exit 4). `standard` runs only when named and is never gate-eligible. Every `--out` run keeps a
+   hash-chained journal with a signed anchor; `legion verify` fails on a missing or tampered journal for a
+   current run, and a report rewritten after finalization must be journaled. `--resume <run>` continues a
+   run (`--out` names the same directory), `--max-parallel N` (1-64, default 1) bounds provider concurrency,
+   and `legion verify <run-dir> --replay <other-run>` compares replay-equivalence digests.
    Its plan must contain the full provider set selected for this run plus applicable reasoning lenses.
    Filters are explicit partial scope: report the original applicable provider universe and excluded
    applicable providers. `planComplete` means the selected frozen plan reconciled; `fullScope` means
@@ -65,10 +71,11 @@ overrides it.
    degradation & continue only providers available through native execution; do not treat enrollment
    alone as unavailable or use direct scanner/lens execution as a bypass.
 4. Native external scanner/check/tool/version/snapshot execution requires native owner admission.
-   Current CLI policy freezes `externalProcesses=owner-admission-required`,
-   `admissionStatus=unavailable`, & `effectiveMode=deny-external`; requests are denied before
-   executable resolution, version probing, or spawn with reason `native-owner-admission-unavailable`.
-   Caller environment, declared ownership argv, & network flags cannot grant admission. Preserve
+   External tools run only through a host-owned policy file `<state>/audit-owner-policy.json`, which names
+   each tool by absolute path, `sha256:` digest, providers, and class, and runs it under rightkit-sandbox
+   containment. The policy file must sit outside every audited tree and run directory. Without it, requests
+   are denied before executable resolution or spawn (`native-owner-admission-unavailable`) and recorded as
+   explicit gaps. Caller environment, declared ownership argv, and network flags cannot grant admission. Preserve
    typed denial receipts & gaps; do not bypass them. Project-executing checks also need trusted host
    network-sandbox receipt; without either prerequisite they are `UNPROVEN`; file-only providers
    still run. SDK in-process helpers with an explicit trusted owner authorizer are a separate path.
@@ -101,6 +108,16 @@ overrides it.
 9. Adjudicate each security candidate; no generator closes its own finding. Candidates are batched by
    cluster, but high-risk or uncertain dismissals go to individual review. Run variant analysis
    (follow-up plan) for every confirmed finding.
+   Attack-path synthesis emits hypotheses (`status: hypothesis`): unadjudicated candidates, never findings.
+   A chain verdict needs independent member verdicts at the required strength from a distinct adjudicating
+   context; otherwise it stays `UNPROVEN`.
+   Finding state: `legion audit findings resolve <id> --evidence <json> --run <run-dir>` requires
+   a complete run on the same repository that passes the gate's journal, signature and receipt checks, and
+   evidence bound to that run's journaled report (`reviewed-repair` also needs a reviewer distinct from the run
+   producer and an evidence digest naming an artifact of that run); `findings dismiss <id> --authority <who> --reason <text>`
+   requires both. Prior findings not accounted for become gaps and turn a clean or findings report `incomplete`; a repository finding store
+   that is missing, truncated or rolled back against the host-state ledger (`audit-finding-history/`) is the gap
+   `finding-history-store-missing-or-rolled-back`, never a pass.
 10. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens
    coverage stays typed `incomplete`. Providers without a passing bench class or qualification record
@@ -145,14 +162,33 @@ the plan before solving; a pass under a weaker profile never projects to a stron
 - Selectors over saved reports: `legion report <report.json> --report assurance|trend|debt [--format json|markdown]`.
   `assurance` projects the claims above, `trend` projects finding history over saved runs, and `debt`
   projects open debt. These are projections only; they add no scan.
-- `legion audit gate --run <dir>` reports one outcome: `eligible`, `blocked-findings`, or `incomplete`,
-  with reasons. It validates the frozen run and requirements; it adds no second policy engine. Anything
-  other than `eligible` is not a release-ready claim.
-- External tools (scanners, linters, build/type/test commands) need native owner admission. Without it,
-  each tool stays an explicit typed gap (`native-owner-admission-unavailable`), never a clean result and
-  never a direct fallback.
-- CLI wiring for these flags, the gate, and the new selectors is root-integration work; until it is
-  verified in a built binary, describe them as target behavior, not as runnable commands.
+- `legion audit gate --run <dir> [--profile <name>]` returns verdict `eligible`, `blocked-findings`, or
+  `incomplete` as JSON (`kind: legion-audit-gate`) with `reasons`. A bare gate requires release strength.
+  The verdict is rebuilt from the signed plan, the finalized journal, and signed provider receipts;
+  `report.json` is cross-checked, never trusted. Unsigned plans are refused, and filtered runs (`--only`/`--skip`)
+  are incomplete for every profile. Exit codes: 0 eligible, 1 blocked-findings, 2 incomplete, 5 integrity failure.
+- Keys: the plan key lives in host state (`LEGION_STATE_ROOT`, else the per-user state root, `audit-plan-keys/`,
+  mode 0600), never in the run directory; the run records only its run id and key id. The lens-receipt epoch
+  key is also host-held (`audit-lens-epoch-keys/`, mode 0600); the run keeps only a non-secret `epoch.ref`, and a
+  planted `<run>/epoch.key` never overrides a host key (legacy runs still verify with a weak-custody warning). Output states
+  `signingAuthority: same-user`, which gives no protection against an agent running as the same OS user.
+- Known limits (state them; never present them as covered):
+  - Project-executing launches (Gradle model extraction, Xcode build/test) are refused under
+    `no-node-python` until rightkit-sandbox can deny interpreter exec and Unix sockets
+    (bogusyogi/rightkit#943); those obligations stay unmet with `sandbox-cannot-deny-unix-sockets`.
+  - Read-only static scanners run with gap `sandbox-cannot-deny-interpreter-exec`: only the launched
+    executable is admission-checked; their PATH is pinned to trusted system directories.
+  - Host state (`LEGION_STATE_ROOT`), owner policy, issuer and attestor enrollment are same-user
+    authority until an out-of-process signer exists (bogusyogi/rightkit#944).
+  - No production qualification records exist yet; release eligibility needs enrolled CI evidence.
+- External tools (scanners, linters, build/type/test commands) run only through the host-owned policy file
+  described in step 4. Without that admission, each tool stays an explicit typed gap
+  (`native-owner-admission-unavailable`), never a clean result and never a direct fallback.
+- These flags, the gate, and the selectors are implemented in the `legion` CLI source. Describe one as run only
+  after a built binary demonstrates it.
+
+**Final answer rule.** The final answer to the user must quote the `legion audit gate` JSON verdict and its
+`reasons` verbatim, and must not describe an incomplete or blocked run as done or clean.
 
 Read [full manual](references/manual.md) only for complex runtime, migration, desktop/Tauri,
 data-safety, or report-schema edges. Frozen provider order, executable registry truth, real

@@ -15,6 +15,123 @@ const SYSTEM:&str="You are Oracle, an independent adversarial source verifier. V
 fn schema() -> Value {
     json!({"type":"object","additionalProperties":false,"required":["verdict","reason","evidence","concreteCase"],"properties":{"verdict":{"type":"string","enum":["upheld","contradicted","unresolved"]},"reason":{"type":"string"},"concreteCase":{"type":"string"},"evidence":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","line","text"],"properties":{"path":{"type":"string"},"line":{"type":"integer"},"text":{"type":"string"},"sourceSide":{"type":"string","enum":["selected","base"]}}}}}})
 }
+const SYNTAX_ONLY_WORDS: &[&str] = &[
+    "fn", "let", "if", "else", "return", "pub", "use", "mod", "struct", "impl", "match", "for",
+    "while", "const", "mut", "var", "function", "class", "def", "end", "true", "false", "null",
+    "none", "self", "this", "new", "try", "catch", "in", "as", "do", "then", "break", "continue",
+    "async", "await", "static", "void", "int", "ok", "some", "enum", "type", "import", "from",
+];
+
+/// An anchor excerpt that carries real source content: at least two distinct
+/// identifier-like tokens that are not bare syntax keywords, and a minimum
+/// amount of alphanumeric content. `}`, `);`, `{`, `return;` and similar
+/// fragments occur in nearly every file and prove nothing about a scope.
+fn substantive_excerpt(text: &str) -> bool {
+    let alnum = text.chars().filter(|c| c.is_alphanumeric()).count();
+    let tokens: BTreeSet<String> = text
+        .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .filter(|token| token.chars().count() >= 2)
+        .map(str::to_lowercase)
+        .filter(|token| !SYNTAX_ONLY_WORDS.contains(&token.as_str()))
+        .collect();
+    alnum >= 8 && tokens.len() >= 2
+}
+
+/// Lines that carry no executable logic: imports, license/copyright/SPDX
+/// headers, shebangs, pure comments, attributes and bare braces. They occur in
+/// nearly every file, so they cannot show a scope was examined.
+fn boilerplate_line(text: &str) -> bool {
+    let line = text.trim();
+    if line.is_empty() {
+        return true;
+    }
+    let lower = line.to_lowercase();
+    if lower.starts_with("#include") || lower.starts_with("#import") {
+        return true;
+    }
+    for comment in ["#!", "#", "//", "/*", "*/", "* ", "--", ";;", "<!--"] {
+        if lower.starts_with(comment) {
+            return true;
+        }
+    }
+    if lower == "*" {
+        return true;
+    }
+    for word in [
+        "use ",
+        "import ",
+        "from ",
+        "require(",
+        "require ",
+        "include ",
+        "package ",
+        "mod ",
+        "extern crate",
+        "using ",
+        "namespace ",
+        "export * from",
+        "pub use ",
+        "pub mod ",
+    ] {
+        if lower.starts_with(word) {
+            return true;
+        }
+    }
+    if lower.contains("= require(") && !lower.contains('{') && lower.ends_with(");") {
+        return true;
+    }
+    for marker in [
+        "copyright",
+        "spdx-license-identifier",
+        "all rights reserved",
+        "licensed under",
+    ] {
+        if lower.contains(marker) && !lower.contains('(') {
+            return true;
+        }
+    }
+    !line.chars().any(char::is_alphanumeric)
+}
+
+/// scoped_clean evidence: every claimed scope path has at least one anchored,
+/// substantive, non-boilerplate excerpt with executable logic. Every anchor
+/// must still be substantive, so a trivial fragment cannot ride along; an
+/// excerpt whose normalized text is identical across three or more distinct
+/// paths of the packet is boilerplate and never counts as a path's evidence.
+/// Empty scope never qualifies.
+fn scoped_clean_evidence_covers(scope_paths: &BTreeSet<String>, evidence: &[Value]) -> bool {
+    if scope_paths.is_empty() || evidence.is_empty() {
+        return false;
+    }
+    if !evidence
+        .iter()
+        .all(|anchor| anchor["text"].as_str().is_some_and(substantive_excerpt))
+    {
+        return false;
+    }
+    let squash = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut paths_by_text: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    for anchor in evidence {
+        if let (Some(path), Some(text)) = (anchor["path"].as_str(), anchor["text"].as_str()) {
+            paths_by_text.entry(squash(text)).or_default().insert(path);
+        }
+    }
+    let logic_paths: BTreeSet<&str> = evidence
+        .iter()
+        .filter_map(|anchor| {
+            let path = anchor["path"].as_str()?;
+            let text = anchor["text"].as_str()?;
+            let repeated = paths_by_text
+                .get(&squash(text))
+                .is_some_and(|paths| paths.len() >= 3);
+            (!boilerplate_line(text) && !repeated).then_some(path)
+        })
+        .collect();
+    scope_paths
+        .iter()
+        .all(|path| logic_paths.contains(path.as_str()))
+}
+
 fn anchors_valid(snapshot: &FrozenSnapshot, evidence: &[Value]) -> bool {
     !evidence.is_empty()
         && evidence.iter().all(|anchor| {
@@ -541,6 +658,13 @@ pub(super) fn verify_pending(
                             .is_some_and(|path| anchor["path"] == path)
                     })
             });
+            let scope_paths: BTreeSet<String> = request.packet["excerpts"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|excerpt| excerpt["path"].as_str().map(ToOwned::to_owned))
+                .collect();
+            let scope_covered = scoped_clean_evidence_covers(&scope_paths, &evidence);
             let valid = anchored
                 && in_packet
                 && reply.is_some_and(|row| {
@@ -551,7 +675,10 @@ pub(super) fn verify_pending(
             let verdict = if valid {
                 reply
                     .and_then(|row| row["verdict"].as_str())
-                    .filter(|v| *v == "challenged" || (*v == "scoped_clean" && context_complete))
+                    .filter(|v| {
+                        *v == "challenged"
+                            || (*v == "scoped_clean" && context_complete && scope_covered)
+                    })
                     .unwrap_or("unresolved")
             } else {
                 "unresolved"
@@ -571,6 +698,85 @@ pub(super) fn verify_pending(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn trivial_fragments_cannot_support_scoped_clean() {
+        let scope = BTreeSet::from(["src/a.rs".to_owned()]);
+        for trivial in [
+            "}", "});", "{", "return;", "  ", "fn", "if (x) {", "} else {",
+        ] {
+            assert!(!substantive_excerpt(trivial), "{trivial:?}");
+            assert!(!scoped_clean_evidence_covers(
+                &scope,
+                &[json!({"path":"src/a.rs","line":3,"text":trivial})]
+            ));
+        }
+        let good =
+            json!({"path":"src/a.rs","line":3,"text":"db.execute(&format!(\"select {q}\"))"});
+        assert!(scoped_clean_evidence_covers(&scope, &[good.clone()]));
+        // A trivial anchor riding along with a good one is rejected.
+        assert!(!scoped_clean_evidence_covers(
+            &scope,
+            &[good.clone(), json!({"path":"src/a.rs","line":4,"text":"}"})]
+        ));
+    }
+    #[test]
+    fn scoped_clean_must_anchor_every_claimed_path() {
+        let scope = BTreeSet::from(["src/a.rs".to_owned(), "src/b.rs".to_owned()]);
+        let a = json!({"path":"src/a.rs","line":1,"text":"let value = parse_input(raw)"});
+        let b = json!({"path":"src/b.rs","line":2,"text":"validate_request(payload, limits)"});
+        assert!(!scoped_clean_evidence_covers(&scope, &[a.clone()]));
+        assert!(scoped_clean_evidence_covers(&scope, &[a, b]));
+        assert!(!scoped_clean_evidence_covers(&BTreeSet::new(), &[]));
+    }
+    #[test]
+    fn boilerplate_cannot_support_scoped_clean() {
+        let scope = BTreeSet::from(["src/a.rs".to_owned()]);
+        for text in [
+            "use std::fs;",
+            "// Copyright 2026 Example Corp. All rights reserved.",
+            "SPDX-License-Identifier: MIT",
+            "#!/usr/bin/env python3",
+            "import os.path",
+            "const fs = require('fs');",
+            "#include <stdio.h>",
+            "package com.example.service;",
+            "// validate_request(payload) is checked elsewhere",
+        ] {
+            assert!(boilerplate_line(text), "{text:?}");
+            assert!(
+                !scoped_clean_evidence_covers(
+                    &scope,
+                    &[json!({"path":"src/a.rs","line":1,"text":text})]
+                ),
+                "{text:?}"
+            );
+        }
+        let logic =
+            json!({"path":"src/a.rs","line":9,"text":"let rows = db.query(&sanitize(input))"});
+        assert!(!boilerplate_line("let rows = db.query(&sanitize(input))"));
+        assert!(scoped_clean_evidence_covers(&scope, &[logic.clone()]));
+        let scope2 = BTreeSet::from(["src/a.rs".to_owned(), "src/b.rs".to_owned()]);
+        let header = json!({"path":"src/b.rs","line":1,"text":"use std::collections::HashMap;"});
+        assert!(!scoped_clean_evidence_covers(&scope2, &[logic, header]));
+    }
+    #[test]
+    fn lines_repeated_across_many_paths_are_boilerplate() {
+        let scope: BTreeSet<String> = ["a", "b", "c"]
+            .iter()
+            .map(|p| format!("src/{p}.rs"))
+            .collect();
+        let shared = "let session = Session::default()";
+        let same: Vec<Value> = scope
+            .iter()
+            .map(|p| json!({"path":p,"line":2,"text":shared}))
+            .collect();
+        assert!(!scoped_clean_evidence_covers(&scope, &same));
+        let distinct: Vec<Value> = scope
+            .iter()
+            .map(|p| json!({"path":p,"line":2,"text":format!("let value = check_{}(input)", &p[4..5])}))
+            .collect();
+        assert!(scoped_clean_evidence_covers(&scope, &distinct));
+    }
     #[test]
     fn candidate_capacity_is_bounded_and_never_zero() {
         assert_eq!(candidate_capacity(0), 1);

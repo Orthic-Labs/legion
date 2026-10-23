@@ -295,6 +295,14 @@ pub fn canonical_report(
         report.gaps = v2.gaps;
         report.status = v2.status;
     }
+    // Finalization: stored prior findings missing from this run without valid
+    // resolution evidence stay open and keep the report from completing.
+    if std::path::Path::new(repository_id).is_dir() {
+        crate::finding_history::apply_history_gate(
+            std::path::Path::new(repository_id),
+            &mut report,
+        )?;
+    }
     report.validate()?;
     Ok(report)
 }

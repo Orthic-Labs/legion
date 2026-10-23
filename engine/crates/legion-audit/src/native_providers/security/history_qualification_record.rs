@@ -257,7 +257,8 @@ pub(super) fn sdk(run: &ToolRun) -> Value {
         "parser":{"attempted":r.parser.attempted,"succeeded":r.parser.succeeded,"error":r.parser.error},"gaps":r.gaps})
 }
 fn raw_git(root: &Path, args: &[&str]) -> Vec<u8> {
-    let out = Command::new("git")
+    let out = crate::trusted_git::std_command(root)
+        .expect("trusted git unavailable for retained fixture read")
         .args(["-c", "core.hooksPath=/dev/null"])
         .args(args)
         .current_dir(root)

@@ -99,7 +99,12 @@ impl ProviderExecutorAdapter {
             provider.id.as_str(),
             producer::assurance::STRUCTURE_PROVIDER_ID | producer::assurance::NGINX_PROVIDER_ID
         ) {
-            return self.execute_fact_provider(provider, &denominator.entries, &denominator.digest);
+            return self.execute_fact_provider(
+                provider,
+                inventory,
+                &denominator.entries,
+                &denominator.digest,
+            );
         }
         if provider.id == "compatibility.core" && !input_supplied {
             if let Some((observation, root)) =
@@ -234,12 +239,20 @@ impl ProviderExecutorAdapter {
         // self-sourced run reads them, and only a detected PostgreSQL project
         // contributes findings or gaps.
         if provider.id == "framework.data" && !input_supplied {
-            if let Some(found) = producer::assurance::analyze_postgres_denominator(
+            let declared =
+                producer::assurance::load_declared_context(self.root.as_deref(), inventory);
+            if let Some(found) = producer::assurance::analyze_postgres_denominator_with(
                 self.root.as_deref(),
                 &denominator.entries,
+                &declared,
             ) {
                 producer::assurance::merge_postgres(&mut analysis, found);
             }
+            producer::assurance::attach_runtime_obligations(
+                &mut analysis,
+                &declared,
+                crate::runtime_obligations::Stack::Postgres,
+            );
         }
         let paths = denominator
             .entries
@@ -289,6 +302,7 @@ impl ProviderExecutorAdapter {
     fn execute_fact_provider(
         &self,
         provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
         entries: &[InventoryEntry],
         digest: &str,
     ) -> Result<ProviderResult, AuditError> {
@@ -308,9 +322,14 @@ impl ProviderExecutorAdapter {
         let input = self.input_for(provider);
         let root = self.root.as_deref();
         let analysis = if provider.id == producer::assurance::NGINX_PROVIDER_ID {
-            producer::assurance::produce_nginx(root, entries, &input)
+            let declared = producer::assurance::load_declared_context(root, inventory);
+            producer::assurance::produce_nginx_with(root, entries, &input, &declared)
         } else {
-            producer::assurance::produce_structure(root, entries)
+            producer::assurance::produce_structure_with(
+                root,
+                entries,
+                producer::assurance::blueprint_from_configuration(&provider.configuration).as_ref(),
+            )
         };
         let paths = entries
             .iter()

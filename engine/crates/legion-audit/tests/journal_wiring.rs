@@ -696,3 +696,140 @@ fn resume_refuses_forged_receipts_wrong_plans_and_finalized_runs() {
         .iter()
         .any(|reason| reason.contains("already finalized")));
 }
+
+fn finished_run(name: &str) -> (FrozenPlan, PathBuf) {
+    let (plan, inventory) = freeze(&[
+        spec("fixture.a", parallel_safe(), &[]),
+        spec("fixture.b", parallel_safe(), &["fixture.a"]),
+    ]);
+    let dir = temp_dir(name);
+    let run = recorder(&plan, &dir);
+    run_with(
+        &plan,
+        &inventory,
+        &Probe::default(),
+        SchedulerConfig::default(),
+        Some(run.clone()),
+        BTreeMap::new(),
+    );
+    run.finalize("sha256:report-v1").unwrap();
+    drop(run);
+    (plan, dir)
+}
+
+fn events_in(dir: &Path) -> Vec<AuditEvent> {
+    verify_dir(dir, "unused", &Expectation::default()).events
+}
+
+#[test]
+fn retained_receipts_verify_and_forged_altered_or_missing_receipts_fail() {
+    use legion_audit::resume::verify_retained_receipts;
+    let (_plan, dir) = finished_run("retained-receipts");
+    let events = events_in(&dir);
+    assert!(
+        verify_retained_receipts(&dir, KEY, &events).is_empty(),
+        "{:?}",
+        verify_retained_receipts(&dir, KEY, &events)
+    );
+    // A different key cannot vouch for the receipts.
+    assert!(!verify_retained_receipts(&dir, b"other-key-other-key", &events).is_empty());
+
+    let path = receipt_path(&dir, "fixture.a").unwrap();
+    let original = fs::read_to_string(&path).unwrap();
+    // Altered content (attempts) breaks the content digest.
+    let mut altered: Value = serde_json::from_str(&original).unwrap();
+    altered["body"]["attempts"] = json!(9);
+    fs::write(&path, serde_json::to_vec(&altered).unwrap()).unwrap();
+    assert!(verify_retained_receipts(&dir, KEY, &events)
+        .iter()
+        .any(|d| d.contains("fixture.a") && d.contains("failed verification")));
+    // Forged signature.
+    let mut forged: Value = serde_json::from_str(&original).unwrap();
+    forged["signature"] = json!("hmac-sha256:00");
+    fs::write(&path, serde_json::to_vec(&forged).unwrap()).unwrap();
+    assert!(!verify_retained_receipts(&dir, KEY, &events).is_empty());
+    fs::write(&path, &original).unwrap();
+    assert!(verify_retained_receipts(&dir, KEY, &events).is_empty());
+
+    // A receipt validly signed for another provider's journal payload is refused.
+    let other = receipt_path(&dir, "fixture.b").unwrap();
+    let swap: Value = serde_json::from_str(&fs::read_to_string(&other).unwrap()).unwrap();
+    let mut crossed = swap.clone();
+    crossed["body"]["provider"] = json!("fixture.a");
+    fs::write(&path, serde_json::to_vec(&crossed).unwrap()).unwrap();
+    assert!(!verify_retained_receipts(&dir, KEY, &events).is_empty());
+    fs::write(&path, &original).unwrap();
+
+    // Deleted receipt of a finished provider.
+    fs::remove_file(&path).unwrap();
+    assert!(verify_retained_receipts(&dir, KEY, &events)
+        .iter()
+        .any(|d| d.contains("fixture.a") && d.contains("missing")));
+    fs::write(&path, &original).unwrap();
+    // A receipt for a provider the journal never saw.
+    fs::copy(&path, dir.join(RECEIPT_DIR).join("fixture.ghost.json")).unwrap();
+    assert!(!verify_retained_receipts(&dir, KEY, &events).is_empty());
+}
+
+#[test]
+fn report_rewrite_after_finalization_must_be_journaled() {
+    use legion_audit::journal::{bytes_digest, current_report_digest, record_report_update};
+    let (plan, dir) = finished_run("report-updated");
+    let finalized = events_in(&dir);
+    assert_eq!(current_report_digest(&finalized), Some("sha256:report-v1"));
+
+    let new_digest = bytes_digest(b"report v2");
+    assert!(record_report_update(&dir, plan.digest(), KEY, &new_digest).unwrap());
+    // Idempotent for the same bytes.
+    assert!(!record_report_update(&dir, plan.digest(), KEY, &new_digest).unwrap());
+    let updated = events_in(&dir);
+    assert_eq!(updated.last().unwrap().kind, EventKind::ReportUpdated);
+    assert_eq!(current_report_digest(&updated), Some(new_digest.as_str()));
+    let verification = verify_dir(
+        &dir,
+        plan.digest(),
+        &Expectation {
+            require_finalized: true,
+            ..Expectation::default()
+        },
+    );
+    assert!(verification.is_valid(), "{:?}", verification.defects);
+    let anchor = JournalAnchor::read(&dir).unwrap().unwrap();
+    assert!(anchor.verify(KEY));
+    assert_eq!(anchor.sequence, updated.len() as u64);
+    assert_eq!(&anchor.digest, &updated.last().unwrap().digest);
+
+    // Only report_updated may follow finalization.
+    let mut journal = Journal::open(&dir, plan.digest()).unwrap();
+    assert!(journal
+        .append(EventKind::ProviderStarted, "fixture.a", "sha256:x", 9)
+        .is_err());
+    assert!(journal
+        .append(EventKind::ReportFinalized, "run", "sha256:r", 9)
+        .is_err());
+}
+
+#[test]
+fn report_update_before_finalization_is_refused_and_unfinalized_runs_are_left_alone() {
+    use legion_audit::journal::record_report_update;
+    let (plan, inventory) = freeze(&[spec("fixture.a", parallel_safe(), &[])]);
+    let dir = temp_dir("report-updated-early");
+    let run = recorder(&plan, &dir);
+    run_with(
+        &plan,
+        &inventory,
+        &Probe::default(),
+        SchedulerConfig::default(),
+        Some(run.clone()),
+        BTreeMap::new(),
+    );
+    drop(run);
+    assert!(!record_report_update(&dir, plan.digest(), KEY, "sha256:r").unwrap());
+    let mut journal = Journal::open(&dir, plan.digest()).unwrap();
+    assert!(journal
+        .append(EventKind::ReportUpdated, "run", "sha256:r", 9)
+        .is_err());
+    // No journal at all: nothing to record (legacy or never journaled).
+    let bare = temp_dir("report-updated-bare");
+    assert!(!record_report_update(&bare, plan.digest(), KEY, "sha256:r").unwrap());
+}

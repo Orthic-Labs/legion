@@ -276,11 +276,14 @@ fn tampered_truncated_or_removed_journal_fails_verification_with_a_named_reason(
     assert_eq!(verified["valid"], Value::Bool(true), "{verified:#}");
 }
 
+/// Review finding 3: stripping the journal files, the plan marker and the
+/// report's journal claim used to turn a current (schema-2, host-custody) run
+/// into a "legacy" run that verified. Whether a journal is required comes from
+/// the signed plan and key custody, so the downgrade now fails.
 #[test]
-fn legacy_run_without_a_journal_warns_and_still_verifies() {
+fn downgraded_current_run_without_journal_or_markers_fails_verification() {
     let fixture = Fixture::new();
     fixture.audit_into(&fixture.out, &[]);
-    // Rewrite the run as a pre-journal run: no journal files, no markers.
     for name in [
         EVENTS_FILE,
         HEAD_FILE,
@@ -304,13 +307,115 @@ fn legacy_run_without_a_journal_warns_and_still_verifies() {
     fs::write(&report_path, serde_json::to_vec(&report).unwrap()).unwrap();
 
     let verified = fixture.verify(&fixture.out);
-    assert_eq!(verified["valid"], Value::Bool(true), "{verified:#}");
-    assert_eq!(verified["journal"]["status"], "absent");
-    assert!(verified["warnings"]
+    assert_ne!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert_ne!(verified["complete"], Value::Bool(true), "{verified:#}");
+    assert_ne!(verified["journal"]["status"], "absent", "{verified:#}");
+    assert!(has_journal_defect(&verified, "unreadable"), "{verified:#}");
+    assert!(!verified["warnings"]
         .as_array()
         .unwrap()
         .iter()
         .any(|w| w.as_str().unwrap_or("").starts_with("journal-absent")));
+    // Also with the outer plan's host-custody marker stripped: the signed
+    // native plan (schema 2) alone still requires the journal.
+    let mut stripped = plan.clone();
+    stripped.as_object_mut().unwrap().remove("planKey");
+    fs::write(&plan_path, serde_json::to_vec(&stripped).unwrap()).unwrap();
+    let verified = fixture.verify(&fixture.out);
+    assert_ne!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert_ne!(verified["journal"]["status"], "absent", "{verified:#}");
+}
+
+/// Review finding 3: a report rewritten after finalization with no journal
+/// event is a failure (it used to be a warning).
+#[test]
+fn report_edited_after_finalization_without_a_journal_event_fails() {
+    let fixture = Fixture::new();
+    fixture.audit_into(&fixture.out, &[]);
+    let report_path = fixture.out.join("report.json");
+    let mut report: Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+    report["claims"]["editedAfterFinalization"] = Value::Bool(true);
+    fs::write(&report_path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+    let verified = fixture.verify(&fixture.out);
+    assert_ne!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert!(
+        has_journal_defect(&verified, "report_digest_mismatch"),
+        "{verified:#}"
+    );
+}
+
+/// Review finding 3: retained provider receipts are verified on `verify`
+/// (signature, plan binding, journal payload digest), not only on resume.
+#[test]
+fn altered_or_forged_provider_receipt_fails_verification() {
+    let fixture = Fixture::new();
+    fixture.audit_into(&fixture.out, &[]);
+    let receipts = fixture.out.join("provider-receipts");
+    let mut files: Vec<PathBuf> = fs::read_dir(&receipts)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+        .collect();
+    files.sort();
+    let target = files.first().expect("a retained provider receipt").clone();
+    let original = fs::read(&target).unwrap();
+
+    let mut altered: Value = serde_json::from_slice(&original).unwrap();
+    altered["body"]["attempts"] = Value::from(41);
+    fs::write(&target, serde_json::to_vec(&altered).unwrap()).unwrap();
+    let verified = fixture.verify(&fixture.out);
+    assert_ne!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert!(has_journal_defect(&verified, "receipt"), "{verified:#}");
+
+    let mut forged: Value = serde_json::from_slice(&original).unwrap();
+    forged["signature"] = Value::String("hmac-sha256:00".into());
+    fs::write(&target, serde_json::to_vec(&forged).unwrap()).unwrap();
+    let verified = fixture.verify(&fixture.out);
+    assert_ne!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert!(has_journal_defect(&verified, "receipt"), "{verified:#}");
+
+    fs::remove_file(&target).unwrap();
+    let verified = fixture.verify(&fixture.out);
+    assert_ne!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert!(has_journal_defect(&verified, "receipt"), "{verified:#}");
+
+    fs::write(&target, &original).unwrap();
+    let verified = fixture.verify(&fixture.out);
+    assert_eq!(verified["valid"], Value::Bool(true), "{verified:#}");
+}
+
+/// Review finding 5: no epoch key in the run directory, a planted one is never
+/// used, and verify states plainly who can sign.
+#[test]
+fn new_run_has_no_epoch_key_and_verify_states_same_user_signing_authority() {
+    let fixture = Fixture::new();
+    fixture.audit_into(&fixture.out, &[]);
+    assert!(
+        !fixture.out.join("epoch.key").exists(),
+        "new run wrote epoch.key into the run dir"
+    );
+    let verified = fixture.verify(&fixture.out);
+    assert_eq!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert_eq!(verified["signingAuthority"], "same-user", "{verified:#}");
+    assert_ne!(verified["lensKeyCustody"], "legacy-run-dir", "{verified:#}");
+
+    // A planted epoch.key neither changes the verdict nor becomes the key.
+    let planted = fixture.out.join("epoch.key");
+    fs::write(&planted, "11".repeat(32)).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&planted, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let verified = fixture.verify(&fixture.out);
+    assert_eq!(verified["valid"], Value::Bool(true), "{verified:#}");
+    assert_ne!(verified["lensKeyCustody"], "legacy-run-dir", "{verified:#}");
+    assert!(!verified["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|w| w.as_str().unwrap_or("").starts_with("weak-custody")));
 }
 
 #[test]

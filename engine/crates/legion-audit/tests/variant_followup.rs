@@ -607,12 +607,64 @@ fn variant_packet(run: &Run) -> PendingLensWork {
 }
 
 fn variant_result(run: &Run, findings: Value) -> Value {
-    variant_part_result(&variant_packet(run), findings)
+    variant_part_result(run, &variant_packet(run), findings)
+}
+
+/// The frozen analysis denominator of the follow-up.
+fn analysis_paths(run: &Run) -> Vec<String> {
+    read_json(&run.run.join(FOLLOWUP_DIR).join("plan.json"))["followupOf"]["analysisPaths"]
+        .as_array()
+        .expect("follow-up binds its analysis paths")
+        .iter()
+        .map(|path| path.as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// A complete per-path ledger: every analysis path gets one dispositioned
+/// entry. Paths named by a finding are confirmed; every other path is
+/// rejected with a reason. Ids are unique across `part`s.
+fn complete_ledger(run: &Run, part: usize, findings: &Value) -> Value {
+    let confirmed: Vec<&str> = findings
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|finding| finding["anchor"]["path"].as_str())
+        .collect();
+    let entries: Vec<Value> = analysis_paths(run)
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            let is_confirmed = confirmed.contains(&path.as_str());
+            json!({
+                "id": format!("v{part}-{index}"),
+                "path": path,
+                "anchor": format!("variant anchor for {path}"),
+                "disposition": if is_confirmed { "confirmed" } else { "rejected" },
+                "reason": if is_confirmed {
+                    "same interpolated query shape"
+                } else {
+                    "query is parameterized; the root cause does not recur"
+                },
+            })
+        })
+        .collect();
+    json!({"entries": entries})
 }
 
 /// The variant result for one packet (or one numbered part of it).
-fn variant_part_result(work: &PendingLensWork, findings: Value) -> Value {
+fn variant_part_result(run: &Run, work: &PendingLensWork, findings: Value) -> Value {
+    variant_numbered_part_result(run, work, 0, findings)
+}
+
+fn variant_numbered_part_result(
+    run: &Run,
+    work: &PendingLensWork,
+    part: usize,
+    findings: Value,
+) -> Value {
+    let variant_ledger = complete_ledger(run, part, &findings);
     json!({
+        "variantLedger": variant_ledger,
         "schemaVersion": 1,
         "kind": "legion-lens-result",
         "provider": VARIANT_PROVIDER_ID,
@@ -916,8 +968,9 @@ fn ingesting_the_variant_result_clears_the_parent_gap() {
     let after = recompute_run(&run.run).unwrap();
     assert!(
         !has_pending_gap(&after.report.gaps),
-        "{:?}",
-        after.report.gaps
+        "{:?} claims={:?}",
+        after.report.gaps,
+        after.report.claims
     );
     assert_eq!(
         after.report.claims["securityVariantFollowup"]["status"],
@@ -1212,11 +1265,11 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
 
     // One part missing: pending, and the gap names the missing part.
     let dir = run.run.join(FOLLOWUP_DIR);
-    for part in &parts[..total - 1] {
+    for (number, part) in parts[..total - 1].iter().enumerate() {
         ingest_fixture(
             &dir,
             part,
-            variant_part_result(part, json!([])),
+            variant_numbered_part_result(&run, part, number, json!([])),
             FindingDisposition::Upheld,
         );
     }
@@ -1238,7 +1291,7 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
     ingest_fixture(
         &dir,
         &parts[total - 1],
-        variant_part_result(&parts[total - 1], json!([])),
+        variant_numbered_part_result(&run, &parts[total - 1], total - 1, json!([])),
         FindingDisposition::Upheld,
     );
     let after = recompute_run(&run.run).unwrap();
@@ -1251,4 +1304,105 @@ fn a_partitioned_variant_denominator_binds_every_part_and_needs_all_of_them() {
         after.report.claims["securityVariantFollowup"]["status"],
         "complete"
     );
+}
+
+// ---- explicit variant ledger entries (review finding 7) ---------------------------
+
+mod ledger_entries {
+    use legion_audit::native_providers::reasoning::followup::{
+        root_cause_signature, LedgerAssessment, VariantDisposition, VariantEntry, VariantLedger,
+    };
+
+    fn entry(id: &str, path: &str, disposition: VariantDisposition) -> VariantEntry {
+        VariantEntry {
+            id: id.into(),
+            path: path.into(),
+            anchor: "db.execute(query)".into(),
+            disposition,
+            reason: "wrapper escapes input".into(),
+        }
+    }
+
+    fn ledger(paths: &[&str], entries: Vec<VariantEntry>) -> VariantLedger {
+        let count = |wanted: VariantDisposition| {
+            entries.iter().filter(|e| e.disposition == wanted).count() as u64
+        };
+        let (confirmed, rejected, unresolved) = (
+            count(VariantDisposition::Confirmed),
+            count(VariantDisposition::Rejected),
+            count(VariantDisposition::Unresolved),
+        );
+        VariantLedger {
+            root_cause_signature: root_cause_signature("sqli", "db.execute", "parameterize")
+                .unwrap(),
+            denominator_count: paths.len() as u64,
+            matched: entries.len() as u64,
+            examined: confirmed + rejected + unresolved,
+            confirmed,
+            rejected,
+            unresolved,
+            rejection_reasons: entries
+                .iter()
+                .filter(|e| e.disposition == VariantDisposition::Rejected)
+                .map(|e| e.reason.clone())
+                .collect(),
+            entries,
+            analysis_paths: paths.iter().map(|p| (*p).to_owned()).collect(),
+            parent_plan_digest: "sha256:parent".into(),
+            followup_plan_digest: "sha256:followup".into(),
+            confirmed_digest: "sha256:confirmed".into(),
+            ledger_digest: String::new(),
+        }
+        .seal()
+        .unwrap()
+    }
+
+    #[test]
+    fn absent_or_empty_ledger_is_incomplete_never_zero_complete() {
+        let empty = ledger(&["a.rs", "b.rs"], Vec::new());
+        assert!(matches!(empty.assess(), LedgerAssessment::Incomplete(_)));
+        assert!(!empty.is_complete());
+        let zero_denominator = ledger(&[], Vec::new());
+        assert!(!zero_denominator.is_complete());
+        assert_eq!(empty.claim()["status"], "incomplete");
+    }
+
+    #[test]
+    fn examined_below_denominator_is_incomplete() {
+        let partial = ledger(
+            &["a.rs", "b.rs"],
+            vec![entry("v1", "a.rs", VariantDisposition::Confirmed)],
+        );
+        match partial.assess() {
+            LedgerAssessment::Incomplete(reason) => assert!(reason.contains("b.rs")),
+            other => panic!("expected incomplete, got {other:?}"),
+        }
+        let full = ledger(
+            &["a.rs", "b.rs"],
+            vec![
+                entry("v1", "a.rs", VariantDisposition::Confirmed),
+                entry("v2", "b.rs", VariantDisposition::Rejected),
+            ],
+        );
+        assert_eq!(full.assess(), LedgerAssessment::Complete);
+    }
+
+    #[test]
+    fn counts_must_derive_from_entries() {
+        let mut forged = ledger(
+            &["a.rs"],
+            vec![entry("v1", "a.rs", VariantDisposition::Unresolved)],
+        );
+        forged.unresolved = 0;
+        forged.confirmed = 1;
+        assert!(matches!(forged.assess(), LedgerAssessment::Inconsistent(_)));
+        let stray = ledger(
+            &["a.rs"],
+            vec![
+                entry("v1", "a.rs", VariantDisposition::Confirmed),
+                entry("v2", "elsewhere.rs", VariantDisposition::Confirmed),
+            ],
+        );
+        assert!(matches!(stray.assess(), LedgerAssessment::Inconsistent(_)));
+    }
 }

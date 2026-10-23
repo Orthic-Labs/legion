@@ -1,7 +1,12 @@
 //! Native Audit has no owner-backed external admission service yet. Freeze
 //! that fact before effects; caller configuration cannot grant admission.
+use crate::profiles::{
+    validate_runtime_closure, LaunchStep, LaunchStepKind, RuntimeClass, RuntimeClosure,
+    RuntimeConstraint, RuntimeViolation,
+};
 use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision};
 use serde_json::{json, Value};
+use std::{io::Read, path::Path};
 
 pub const POLICY_ID: &str = "audit-native-owner-admission-v1";
 /// Policy id carried by decisions of an owner-backed authorizer. Distinct from
@@ -142,6 +147,153 @@ pub(crate) async fn deny(request: &ExternalToolRequest) -> legion_effects::Execu
     legion_effects::EffectExecutor::new(process, NoArtifacts, OwnerAdmissionRequired)
         .execute(request)
         .await
+}
+
+/// Runtime class of a program name (basename; `.exe`/`.cmd`/`.bat` and trailing
+/// version digits ignored). Recognises Node and Python launchers/package
+/// managers; every other name is `Native` (scripts are classified by shebang).
+pub fn runtime_class_of_name(name: &str) -> RuntimeClass {
+    let base = name
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+    let mut stem = base.as_str();
+    for suffix in [".exe", ".cmd", ".bat", ".ps1"] {
+        stem = stem.strip_suffix(suffix).unwrap_or(stem);
+    }
+    let stem = stem.trim_end_matches(|c: char| c.is_ascii_digit() || c == '.' || c == '-');
+    match stem {
+        "node" | "nodejs" | "npm" | "npx" | "pnpm" | "pnpx" | "yarn" | "yarnpkg" | "bun"
+        | "bunx" | "deno" | "corepack" | "tsx" | "ts-node" => RuntimeClass::Node,
+        "python" | "pythonw" | "pip" | "pipx" | "uv" | "uvx" | "poetry" | "pdm" | "conda"
+        | "py" => RuntimeClass::Python,
+        _ => RuntimeClass::Native,
+    }
+}
+
+/// Programs that run another program named in their arguments.
+fn is_generic_launcher(name: &str) -> bool {
+    let base = name
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+    let stem = base.strip_suffix(".exe").unwrap_or(&base);
+    matches!(
+        stem,
+        "env"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "dash"
+            | "ksh"
+            | "fish"
+            | "cmd"
+            | "powershell"
+            | "pwsh"
+            | "xargs"
+            | "nice"
+            | "nohup"
+            | "timeout"
+            | "time"
+            | "command"
+            | "exec"
+            | "sudo"
+            | "doas"
+            | "setsid"
+            | "stdbuf"
+            | "script"
+            | "busybox"
+    )
+}
+
+/// Interpreter class of a `#!` line: Node/Python when any token (past `env`
+/// and options) names one; any other interpreter is `Unknown` (a script is
+/// never assumed native).
+fn shebang_class(line: &str) -> RuntimeClass {
+    let tokens = line
+        .trim_start_matches("#!")
+        .split_whitespace()
+        .collect::<Vec<_>>();
+    let mut other = false;
+    for token in tokens {
+        match runtime_class_of_name(token) {
+            RuntimeClass::Native => {
+                let base = token.rsplit('/').next().unwrap_or(token);
+                if base != "env" && !token.starts_with('-') && !token.contains('=') {
+                    other = true;
+                }
+            }
+            class => return class,
+        }
+    }
+    if other {
+        RuntimeClass::Unknown
+    } else {
+        RuntimeClass::Native
+    }
+}
+
+/// Derive the audit-owned launch closure of one request: the executable, its
+/// script interpreter (shebang, read from the sealed file), and any program a
+/// generic launcher (`env`, `sh -c`, `xargs` ...) is asked to run.
+pub fn launch_closure(executable: &Path, args: &[String]) -> RuntimeClosure {
+    let name = executable.to_string_lossy().into_owned();
+    let mut steps = vec![LaunchStep {
+        name: name.clone(),
+        runtime: runtime_class_of_name(&name),
+        kind: LaunchStepKind::Tool,
+        audit_owned: true,
+    }];
+    let mut head = [0u8; 256];
+    let count = std::fs::File::open(executable)
+        .and_then(|mut file| file.read(&mut head))
+        .unwrap_or(0);
+    if head[..count].starts_with(b"#!") {
+        let line = head[..count]
+            .split(|b| *b == b'\n')
+            .next()
+            .unwrap_or_default();
+        steps.push(LaunchStep {
+            name: format!("{name}#!"),
+            runtime: shebang_class(&String::from_utf8_lossy(line)),
+            kind: LaunchStepKind::ChildInterpreter,
+            audit_owned: true,
+        });
+    }
+    if is_generic_launcher(&name) {
+        for arg in args {
+            for token in arg.split(|c: char| {
+                c.is_whitespace()
+                    || matches!(c, ';' | '&' | '|' | '(' | ')' | '`' | '"' | '\'' | '=')
+            }) {
+                if token.is_empty() {
+                    continue;
+                }
+                let class = runtime_class_of_name(token);
+                if class != RuntimeClass::Native {
+                    steps.push(LaunchStep {
+                        name: format!("{name} -> {token}"),
+                        runtime: class,
+                        kind: LaunchStepKind::ChildInterpreter,
+                        audit_owned: true,
+                    });
+                }
+            }
+        }
+    }
+    RuntimeClosure { steps }
+}
+
+/// Process-admission closure check: violations (empty when admissible) of the
+/// request's launch closure under the host-frozen constraint.
+pub fn admission_runtime_violations(
+    constraint: RuntimeConstraint,
+    executable: &Path,
+    args: &[String],
+) -> Vec<RuntimeViolation> {
+    validate_runtime_closure(constraint, &launch_closure(executable, args))
 }
 
 #[cfg(test)]

@@ -290,10 +290,36 @@ fn amendment_events_reach_a_live_journal_only() {
     assert!(!record_in_journal(&finalized, base.digest(), applied, NOW).unwrap());
 }
 
+fn ledger_entries(
+    confirmed: u64,
+    rejected: u64,
+    unresolved: u64,
+) -> Vec<legion_audit::native_providers::reasoning::followup::VariantEntry> {
+    use legion_audit::native_providers::reasoning::followup::{VariantDisposition, VariantEntry};
+    let mut entries = Vec::new();
+    for (count, disposition) in [
+        (confirmed, VariantDisposition::Confirmed),
+        (rejected, VariantDisposition::Rejected),
+        (unresolved, VariantDisposition::Unresolved),
+    ] {
+        for _ in 0..count {
+            let index = entries.len();
+            entries.push(VariantEntry {
+                id: format!("v{index}"),
+                path: format!("p{index}"),
+                anchor: format!("sink.call({index})"),
+                disposition,
+                reason: "guarded".into(),
+            });
+        }
+    }
+    entries
+}
+
 fn ledger(matched: u64, confirmed: u64, rejected: u64, unresolved: u64) -> VariantLedger {
     VariantLedger {
         root_cause_signature: root_cause_signature("rule", "sink", "control").unwrap(),
-        denominator_count: 4,
+        denominator_count: (confirmed + rejected + unresolved).max(1),
         matched,
         examined: confirmed + rejected + unresolved,
         confirmed,
@@ -303,6 +329,10 @@ fn ledger(matched: u64, confirmed: u64, rejected: u64, unresolved: u64) -> Varia
         parent_plan_digest: format!("sha256:{}", "a".repeat(64)),
         followup_plan_digest: format!("sha256:{}", "b".repeat(64)),
         confirmed_digest: format!("sha256:{}", "c".repeat(64)),
+        entries: ledger_entries(confirmed, rejected, unresolved),
+        analysis_paths: (0..(confirmed + rejected + unresolved).max(1))
+            .map(|index| format!("p{index}"))
+            .collect(),
         ledger_digest: String::new(),
     }
     .seal()
@@ -326,7 +356,7 @@ fn variant_ledger_is_required_and_unresolved_keeps_the_pass_incomplete() {
             &tampered.parent_plan_digest.clone(),
             &tampered.followup_plan_digest.clone(),
             &tampered.confirmed_digest.clone(),
-            4
+            3
         )
         .is_err());
 }

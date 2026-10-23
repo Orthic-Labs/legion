@@ -278,7 +278,21 @@ fn record_round_trips_additive_assurance() {
 
 // ------------------------------------------------------------------ index
 
+fn init_state_root() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let dir = std::env::temp_dir().join(format!("legion-fh-state-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let dir = dir.canonicalize().unwrap();
+        #[allow(unused_unsafe)]
+        unsafe {
+            std::env::set_var("LEGION_STATE_ROOT", dir);
+        }
+    });
+}
+
 fn scratch(tag: &str) -> PathBuf {
+    init_state_root();
     let root = std::env::temp_dir().join(format!(
         "legion-finding-history-{tag}-{}-{}",
         std::process::id(),
@@ -426,4 +440,182 @@ fn expired_acceptance_is_explicit() {
         "#[allow(x)] // audit-accept: owner=a reason=r expires=2026-01-01\n",
     );
     assert!(debt::assess(&r[0], "2026-10-23", DebtPolicy::default()).expired);
+}
+
+// ------------------------------------------- finalization gate (finding 9)
+
+mod finalization {
+    use super::*;
+    use legion_audit::p12_pipeline::store::{make_finding, FindingDraft, FindingStore};
+    use legion_contracts::{ReportId, ReportStatus, ReportV1};
+    use serde_json::json;
+
+    fn seeded(tag: &str) -> (PathBuf, FindingStore, String) {
+        let root = scratch(tag);
+        let store = FindingStore::new(&root);
+        let draft = FindingDraft::new(
+            "repo",
+            "scope",
+            "rule.a",
+            "security",
+            "t",
+            vec![json!({"path": "src/a.rs", "startLine": 1, "endLine": 2})],
+        );
+        let record =
+            make_finding(&draft, Some("g1"), None, "open", "2026-01-01T00:00:00Z").unwrap();
+        let id = record["id"].as_str().unwrap().to_owned();
+        store.upsert(&record, None).unwrap();
+        (root, store, id)
+    }
+
+    fn clean_report(root: &std::path::Path) -> ReportV1 {
+        ReportV1 {
+            schema_version: 1,
+            report_id: ReportId::new("report-1").unwrap(),
+            status: ReportStatus::Clean,
+            findings: Vec::new(),
+            gaps: Vec::new(),
+            claims: BTreeMap::new(),
+            targets: vec![root.display().to_string()],
+            extensions: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn dropped_prior_finding_without_evidence_stays_open_and_blocks() {
+        let (root, _store, id) = seeded("drop");
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert_eq!(report.status, ReportStatus::Incomplete);
+        assert!(report
+            .gaps
+            .iter()
+            .any(|gap| gap == &format!("finding-history-unresolved:{id}")));
+    }
+
+    #[test]
+    fn resolve_without_evidence_is_refused_and_dismissal_needs_authority() {
+        let (root, store, id) = seeded("resolve");
+        assert!(resolve_finding(&store, &id, None, None, None).is_err());
+        let blank = Dismissal {
+            authority: " ".into(),
+            reason: "n/a".into(),
+            at: None,
+        };
+        assert!(resolve_finding(&store, &id, None, Some(blank), None).is_err());
+        let dismissal = Dismissal {
+            authority: "owner".into(),
+            reason: "accepted risk".into(),
+            at: None,
+        };
+        resolve_finding(&store, &id, None, Some(dismissal), None).unwrap();
+        // A dismissal is recorded, never a repair: no verified-fixed claim.
+        let stored = store.get(&id).unwrap().unwrap();
+        assert_eq!(stored["status"], "dismissed");
+        assert!(stored.get("assurance").is_none());
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert_eq!(report.status, ReportStatus::Clean);
+    }
+
+    #[test]
+    fn legacy_resolved_status_without_evidence_still_blocks() {
+        let (root, store, id) = seeded("legacy");
+        store.set_status(&id, "resolved", None, None).unwrap();
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert_eq!(report.status, ReportStatus::Incomplete);
+    }
+
+    fn verified_run() -> RunView {
+        RunView {
+            report_digest: REPORT.into(),
+            complete: true,
+            verified: true,
+            producers: BTreeSet::from(["run-abc".into(), "legion".into()]),
+            vouched_artifacts: BTreeSet::from([EVID.into()]),
+            ..RunView::default()
+        }
+    }
+
+    fn reviewed(id: &str, who: Option<&str>, digest: &str) -> ResolutionEvidence {
+        ResolutionEvidence {
+            kind: ResolutionKind::ReviewedRepair,
+            accepted_by: who.map(str::to_owned),
+            evidence_digest: digest.into(),
+            ..evidence(id)
+        }
+    }
+
+    #[test]
+    fn unverified_run_cannot_resolve() {
+        let (_root, store, id) = seeded("unverified");
+        let mut run = verified_run();
+        run.verified = false;
+        let ev = reviewed(&id, Some("alice"), EVID);
+        assert!(resolve_finding(&store, &id, Some((&ev, &run)), None, None).is_err());
+        assert_eq!(store.get(&id).unwrap().unwrap()["status"], "open");
+    }
+
+    #[test]
+    fn reviewed_repair_needs_independent_reviewer_and_run_artifact() {
+        let (_root, store, id) = seeded("reviewed");
+        let run = verified_run();
+        for ev in [
+            reviewed(&id, None, EVID),
+            reviewed(&id, Some("  "), EVID),
+            reviewed(&id, Some("Run-ABC"), EVID),
+            reviewed(&id, Some("alice"), REPORT),
+        ] {
+            assert!(resolve_finding(&store, &id, Some((&ev, &run)), None, None).is_err());
+        }
+        assert_eq!(store.get(&id).unwrap().unwrap()["status"], "open");
+        let good = reviewed(&id, Some("alice"), EVID);
+        resolve_finding(&store, &id, Some((&good, &run)), None, None).unwrap();
+        assert_eq!(store.get(&id).unwrap().unwrap()["status"], "resolved");
+    }
+
+    #[test]
+    fn fake_report_directory_is_not_a_verified_run() {
+        let (root, _store, _id) = seeded("fakerun");
+        let run = root.join("fake-run");
+        std::fs::create_dir_all(&run).unwrap();
+        std::fs::write(
+            run.join("report.json"),
+            r#"{"schemaVersion":1,"status":"clean","findings":[],"gaps":[]}"#,
+        )
+        .unwrap();
+        assert!(verified_run_view(&run, &root).is_err());
+        std::fs::write(run.join("plan.json"), "{}").unwrap();
+        assert!(verified_run_view(&run, &root).is_err());
+    }
+
+    #[test]
+    fn deleted_store_after_recorded_findings_is_a_gap_never_a_pass() {
+        let (root, store, _id) = seeded("deleted");
+        // Finalization records the host ledger while the store exists.
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert!(!report.gaps.iter().any(|g| g == GAP_STORE_MISSING));
+        // Attacker removes the repo-side store.
+        std::fs::remove_file(store.path()).unwrap();
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert_eq!(report.status, ReportStatus::Incomplete);
+        assert!(report.gaps.iter().any(|g| g == GAP_STORE_MISSING));
+        // Truncation to an empty store is the same gap.
+        std::fs::write(store.path(), "").unwrap();
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert_eq!(report.status, ReportStatus::Incomplete);
+        assert!(report.gaps.iter().any(|g| g == GAP_STORE_MISSING));
+    }
+
+    #[test]
+    fn repo_without_recorded_findings_still_passes_with_no_store() {
+        let root = scratch("nostore");
+        let mut report = clean_report(&root);
+        apply_history_gate(&root, &mut report).unwrap();
+        assert_eq!(report.status, ReportStatus::Clean);
+    }
 }

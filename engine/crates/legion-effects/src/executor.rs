@@ -20,6 +20,14 @@ pub trait PolicyAuthorizer: Send + Sync {
     fn authorize(&self, request: &ExternalToolRequest) -> PolicyDecision;
 }
 
+/// One policy can back several launch paths (e.g. the executor and attested-run
+/// preparation) so they share a single decision authority.
+impl<T: PolicyAuthorizer + ?Sized> PolicyAuthorizer for std::sync::Arc<T> {
+    fn authorize(&self, request: &ExternalToolRequest) -> PolicyDecision {
+        (**self).authorize(request)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct StaticPolicy {
     pub decision: PolicyDecision,

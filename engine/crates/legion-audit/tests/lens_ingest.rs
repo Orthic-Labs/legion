@@ -11,7 +11,9 @@ use std::{
 };
 
 use legion_audit::native_providers::reasoning::{
-    ingest::{create_epoch, ingest_lens_result, load_epoch, recompute_run, EPOCH_KEY_FILE},
+    ingest::{
+        create_epoch, ingest_lens_result, load_epoch, recompute_run, EPOCH_KEY_DIR, EPOCH_KEY_FILE,
+    },
     pending_lens_work, PendingLensWork, ReasoningProviderExecutor,
 };
 use legion_audit::{
@@ -29,6 +31,17 @@ use common::{authenticate, FindingDisposition};
 
 const KEY: &[u8] = b"lens-ingest-fixture-signing-key";
 const PROVIDER: &str = "reasoning.naming";
+
+/// Host-custody path of the epoch key a run names (never inside the run dir).
+fn host_epoch_key_file(run: &Path) -> PathBuf {
+    let digest = load_epoch(run).unwrap().1;
+    legion_audit::host_plan_key_dir()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join(EPOCH_KEY_DIR)
+        .join(format!("{}.key", digest.trim_start_matches("sha256:")))
+}
 
 fn temp_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
@@ -491,8 +504,11 @@ fn a_tampered_or_foreign_receipt_is_not_counted() {
     // A receipt minted under another epoch key is rejected.
     let other = temp_dir("tamper-other").join("run");
     create_epoch(&other).unwrap();
-    fs::copy(other.join(EPOCH_KEY_FILE), run.run.join(EPOCH_KEY_FILE)).ok();
+    let host_key = host_epoch_key_file(&run.run);
+    let genuine = fs::read(&host_key).unwrap();
+    fs::copy(host_epoch_key_file(&other), &host_key).unwrap();
     assert!(recompute_run(&run.run).is_err());
+    fs::write(&host_key, genuine).unwrap();
 }
 
 #[test]
@@ -520,13 +536,12 @@ fn epoch_key_is_private_and_loose_permissions_are_refused() {
     use std::os::unix::fs::PermissionsExt;
     let dir = temp_dir("epoch").join("run");
     let digest = create_epoch(&dir).unwrap();
-    let mode = fs::metadata(dir.join(EPOCH_KEY_FILE))
-        .unwrap()
-        .permissions()
-        .mode();
+    assert!(!dir.join(EPOCH_KEY_FILE).exists());
+    let host_key = host_epoch_key_file(&dir);
+    let mode = fs::metadata(&host_key).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o600);
     assert_eq!(load_epoch(&dir).unwrap().1, digest);
-    fs::set_permissions(dir.join(EPOCH_KEY_FILE), fs::Permissions::from_mode(0o644)).unwrap();
+    fs::set_permissions(&host_key, fs::Permissions::from_mode(0o644)).unwrap();
     assert!(load_epoch(&dir).is_err());
 }
 

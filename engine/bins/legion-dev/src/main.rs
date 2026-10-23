@@ -8,6 +8,7 @@ mod checks;
 mod ci_qualification_child;
 mod generators;
 mod native_cli_gate;
+mod native_lint_qualification;
 mod repo;
 mod shared;
 
@@ -26,6 +27,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// CI only: verify pinned Oxlint/Biome assets and write the native-lint enrollment.
+    NativeLintQualification {
+        #[arg(long)]
+        repository_root: std::path::PathBuf,
+        #[arg(long)]
+        output_root: Option<std::path::PathBuf>,
+        /// Print `tool<TAB>url` of the pinned host assets and exit (download is the caller's curl).
+        #[arg(long)]
+        list_assets: bool,
+        /// `tool=path` of a pre-downloaded pinned asset (oxlint and biome, once each).
+        #[arg(long = "asset")]
+        assets: Vec<String>,
+    },
     /// Managed CI only: bound one native qualification leaf & its owned tree.
     CiQualificationChild {
         #[arg(long)]
@@ -309,6 +323,17 @@ fn main() -> ExitCode {
             // Preserve native shell status rather than boolean check status.
             return ExitCode::from(ci_qualification_child::run(sequence, &command));
         }
+        Command::NativeLintQualification {
+            repository_root,
+            output_root,
+            list_assets,
+            assets,
+        } => native_lint_qualification::run(
+            &repository_root,
+            output_root.as_deref(),
+            list_assets,
+            &assets,
+        ),
         Command::CheckPortability { json } => checks::portability::run(&root, json),
         Command::CheckVersionParity { json, stable } => {
             checks::version_parity::run(&root, json, stable)

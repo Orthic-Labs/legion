@@ -410,7 +410,20 @@ fn real_pack_output_composes_into_a_hypothesis() {
     assert!(has_chain, "{doc:#}");
     assert_eq!(doc["authority"]["establishesPaths"], false);
     assert_eq!(doc["claims"]["pathsProven"], 0);
-    assert!(result.findings.is_empty());
+    // Hypotheses travel on the candidate channel as UNADJUDICATED candidates and
+    // never as findings; only independent chain adjudication can promote one.
+    assert!(result.findings.is_empty(), "{doc:#}");
+    let candidates = result.details["candidates"].as_array().expect("candidates");
+    assert!(!candidates.is_empty(), "{doc:#}");
+    for candidate in candidates {
+        assert_eq!(candidate["kind"], "attack-path-hypothesis");
+        assert_eq!(candidate["verdict"], "UNADJUDICATED");
+        assert_eq!(candidate["evidenceStrength"], "possible");
+        assert_eq!(
+            candidate["adjudication"],
+            "pending-independent-adjudication"
+        );
+    }
     assert!(!doc.to_string().contains("\"PROVEN\""));
     // Still never complete or adjudicated by the deterministic pass.
     let chain = run(&registry, CHAIN, &inventory);

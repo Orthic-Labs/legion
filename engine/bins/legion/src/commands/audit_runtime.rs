@@ -111,6 +111,19 @@ fn run_blocking(args: RunReasoningArgs) -> CommandResult {
             super::audit::write_run_reports(&run, &reconciled.report, 2)?;
         }
     }
+    // Finding-history gate: prior stored findings absent from this run without
+    // valid resolution evidence block completion.
+    if let Some(root) = reconciled.report.targets.first().cloned() {
+        let before = reconciled.report.gaps.clone();
+        legion_audit::finding_history::apply_history_gate(
+            std::path::Path::new(&root),
+            &mut reconciled.report,
+        )
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+        if reconciled.report.gaps != before {
+            super::audit::write_run_reports(&run, &reconciled.report, 2)?;
+        }
+    }
     let complete = matches!(
         reconciled.report.status,
         legion_contracts::ReportStatus::Clean | legion_contracts::ReportStatus::Findings

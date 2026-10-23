@@ -180,6 +180,108 @@ pub struct Provenance {
     pub raw_outputs: Vec<FileDigest>,
     pub source_closure_digest: String,
     pub implementation_digest: String,
+    /// Signed digest under an enrolled key. The `source`/`authenticated`
+    /// fields are caller-asserted text; only a verified attestation lets a
+    /// record claim CI capture.
+    #[serde(default)]
+    pub attestation: Option<Attestation>,
+}
+
+/// Ed25519 signature over [`attestation_message`] by an enrolled key.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Attestation {
+    pub key_id: String,
+    /// Lowercase hex signature (64 bytes).
+    pub signature: String,
+}
+
+/// A trusted attestor key. Enrollment comes only from host state
+/// (`<LEGION state root>/audit-qualification-attestors.json`, owner-only,
+/// outside every audited root), never from the repository and never from the
+/// record under validation.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct EnrolledKey {
+    pub key_id: String,
+    /// Lowercase hex Ed25519 public key (32 bytes).
+    pub public_key: String,
+    /// Records captured after this instant are not accepted from this key.
+    #[serde(default)]
+    pub not_after: Option<String>,
+}
+
+/// Message the attestor signs: domain tag plus the sealed record digest.
+pub fn attestation_message(qualification_digest: &str) -> Vec<u8> {
+    format!("legion-audit-assurance-attestation/1\n{qualification_digest}").into_bytes()
+}
+
+/// Load enrolled attestor keys from the host enrollment file at `path`. A
+/// missing file means none are enrolled. The file must pass the shared
+/// host-enrollment hardening and must lie outside `audited_roots` (the
+/// repository root among them), so a repository can never enroll a key.
+pub fn load_enrolled_keys(
+    path: &Path,
+    audited_roots: &[PathBuf],
+) -> Result<Vec<EnrolledKey>, String> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct File {
+        keys: Vec<EnrolledKey>,
+    }
+    let Some(bytes) = legion_audit::evidence_issuers::read_host_enrollment(path, audited_roots)?
+    else {
+        return Ok(Vec::new());
+    };
+    serde_json::from_slice::<File>(&bytes)
+        .map(|file| file.keys)
+        .map_err(|e| format!("{}: {e}", path.display()))
+}
+
+fn decode_hex<const N: usize>(value: &str) -> Option<[u8; N]> {
+    if value.len() != N * 2 {
+        return None;
+    }
+    let bytes = hex::decode(value).ok()?;
+    bytes.try_into().ok()
+}
+
+/// Verify the record's attestation against the enrolled keys.
+pub fn verify_attestation(
+    record: &AssuranceQualificationRecord,
+    enrolled: &[EnrolledKey],
+) -> Result<(), String> {
+    use ed25519_dalek::{Signature, VerifyingKey};
+    let attestation = record
+        .provenance
+        .attestation
+        .as_ref()
+        .ok_or_else(|| "no-attestation".to_string())?;
+    let key = enrolled
+        .iter()
+        .find(|key| key.key_id == attestation.key_id)
+        .ok_or_else(|| "key-not-enrolled".to_string())?;
+    if let Some(not_after) = &key.not_after {
+        if record.provenance.captured_at.as_str() > not_after.as_str() {
+            return Err("key-expired-for-capture".into());
+        }
+    }
+    let public: [u8; 32] =
+        decode_hex(&key.public_key).ok_or_else(|| "key-malformed".to_string())?;
+    let signature: [u8; 64] =
+        decode_hex(&attestation.signature).ok_or_else(|| "signature-malformed".to_string())?;
+    let verifying = VerifyingKey::from_bytes(&public).map_err(|_| "key-malformed".to_string())?;
+    // The signed digest must be the recomputed one, not the stored field.
+    let digest = record_digest(record);
+    if digest != record.qualification_digest {
+        return Err("digest-mismatch".into());
+    }
+    verifying
+        .verify_strict(
+            &attestation_message(&digest),
+            &Signature::from_bytes(&signature),
+        )
+        .map_err(|_| "signature-invalid".to_string())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -286,6 +388,10 @@ pub fn record_digest(record: &AssuranceQualificationRecord) -> String {
     let mut value = serde_json::to_value(record).expect("record serializes");
     if let Some(object) = value.as_object_mut() {
         object.remove("qualificationDigest");
+        // The attestation signs this digest, so it cannot be part of it.
+        if let Some(provenance) = object.get_mut("provenance").and_then(Value::as_object_mut) {
+            provenance.remove("attestation");
+        }
     }
     sha256_digest(&canonical_bytes(&value))
 }
@@ -530,6 +636,18 @@ pub fn validate_record(
     now_rfc3339_utc: &str,
     current: Option<&CurrentContext>,
 ) -> ValidationReport {
+    validate_record_enrolled(record, now_rfc3339_utc, current, &[])
+}
+
+/// Like [`validate_record`] with the enrolled attestor keys. A record that
+/// claims CI capture or authentication without an attestation verified under
+/// an enrolled key is rejected: those fields are caller-asserted.
+pub fn validate_record_enrolled(
+    record: &AssuranceQualificationRecord,
+    now_rfc3339_utc: &str,
+    current: Option<&CurrentContext>,
+    enrolled: &[EnrolledKey],
+) -> ValidationReport {
     let metrics = measure(record);
     let mut rejected: Vec<String> = Vec::new();
     let mut invalidated: Vec<String> = Vec::new();
@@ -645,6 +763,13 @@ pub fn validate_record(
     {
         rejected.push("ci-provenance-incomplete".into());
     }
+    let claims_ci = provenance.source == ProvenanceSource::Ci || provenance.authenticated;
+    let attested = verify_attestation(record, enrolled);
+    if claims_ci {
+        if let Err(why) = &attested {
+            rejected.push(format!("ci-attestation-unverified:{why}"));
+        }
+    }
     if !rfc3339_utc(now_rfc3339_utc)
         || !rfc3339_utc(&provenance.captured_at)
         || !rfc3339_utc(&provenance.fresh_until)
@@ -712,7 +837,7 @@ pub fn validate_record(
             &mut capped,
         );
     }
-    if provenance.source != ProvenanceSource::Ci || !provenance.authenticated {
+    if provenance.source != ProvenanceSource::Ci || !provenance.authenticated || attested.is_err() {
         cap(
             &mut effective,
             Lifecycle::Shadow,
@@ -807,6 +932,150 @@ pub fn validate_raw_outputs(root: &Path, record: &AssuranceQualificationRecord) 
             Ok(bytes) if sha256_digest(&bytes) == raw.sha256 => {}
             Ok(_) => failures.push(format!("raw-output-digest-mismatch:{}", raw.path)),
             Err(_) => failures.push(format!("raw-output-missing:{}", raw.path)),
+        }
+    }
+    failures
+}
+
+/// Result of running a provider's real parser over one retained raw tool run.
+enum Recomputed {
+    /// Parsed cleanly; the number of findings the parser derived.
+    Findings(u32),
+    /// The parser rejected the output or named gaps: never a clean run.
+    Unparseable,
+}
+
+/// Registered recompute parsers, keyed by the record's provider id (and
+/// linter for the shared JavaScript provider). `None`: no parser is
+/// registered, so the record cannot be recomputed and cannot qualify.
+fn recompute_parser(scope: &QualificationScope) -> Option<fn(&[u8]) -> Recomputed> {
+    use legion_audit::native_providers::code::{android, javascript_native};
+    match (
+        scope.provider.as_str(),
+        scope.tool.to_ascii_lowercase().as_str(),
+    ) {
+        (javascript_native::PROVIDER_ID, "oxlint") => {
+            Some(
+                |stdout: &[u8]| match javascript_native::parse_oxlint_report(stdout) {
+                    Ok(report) if report.unresolved_lines == 0 => Recomputed::Findings(
+                        report
+                            .diagnostics
+                            .iter()
+                            .filter(|d| !d.config_error)
+                            .count() as u32,
+                    ),
+                    _ => Recomputed::Unparseable,
+                },
+            )
+        }
+        (javascript_native::PROVIDER_ID, "biome") => {
+            Some(
+                |stdout: &[u8]| match javascript_native::parse_biome_report(stdout, &|_| None) {
+                    Ok(report) if report.unresolved_lines == 0 => Recomputed::Findings(
+                        report
+                            .diagnostics
+                            .iter()
+                            .filter(|d| !d.config_error)
+                            .count() as u32,
+                    ),
+                    _ => Recomputed::Unparseable,
+                },
+            )
+        }
+        (android::PROVIDER_ID, _) => Some(|stdout: &[u8]| {
+            let parsed = if stdout.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'{') {
+                android::parse_lint_sarif(stdout)
+            } else {
+                android::parse_lint_xml(stdout)
+            };
+            if parsed.gaps.is_empty() {
+                Recomputed::Findings(parsed.issues.len() as u32)
+            } else {
+                Recomputed::Unparseable
+            }
+        }),
+        _ => None,
+    }
+}
+
+/// Recompute the outcomes from the retained raw tool output with the
+/// provider's real parser instead of trusting the record. Each digest-bound
+/// raw file is a bundle `{"cases":[{"fixtureId","stdout"}]}` of verbatim tool
+/// output; the parser derives the finding count per fixture, and the record's
+/// `emittedFindings` / `claimedClean` must equal it. Providers without a
+/// registered parser are rejected as `outcomes-not-recomputable`. (Expected
+/// and matched counts come from the fixture manifest, not tool output; they
+/// stay bounded by the recomputed emitted count.)
+pub fn validate_recomputed_outcomes(
+    root: &Path,
+    record: &AssuranceQualificationRecord,
+) -> Vec<String> {
+    let Some(parser) = recompute_parser(&record.scope) else {
+        return vec![format!(
+            "outcomes-not-recomputable:{}",
+            record.scope.provider
+        )];
+    };
+    let mut cases: std::collections::BTreeMap<String, Vec<u8>> = Default::default();
+    for raw in &record.provenance.raw_outputs {
+        if !safe_relative_path(&raw.path) {
+            continue;
+        }
+        let Ok(bytes) = fs::read(root.join(&raw.path)) else {
+            continue;
+        };
+        if sha256_digest(&bytes) != raw.sha256 {
+            continue;
+        }
+        let Ok(value) = serde_json::from_slice::<Value>(&bytes) else {
+            return vec!["raw-output-malformed".into()];
+        };
+        for case in value
+            .get("cases")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let (Some(id), Some(stdout)) = (
+                case.get("fixtureId").and_then(Value::as_str),
+                case.get("stdout").and_then(Value::as_str),
+            ) else {
+                return vec!["raw-output-case-malformed".into()];
+            };
+            if cases
+                .insert(id.to_owned(), stdout.as_bytes().to_vec())
+                .is_some()
+            {
+                return vec![format!("raw-output-duplicate-case:{id}")];
+            }
+        }
+    }
+    if cases.is_empty() {
+        return vec!["outcomes-not-recomputable-from-raw-output".into()];
+    }
+    let mut failures = Vec::new();
+    for outcome in &record.outcomes {
+        let Some(stdout) = cases.get(&outcome.fixture_id) else {
+            failures.push(format!("outcome-without-raw-case:{}", outcome.fixture_id));
+            continue;
+        };
+        match parser(stdout) {
+            Recomputed::Findings(count) => {
+                if outcome.kind == OutcomeKind::Unsupported
+                    || outcome.emitted_findings != count
+                    || outcome.claimed_clean != (count == 0)
+                {
+                    failures.push(format!(
+                        "outcomes-differ-from-raw-output:{}",
+                        outcome.fixture_id
+                    ));
+                }
+            }
+            Recomputed::Unparseable => {
+                if outcome.kind != OutcomeKind::Unsupported || outcome.claimed_clean {
+                    failures.push(format!("raw-output-unparseable:{}", outcome.fixture_id));
+                }
+            }
         }
     }
     failures
@@ -1073,14 +1342,24 @@ fn run_inner(root: &Path, opts: &Options) -> Result<bool, String> {
         ),
         None => None,
     };
+    let enrolled = match legion_audit::evidence_issuers::default_qualification_attestors_path() {
+        Some(path) => load_enrolled_keys(&path, &[root.to_path_buf()])?,
+        None => Vec::new(),
+    };
     let mut ok = true;
     let mut reports = Vec::new();
     for path in collect_record_paths(&opts.records)? {
         let bytes = fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
         let record: AssuranceQualificationRecord =
             serde_json::from_slice(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
-        let mut report = validate_record(&record, &opts.now, current.as_ref());
-        let raw_failures = validate_raw_outputs(root, &record);
+        let mut report = validate_record_enrolled(&record, &opts.now, current.as_ref(), &enrolled);
+        let mut raw_failures = validate_raw_outputs(root, &record);
+        if record.provenance.source == ProvenanceSource::Ci
+            || record.provenance.authenticated
+            || record.lifecycle == Lifecycle::Qualified
+        {
+            raw_failures.extend(validate_recomputed_outcomes(root, &record));
+        }
         if !raw_failures.is_empty() {
             report.reasons.extend(raw_failures);
             report.verdict = Verdict::Rejected;
@@ -1168,6 +1447,40 @@ mod tests {
         }
     }
 
+    const TEST_KEY_SEED: [u8; 32] = [7; 32];
+
+    fn test_enrolled() -> Vec<EnrolledKey> {
+        let signing = ed25519_dalek::SigningKey::from_bytes(&TEST_KEY_SEED);
+        vec![EnrolledKey {
+            key_id: "ci-test".to_string(),
+            public_key: hex::encode(signing.verifying_key().to_bytes()),
+            not_after: None,
+        }]
+    }
+
+    fn attest(record: &mut AssuranceQualificationRecord) {
+        use ed25519_dalek::Signer;
+        let signing = ed25519_dalek::SigningKey::from_bytes(&TEST_KEY_SEED);
+        let signature = signing.sign(&attestation_message(&record.qualification_digest));
+        record.provenance.attestation = Some(Attestation {
+            key_id: "ci-test".to_string(),
+            signature: hex::encode(signature.to_bytes()),
+        });
+    }
+
+    fn reseal(record: &mut AssuranceQualificationRecord) {
+        seal(record);
+        attest(record);
+    }
+
+    fn validate_enrolled(
+        record: &AssuranceQualificationRecord,
+        now: &str,
+        current: Option<&CurrentContext>,
+    ) -> ValidationReport {
+        validate_record_enrolled(record, now, current, &test_enrolled())
+    }
+
     fn record(basis: BasisKind) -> AssuranceQualificationRecord {
         let mut record = AssuranceQualificationRecord {
             schema: RECORD_SCHEMA.to_string(),
@@ -1211,6 +1524,7 @@ mod tests {
                 }],
                 source_closure_digest: DIGEST_B.to_string(),
                 implementation_digest: DIGEST_C.to_string(),
+                attestation: None,
             },
             outcomes: vec![
                 outcome(
@@ -1239,17 +1553,164 @@ mod tests {
             qualification_digest: String::new(),
         };
         seal(&mut record);
+        attest(&mut record);
         record
     }
 
     #[test]
     fn heldout_ci_record_is_valid_at_exact_scope() {
-        let report = validate_record(&record(BasisKind::Heldout), NOW, None);
+        let report = validate_enrolled(&record(BasisKind::Heldout), NOW, None);
         assert_eq!(report.verdict, Verdict::Valid);
         assert_eq!(report.effective_lifecycle, Lifecycle::Qualified);
         assert_eq!(report.claim_scope, "qualified-exact-scope-only");
         assert_eq!(report.metrics.heldout_sample_size, 2);
         assert!(report.metrics.recall_interval_95.is_some());
+    }
+
+    #[test]
+    fn caller_asserted_ci_record_is_rejected() {
+        // Flags claim CI + authenticated, but nothing proves it.
+        let mut unsigned = record(BasisKind::Heldout);
+        unsigned.provenance.attestation = None;
+        seal(&mut unsigned);
+        let report = validate_enrolled(&unsigned, NOW, None);
+        assert_eq!(report.verdict, Verdict::Rejected);
+        assert!(report
+            .reasons
+            .iter()
+            .any(|r| r.starts_with("ci-attestation-unverified")));
+        assert_eq!(report.effective_lifecycle, Lifecycle::Draft);
+        // Valid shape but no enrolled key at all.
+        let report = validate_record(&record(BasisKind::Heldout), NOW, None);
+        assert_eq!(report.verdict, Verdict::Rejected);
+        // Signature by an unenrolled/forged key, or over a different digest.
+        let mut forged = record(BasisKind::Heldout);
+        forged.provenance.attestation = Some(Attestation {
+            key_id: "ci-test".to_string(),
+            signature: "00".repeat(64),
+        });
+        assert_eq!(
+            validate_enrolled(&forged, NOW, None).verdict,
+            Verdict::Rejected
+        );
+        let mut tampered = record(BasisKind::Heldout);
+        tampered.scope.tool_version = "9.9.9".to_string();
+        seal(&mut tampered); // resealed but not re-signed
+        assert_eq!(
+            validate_enrolled(&tampered, NOW, None).verdict,
+            Verdict::Rejected
+        );
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-dev-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::canonicalize(&dir).unwrap()
+    }
+
+    const OX_FINDING: &str = r#"{"diagnostics":[{"message":"m","code":"eslint(no-debugger)","severity":"error","filename":"a.js","labels":[{"span":{"offset":0,"length":1,"line":1,"column":1}}]}],"number_of_files":1}"#;
+    const OX_CLEAN: &str = r#"{"diagnostics":[],"number_of_files":1}"#;
+
+    fn oxlint_record(dir: &Path) -> AssuranceQualificationRecord {
+        let mut rec = record(BasisKind::Heldout);
+        rec.scope.provider = "code.javascript.native".to_string();
+        rec.scope.tool = "oxlint".to_string();
+        let raw = serde_json::to_vec(&json!({"cases":[
+            {"fixtureId":"authored-pos","stdout":OX_FINDING},
+            {"fixtureId":"heldout-pos","stdout":OX_FINDING},
+            {"fixtureId":"heldout-clean","stdout":OX_CLEAN},
+        ]}))
+        .unwrap();
+        fs::create_dir_all(dir.join("qualification/raw")).unwrap();
+        fs::write(dir.join("qualification/raw/example.json"), &raw).unwrap();
+        rec.provenance.raw_outputs[0].sha256 = sha256_digest(&raw);
+        reseal(&mut rec);
+        rec
+    }
+
+    #[test]
+    fn outcomes_are_recomputed_by_the_real_parser_not_read_from_the_record() {
+        let dir = scratch("a18");
+        let rec = oxlint_record(&dir);
+        assert!(validate_raw_outputs(&dir, &rec).is_empty());
+        assert!(validate_recomputed_outcomes(&dir, &rec).is_empty());
+        // Tampered outcomes: the record claims a clean run on a fixture whose
+        // retained tool output holds a finding.
+        let mut tampered = rec.clone();
+        tampered.outcomes[1].emitted_findings = 0;
+        tampered.outcomes[1].claimed_clean = true;
+        reseal(&mut tampered);
+        assert_eq!(
+            validate_recomputed_outcomes(&dir, &tampered),
+            vec!["outcomes-differ-from-raw-output:heldout-pos".to_string()]
+        );
+        // An `outcomes` array inside the raw file is no longer authority.
+        let forged = serde_json::to_vec(&json!({"outcomes": rec.outcomes})).unwrap();
+        fs::write(dir.join("qualification/raw/example.json"), &forged).unwrap();
+        let mut self_attested = rec.clone();
+        self_attested.provenance.raw_outputs[0].sha256 = sha256_digest(&forged);
+        reseal(&mut self_attested);
+        assert_eq!(
+            validate_recomputed_outcomes(&dir, &self_attested),
+            vec!["outcomes-not-recomputable-from-raw-output".to_string()]
+        );
+        // Providers without a registered parser can never qualify.
+        let mut unknown = rec.clone();
+        unknown.scope.provider = "code.example".to_string();
+        reseal(&mut unknown);
+        assert_eq!(
+            validate_recomputed_outcomes(&dir, &unknown),
+            vec!["outcomes-not-recomputable:code.example".to_string()]
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    fn write_enrollment(dir: &Path, name: &str, keys: &[EnrolledKey]) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700)).unwrap();
+        let path = dir.join(name);
+        fs::write(&path, serde_json::to_vec(&json!({ "keys": keys })).unwrap()).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn repo_located_enrollment_is_refused_and_host_enrollment_verifies() {
+        let repo = scratch("repo");
+        let host = scratch("host");
+        let keys = test_enrolled();
+        // A key enrolled inside the audited repository root is refused.
+        let in_repo = write_enrollment(&repo, "qualification-attestors.json", &keys);
+        let refused = load_enrolled_keys(&in_repo, &[repo.clone()]);
+        assert!(refused.is_err(), "repo-located enrollment must be refused");
+        // The same enrollment in host state outside the repo loads and the
+        // attested record verifies under it.
+        let in_host = write_enrollment(&host, "audit-qualification-attestors.json", &keys);
+        let loaded = load_enrolled_keys(&in_host, &[repo.clone()]).unwrap();
+        assert_eq!(loaded, keys);
+        let rec = record(BasisKind::Heldout);
+        assert_eq!(verify_attestation(&rec, &loaded), Ok(()));
+        // Missing host file: nothing enrolled, the attestation cannot verify.
+        let none = load_enrolled_keys(&host.join("absent.json"), &[repo.clone()]).unwrap();
+        assert!(none.is_empty());
+        assert!(verify_attestation(&rec, &none).is_err());
+        // A group-writable (non-0600) host file is refused.
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&in_host, fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        assert!(load_enrolled_keys(&in_host, &[repo.clone()]).is_err());
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&host);
     }
 
     #[test]
@@ -1259,7 +1720,7 @@ mod tests {
             BasisKind::RoutingFixture,
             BasisKind::KnownAnswerFixture,
         ] {
-            let report = validate_record(&record(basis), NOW, None);
+            let report = validate_enrolled(&record(basis), NOW, None);
             assert_eq!(report.verdict, Verdict::FixtureScoped, "{basis:?}");
             assert_eq!(report.effective_lifecycle, Lifecycle::Shadow);
             assert!(report
@@ -1273,7 +1734,7 @@ mod tests {
     fn forged_digest_and_missing_raw_output_reject() {
         let mut forged = record(BasisKind::Heldout);
         forged.scope.tool_version = "9.9.9".to_string();
-        let report = validate_record(&forged, NOW, None);
+        let report = validate_enrolled(&forged, NOW, None);
         assert_eq!(report.verdict, Verdict::Rejected);
         assert!(report
             .reasons
@@ -1282,8 +1743,8 @@ mod tests {
 
         let mut no_raw = record(BasisKind::Heldout);
         no_raw.provenance.raw_outputs.clear();
-        seal(&mut no_raw);
-        let report = validate_record(&no_raw, NOW, None);
+        reseal(&mut no_raw);
+        let report = validate_enrolled(&no_raw, NOW, None);
         assert_eq!(report.verdict, Verdict::Rejected);
         assert!(report.reasons.iter().any(|r| r == "raw-output-missing"));
     }
@@ -1292,9 +1753,9 @@ mod tests {
     fn stale_and_version_drift_invalidate() {
         let mut stale = record(BasisKind::Heldout);
         stale.provenance.fresh_until = "2026-01-01T00:00:00Z".to_string();
-        seal(&mut stale);
+        reseal(&mut stale);
         assert_eq!(
-            validate_record(&stale, NOW, None).verdict,
+            validate_enrolled(&stale, NOW, None).verdict,
             Verdict::Invalidated
         );
 
@@ -1313,7 +1774,7 @@ mod tests {
             implementation_digest: DIGEST_C.to_string(),
             source_closure_digest: DIGEST_B.to_string(),
         };
-        let report = validate_record(&sealed, NOW, Some(&current));
+        let report = validate_enrolled(&sealed, NOW, Some(&current));
         assert_eq!(report.verdict, Verdict::Invalidated);
         assert!(report
             .reasons
@@ -1330,8 +1791,8 @@ mod tests {
         green.outcomes[1].claimed_clean = true;
         green.metrics = None;
         green.lifecycle = Lifecycle::Shadow;
-        seal(&mut green);
-        let report = validate_record(&green, NOW, None);
+        reseal(&mut green);
+        let report = validate_enrolled(&green, NOW, None);
         assert_eq!(report.verdict, Verdict::Rejected);
         assert!(report.reasons.iter().any(|r| r == "false-green-outcome"));
 
@@ -1340,8 +1801,11 @@ mod tests {
         for outcome in &mut wide.outcomes {
             outcome.target = "*".to_string();
         }
-        seal(&mut wide);
-        assert_eq!(validate_record(&wide, NOW, None).verdict, Verdict::Rejected);
+        reseal(&mut wide);
+        assert_eq!(
+            validate_enrolled(&wide, NOW, None).verdict,
+            Verdict::Rejected
+        );
     }
 
     #[test]

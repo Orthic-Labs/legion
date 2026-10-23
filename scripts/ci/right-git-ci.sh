@@ -256,6 +256,32 @@ provision_js_sdk() {
   export LEGION_JS_SDK_ENROLLMENT="$enrollment"
 }
 
+# Node-free native lint (A07): pinned Oxlint/Biome from src/registry/native-lint-pins.json.
+# Digest, version and rule-recognition failures refuse enrollment; no repository install runs.
+provision_native_lint() {
+  unset LEGION_NATIVE_LINT_ENROLLMENT
+  local output="${RUNNER_TEMP}/legion-native-lint-tools"
+  local enrollment listing tool url downloads
+  local -a asset_args=()
+  downloads="${RUNNER_TEMP}/legion-native-lint-assets"
+  audit_native_command rm -rf "$downloads" || return "$?"
+  audit_native_command mkdir -p "$downloads" || return "$?"
+  listing="$(audit_native_command "$ci_dev_helper" native-lint-qualification \
+    --repository-root "$GITHUB_WORKSPACE" --list-assets)" || return "$?"
+  while IFS=$'\t' read -r tool url; do
+    [[ "$tool" == oxlint || "$tool" == biome ]] || return 1
+    audit_native_command curl -fsSL --retry 0 --max-time 300 "$url" --output "$downloads/$tool" || return "$?"
+    asset_args+=(--asset "$tool=$downloads/$tool")
+  done <<< "$listing"
+  enrollment="$(audit_native_command "$ci_dev_helper" native-lint-qualification \
+    --repository-root "$GITHUB_WORKSPACE" --output-root "$output" "${asset_args[@]}")" || return "$?"
+  if [[ "$enrollment" != "$output/enrollment.json" || ! -f "$enrollment" || -L "$enrollment" ]]; then
+    printf 'Native lint enrollment missing or malformed.\n' >&2
+    return 1
+  fi
+  export LEGION_NATIVE_LINT_ENROLLMENT="$enrollment"
+}
+
 # Returned provisioning failures count without stopping independent controls.
 provision_license_checker() {
   unset LEGION_LICENSE_TOOL_ROOT audit_license_tool_dir audit_license_node_dir
@@ -835,6 +861,20 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   fi
   unset LEGION_JS_SDK_ENROLLMENT LEGION_JS_SDK_SCRATCH
   release_qualification_scratch "${RUNNER_TEMP}/legion-js-sdk-tools" "${RUNNER_TEMP}/legion-js-sdk-fixtures"
+  # Pinned native linters: retained raw output digests are the only enrollment proof.
+  run_audit_qualification provision_native_lint
+  if [[ -n "${LEGION_NATIVE_LINT_ENROLLMENT:-}" ]]; then
+    export LEGION_NATIVE_LINT_OUTPUT="${RUNNER_TEMP}/legion-provider-qualification/native-lint"
+    mkdir -p "$LEGION_NATIVE_LINT_OUTPUT"
+    run_audit_qualification audit_cargo_test --test javascript_native_accuracy \
+      real_native_lint_qualification -- --ignored --exact --nocapture --test-threads=1
+    cp "$(dirname "$LEGION_NATIVE_LINT_ENROLLMENT")/enrollment.json" "$LEGION_NATIVE_LINT_OUTPUT/enrollment.json"
+    cp -R "$(dirname "$LEGION_NATIVE_LINT_ENROLLMENT")/raw" "$LEGION_NATIVE_LINT_OUTPUT/raw"
+  else
+    printf '::error::Native lint controls skipped: provisioning refused.\n' >&2
+  fi
+  unset LEGION_NATIVE_LINT_ENROLLMENT LEGION_NATIVE_LINT_OUTPUT
+  release_qualification_scratch "${RUNNER_TEMP}/legion-native-lint-tools" "${RUNNER_TEMP}/legion-native-lint-assets"
   # Acquire pinned SDK/package inputs before native network-denied project execution.
   run_audit_qualification provision_dotnet_code_sdk
   export LEGION_DOTNET_ENROLLMENT="${RUNNER_TEMP}/legion-dotnet-code-sdk-tools/enrollment.json"

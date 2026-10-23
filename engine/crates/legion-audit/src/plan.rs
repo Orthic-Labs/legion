@@ -6,7 +6,7 @@ use std::path::Path;
 use legion_contracts::ProviderSpec;
 
 use crate::{
-    assurance::{AuditAssuranceV1, ASSURANCE_BOUND},
+    assurance::{AuditAssuranceV1, SelectionScope, ASSURANCE_BOUND, SELECTION_SCOPE_BOUND},
     dag::{topological, topological_with_artifacts, ObjectiveGraph},
     error::AuditError,
     integrity::{plan_digest, sign},
@@ -976,6 +976,37 @@ impl AuditPlan {
         Ok(self)
     }
 
+    /// Freeze the provider/scope selection (`--only`/`--skip`, diff or
+    /// directory scope, selected vs full provider universe) into `bounds` so
+    /// the signature covers it and a gate can refuse filtered runs.
+    pub fn with_selection_scope(mut self, selection: &SelectionScope) -> Result<Self, AuditError> {
+        selection.validate()?;
+        if self.bounds.contains_key(SELECTION_SCOPE_BOUND) {
+            return Err(AuditError::Invalid(
+                "audit plan already carries a frozen selection scope".into(),
+            ));
+        }
+        self.bounds.insert(
+            SELECTION_SCOPE_BOUND.into(),
+            serde_json::to_value(selection)
+                .map_err(|error| AuditError::Invalid(error.to_string()))?,
+        );
+        Ok(self)
+    }
+
+    /// The frozen selection scope, `None` when never frozen. Present but
+    /// malformed is an error, never silently absent.
+    pub fn selection_scope(&self) -> Result<Option<SelectionScope>, AuditError> {
+        let Some(value) = self.bounds.get(SELECTION_SCOPE_BOUND) else {
+            return Ok(None);
+        };
+        let parsed: SelectionScope = serde_json::from_value(value.clone()).map_err(|error| {
+            AuditError::Invalid(format!("selection scope is malformed: {error}"))
+        })?;
+        parsed.validate()?;
+        Ok(Some(parsed))
+    }
+
     /// The frozen assurance plan, `None` for legacy plans. A present but
     /// malformed/unsupported bound is an error, never silently absent.
     pub fn assurance_binding(&self) -> Result<Option<AuditAssuranceV1>, AuditError> {
@@ -1014,6 +1045,7 @@ impl AuditPlan {
             ));
         }
         self.assurance_binding()?;
+        self.selection_scope()?;
         self.validate_v2_bounds()?;
         if let Some(binding) = self.bounds.get(PROVIDER_UNIVERSE_BOUND) {
             let object = binding.as_object().ok_or_else(|| {
@@ -1228,7 +1260,7 @@ fn valid_sha256_label(value: &str) -> bool {
 impl FrozenPlan {
     /// Restore an existing seal without recompiling providers or coverage.
     /// No unchecked constructor exists: persisted identity must authenticate.
-    pub(crate) fn restore_verified(
+    pub fn restore_verified(
         plan: AuditPlan,
         digest: &str,
         signature: &str,

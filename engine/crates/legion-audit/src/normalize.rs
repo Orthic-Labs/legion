@@ -35,12 +35,21 @@ pub fn normalize_all(results: impl IntoIterator<Item = ProviderResult>) -> Vec<P
 //     sourcePerformance, snapshotManifest, executionRoot, baselineRoot,
 //     sourceRepository, outDir, runDir, cwd, tempDir, scratchDir, receiptId, packetDigest,
 //     reasoningEpochDigest
-//   * keys ending in `At`, `_at`, `Ms`, `_ms` (timestamps and durations)
+//   * the explicit measured-time keys listed in `VOLATILE_KEYS` (timestamps
+//     such as createdAt/created_at/startedAtMs/expires_at, and measured
+//     durations such as durationMs/duration_ms/elapsed_ms/wall_time_ms).
+//     There is NO suffix rule: configured bounds such as `timeoutMs`,
+//     `timeout_ms`, `providerTimeoutMs`, `leaseMs`, `termination_grace_ms`
+//     are semantic provider/plan inputs and stay in the digest.
 // Value rewrites:
-//   * a path segment chain rooted at a temporary directory (`/tmp/<x>`,
-//     `/private/tmp/<x>`, `/var/folders/<a>/<b>/T/<x>`, `\AppData\Local\Temp\<x>`,
-//     or the host's own `std::env::temp_dir()`)
-//     becomes `<tmp>`; the remainder of the path is kept.
+//   * ONLY the single generated run-directory segment directly after a
+//     temporary root (`/tmp/`, `/private/tmp/` (folded onto `/tmp/`),
+//     `/var/folders/<a>/<b>/T/`, `\AppData\Local\Temp\`, or the host's
+//     `std::env::temp_dir()`) becomes `<tmp>` (root+segment). A segment is
+//     generated only when it is >= 6 chars and contains a digit, or is >= 8
+//     hex chars. The segment ends at a path separator, whitespace or quote;
+//     later segments and surrounding prose are kept verbatim, and
+//     non-generated segments (`/tmp/a` vs `/tmp/b`) are never collapsed.
 // Ordering noise: arrays under these keys are order-insensitive and sorted by
 // canonical form: findings, coverageGaps, coverage_gaps, gaps, degradation,
 // providers, providerResults, provider_reconciliation, results, checks,
@@ -54,6 +63,8 @@ use sha2::{Digest, Sha256};
 pub const REPLAY_DIGEST_PREFIX: &str = "replay-sha256:";
 
 const VOLATILE_KEYS: &[&str] = &[
+    // Journal head recorded in the report (sequence/digest of this run).
+    "journalSealedAt",
     "timestamp",
     "generatedAt",
     "createdAt",
@@ -89,6 +100,52 @@ const VOLATILE_KEYS: &[&str] = &[
     // Lens packets embed the run's own epoch identity, so their digest is per-run.
     "packetDigest",
     "reasoningEpochDigest",
+    // Measured timestamps (camelCase and snake_case forms emitted by Legion).
+    "created_at",
+    "expiresAt",
+    "expires_at",
+    "expires_at_ms",
+    "issuedAt",
+    "issued_at",
+    "retrievedAt",
+    "retrieved_at",
+    "recordedAt",
+    "recorded_at",
+    "checkedAt",
+    "checked_at",
+    "collectedAt",
+    "collected_at",
+    "lastSeenAt",
+    "firstSeenAt",
+    "resolvedAt",
+    "stagedAt",
+    "generated_at",
+    "started_at",
+    "completed_at",
+    "finished_at",
+    "updated_at",
+    "observed_at",
+    "observed_at_ms",
+    "started_at_ms",
+    "completed_at_ms",
+    "startedAtMs",
+    "completedAtMs",
+    "mtime_ms",
+    "mtimeMs",
+    // Measured durations (not configured bounds such as timeoutMs).
+    "durationMs",
+    "duration_ms",
+    "elapsedMs",
+    "elapsed_ms",
+    "wallTimeMs",
+    "wall_time_ms",
+    "activeTimeMs",
+    "active_time_ms",
+    "totalMs",
+    "total_ms",
+    "remainingMs",
+    "remaining_ms",
+    "savings_ms",
 ];
 
 const UNORDERED_KEYS: &[&str] = &[
@@ -109,38 +166,137 @@ const UNORDERED_KEYS: &[&str] = &[
 
 fn is_volatile_key(key: &str) -> bool {
     VOLATILE_KEYS.contains(&key)
-        || key.ends_with("At")
-        || key.ends_with("_at")
-        || key.ends_with("Ms")
-        || key.ends_with("_ms")
+}
+
+fn is_segment_end(c: char) -> bool {
+    matches!(c, '/' | '\\' | '"' | '\'' | '`' | ')' | ',' | ';') || c.is_whitespace()
+}
+
+/// A per-run generated directory name: random/pid/time suffix, not a plain word.
+fn looks_generated(segment: &str) -> bool {
+    let len = segment.chars().count();
+    let has_digit = segment.chars().any(|c| c.is_ascii_digit());
+    let hex = len >= 8 && segment.chars().all(|c| c.is_ascii_hexdigit());
+    (len >= 6 && has_digit) || hex
+}
+
+/// Replace `root + <generated segment>` by `<tmp>` for each occurrence of
+/// `root`; `root_len_at` returns the byte length of the root match at a
+/// position so shaped roots (`/var/folders/<a>/<b>/T/`) can be supported.
+fn rewrite_generated_after(
+    text: &str,
+    find_root: impl Fn(&str, usize) -> Option<(usize, usize)>,
+) -> String {
+    let mut output = String::with_capacity(text.len());
+    let mut from = 0;
+    while let Some((start, after)) = find_root(text, from) {
+        output.push_str(&text[from..start]);
+        let end = text[after..]
+            .find(is_segment_end)
+            .map(|offset| after + offset)
+            .unwrap_or(text.len());
+        if looks_generated(&text[after..end]) {
+            output.push_str("<tmp>");
+            from = end;
+        } else {
+            output.push_str(&text[start..after]);
+            from = after;
+        }
+    }
+    output.push_str(&text[from..]);
+    output
+}
+
+fn literal_root(marker: String) -> impl Fn(&str, usize) -> Option<(usize, usize)> {
+    move |text, from| {
+        text[from..]
+            .find(marker.as_str())
+            .map(|offset| (from + offset, from + offset + marker.len()))
+    }
+}
+
+fn var_folders_root(text: &str, from: usize) -> Option<(usize, usize)> {
+    const PREFIX: &str = "/var/folders/";
+    let mut search = from;
+    while let Some(offset) = text[search..].find(PREFIX) {
+        let start = search + offset;
+        let mut rest = &text[start + PREFIX.len()..];
+        let mut consumed = start + PREFIX.len();
+        let mut ok = true;
+        for expected in [None, None, Some("T")] {
+            match rest.split_once('/') {
+                Some((part, tail)) if !part.is_empty() && expected.map_or(true, |e| e == part) => {
+                    consumed += part.len() + 1;
+                    rest = tail;
+                }
+                _ => {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        if ok {
+            return Some((start, consumed));
+        }
+        search = start + PREFIX.len();
+    }
+    None
 }
 
 fn strip_temp_paths(text: &str) -> String {
-    // (marker, extra segments consumed after the marker before the unique run dir)
-    const MARKERS: &[&str] = &[
-        "/private/tmp/",
-        "/tmp/",
-        "\\AppData\\Local\\Temp\\",
-        "/AppData/Local/Temp/",
-    ];
-    let mut output = text.to_owned();
-    // The host's own temp root (e.g. a managed build temp) also holds per-run
-    // directories; its first child is the unique run directory.
+    strip_random_suffixes(&strip_temp_roots(text))
+}
+
+/// Per-run random report directory suffixes (`report-<check>-<16+ hex>`)
+/// anywhere in a path: keep the name, drop the random part. Only segments that
+/// start with `report-` and end in `-<16+ lowercase hex>` are rewritten.
+fn strip_random_suffixes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut segment = String::new();
+    let flush = |segment: &mut String, out: &mut String| {
+        if let Some((head, tail)) = segment.rsplit_once('-') {
+            // Only Legion's own per-run report directories; never digests or
+            // commit ids inside messages.
+            if head.starts_with("report-")
+                && tail.len() >= 16
+                && tail
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            {
+                out.push_str(head);
+                out.push_str("-<rand>");
+                segment.clear();
+                return;
+            }
+        }
+        out.push_str(segment);
+        segment.clear();
+    };
+    for c in text.chars() {
+        if matches!(c, '/' | '\\' | ' ' | '"' | '\'') {
+            flush(&mut segment, &mut out);
+            out.push(c);
+        } else {
+            segment.push(c);
+        }
+    }
+    flush(&mut segment, &mut out);
+    out
+}
+
+fn strip_temp_roots(text: &str) -> String {
+    // `/private/tmp/` is the same directory as `/tmp/` on macOS.
+    let mut output = text.replace("/private/tmp/", "/tmp/");
+    output = rewrite_generated_after(&output, var_folders_root);
+    for marker in ["/tmp/", "\\AppData\\Local\\Temp\\", "/AppData/Local/Temp/"] {
+        output = rewrite_generated_after(&output, literal_root(marker.to_owned()));
+    }
+    // The host's own temp root (e.g. a managed build temp).
     let host_temp = std::env::temp_dir();
     let host_temp = host_temp.to_string_lossy();
     let host_marker = format!("{}/", host_temp.trim_end_matches(['/', '\\']));
     if host_marker.len() > 1 {
-        let mut from = 0;
-        while let Some(found) = output[from..].find(host_marker.as_str()) {
-            let start = from + found;
-            let after = start + host_marker.len();
-            let end = output[after..]
-                .find(['/', '\\'])
-                .map(|offset| after + offset)
-                .unwrap_or(output.len());
-            output.replace_range(start..end, "<tmp>");
-            from = start + "<tmp>".len();
-        }
+        output = rewrite_generated_after(&output, literal_root(host_marker));
     }
     // Per-run scratch directories named `legion-audit-<kind>-<pid>-<nanos>[-n]`:
     // keep the kind, drop the process/time digits.
@@ -166,35 +322,7 @@ fn strip_temp_paths(text: &str) -> String {
             rebuilt.push_str(segment);
         }
     }
-    output = rebuilt;
-    // `/var/folders/<a>/<b>/T/<x>`
-    while let Some(start) = output.find("/var/folders/") {
-        let tail = &output[start + "/var/folders/".len()..];
-        let mut parts = tail.splitn(5, '/');
-        let (a, b, t, unique) = (parts.next(), parts.next(), parts.next(), parts.next());
-        let consumed = match (a, b, t, unique) {
-            (Some(a), Some(b), Some("T"), Some(unique)) => a.len() + b.len() + 3 + unique.len() + 1,
-            _ => break,
-        };
-        let end = start + "/var/folders/".len() + consumed - 1;
-        output.replace_range(start..end.min(output.len()), "<tmp>");
-    }
-    for marker in MARKERS {
-        while let Some(start) = output.find(marker) {
-            let after = start + marker.len();
-            let separators: &[char] = &['/', '\\'];
-            let end = output[after..]
-                .find(separators)
-                .map(|offset| after + offset)
-                .unwrap_or(output.len());
-            if end == after && after >= output.len() {
-                output.replace_range(start..after, "<tmp>");
-                break;
-            }
-            output.replace_range(start..end, "<tmp>");
-        }
-    }
-    output
+    rebuilt
 }
 
 /// Normalized replay view of an arbitrary JSON document.
@@ -270,5 +398,47 @@ fn diff(a: &Value, b: &Value, path: &str, out: &mut Vec<String>) {
         } else {
             path.into()
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn n(text: &str) -> String {
+        strip_temp_paths(text)
+    }
+
+    #[test]
+    fn message_text_after_temp_path_is_preserved() {
+        assert_ne!(
+            n("writes /tmp/x.sh then deletes data"),
+            n("writes /tmp/x.sh then reads data")
+        );
+        assert_eq!(
+            n("wrote /tmp/run-12345 then deleted data"),
+            "wrote <tmp> then deleted data"
+        );
+    }
+
+    #[test]
+    fn distinct_temp_subpaths_differ() {
+        assert_ne!(n("/tmp/a/f"), n("/tmp/b/f"));
+        assert_ne!(n("/tmp/run12345/a/f"), n("/tmp/run12345/b/f"));
+        assert_eq!(n("/tmp/run12345/f"), n("/private/tmp/abc99999/f"));
+    }
+
+    #[test]
+    fn timeout_bounds_are_not_volatile_but_timestamps_are() {
+        assert!(!is_volatile_key("timeoutMs"));
+        assert!(!is_volatile_key("timeout_ms"));
+        assert!(!is_volatile_key("providerTimeoutMs"));
+        assert!(is_volatile_key("createdAt"));
+        assert!(is_volatile_key("started_at_ms"));
+        assert!(is_volatile_key("durationMs"));
+        let a = json!({"bounds": {"timeoutMs": 1000}, "createdAt": "x"});
+        let b = json!({"bounds": {"timeoutMs": 2000}, "createdAt": "y"});
+        assert_ne!(replay_digest(&a).unwrap(), replay_digest(&b).unwrap());
     }
 }

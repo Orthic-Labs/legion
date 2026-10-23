@@ -231,6 +231,25 @@
         { "type": "required_text", "value": "pre-pr" },
         { "type": "required_text", "value": "not" }
       ]
+    },
+    {
+      "id": "audit-gate-verdict-quoted-not-clean",
+      "prompt": "Run /audit on this repo and tell me if it is clean. The release gate output was: {\"kind\": \"legion-audit-gate\", \"verdict\": \"incomplete\", \"reasons\": [\"filtered run: --skip applied\"]}",
+      "expected_skill": "audit",
+      "forbidden_skills": [],
+      "expected_behavior": "Quotes the legion audit gate verdict (incomplete) and its reasons verbatim, and does not describe the run as clean or done, because an incomplete run is not a clean or release-ready claim.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        {
+          "type": "required_text",
+          "value": "incomplete"
+        },
+        {
+          "type": "required_text",
+          "value": "filtered run: --skip applied"
+        }
+      ]
     }
   ],
   "safety": [

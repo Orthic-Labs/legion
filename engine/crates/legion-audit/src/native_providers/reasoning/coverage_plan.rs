@@ -370,24 +370,22 @@ pub fn changed_paths_from_reasoning(reasoning: &Value) -> BTreeSet<String> {
 /// root is not a git work tree or git is unavailable (churn is then 0).
 fn git_churn(root: &Path) -> BTreeMap<String, u32> {
     let mut counts: BTreeMap<String, u32> = BTreeMap::new();
-    let output = std::process::Command::new("git")
-        .args([
+    let Some(stdout) = crate::trusted_git::run_stdout(
+        root,
+        &[
             "log",
             "--numstat",
             "--format=",
             "-n",
             CHURN_COMMIT_LIMIT,
             "--no-renames",
-        ])
-        .current_dir(root)
-        .output();
-    let Ok(output) = output else {
+        ],
+        std::time::Duration::from_secs(60),
+        256 * 1024 * 1024,
+    ) else {
         return counts;
     };
-    if !output.status.success() {
-        return counts;
-    }
-    for line in String::from_utf8_lossy(&output.stdout).lines() {
+    for line in String::from_utf8_lossy(&stdout).lines() {
         let mut fields = line.splitn(3, '\t');
         let (Some(added), Some(deleted), Some(path)) =
             (fields.next(), fields.next(), fields.next())

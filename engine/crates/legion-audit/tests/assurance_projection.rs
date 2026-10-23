@@ -12,7 +12,7 @@ use legion_audit::assurance::{
     frozen_mismatches, gate, gate_report_v1, gate_report_v2, reconcile, run_host_label,
     AuditAssuranceV1, Completion, EvidenceKind, FindingOutcome, GateSubject, GateVerdict,
     ObligationCandidate, ObligationEvidence, ObligationStatus, ProductTarget, ReleaseEligibility,
-    SnapshotRef, Waiver, AUDIT_ASSURANCE_EXTENSION_KEY,
+    SnapshotRef, Waiver, AUDIT_ASSURANCE_EXTENSION_KEY, EXECUTED_TOOLCHAIN_DETAIL_KEY,
 };
 use legion_audit::profiles::{AuditProfile, FrozenProfile, RuntimeConstraint};
 use legion_audit::{
@@ -70,6 +70,7 @@ fn scope_record(basis: &str) -> Value {
     json!({
         "providerId": PROVIDER,
         "providerVersion": "1",
+        "ruleVersion": "fixture-rules-1",
         "host": run_host_label(),
         "toolchain": "fixture-toolchain",
         "target": "aarch64-apple-darwin",
@@ -165,6 +166,17 @@ fn frozen_plan(p: AuditProfile, qualified: bool) -> (FrozenPlan, AuditAssuranceV
 }
 
 fn execution(plan: &FrozenPlan, coverage_digest: &str, findings: &[&str]) -> ExecutionReport {
+    execution_with_toolchain(plan, coverage_digest, findings, Some("fixture-toolchain"))
+}
+
+/// The executed toolchain is recorded by the execution (never taken from the
+/// qualification record); `None` models an execution that recorded none.
+fn execution_with_toolchain(
+    plan: &FrozenPlan,
+    coverage_digest: &str,
+    findings: &[&str],
+    toolchain: Option<&str>,
+) -> ExecutionReport {
     let result = ProviderResult {
         schema_version: 1,
         provider: ProviderId::new(PROVIDER).unwrap(),
@@ -187,7 +199,24 @@ fn execution(plan: &FrozenPlan, coverage_digest: &str, findings: &[&str]) -> Exe
             .collect(),
         coverage_gaps: Vec::new(),
         degradation: Vec::new(),
-        details: BTreeMap::new(),
+        details: {
+            // Rule version and feature set are executed identity, recorded by
+            // the execution (never the record): release qualification needs both.
+            let mut details = BTreeMap::from([
+                (
+                    legion_audit::assurance::EXECUTED_RULE_VERSION_DETAIL_KEY.to_owned(),
+                    json!("fixture-rules-1"),
+                ),
+                (
+                    legion_audit::assurance::EXECUTED_FEATURES_DETAIL_KEY.to_owned(),
+                    json!([]),
+                ),
+            ]);
+            if let Some(t) = toolchain {
+                details.insert(EXECUTED_TOOLCHAIN_DETAIL_KEY.to_owned(), json!(t));
+            }
+            details
+        },
     };
     ExecutionReport {
         plan_digest: plan.digest().to_owned(),
@@ -530,4 +559,61 @@ fn claim_scope_fixture_and_missing_record_do_not_qualify_release() {
             canonical_report_assured("/frozen/source", &plan, &exec, &[], &[], NOW).unwrap();
         assert_ne!(report.status, ReportStatus::Clean);
     }
+}
+
+/// Every obligation reason in the report's assurance extension, joined.
+fn unmet_reasons(report: &legion_contracts::ReportV1) -> String {
+    AuditAssuranceV1::from_value(&report.extensions[AUDIT_ASSURANCE_EXTENSION_KEY], NOW)
+        .unwrap()
+        .obligations
+        .iter()
+        .filter_map(|o| o.reason.clone())
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
+fn release_report_for(plan: &FrozenPlan, exec: &ExecutionReport) -> legion_contracts::ReportV1 {
+    canonical_report_assured("/frozen/source", plan, exec, &[], &[], NOW).unwrap()
+}
+
+#[test]
+fn executed_toolchain_must_match_the_record_and_unknown_never_qualifies_release() {
+    let (plan, _) = frozen_plan(AuditProfile::Release, true);
+    // Matching executed toolchain qualifies (control).
+    assert_eq!(
+        release_report_for(&plan, &execution(&plan, DIGEST, &[])).status,
+        ReportStatus::Clean
+    );
+    // Executed with a different toolchain than the record: not qualified.
+    let wrong = execution_with_toolchain(&plan, DIGEST, &[], Some("other-toolchain"));
+    let report = release_report_for(&plan, &wrong);
+    assert_ne!(report.status, ReportStatus::Clean);
+    assert!(
+        unmet_reasons(&report).contains("toolchain: record=fixture-toolchain run=other-toolchain")
+    );
+    // The execution recorded no toolchain: UNKNOWN, never read from the record.
+    let unknown = execution_with_toolchain(&plan, DIGEST, &[], None);
+    let report = release_report_for(&plan, &unknown);
+    assert_ne!(report.status, ReportStatus::Clean);
+    assert!(unmet_reasons(&report).contains("toolchain-unknown"));
+}
+
+#[test]
+fn qualification_record_digest_must_equal_the_frozen_provider_digest_exactly() {
+    let mut forged = provider(true);
+    let other = format!("sha256:{}", "c".repeat(64));
+    // The provider froze DIGEST; the record carries a different digest that
+    // still has the `sha256:` prefix (the old prefix-only check accepted it).
+    let mut record = scope_record("production");
+    record["digest"] = json!(other);
+    forged.bounds = BTreeMap::from([("qualificationScope".to_owned(), record)]);
+    let assurance = frozen_assurance(AuditProfile::Release);
+    let plan = base_plan_with(forged)
+        .with_assurance(&assurance)
+        .unwrap()
+        .freeze(Some(KEY))
+        .unwrap();
+    let report = release_report_for(&plan, &execution(&plan, DIGEST, &[]));
+    assert_ne!(report.status, ReportStatus::Clean);
+    assert!(unmet_reasons(&report).contains("digest-mismatch"));
 }

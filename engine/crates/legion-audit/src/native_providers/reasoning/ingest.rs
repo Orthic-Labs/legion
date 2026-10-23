@@ -55,7 +55,18 @@ use crate::{
     report::canonical_report,
 };
 
+/// Legacy run-directory epoch key file. New runs never write it (see
+/// [`create_epoch`]); it is only read for runs that predate host custody.
 pub const EPOCH_KEY_FILE: &str = "epoch.key";
+/// Non-secret pointer `<run>/epoch.ref` naming the host-custody epoch key
+/// (its digest) for callers that read an epoch before `plan.json` exists.
+pub const EPOCH_REF_FILE: &str = "epoch.ref";
+/// Directory name, beside the plan-key directory in host state, holding lens
+/// epoch keys by epoch digest (mode 0600).
+pub const EPOCH_KEY_DIR: &str = "audit-lens-epoch-keys";
+/// Who can forge receipts: the invoking OS user (and so any agent running as
+/// that user) until an out-of-process signer exists.
+pub const SIGNING_AUTHORITY: &str = "same-user";
 pub const LENS_PACKET_DIR: &str = "lens-packets";
 pub const LENS_RECEIPT_DIR: &str = "lens-receipts";
 pub const INGEST_HOST: &str = "legion-cli-ingest";
@@ -1185,41 +1196,36 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<(), AuditError> {
         .map_err(|error| io(error, "could not write epoch key"))
 }
 
-/// Generates a fresh per-run epoch key under `run_dir` (mode 0600 on Unix),
-/// discarding any receipts a previous run left there, and returns its digest.
-pub fn create_epoch(run_dir: &Path) -> Result<String, AuditError> {
-    fs::create_dir_all(run_dir).map_err(|error| io(error, "could not create run directory"))?;
-    let key = random_key();
-    let path = run_dir.join(EPOCH_KEY_FILE);
-    let _ = fs::remove_file(&path);
-    let _ = fs::remove_dir_all(run_dir.join(LENS_RECEIPT_DIR));
-    write_private(&path, hex::encode(&key).as_bytes())?;
-    Ok(epoch_digest(&key))
+/// Where a run's lens epoch key was found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EpochKeySource {
+    /// Per-user host state directory (the only custody new runs use).
+    HostState,
+    /// Legacy `<run>/epoch.key`: weak custody (key sits beside the receipts it
+    /// MACs).
+    LegacyRunDir,
 }
 
-/// Installs a caller-supplied epoch key (>= 16 bytes) as the run's epoch key,
-/// clearing stale lens receipts like `create_epoch`. Used by a follow-up of a
-/// legacy run whose plan key and epoch key are one run-directory key, so the
-/// follow-up inherits the parent's key instead of minting a fresh one.
-pub(crate) fn install_epoch_key(run_dir: &Path, key: &[u8]) -> Result<String, AuditError> {
-    if key.len() < 16 {
-        return Err(invalid("epoch key is too short"));
-    }
-    fs::create_dir_all(run_dir).map_err(|error| io(error, "could not create run directory"))?;
-    let path = run_dir.join(EPOCH_KEY_FILE);
-    let _ = fs::remove_file(&path);
-    let _ = fs::remove_dir_all(run_dir.join(LENS_RECEIPT_DIR));
-    write_private(&path, hex::encode(key).as_bytes())?;
-    Ok(epoch_digest(key))
+fn host_epoch_key_dir() -> Result<PathBuf, AuditError> {
+    crate::integrity::host_plan_key_dir()?
+        .parent()
+        .map(|state| state.join(EPOCH_KEY_DIR))
+        .ok_or_else(|| invalid("Legion user state root unavailable"))
 }
 
-/// Loads the epoch key of a run and its digest.
-pub fn load_epoch(run_dir: &Path) -> Result<(Vec<u8>, String), AuditError> {
-    let path = run_dir.join(EPOCH_KEY_FILE);
+fn host_epoch_key_path(directory: &Path, digest: &str) -> Result<PathBuf, AuditError> {
+    let hex_digest = digest
+        .strip_prefix("sha256:")
+        .filter(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(|| invalid("epoch digest is not canonical sha256"))?;
+    Ok(directory.join(format!("{hex_digest}.key")))
+}
+
+fn read_epoch_key_file(path: &Path) -> Result<Vec<u8>, AuditError> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = fs::metadata(&path)
+        let mode = fs::metadata(path)
             .map_err(|error| io(error, "run has no epoch key; rerun `legion audit --out`"))?
             .permissions()
             .mode();
@@ -1229,14 +1235,209 @@ pub fn load_epoch(run_dir: &Path) -> Result<(Vec<u8>, String), AuditError> {
             ));
         }
     }
-    let text = fs::read_to_string(&path)
+    let text = fs::read_to_string(path)
         .map_err(|error| io(error, "run has no epoch key; rerun `legion audit --out`"))?;
     let key = hex::decode(text.trim()).map_err(|_| invalid("epoch key is not hex"))?;
     if key.len() < 16 {
         return Err(invalid("epoch key is too short"));
     }
+    Ok(key)
+}
+
+/// Generates a fresh per-run epoch key in host custody (per-user state
+/// directory, mode 0600, create-new; never inside `run_dir`), discarding any
+/// receipts and any legacy run-directory key a previous run left there, and
+/// returns its digest. The run records only the digest.
+pub fn create_epoch(run_dir: &Path) -> Result<String, AuditError> {
+    use std::io::Write;
+    fs::create_dir_all(run_dir).map_err(|error| io(error, "could not create run directory"))?;
+    let key = random_key();
     let digest = epoch_digest(&key);
-    Ok((key, digest))
+    let directory = host_epoch_key_dir()?;
+    let path = host_epoch_key_path(&directory, &digest)?;
+    fs::create_dir_all(&directory)
+        .map_err(|error| io(error, "could not create lens epoch key directory"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&directory, fs::Permissions::from_mode(0o700));
+    }
+    if let (Ok(resolved), Ok(run)) = (directory.canonicalize(), run_dir.canonicalize()) {
+        if resolved.starts_with(&run) {
+            return Err(invalid(
+                "epoch key custody must be outside the run directory",
+            ));
+        }
+    }
+    let _ = fs::remove_file(run_dir.join(EPOCH_KEY_FILE));
+    let _ = fs::remove_dir_all(run_dir.join(LENS_RECEIPT_DIR));
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(&path)
+        .map_err(|error| io(error, "could not store epoch key"))?;
+    file.write_all(hex::encode(&key).as_bytes())
+        .and_then(|_| file.sync_all())
+        .map_err(|error| io(error, "could not write epoch key"))?;
+    let reference = serde_json::to_vec(&json!({"digest": digest}))
+        .map_err(|error| invalid(error.to_string()))?;
+    let _ = fs::remove_file(run_dir.join(EPOCH_REF_FILE));
+    fs::write(run_dir.join(EPOCH_REF_FILE), reference)
+        .map_err(|error| io(error, "could not write epoch reference"))?;
+    Ok(digest)
+}
+
+/// Installs a caller-supplied epoch key (>= 16 bytes) as the run's epoch key,
+/// clearing stale lens receipts like `create_epoch`. Used by a follow-up of a
+/// legacy run whose plan key and epoch key are one run-directory key, so the
+/// follow-up inherits the parent's key instead of minting a fresh one. This is
+/// the legacy weak-custody layout and is reported as such on verification.
+pub(crate) fn install_epoch_key(run_dir: &Path, key: &[u8]) -> Result<String, AuditError> {
+    if key.len() < 16 {
+        return Err(invalid("epoch key is too short"));
+    }
+    fs::create_dir_all(run_dir).map_err(|error| io(error, "could not create run directory"))?;
+    let path = run_dir.join(EPOCH_KEY_FILE);
+    let _ = fs::remove_file(&path);
+    let _ = fs::remove_file(run_dir.join(EPOCH_REF_FILE));
+    let _ = fs::remove_dir_all(run_dir.join(LENS_RECEIPT_DIR));
+    write_private(&path, hex::encode(key).as_bytes())?;
+    Ok(epoch_digest(key))
+}
+
+/// Epoch digest a run names: `plan.json` `/epoch/digest`, else `epoch.ref`.
+/// Both are unsigned selectors; the key found for the digest must hash back
+/// to it, and the plan seal and receipts are checked against that key.
+fn recorded_epoch_digest(run_dir: &Path) -> (Option<String>, bool) {
+    let plan: Option<Value> = fs::read(run_dir.join("plan.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    let host_custody = plan
+        .as_ref()
+        .and_then(|plan| plan.get("planKey"))
+        .is_some_and(|value| !value.is_null());
+    let digest = plan
+        .as_ref()
+        .and_then(|plan| plan.pointer("/epoch/digest"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            fs::read(run_dir.join(EPOCH_REF_FILE))
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                .and_then(|value| {
+                    value
+                        .get("digest")
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned)
+                })
+        });
+    (digest, host_custody)
+}
+
+/// Host-custody epoch key for a run whose `plan` carries no `planKey`: the
+/// digest is taken from `plan.epoch.digest`, else `<run>/epoch.ref` (both
+/// unsigned selectors); the key found in host custody must hash back to it.
+/// `None` when the run names no digest or no host key exists for it (the
+/// caller may then consider the legacy layout); `Some(Err)` when a host key
+/// exists but is unusable or mismatched. Never reads `<run>/epoch.key`.
+pub(crate) fn host_epoch_key_for_plan(
+    run_dir: &Path,
+    plan: &Value,
+) -> Option<Result<Vec<u8>, AuditError>> {
+    let recorded = plan
+        .pointer("/epoch/digest")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            fs::read(run_dir.join(EPOCH_REF_FILE))
+                .ok()
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                .and_then(|value| {
+                    value
+                        .get("digest")
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned)
+                })
+        })?;
+    let path = host_epoch_key_dir()
+        .and_then(|dir| host_epoch_key_path(&dir, &recorded))
+        .ok()?;
+    if !path.is_file() {
+        return None;
+    }
+    Some(read_epoch_key_file(&path).and_then(|key| {
+        if epoch_digest(&key) == recorded {
+            Ok(key)
+        } else {
+            Err(invalid("host epoch key does not match the recorded epoch"))
+        }
+    }))
+}
+
+/// Loads the epoch key of a run, its digest and where it was found. A host
+/// key matching the run's recorded epoch digest always wins; the legacy
+/// `<run>/epoch.key` is consulted only when no host key exists for the run and
+/// the run records no host plan-key binding, so a planted run-dir key never
+/// replaces or supplements a new run's custody.
+pub fn load_epoch_with_source(
+    run_dir: &Path,
+) -> Result<(Vec<u8>, String, EpochKeySource), AuditError> {
+    let (recorded, host_custody_run) = recorded_epoch_digest(run_dir);
+    if let Some(recorded) = &recorded {
+        if let Ok(path) = host_epoch_key_dir().and_then(|dir| host_epoch_key_path(&dir, recorded)) {
+            if path.is_file() {
+                let key = read_epoch_key_file(&path)?;
+                let digest = epoch_digest(&key);
+                if &digest != recorded {
+                    return Err(invalid("host epoch key does not match the recorded epoch"));
+                }
+                return Ok((key, digest, EpochKeySource::HostState));
+            }
+        }
+    }
+    if host_custody_run || (recorded.is_some() && !run_dir.join(EPOCH_KEY_FILE).is_file()) {
+        return Err(invalid(
+            "run has no epoch key in host custody; rerun `legion audit --out`",
+        ));
+    }
+    let key = read_epoch_key_file(&run_dir.join(EPOCH_KEY_FILE))?;
+    let digest = epoch_digest(&key);
+    Ok((key, digest, EpochKeySource::LegacyRunDir))
+}
+
+/// Loads the epoch key of a run and its digest.
+pub fn load_epoch(run_dir: &Path) -> Result<(Vec<u8>, String), AuditError> {
+    load_epoch_with_source(run_dir).map(|(key, digest, _)| (key, digest))
+}
+
+/// After the report of a finalized run is rewritten (lens ingest, follow-up
+/// reconciliation), bind the new report bytes into the journal: appends
+/// `report_updated` and re-signs the anchor under the run plan key. A run with
+/// no finalized journal is left alone (`Ok(false)`); `legion verify` fails a
+/// schema-2 run whose report matches neither the finalized nor the last
+/// updated digest. Call after `report.json` is durably written.
+pub fn record_report_update(run_dir: &Path, report_bytes: &[u8]) -> Result<bool, AuditError> {
+    if !run_dir.join(crate::journal::EVENTS_FILE).exists() {
+        return Ok(false);
+    }
+    let plan = read_json(&run_dir.join("plan.json"))?;
+    let plan_digest = plan
+        .pointer("/seal/digest")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("plan.json has no seal digest"))?;
+    let key = crate::integrity::plan_signing_key_for_run(run_dir)?;
+    crate::journal::record_report_update(
+        run_dir,
+        plan_digest,
+        &key,
+        &crate::journal::bytes_digest(report_bytes),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -5425,6 +5626,12 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         None => (Value::Null, false),
     };
     report.claims.insert("auditStatus".into(), json!(label));
+    // Receipts and plan seals are keyed by the invoking user's key custody; no
+    // out-of-process signer exists, so no protection against a same-user agent
+    // is claimed.
+    report
+        .claims
+        .insert("signingAuthority".into(), json!(SIGNING_AUTHORITY));
     // `coverageMode` is reported separately from the quality outcome: a
     // sampled run keeps its findings/incomplete states, and a clean sampled
     // run is `sampled`, never `proven`.

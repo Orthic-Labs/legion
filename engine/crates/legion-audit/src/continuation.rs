@@ -777,7 +777,7 @@ mod tests {
         fs::create_dir_all(&source).unwrap();
         let source = fs::canonicalize(source).unwrap();
         let git = |args: &[&str]| {
-            let mut command = rightkit_child_process::OwnedCommand::new("git");
+            let mut command = crate::trusted_git::owned_command(&source).expect("trusted git");
             command
                 .command_mut()
                 .current_dir(&source)
@@ -897,7 +897,10 @@ mod tests {
                 fs::copy(parent.join(file), child.join(file)).unwrap();
             }
             // Native key custody remains opaque to the fixture & its assertions.
-            fs::copy(parent.join("epoch.key"), child.join("epoch.key")).unwrap();
+            // (host-custody key is shared by digest; only the non-secret ref is copied).
+            if parent.join("epoch.ref").is_file() {
+                fs::copy(parent.join("epoch.ref"), child.join("epoch.ref")).unwrap();
+            }
             put(
                 &child.join(DISPATCH_FILE),
                 &json!({"reasoningBudget":budget,"limits":{"waveWidth":1},"continuationRecipe":{"schemaVersion":1,"kind":"frozen-source-rematerialization","modelsStarted":0},

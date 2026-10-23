@@ -527,3 +527,72 @@ fn all_inapplicable_is_complete_only_when_host_proven() {
     let summary = summarize(AuditProfile::Release, &obligations);
     assert_eq!(summary.completion, Completion::Complete);
 }
+
+#[test]
+fn inapplicable_obligation_never_satisfies_a_profile_minimum() {
+    use legion_audit::assurance::profile_minimum_gaps;
+    let mut inapplicable = provider_candidate();
+    inapplicable.proven_inapplicable_reason =
+        Some("provider-not-applicable-at-freeze: nothing matched".into());
+    let frozen = AuditAssuranceV1::freeze_for_profile(
+        FrozenProfile::freeze(
+            AuditProfile::PrePr,
+            "rev-1",
+            RuntimeConstraint::NoNodePython,
+        )
+        .unwrap(),
+        product_target(),
+        &[inapplicable],
+        &[],
+    )
+    .unwrap();
+    // The ProviderExecution minimum froze as its own unmet obligation.
+    assert!(frozen.obligations.iter().any(|o| {
+        o.id.evidence_kind == EvidenceKind::ProviderExecution
+            && o.status == ObligationStatus::Unmet
+            && o.id.concern.starts_with("profile-required:")
+    }));
+    assert_ne!(frozen.summary.completion, Completion::Complete);
+    // A frozen plan whose only obligation of a mandated kind is inapplicable
+    // fails the gate-side re-derivation.
+    let mut stripped = frozen.clone();
+    stripped
+        .obligations
+        .retain(|o| !o.id.concern.starts_with("profile-required:"));
+    stripped.summary = summarize(AuditProfile::PrePr, &stripped.obligations);
+    assert!(profile_minimum_gaps(&stripped, AuditProfile::PrePr)
+        .iter()
+        .any(|gap| gap.contains("ProviderExecution")));
+    // Re-deriving at release demands every release kind, even from a pre-pr plan.
+    assert!(profile_minimum_gaps(&frozen, AuditProfile::Release).len() > 1);
+}
+
+#[test]
+fn selection_scope_narrowing_is_named_and_full_scope_is_clean() {
+    use legion_audit::assurance::SelectionScope;
+    let full = SelectionScope {
+        schema_version: SelectionScope::SCHEMA_VERSION,
+        only: Vec::new(),
+        skip: Vec::new(),
+        scope_mode: "whole-repo".into(),
+        scope_type: "all".into(),
+        base: None,
+        base_commit: None,
+        dir: None,
+        selected_provider_ids: vec!["a".into(), "b".into()],
+        universe_provider_ids: vec!["a".into(), "b".into()],
+    };
+    assert!(full.is_full());
+    let mut only = full.clone();
+    only.only = vec!["a".into()];
+    only.selected_provider_ids = vec!["a".into()];
+    let reasons = only.filter_reasons();
+    assert!(reasons.iter().any(|r| r == "only=a"));
+    assert!(reasons.iter().any(|r| r == "providers-omitted=b"));
+    let mut diff = full.clone();
+    diff.scope_mode = "diff".into();
+    assert!(!diff.is_full());
+    let mut dir = full;
+    dir.dir = Some("src".into());
+    assert!(!dir.is_full());
+}

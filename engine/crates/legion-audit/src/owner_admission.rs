@@ -18,7 +18,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     path::{Component, Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -32,6 +32,7 @@ use sha2::{Digest, Sha256};
 use crate::execution_policy::{
     self, OwnerAdmissionRequired, OWNER_POLICY_ID, OWNER_POLICY_VERSION,
 };
+use crate::profiles::RuntimeConstraint;
 
 /// Longest grant lifetime accepted, regardless of what an owner mints.
 pub const MAX_GRANT_TTL_MS: u64 = 5 * 60 * 1000;
@@ -164,11 +165,43 @@ pub trait TrustedOwner: Send + Sync {
     fn admit(&self, query: &OwnerQuery<'_>) -> OwnerVerdict;
 }
 
+/// The frozen plan digest an owner-backed policy admits requests for. It is bound
+/// exactly once (first bind wins; a different later value is refused), by host
+/// code that holds the run's frozen plan, never from repository content. A
+/// policy whose plan is not yet bound denies every request (`plan-not-bound`).
+#[derive(Clone, Debug, Default)]
+pub struct PlanBinding(Arc<OnceLock<String>>);
+
+impl PlanBinding {
+    pub fn unbound() -> Self {
+        Self::default()
+    }
+    pub fn bound(plan_id: impl Into<String>) -> Self {
+        let binding = Self::default();
+        let _ = binding.0.set(plan_id.into());
+        binding
+    }
+    /// Idempotent for the same value; `Err` for an empty or conflicting plan id.
+    pub fn bind(&self, plan_id: &str) -> Result<(), String> {
+        if plan_id.trim().is_empty() {
+            return Err("plan id is required".into());
+        }
+        match self.0.set(plan_id.to_owned()) {
+            Ok(()) => Ok(()),
+            Err(_) if self.0.get().map(String::as_str) == Some(plan_id) => Ok(()),
+            Err(_) => Err("plan binding conflicts with the already bound plan".into()),
+        }
+    }
+    pub fn get(&self) -> Option<&str> {
+        self.0.get().map(String::as_str)
+    }
+}
+
 /// Host-frozen admission configuration. Never derived from the audited tree.
 #[derive(Clone, Debug)]
 pub struct OwnerPolicyConfig {
     policy_revision: String,
-    plan_id: String,
+    plan: PlanBinding,
     containment_id: String,
     frozen_roots: Vec<PathBuf>,
     output_root: PathBuf,
@@ -176,6 +209,7 @@ pub struct OwnerPolicyConfig {
     environment_names: BTreeSet<String>,
     max_timeout_ms: u64,
     max_output_bytes: usize,
+    runtime_constraint: RuntimeConstraint,
 }
 
 impl OwnerPolicyConfig {
@@ -197,7 +231,38 @@ impl OwnerPolicyConfig {
             plan_id.into(),
             containment_id.into(),
         );
-        if [&policy_revision, &plan_id, &containment_id]
+        if plan_id.trim().is_empty() {
+            return Err("policy revision, plan id and containment id are required".into());
+        }
+        Self::with_plan_binding(
+            policy_revision,
+            PlanBinding::bound(plan_id),
+            containment_id,
+            frozen_roots,
+            output_root,
+            classes,
+            environment_names,
+            max_timeout_ms,
+            max_output_bytes,
+        )
+    }
+
+    /// Same as `new`, but the frozen plan digest is bound later through the
+    /// shared `PlanBinding` (the plan is frozen after the executor is built).
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_plan_binding(
+        policy_revision: impl Into<String>,
+        plan: PlanBinding,
+        containment_id: impl Into<String>,
+        frozen_roots: &[PathBuf],
+        output_root: &Path,
+        classes: BTreeMap<String, InvocationClass>,
+        environment_names: BTreeSet<String>,
+        max_timeout_ms: u64,
+        max_output_bytes: usize,
+    ) -> Result<Self, String> {
+        let (policy_revision, containment_id) = (policy_revision.into(), containment_id.into());
+        if [&policy_revision, &containment_id]
             .iter()
             .any(|value| value.trim().is_empty())
         {
@@ -227,7 +292,7 @@ impl OwnerPolicyConfig {
         }
         Ok(Self {
             policy_revision,
-            plan_id,
+            plan,
             containment_id,
             frozen_roots,
             output_root,
@@ -235,7 +300,20 @@ impl OwnerPolicyConfig {
             environment_names,
             max_timeout_ms,
             max_output_bytes,
+            // Fail closed: Node/Python are denied unless the host freezes
+            // `Unrestricted` explicitly (never derived from request or repo).
+            runtime_constraint: RuntimeConstraint::NoNodePython,
         })
+    }
+
+    /// Host-frozen runtime constraint enforced at process admission.
+    pub fn with_runtime_constraint(mut self, constraint: RuntimeConstraint) -> Self {
+        self.runtime_constraint = constraint;
+        self
+    }
+
+    pub fn runtime_constraint(&self) -> RuntimeConstraint {
+        self.runtime_constraint
     }
 
     pub fn output_root(&self) -> &Path {
@@ -243,6 +321,10 @@ impl OwnerPolicyConfig {
     }
     pub fn containment_id(&self) -> &str {
         &self.containment_id
+    }
+    /// Shared handle to bind the run's frozen plan digest.
+    pub fn plan_binding(&self) -> PlanBinding {
+        self.plan.clone()
     }
 
     /// Containment contract the owner's `ContainedRuntime` must be built with
@@ -347,7 +429,8 @@ impl OwnerBackedPolicy {
         if request.policy_id != OWNER_POLICY_ID {
             return Err("policy-id-mismatch".into());
         }
-        if request.plan_id != cfg.plan_id {
+        let plan_id = cfg.plan.get().ok_or("plan-not-bound")?;
+        if request.plan_id != plan_id {
             return Err("plan-mismatch".into());
         }
         if self.owner.identity() != self.frozen_identity {
@@ -406,6 +489,18 @@ impl OwnerBackedPolicy {
         if identity.digest_state != DigestState::Sealed {
             return Err("executable-identity-unverified".into());
         }
+        // Runtime closure: under no-node-python a launch whose executable,
+        // script interpreter or launcher target is Node/Python (or an
+        // unclassified script interpreter) is denied before any spawn.
+        if !execution_policy::admission_runtime_violations(
+            cfg.runtime_constraint,
+            &executable,
+            &request.args,
+        )
+        .is_empty()
+        {
+            return Err("runtime-closure-violation".into());
+        }
         if executable.starts_with(&cfg.output_root)
             || (class != InvocationClass::ProjectExecuting
                 && cfg
@@ -433,10 +528,11 @@ impl OwnerBackedPolicy {
             if arg.contains('\0') {
                 return Err("argument-nul".into());
             }
-            let candidate = match arg.strip_prefix('-').and(arg.split_once('=')) {
-                Some((_, value)) => value,
-                None => arg.as_str(),
-            };
+            let candidate = path_candidate(arg);
+            if candidate.starts_with('~') {
+                // Home-relative paths are never inside an admitted root.
+                return Err("argument-path-outside-admitted-roots".into());
+            }
             let path = Path::new(candidate);
             let escapes = path
                 .components()
@@ -617,13 +713,45 @@ fn descriptor(identity: &OwnerIdentity, config: &OwnerPolicyConfig) -> Value {
     json!({
         "ownerId": identity.owner_id, "ownerVersion": identity.version,
         "provenance": provenance,
-        "policyRevision": config.policy_revision, "planId": config.plan_id,
+        "policyRevision": config.policy_revision,
+        "planId": config.plan.get().unwrap_or("late-bound"),
         "containmentId": config.containment_id,
         "frozenRoots": config.frozen_roots, "outputRoot": config.output_root,
         "classes": config.classes.iter().map(|(k, v)| (k.clone(), v.as_str())).collect::<BTreeMap<_, _>>(),
         "environmentNames": config.environment_names,
         "maxTimeoutMs": config.max_timeout_ms, "maxOutputBytes": config.max_output_bytes,
+        "runtimeConstraint": match config.runtime_constraint {
+            RuntimeConstraint::NoNodePython => "no-node-python",
+            RuntimeConstraint::Unrestricted => "unrestricted",
+        },
     })
+}
+
+/// The path-bearing part of an argument: `--flag=value` yields the value; a
+/// joined short flag (`-o/etc/x`, `-I./x`, `-I~/x`, `-Ia/b`) yields its value
+/// part when it looks like a path; anything else is the argument itself.
+fn path_candidate(arg: &str) -> &str {
+    if let Some(rest) = arg.strip_prefix("--") {
+        return rest.split_once('=').map_or(arg, |(_, value)| value);
+    }
+    if let Some(rest) = arg.strip_prefix('-') {
+        if let Some((_, value)) = rest.split_once('=') {
+            return value;
+        }
+        // Joined or clustered short flags (`-o/etc/x`, `-xI/etc`, `-I./x`):
+        // the path starts at the first path-like character after the dash.
+        if rest.contains(['/', '\\']) || rest.chars().skip(1).any(|c| matches!(c, '~' | '.')) {
+            if let Some(index) = rest
+                .char_indices()
+                .skip(1)
+                .find(|(_, c)| matches!(c, '/' | '~' | '.' | '\\'))
+                .map(|(index, _)| index)
+            {
+                return &rest[index..];
+            }
+        }
+    }
+    arg
 }
 
 fn safe_request_id(id: &str) -> bool {

@@ -485,6 +485,36 @@ pub struct TypedClasspathEvidence {
     pub provenance: TypedProvenance,
 }
 
+/// Typed classpath input built from an owner-admitted Gradle model. The
+/// untrusted JSON may carry only classpath, generatedSources, compilationTarget
+/// and variant; `classpathDigest` is always recomputed here and provenance is
+/// always the caller's owner-bound value, so a model can never self-attest.
+pub fn typed_evidence_from_model_value(
+    value: &Value,
+    provenance: TypedProvenance,
+) -> Result<TypedClasspathEvidence, String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct Raw {
+        classpath: Vec<ClasspathEntry>,
+        #[serde(default)]
+        generated_sources: Vec<FrozenKotlinFile>,
+        compilation_target: String,
+        variant: String,
+    }
+    let raw: Raw = serde_json::from_value(value.clone())
+        .map_err(|error| format!("typed classpath model: {error}"))?;
+    let classpath_digest = compute_classpath_digest(&raw.classpath);
+    Ok(TypedClasspathEvidence {
+        classpath: raw.classpath,
+        classpath_digest,
+        generated_sources: raw.generated_sources,
+        compilation_target: raw.compilation_target,
+        variant: raw.variant,
+        provenance,
+    })
+}
+
 /// Named typed gaps; empty means typed argv may be planned. Wrong/missing
 /// variant classpath is incomplete here — callers keep the source result.
 pub fn validate_typed_evidence(

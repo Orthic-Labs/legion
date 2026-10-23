@@ -8603,7 +8603,11 @@
         "orderSensitive": false,
         "interruptible": true,
         "cachePolicy": "content-addressed",
-        "failurePolicy": "block-dependents"
+        "failurePolicy": "block-dependents",
+        "contextProviders": [
+          "reasoning.security",
+          "legacy.security.adjudication"
+        ]
       },
       "reasoning": {
         "requirement": "none",

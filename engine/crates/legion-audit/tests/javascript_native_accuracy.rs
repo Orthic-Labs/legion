@@ -8,9 +8,10 @@
 use legion_audit::{
     native_providers::code::javascript_native::{
         classify_run, coverage_manifest, frozen_reader, no_node_coverage, owned_biome_config,
-        owned_config_text, owned_oxlint_config, parse_version_output, plan_native_lint, qwik_leads,
-        qwik_version_facts, validate_pin, version_gaps, Linter, NativeLintOptions, NativeLintPlan,
-        NativeLintStatus, NativeLintUnit, NativeLinterPin, NATIVE_RULES, PROVIDER_ID,
+        owned_config_text, owned_oxlint_config, parse_version_output, pin_catalog, pin_for_host,
+        pin_for_platform, plan_native_lint, qwik_leads, qwik_version_facts, validate_pin,
+        version_gaps, Linter, NativeLintOptions, NativeLintPlan, NativeLintStatus, NativeLintUnit,
+        NativeLinterPin, NATIVE_RULES, PROVIDER_ID,
     },
     InventoryEntry,
 };
@@ -617,4 +618,220 @@ fn runner_record_is_never_marked_executed() {
     assert_eq!(record["runnable"], json!(true));
     assert_eq!(record["programCandidates"], json!(["oxlint"]));
     assert_eq!(record["parser"], json!("oxlint-json-1"));
+}
+
+const REQUIRED_PLATFORMS: &[&str] = &["darwin-arm64", "darwin-x64", "linux-x64", "windows-x64"];
+
+#[test]
+fn pin_catalog_pins_every_required_platform_with_official_digests() {
+    let catalog = pin_catalog().expect("embedded catalog parses");
+    for linter in [Linter::Oxlint, Linter::Biome] {
+        for platform in REQUIRED_PLATFORMS {
+            let (pin, asset) = pin_for_platform(&catalog, linter, platform)
+                .unwrap_or_else(|gap| panic!("{linter:?} {platform}: {gap}"));
+            assert!(validate_pin(&pin).is_empty());
+            assert!(asset.url.starts_with("https://github.com/"));
+            assert!(asset.url.ends_with(&asset.name));
+        }
+        let missing = pin_for_platform(&catalog, linter, "plan9-mips").expect_err("fail closed");
+        assert!(missing.contains("pin-platform-missing"));
+    }
+    // A host without a catalog entry must never receive another platform's pin.
+    if std::env::consts::OS == "freebsd" {
+        assert!(pin_for_host(Linter::Oxlint).is_err());
+    }
+}
+
+#[test]
+fn biome_report_uses_the_real_reporter_shape() {
+    // Biome 2.6.x JSON reporter: message + location.path string + start.line.
+    let entries = entries();
+    let root = repo_root();
+    let read = frozen_reader(&root, &entries);
+    let plan = plan_native_lint(
+        &entries,
+        &read,
+        &fixture_pin(Linter::Biome),
+        &NativeLintOptions::new(Linter::Biome, STAGE),
+    );
+    let web = unit(&plan, "apps/web");
+    let report = json!({
+        "summary": {"changed": 0, "unchanged": 3, "matches": 0, "errors": 1, "warnings": 0, "skipped": 0, "diagnosticsNotPrinted": 0},
+        "diagnostics": [{
+            "severity": "error",
+            "message": "This is an unexpected use of the debugger statement.",
+            "category": "lint/suspicious/noDebugger",
+            "location": {"path": "apps/web/src/root.tsx", "start": {"line": 6, "column": 3}, "end": {"line": 6, "column": 12}},
+            "advices": []
+        }],
+        "command": "lint"
+    });
+    let found = classify_run(
+        web,
+        Some(1),
+        report.to_string().as_bytes(),
+        b"",
+        &read,
+        MAX_FINDINGS,
+    );
+    assert_eq!(found.status, NativeLintStatus::Findings);
+    assert_eq!(found.findings[0].line, 6);
+    assert_eq!(found.findings[0].path, "apps/web/src/root.tsx");
+    assert!(found.findings[0].message.contains("debugger"));
+    // Biome 2.x rejects the 1.x `organizeImports` key (additionalProperties=false).
+    let config = owned_biome_config();
+    assert!(config.get("organizeImports").is_none());
+    assert_eq!(config["assist"]["enabled"], json!(false));
+}
+
+fn stage_dir(tool: &str, label: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "legion-native-lint-{tool}-{label}-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&dir).expect("stage dir");
+    dir
+}
+
+fn run_binary(program: &str, argv: &[String], cwd: &Path) -> (Option<i32>, Vec<u8>, Vec<u8>) {
+    let out = std::process::Command::new(program)
+        .args(argv)
+        .current_dir(cwd)
+        .output()
+        .unwrap_or_else(|error| panic!("spawn {program}: {error}"));
+    (out.status.code(), out.stdout, out.stderr)
+}
+
+/// CI-only qualification of the pinned real binaries. Reads the enrollment the
+/// managed lane produced (``legion-dev native-lint-qualification``),
+/// runs each binary over the A07 fixtures through the planner and
+/// `classify_run`, and retains raw output digests. Never runs locally.
+#[test]
+#[ignore = "CI qualification; requires LEGION_NATIVE_LINT_ENROLLMENT and LEGION_NATIVE_LINT_OUTPUT"]
+fn real_native_lint_qualification() {
+    let enrollment_path = std::env::var("LEGION_NATIVE_LINT_ENROLLMENT").expect("enrollment env");
+    let output_dir = PathBuf::from(std::env::var("LEGION_NATIVE_LINT_OUTPUT").expect("output env"));
+    fs::create_dir_all(&output_dir).expect("output dir");
+    let enrollment: Value =
+        serde_json::from_slice(&fs::read(&enrollment_path).expect("enrollment")).expect("json");
+    let entries = entries();
+    let root = repo_root();
+    let read = frozen_reader(&root, &entries);
+    let mut records = Vec::new();
+    for linter in [Linter::Oxlint, Linter::Biome] {
+        let tool = linter.tool_id();
+        let enrolled = &enrollment["linters"][tool];
+        let program = enrolled["path"]
+            .as_str()
+            .expect("enrolled path")
+            .to_string();
+        let pin = pin_for_host(linter).expect("catalog pin for host");
+        assert_eq!(
+            enrolled["version"],
+            json!(pin.version),
+            "{tool} enrolled version"
+        );
+        assert_eq!(
+            enrolled["assetDigest"],
+            json!(pin.distribution_digest),
+            "{tool} asset digest"
+        );
+        assert!(enrolled["executableDigest"]
+            .as_str()
+            .is_some_and(|d| d.starts_with("sha256:")));
+        let rules = enrolled["ruleProbe"].as_object().expect("rule probe");
+        for rule in NATIVE_RULES {
+            let id = if linter == Linter::Oxlint {
+                rule.oxlint
+            } else {
+                rule.biome
+            };
+            assert_eq!(
+                rules.get(id),
+                Some(&json!(true)),
+                "{tool} does not recognize {id}"
+            );
+        }
+
+        let stage = stage_dir(tool, "owned");
+        let options = NativeLintOptions::new(linter, stage.to_str().expect("utf8 stage"));
+        let plan = plan_native_lint(&entries, &read, &pin, &options);
+        let web = unit(&plan, "apps/web");
+        assert!(web.runnable(), "{tool} unit gaps: {:?}", web.gaps);
+        fs::write(stage.join(web.config_file), &web.config_text).expect("stage config");
+
+        let (_, version_out, _) = run_binary(&program, &web.version_argv, &root);
+        let probed = parse_version_output(&version_out);
+        assert!(
+            version_gaps(probed.as_deref(), &pin).is_empty(),
+            "{tool} version {probed:?}"
+        );
+
+        let (code, stdout, stderr) = run_binary(&program, &web.argv, &root);
+        let outcome = classify_run(web, code, &stdout, &stderr, &read, MAX_FINDINGS);
+        assert_eq!(
+            outcome.status,
+            NativeLintStatus::Findings,
+            "{tool}: {:?} stderr={}",
+            outcome.gaps,
+            String::from_utf8_lossy(&stderr)
+        );
+        let want = if linter == Linter::Oxlint {
+            "eslint/no-debugger"
+        } else {
+            "lint/suspicious/noDebugger"
+        };
+        let hit = outcome
+            .findings
+            .iter()
+            .find(|finding| finding.rule == want)
+            .unwrap_or_else(|| panic!("{tool} missing {want}"));
+        assert_eq!(hit.path, "apps/web/src/root.tsx");
+        assert_eq!(hit.line, 6);
+        fs::write(output_dir.join(format!("{tool}-stdout.json")), &stdout).expect("retain stdout");
+        fs::write(output_dir.join(format!("{tool}-stderr.txt")), &stderr).expect("retain stderr");
+
+        // Negative probe: an unknown rule must never classify clean. The observed
+        // stderr is retained so the marker strings can be calibrated from evidence.
+        let bad_stage = stage_dir(tool, "bad");
+        let bad = if linter == Linter::Oxlint {
+            json!({"plugins": ["eslint"], "rules": {"eslint/no-such-rule": "error"}})
+        } else {
+            json!({"linter": {"enabled": true, "rules": {"recommended": false, "suspicious": {"noSuchRuleLegion": "error"}}}})
+        };
+        fs::write(bad_stage.join(web.config_file), bad.to_string()).expect("bad config");
+        let bad_options = NativeLintOptions::new(linter, bad_stage.to_str().expect("utf8 stage"));
+        let bad_plan = plan_native_lint(&entries, &read, &pin, &bad_options);
+        let bad_unit = unit(&bad_plan, "apps/web");
+        let (bad_code, bad_out, bad_err) = run_binary(&program, &bad_unit.argv, &root);
+        let bad_outcome = classify_run(bad_unit, bad_code, &bad_out, &bad_err, &read, MAX_FINDINGS);
+        assert!(
+            !matches!(
+                bad_outcome.status,
+                NativeLintStatus::Clean | NativeLintStatus::Findings
+            ),
+            "{tool} unknown rule classified {}",
+            bad_outcome.status.as_str()
+        );
+        fs::write(output_dir.join(format!("{tool}-bad-stderr.txt")), &bad_err)
+            .expect("retain bad stderr");
+        records.push(json!({
+            "tool": tool,
+            "version": pin.version,
+            "assetDigest": pin.distribution_digest,
+            "executableDigest": enrolled["executableDigest"],
+            "stdoutDigest": digest(&stdout),
+            "stderrDigest": digest(&stderr),
+            "status": outcome.status.as_str(),
+            "filesScanned": outcome.files_scanned,
+            "unknownRule": {"exitCode": bad_code, "status": bad_outcome.status.as_str(), "stdoutDigest": digest(&bad_out), "stderrDigest": digest(&bad_err)},
+        }));
+    }
+    let record = json!({"schema": "legion-native-lint-qualification/1", "providerId": PROVIDER_ID, "records": records});
+    fs::write(
+        output_dir.join("native-lint-qualification.json"),
+        serde_json::to_vec_pretty(&record).expect("record"),
+    )
+    .expect("write record");
+    println!("NATIVE_LINT_QUALIFICATION {record}");
 }

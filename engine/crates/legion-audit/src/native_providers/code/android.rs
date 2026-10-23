@@ -516,11 +516,20 @@ pub struct VariantModel {
     pub source_sets: Vec<SourceSetRef>,
     #[serde(default)]
     pub generated_resources: Vec<SealedPath>,
-    /// Module-relative or repository-relative expected report locations.
+    /// Expected report location, interpreted per `report_root`.
     pub report_xml_path: String,
+    /// `""`: repository-relative (legacy, authored models). `owner-output`:
+    /// relative to the owner output root, where the extraction's init script
+    /// redirects every build directory; the model reports the redirected
+    /// location, never the module's own `build/`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub report_root: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub report_sarif_path: Option<String>,
 }
+
+/// The only accepted non-empty `report_root`.
+pub const REPORT_ROOT_OWNER_OUTPUT: &str = "owner-output";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -723,6 +732,7 @@ pub struct LintObligation {
     pub min_sdk: u32,
     pub target_sdk: u32,
     pub report_xml_path: String,
+    pub report_root: String,
     pub report_sarif_path: Option<String>,
     pub scope_digest: String,
     pub scope_items: Vec<String>,
@@ -760,6 +770,8 @@ pub struct RunnerPlan {
     pub argv: Vec<String>,
     pub accepted_exit_codes: Vec<i32>,
     pub report_path: String,
+    /// See [`VariantModel::report_root`]; the runner reads `report_path` under it.
+    pub report_root: String,
 }
 
 #[derive(Clone, Debug)]
@@ -799,6 +811,7 @@ impl AndroidLintPlan {
                     "acceptedExitCodes": obligation.runner.as_ref().map(|r| r.accepted_exit_codes.clone()),
                     "parser": "android-lint-xml|sarif",
                     "reportPath": obligation.report_xml_path,
+                    "reportRoot": obligation.report_root,
                     "scopeDigest": obligation.scope_digest,
                     "executed": false,
                     "gaps": obligation.plan_gaps,
@@ -898,6 +911,9 @@ fn variant_gaps(
     if variant.report_xml_path.trim().is_empty() {
         gaps.push(gap(format!("android-report-path-missing:{id}")));
     }
+    if !variant.report_root.is_empty() && variant.report_root != REPORT_ROOT_OWNER_OUTPUT {
+        gaps.push(gap(format!("android-report-root-unknown:{id}")));
+    }
     gaps
 }
 
@@ -958,7 +974,7 @@ fn obligation_scope_digest(
         .unwrap_or_default();
     sha256_hex(
         format!(
-            "{PROVIDER_ID}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}",
+            "{PROVIDER_ID}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}",
             model.toolchain_label(),
             module.path,
             module.dir,
@@ -966,6 +982,7 @@ fn obligation_scope_digest(
             variant.min_sdk,
             variant.target_sdk,
             sdk,
+            variant.report_root,
             variant.report_xml_path,
             items.join("\n"),
         )
@@ -1123,6 +1140,7 @@ pub fn plan_lint(
             ],
             accepted_exit_codes: vec![EXIT_OK, EXIT_BUILD_FAILED],
             report_path: variant.report_xml_path.clone(),
+            report_root: variant.report_root.clone(),
         });
         plan.obligations.push(LintObligation {
             id,
@@ -1136,6 +1154,7 @@ pub fn plan_lint(
             min_sdk: variant.min_sdk,
             target_sdk: variant.target_sdk,
             report_xml_path: variant.report_xml_path.clone(),
+            report_root: variant.report_root.clone(),
             report_sarif_path: variant.report_sarif_path.clone(),
             scope_digest,
             scope_items: items,
@@ -1151,6 +1170,47 @@ pub fn plan_lint(
     plan.model = Some(model.clone());
     plan.gaps = sorted_unique(gaps);
     plan
+}
+
+/// Plan from an owner-contained Gradle model extraction. An extraction
+/// failure keeps its explicit gaps on top of the `android-model-missing` plan;
+/// success rewrites each runner to the owner-pinned JDK launching the
+/// digest-checked wrapper jar (never `gradlew`), offline.
+pub fn plan_with_owner(
+    entries: &[InventoryEntry],
+    build_texts: &BTreeMap<String, String>,
+    extraction: Result<&super::gradle_model::ExtractedAndroidModel, &[String]>,
+    options: &AndroidLintOptions,
+) -> AndroidLintPlan {
+    match extraction {
+        Err(extra) => {
+            let mut plan = plan_lint(entries, build_texts, None, options);
+            if plan.is_applicable() {
+                let mut gaps = plan.gaps.clone();
+                gaps.extend(extra.iter().cloned());
+                plan.gaps = sorted_unique(gaps);
+            }
+            plan
+        }
+        Ok(extracted) => {
+            let mut plan = plan_lint(entries, build_texts, Some(&extracted.model), options);
+            for obligation in &mut plan.obligations {
+                if let Some(runner) = obligation.runner.as_mut() {
+                    let mut argv = extracted.runner_argv_prefix.clone();
+                    argv.extend(
+                        runner
+                            .argv
+                            .iter()
+                            .filter(|a| *a != "--no-daemon" && *a != "--console=plain")
+                            .cloned(),
+                    );
+                    runner.program = extracted.runner_program.clone();
+                    runner.argv = argv;
+                }
+            }
+            plan
+        }
+    }
 }
 
 /// Compile, tests, device/lifecycle and package/security stay separate

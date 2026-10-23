@@ -1,0 +1,270 @@
+// Legion-owned Gradle init script. Emits the Android build model (schema v1)
+// plus per-variant typed detekt classpaths. It never emits provenance: the
+// host-side extractor binds the model to the owner receipt itself.
+//
+// Variant discovery: AGP 8+ `androidComponents.onVariants` (AGP 9 removed
+// `applicationVariants` / `libraryVariants`), with the legacy variant API as a
+// fallback for older AGP. The audited project is read-only, so every project's
+// build directory is redirected under the owner output root (the directory of
+// -Dlegion.model.out) before the project is evaluated.
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+
+def outPath = System.getProperty('legion.model.out')
+def outRoot = new File(outPath).absoluteFile.parentFile
+
+def hex = { byte[] bytes -> bytes.collect { String.format('%02x', it) }.join() }
+def shaBytes = { byte[] data -> 'sha256:' + hex(MessageDigest.getInstance('SHA-256').digest(data)) }
+def shaFile = { File f ->
+  if (!f.isFile()) return null
+  def d = MessageDigest.getInstance('SHA-256')
+  f.withInputStream { s ->
+    def buf = new byte[8192]
+    int n
+    while ((n = s.read(buf)) > 0) d.update(buf, 0, n)
+  }
+  'sha256:' + hex(d.digest())
+}
+def shaTree = { File dir ->
+  def lines = []
+  if (dir.isDirectory()) {
+    dir.eachFileRecurse { f ->
+      if (f.isFile()) lines << (dir.toPath().relativize(f.toPath()).toString().replace('\\', '/') + '\0' + shaFile(f))
+    }
+  }
+  lines.sort()
+  shaBytes(lines.join('\n').getBytes('UTF-8'))
+}
+// Path of a file under the owner output root, relative to it; null otherwise.
+def outRel = { File f ->
+  def root = outRoot.toPath().toAbsolutePath().normalize()
+  def path = f.toPath().toAbsolutePath().normalize()
+  path.startsWith(root) ? root.relativize(path).toString().replace('\\', '/') : null
+}
+def cap = { String s -> s ? s.substring(0, 1).toUpperCase() + s.substring(1) : s }
+
+// Variants reported through androidComponents.onVariants, keyed by project path.
+def newApiVariants = [:]
+def androidPlugins = ['com.android.application', 'com.android.library',
+                      'com.android.dynamic-feature', 'com.android.test']
+
+gradle.beforeProject { p ->
+  // Project is read-only: build output goes to the owner output root.
+  def tag = p.path == ':' ? 'root' : p.path.substring(1).replace(':', '_')
+  try {
+    p.layout.buildDirectory.set(new File(outRoot, "build/${tag}"))
+  } catch (Throwable ignored) { }
+  androidPlugins.each { pluginId ->
+    p.pluginManager.withPlugin(pluginId) {
+      try {
+        def components = p.extensions.findByName('androidComponents')
+        if (components != null) {
+          components.onVariants(components.selector().all()) { v ->
+            def bucket = newApiVariants[p.path]
+            if (bucket == null) { bucket = []; newApiVariants[p.path] = bucket }
+            bucket << v
+          }
+        }
+      } catch (Throwable ignored) { }
+    }
+  }
+}
+
+gradle.projectsEvaluated { g ->
+  def rootDir = g.rootProject.projectDir.toPath().toAbsolutePath().normalize()
+  def rel = { File f ->
+    def p = f.toPath().toAbsolutePath().normalize()
+    p.startsWith(rootDir) ? rootDir.relativize(p).toString().replace('\\', '/') : p.toString()
+  }
+  def modules = []
+  def typed = [:]
+  String agp = null
+  Integer compileSdk = null
+  def sdkIdentity = null
+
+  g.rootProject.allprojects.each { p ->
+    def ext = p.extensions.findByName('android')
+    if (ext == null) return
+    def kind = p.plugins.hasPlugin('com.android.application') ? 'application'
+      : p.plugins.hasPlugin('com.android.library') ? 'library'
+      : p.plugins.hasPlugin('com.android.dynamic-feature') ? 'dynamic-feature'
+      : p.plugins.hasPlugin('com.android.test') ? 'test' : null
+    if (kind == null) return
+    if (agp == null) {
+      try {
+        agp = Class.forName('com.android.Version', true, p.buildscript.classLoader).ANDROID_GRADLE_PLUGIN_VERSION
+      } catch (Throwable ignored) { }
+      if (agp == null) {
+        try {
+          def comps = p.extensions.findByName('androidComponents')
+          if (comps != null) agp = comps.pluginVersion.toString()
+        } catch (Throwable ignored) { }
+      }
+    }
+    if (compileSdk == null) {
+      try {
+        def raw = null
+        try { raw = ext.compileSdk != null ? ext.compileSdk.toString() : null } catch (Throwable ignored) { }
+        if (raw == null) raw = ext.compileSdkVersion.toString()
+        def m = raw =~ /(\d+)/
+        if (m.find()) compileSdk = Integer.parseInt(m.group(1))
+        def sdkDir = null
+        try { sdkDir = p.extensions.findByName('androidComponents').sdkComponents.sdkDirectory.get().asFile } catch (Throwable ignored) { }
+        if (sdkDir == null) sdkDir = ext.sdkDirectory
+        def jar = new File(sdkDir, "platforms/android-${compileSdk}/android.jar")
+        def pkg = new File(sdkDir, "platforms/android-${compileSdk}/package.xml")
+        def jd = shaFile(jar)
+        def pd = shaFile(pkg)
+        sdkIdentity = [
+          compileSdk: compileSdk,
+          platformDigest: (jd != null && pd != null) ? shaBytes((jd + pd).getBytes('UTF-8')) : '',
+          buildToolsVersion: ext.buildToolsVersion ?: ''
+        ]
+      } catch (Throwable ignored) { }
+    }
+    def modDir = rel(p.projectDir)
+    def prefix = modDir.isEmpty() ? '' : modDir + '/'
+    def variants = []
+
+    def emit = { Map v ->
+      // v: name, buildType, flavors, minSdk, targetSdk, sourceSetNames, classpathFiles, generatedFiles
+      def sourceSets = []
+      v.sourceSetNames.each { ssName ->
+        def dir = new File(p.projectDir, "src/${ssName}")
+        if (dir.isDirectory()) sourceSets << [name: ssName, dir: rel(dir), digest: '']
+      }
+      def reportRel = null
+      try {
+        reportRel = outRel(new File(p.layout.buildDirectory.get().asFile, "reports/lint-results-${v.name}.xml"))
+      } catch (Throwable ignored) { }
+      variants << [
+        name: v.name,
+        buildType: v.buildType,
+        flavors: v.flavors,
+        lintTask: "${p.path}:lint${cap(v.name)}".toString(),
+        minSdk: v.minSdk,
+        targetSdk: v.targetSdk,
+        sourceSets: sourceSets,
+        generatedResources: [],
+        // Report location comes from the redirected build directory the model
+        // run actually used (owner output root), never the module's build/.
+        reportXmlPath: (reportRel ?: '').toString(),
+        reportRoot: reportRel != null ? 'owner-output' : ''
+      ]
+      try {
+        def entries = []
+        v.classpathFiles().sort { it.path }.each { f ->
+          def digest = f.isDirectory() ? shaTree(f) : shaFile(f)
+          if (digest != null) entries << [path: rel(f), digest: digest]
+        }
+        def generated = []
+        v.generatedFiles().sort { it.path }.each { f ->
+          def digest = shaFile(f)
+          if (digest != null && f.name.endsWith('.kt')) generated << [path: rel(f), digest: digest]
+        }
+        typed["${p.path}:${v.name}".toString()] = [
+          classpath: entries,
+          generatedSources: generated,
+          compilationTarget: "android-${compileSdk}".toString(),
+          variant: v.name
+        ]
+      } catch (Throwable ignored) { }
+    }
+
+    def reported = newApiVariants[p.path]
+    if (reported != null && !reported.isEmpty()) {
+      // AGP 8+ androidComponents API.
+      reported.each { v ->
+        def flavorPairs = []
+        try { flavorPairs = v.productFlavors.collect { it.second } } catch (Throwable ignored) { }
+        def minSdk = 0
+        def targetSdk = 0
+        try { minSdk = v.minSdk.apiLevel ?: 0 } catch (Throwable ignored) { }
+        try { targetSdk = v.targetSdk.apiLevel ?: 0 } catch (Throwable ignored) { }
+        def buildType = ''
+        try { buildType = v.buildType ?: '' } catch (Throwable ignored) { }
+        def names = ['main']
+        if (buildType) names << buildType
+        names.addAll(flavorPairs)
+        if (!names.contains(v.name)) names << v.name
+        emit([
+          name: v.name,
+          buildType: buildType,
+          flavors: flavorPairs,
+          minSdk: minSdk,
+          targetSdk: targetSdk,
+          sourceSetNames: names.unique(),
+          classpathFiles: {
+            def files = []
+            try {
+              files.addAll(v.compileConfiguration.incoming.artifactView { view ->
+                view.lenient(true)
+                view.attributes { a -> a.attribute(Attribute.of('artifactType', String), 'android-classes-jar') }
+              }.files.files)
+            } catch (Throwable ignored) {
+              try { files.addAll(v.compileConfiguration.files) } catch (Throwable ignored2) { }
+            }
+            try { files.addAll(ext.bootClasspath.collect { it.asFile }) } catch (Throwable ignored) { }
+            files.findAll { it != null && it.exists() }.unique()
+          },
+          generatedFiles: {
+            def files = []
+            try {
+              v.sources.java?.all?.get()?.each { dirs ->
+                dirs.each { d -> d.asFile.eachFileRecurse { f -> if (f.isFile()) files << f } }
+              }
+            } catch (Throwable ignored) { }
+            files.findAll { it.toPath().startsWith(outRoot.toPath()) }
+          }
+        ])
+      }
+    } else {
+      // Legacy variant API (removed in AGP 9).
+      def variantsSource = null
+      try {
+        variantsSource = kind == 'application' ? ext.applicationVariants : (kind == 'library' ? ext.libraryVariants : null)
+      } catch (Throwable ignored) { }
+      (variantsSource ?: []).each { v ->
+        def minSdk = 0
+        def targetSdk = 0
+        try { minSdk = v.mergedFlavor.minSdkVersion?.apiLevel ?: 0 } catch (Throwable ignored) { }
+        try { targetSdk = v.mergedFlavor.targetSdkVersion?.apiLevel ?: 0 } catch (Throwable ignored) { }
+        emit([
+          name: v.name,
+          buildType: v.buildType.name,
+          flavors: v.productFlavors.collect { it.name },
+          minSdk: minSdk,
+          targetSdk: targetSdk,
+          sourceSetNames: v.sourceSets.collect { it.name },
+          classpathFiles: { v.getCompileClasspath(null).files as List },
+          generatedFiles: { [] }
+        ])
+      }
+    }
+    def lintConfigFile = new File(p.projectDir, 'lint.xml')
+    def module = [
+      path: p.path, dir: modDir, kind: kind, lintExcluded: false, variants: variants
+    ]
+    if (lintConfigFile.isFile()) module.lintConfig = [path: rel(lintConfigFile), digest: shaFile(lintConfigFile)]
+    modules << module
+  }
+
+  def lintVersion = ''
+  if (agp != null) {
+    def parts = agp.tokenize('.-')
+    if (parts.size() >= 3 && parts[0].isInteger()) lintVersion = "${parts[0].toInteger() + 23}.${parts[1]}.${parts[2]}".toString()
+  }
+  def model = [
+    schemaVersion: 1,
+    agpVersion: agp ?: '',
+    gradleVersion: g.gradleVersion,
+    jdkVersion: System.getProperty('java.runtime.version') ?: '',
+    lintVersion: lintVersion,
+    gradleProgram: '',
+    modules: modules
+  ]
+  if (sdkIdentity != null) model.sdk = sdkIdentity
+  if (System.getProperty('legion.model.emit') != 'false') {
+    new File(outPath).text = JsonOutput.toJson([model: model, typedClasspath: typed])
+  }
+}

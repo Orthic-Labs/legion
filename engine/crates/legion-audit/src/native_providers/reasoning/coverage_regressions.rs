@@ -510,7 +510,7 @@ fn tracked_oversize_source_survives_snapshot_inventory_and_planning_as_a_gap() {
             .set_len(37_337_414)
             .unwrap();
         fn git(root: &Path, args: &[&str]) {
-            let mut command = rightkit_child_process::OwnedCommand::new("git");
+            let mut command = crate::trusted_git::owned_command(root).expect("trusted git");
             command
                 .command_mut()
                 .current_dir(root)
@@ -985,6 +985,8 @@ fn empirical_allowance_keeps_complete_twelve_line_raw_review_within_frozen_budge
         &mut expected_lens_plan,
         &["src/display_name.rs".into()],
     );
+    // No domain contracts are declared in this repository: the plan says so.
+    pattern_cards::bind_domain_contract(&mut expected_lens_plan, None, None);
     assert_eq!(item.request.packet["lensPlan"], expected_lens_plan);
     assert_eq!(
         item.request.packet["reportSchemaBody"],

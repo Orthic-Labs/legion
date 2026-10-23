@@ -1354,6 +1354,32 @@ pub fn bind_domain_contract(
     };
 }
 
+/// Bind the repository's frozen domain-contract set to one lens packet.
+/// `None` (no contract files declared and none required) is an explicit
+/// `absent`. A set with unresolved boundaries, or a required set with no terms,
+/// is bound as `gap` and lists every unresolved kind; it is never clean.
+pub fn bind_domain_contract_set(
+    lens_plan: &mut Value,
+    set: Option<&crate::domain_contract::DomainContractSet>,
+) {
+    let Some(set) = set else {
+        bind_domain_contract(lens_plan, None, None);
+        return;
+    };
+    let evaluation = set.evaluate().to_value();
+    bind_domain_contract(lens_plan, Some(&evaluation), Some(&set.set_digest));
+    if !set.is_fully_resolved() {
+        let kinds = set
+            .unresolved
+            .iter()
+            .map(|boundary| serde_json::to_value(boundary.kind).unwrap_or(Value::Null))
+            .collect::<Vec<_>>();
+        lens_plan["domainContract"]["status"] = json!("gap");
+        lens_plan["domainContract"]["gaps"] = json!(kinds);
+        lens_plan["domainContract"]["required"] = json!(set.required);
+    }
+}
+
 fn language_fit(language: LanguageApplicability, paths: &[&str]) -> (&'static str, &'static str) {
     let (includes, excludes) = language.reasons();
     if paths.is_empty() {

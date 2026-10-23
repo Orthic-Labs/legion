@@ -142,7 +142,10 @@ impl Linter {
 pub struct NativeLinterPin {
     pub linter: Linter,
     pub version: String,
-    /// `sha256:<hex>` of the pinned executable.
+    /// `sha256:<hex>` of the pinned official release asset for the host
+    /// platform (the published GitHub asset digest: an archive for Oxlint, the
+    /// executable itself for Biome). The extracted executable's digest is
+    /// recorded by CI qualification, never assumed here.
     pub distribution_digest: String,
 }
 
@@ -155,6 +158,94 @@ impl NativeLinterPin {
             distribution_digest: String::new(),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Pin catalog (src/registry/native-lint-pins.json)
+// ---------------------------------------------------------------------------
+
+const PIN_CATALOG_JSON: &str = include_str!("../../../../../../src/registry/native-lint-pins.json");
+pub const PIN_CATALOG_SCHEMA: &str = "legion-native-lint-pins/1";
+
+/// Official release asset for one linter on one platform.
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PinAsset {
+    pub name: String,
+    pub url: String,
+    /// `sha256:<hex>` published by the release (GitHub asset digest).
+    pub digest: String,
+    /// `archive` (tar.gz/zip) or `binary`.
+    pub kind: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PinCatalogEntry {
+    pub version: String,
+    pub release_tag: String,
+    pub repository: String,
+    pub assets: BTreeMap<String, PinAsset>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PinCatalog {
+    pub schema: String,
+    pub linters: BTreeMap<String, PinCatalogEntry>,
+}
+
+pub fn pin_catalog() -> Result<PinCatalog, String> {
+    let catalog: PinCatalog = serde_json::from_str(PIN_CATALOG_JSON)
+        .map_err(|error| gap(&format!("pin-catalog-invalid:{error}")))?;
+    if catalog.schema != PIN_CATALOG_SCHEMA {
+        return Err(gap("pin-catalog-schema"));
+    }
+    Ok(catalog)
+}
+
+/// Platform key used by the catalog for this host, or `None` when unsupported.
+pub fn host_platform_key() -> Option<&'static str> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("macos", "aarch64") => Some("darwin-arm64"),
+        ("macos", "x86_64") => Some("darwin-x64"),
+        ("linux", "x86_64") => Some("linux-x64"),
+        ("windows", "x86_64") => Some("windows-x64"),
+        _ => None,
+    }
+}
+
+/// Pin for one linter and platform. Missing linter, platform, or malformed
+/// digest fails closed with a named gap; never falls back to another platform.
+pub fn pin_for_platform(
+    catalog: &PinCatalog,
+    linter: Linter,
+    platform: &str,
+) -> Result<(NativeLinterPin, PinAsset), String> {
+    let tool = linter.tool_id();
+    let entry = catalog
+        .linters
+        .get(tool)
+        .ok_or_else(|| gap(&format!("{tool}-pin-missing")))?;
+    let asset = entry
+        .assets
+        .get(platform)
+        .ok_or_else(|| gap(&format!("{tool}-pin-platform-missing:{platform}")))?;
+    let pin = NativeLinterPin {
+        linter,
+        version: entry.version.clone(),
+        distribution_digest: asset.digest.clone(),
+    };
+    if !validate_pin(&pin).is_empty() {
+        return Err(gap(&format!("{tool}-pin-invalid:{platform}")));
+    }
+    Ok((pin, asset.clone()))
+}
+
+/// Pin for the current host from the embedded catalog (fail closed).
+pub fn pin_for_host(linter: Linter) -> Result<NativeLinterPin, String> {
+    let platform = host_platform_key().ok_or_else(|| gap("host-platform-unsupported"))?;
+    pin_for_platform(&pin_catalog()?, linter, platform).map(|(pin, _)| pin)
 }
 
 fn gap(kind: &str) -> String {
@@ -220,6 +311,17 @@ pub struct NativeRule {
 
 /// The exact enabled subset. Every id must resolve in the pinned binary
 /// before admission (root probe); an unresolved id is `unsupported-rule`.
+///
+/// Sources (checked against the pinned releases in
+/// `src/registry/native-lint-pins.json`):
+/// - Oxlint ids are `<plugin>/<rule>` where plugin is the module in
+///   `crates/oxc_linter/src/rules.rs` at tag `oxlint_v1.89.0` (eslint,
+///   typescript, react, jsx_a11y -> `jsx-a11y`). `oxlint --rules --format json`
+///   lists `{scope, value}` pairs; CI qualification asserts every id resolves.
+/// - Biome ids are `lint/<group>/<camelCaseRule>` matching
+///   `crates/biome_js_analyze/src/lint/<group>/<snake_rule>.rs` at tag
+///   `@biomejs/biome@2.6.2`; CI qualification asserts `biome explain` resolves
+///   each rule.
 pub const NATIVE_RULES: &[NativeRule] = &[
     NativeRule {
         oxlint: "eslint/no-debugger",
@@ -343,7 +445,8 @@ pub fn owned_oxlint_config() -> Value {
 }
 
 /// Owned Biome configuration: recommended set off, only the enabled subset
-/// at `error`. Formatter, organize-imports and VCS integration are disabled.
+/// at `error`. Formatter and assist actions are disabled. Schema: Biome 2.x
+/// `configuration_schema.json` (top-level `assist`, `linter`, `formatter`).
 pub fn owned_biome_config() -> Value {
     let mut groups: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
     for rule in NATIVE_RULES {
@@ -363,7 +466,10 @@ pub fn owned_biome_config() -> Value {
     }
     json!({
         "formatter": {"enabled": false},
-        "organizeImports": {"enabled": false},
+        // Biome 2.x removed top-level `organizeImports`; its replacement is the
+        // `assist` section (configuration_schema.json at @biomejs/biome@2.6.2;
+        // the schema sets additionalProperties=false, so the 1.x key is rejected).
+        "assist": {"enabled": false},
         "linter": {"enabled": true, "rules": Value::Object(rules)},
     })
 }
@@ -1114,7 +1220,9 @@ fn line_at(text: &[u8], offset: usize) -> Option<usize> {
     Some(text[..offset].iter().filter(|byte| **byte == b'\n').count() + 1)
 }
 
-/// Parse Oxlint `--format json` output. `number_of_files` proves the scanned
+/// Parse Oxlint `--format json` output (`apps/oxlint/src/output_formatter/json.rs`
+/// at `oxlint_v1.89.0`: `{diagnostics[{message, code, severity, filename,
+/// labels[{span{offset,length,line,column}}]}], number_of_files, ...}`). `number_of_files` proves the scanned
 /// set when present; absence leaves it unproven.
 pub fn parse_oxlint_report(bytes: &[u8]) -> Result<NativeReport, String> {
     let value: Value =
@@ -1155,9 +1263,13 @@ pub fn parse_oxlint_report(bytes: &[u8]) -> Result<NativeReport, String> {
     Ok(report)
 }
 
-/// Parse Biome JSON reporter output. Biome's reporter does not prove the
-/// checked-file count, so `files_scanned` stays `None`. Byte-offset spans are
-/// mapped to lines from `sourceCode` or the frozen `sources` reader.
+/// Parse Biome JSON reporter output (`--reporter=json`, Biome 2.6.x:
+/// `crates/biome_cli/src/reporter/json.rs`). Each diagnostic carries
+/// `severity`, `message`, `category`, and `location {path: string,
+/// start{line,column}, end}` with a 1-based line. The reporter does not prove
+/// the checked-file count, so `files_scanned` stays `None`. Legacy shapes
+/// (`description`, `path.file`, byte `span`) stay accepted and are mapped via
+/// the frozen `sources` reader.
 pub fn parse_biome_report(
     bytes: &[u8],
     sources: &dyn Fn(&str) -> Option<Vec<u8>>,
@@ -1193,6 +1305,11 @@ pub fn parse_biome_report(
                 })
             })
             .unwrap_or_default();
+        let direct_line = location
+            .and_then(|found| found.pointer("/start/line"))
+            .and_then(Value::as_u64)
+            .filter(|line| *line > 0)
+            .map(|line| line as usize);
         let inline_source = location
             .and_then(|found| found.get("sourceCode"))
             .and_then(Value::as_str)
@@ -1203,10 +1320,10 @@ pub fn parse_biome_report(
             .and_then(|span| span.first())
             .and_then(Value::as_u64);
         let text = inline_source.or_else(|| sources(path.as_str()));
-        let line = match (offset, text) {
+        let line = direct_line.or(match (offset, text) {
             (Some(offset), Some(text)) => line_at(&text, offset as usize),
             _ => None,
-        };
+        });
         if line.is_none() {
             report.unresolved_lines += 1;
         }
@@ -1215,8 +1332,9 @@ pub fn parse_biome_report(
         report.diagnostics.push(NativeDiagnostic {
             severity: severity_label(item.get("severity").and_then(Value::as_str).unwrap_or("")),
             message: truncated_message(
-                item.get("description")
+                item.get("message")
                     .and_then(Value::as_str)
+                    .or_else(|| item.get("description").and_then(Value::as_str))
                     .unwrap_or(""),
             ),
             rule: category,

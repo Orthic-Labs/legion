@@ -278,6 +278,20 @@ pub fn resolve_plan_key(run_dir: &std::path::Path, plan: &serde_json::Value) -> 
             )),
         };
     }
+    // Plans signed with the lens epoch key (no planKey): the epoch key lives
+    // in host custody, found through the plan's epoch digest or epoch.ref and
+    // verified against that digest. It is consulted BEFORE, and is never
+    // overridden by, a run-dir `epoch.key`.
+    match crate::native_providers::reasoning::ingest::host_epoch_key_for_plan(run_dir, plan) {
+        Some(Ok(key)) => {
+            return PlanKeyResolution::Found {
+                key,
+                source: PlanKeySource::HostState,
+            }
+        }
+        Some(Err(error)) => return unverifiable(format!("host epoch key is unusable: {error}")),
+        None => {}
+    }
     let legacy = run_dir.join(LEGACY_EPOCH_KEY_FILE);
     if legacy.is_file() {
         return match read_private_key(&legacy) {

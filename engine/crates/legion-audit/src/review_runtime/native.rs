@@ -138,8 +138,230 @@ pub(super) fn admit_host(host: &str) -> Result<(), AuditError> {
     }
 }
 
-pub fn resolve(options: &RuntimeOptions, cwd: &Path) -> Result<PathBuf, AuditError> {
-    admit_host(super::model::current_host()?)?;
+/// Leading bytes of a native executable: Mach-O (thin/fat), ELF or PE.
+fn native_magic(head: &[u8]) -> bool {
+    head.starts_with(&[0x7f, b'E', b'L', b'F'])
+        || head.starts_with(b"MZ")
+        || [
+            [0xfe, 0xed, 0xfa, 0xce],
+            [0xfe, 0xed, 0xfa, 0xcf],
+            [0xce, 0xfa, 0xed, 0xfe],
+            [0xcf, 0xfa, 0xed, 0xfe],
+            [0xca, 0xfe, 0xba, 0xbe],
+            [0xbe, 0xba, 0xfe, 0xca],
+        ]
+        .iter()
+        .any(|magic| head.starts_with(magic))
+}
+
+fn temp_roots() -> Vec<PathBuf> {
+    let mut roots = vec![std::env::temp_dir()];
+    if let Some(tmp) = std::env::var_os("TMPDIR") {
+        roots.push(PathBuf::from(tmp));
+    }
+    if cfg!(unix) {
+        roots.extend(
+            [
+                "/tmp",
+                "/var/tmp",
+                "/private/tmp",
+                "/private/var/folders",
+                "/var/folders",
+                "/dev/shm",
+            ]
+            .map(PathBuf::from),
+        );
+    }
+    roots
+        .into_iter()
+        .filter(|root| !root.as_os_str().is_empty())
+        .flat_map(|root| {
+            let canonical = fs::canonicalize(&root).ok();
+            std::iter::once(root).chain(canonical)
+        })
+        .collect()
+}
+
+/// Interpreter-manager directory components (shims and installs).
+const INTERPRETER_DIRS: &[&str] = &[
+    ".pyenv", "pyenv", ".nvm", "nvm", ".volta", "volta", ".fnm", "fnm", ".asdf", "asdf", ".bun",
+    ".deno", "shims",
+];
+
+fn interpreter_location(path: &Path) -> bool {
+    let lower = path.to_string_lossy().to_ascii_lowercase();
+    const PREFIXES: &[&str] = &[
+        "/opt/homebrew/opt/node",
+        "/opt/homebrew/opt/python",
+        "/opt/homebrew/cellar/node",
+        "/opt/homebrew/cellar/python",
+        "/usr/local/opt/node",
+        "/usr/local/opt/python",
+        "/usr/local/cellar/node",
+        "/usr/local/cellar/python",
+        "/usr/local/lib/node_modules",
+        "/opt/homebrew/lib/node_modules",
+        "/usr/bin/python",
+    ];
+    PREFIXES.iter().any(|prefix| lower.starts_with(prefix))
+        || path.components().any(|part| {
+            part.as_os_str()
+                .to_str()
+                .is_some_and(|name| INTERPRETER_DIRS.contains(&name.to_ascii_lowercase().as_str()))
+        })
+}
+
+/// Reject Node/Python-class launchers (no-node-python, the default run
+/// constraint) by the name of the requested path, of every symlink hop and of
+/// the canonical target, plus well-known interpreter install locations. Runs
+/// before any spawn and before the file is opened.
+fn reject_interpreter_runtime(absolute: &Path) -> Result<(), String> {
+    use crate::execution_policy::runtime_class_of_name;
+    use crate::profiles::RuntimeClass;
+    let bad = |path: &Path| {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| runtime_class_of_name(name) != RuntimeClass::Native)
+            || interpreter_location(path)
+    };
+    let mut current = absolute.to_path_buf();
+    for _ in 0..40 {
+        if bad(&current) {
+            return Err("Claude executable is a Node/Python-class runtime (no-node-python)".into());
+        }
+        match fs::symlink_metadata(&current) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                let Ok(target) = fs::read_link(&current) else {
+                    break;
+                };
+                current = if target.is_absolute() {
+                    target
+                } else {
+                    current.parent().unwrap_or(Path::new("/")).join(target)
+                };
+            }
+            _ => break,
+        }
+    }
+    if let Ok(canonical) = fs::canonicalize(absolute) {
+        if bad(&canonical) {
+            return Err("Claude executable is a Node/Python-class runtime (no-node-python)".into());
+        }
+    }
+    Ok(())
+}
+
+/// Validate the host executable BEFORE any spawn (including the `--help`
+/// probe). The path must resolve to a regular native executable that does not
+/// live in audited/attacker-writable locations: `forbidden` (snapshot
+/// execution/baseline roots, audited source root, run dir) or any temp dir.
+/// Scripts (`#!`) are refused because they would run an arbitrary interpreter.
+pub(super) fn validate_executable(
+    requested: &Path,
+    forbidden: &[PathBuf],
+) -> Result<PathBuf, AuditError> {
+    let refuse = |why: &str| invalid(format!("incomplete:host-unavailable: {why}"));
+    let absolute = if requested.is_absolute() {
+        requested.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|_| refuse("invalid Claude executable"))?
+            .join(requested)
+    };
+    reject_interpreter_runtime(&absolute).map_err(|why| refuse(&why))?;
+    let canonical = fs::canonicalize(&absolute).map_err(|_| refuse("invalid Claude executable"))?;
+    let inside = |roots: &[PathBuf]| {
+        roots.iter().any(|root| {
+            let canon = fs::canonicalize(root).ok();
+            [&absolute, &canonical].iter().any(|path| {
+                path.starts_with(root) || canon.as_ref().is_some_and(|c| path.starts_with(c))
+            })
+        })
+    };
+    if inside(forbidden) {
+        return Err(refuse(
+            "Claude executable cannot come from the audited source, snapshot or run directory",
+        ));
+    }
+    let metadata = fs::metadata(&canonical).map_err(|_| refuse("invalid Claude executable"))?;
+    if !metadata.is_file() {
+        return Err(refuse("Claude executable must be a regular file"));
+    }
+    let mut head = [0u8; 8];
+    let count = fs::File::open(&canonical)
+        .and_then(|mut file| file.read(&mut head))
+        .map_err(|_| refuse("Claude executable unreadable"))?;
+    let head = &head[..count];
+    if head.starts_with(b"#!") {
+        return Err(refuse(
+            "Claude executable is a script, not a native executable",
+        ));
+    }
+    if !native_magic(head) {
+        return Err(refuse(
+            "Claude executable is not a native executable (Mach-O/ELF/PE)",
+        ));
+    }
+    if inside(&temp_roots()) {
+        return Err(refuse(
+            "Claude executable cannot come from a temp or scratch directory",
+        ));
+    }
+    // A renamed or copied interpreter passes name/location/magic checks; its
+    // embedded runtime symbols do not. Bounded streaming scan, no spawn.
+    if let Some(marker) = embedded_interpreter_marker(&canonical) {
+        return Err(refuse(&format!(
+            "Claude executable embeds a Node/Python runtime ({marker}) (no-node-python)"
+        )));
+    }
+    Ok(canonical)
+}
+
+/// Runtime symbols that native Python and Node executables embed (the Claude
+/// CLI, a Bun/JSC binary, carries none). Scans at most 1 GiB in 1 MiB chunks
+/// with overlap so markers spanning a chunk boundary are found.
+fn embedded_interpreter_marker(path: &Path) -> Option<&'static str> {
+    const MARKERS: &[&str] = &[
+        "Py_Initialize",
+        "Py_BytesMain",
+        "node::Start",
+        "v8::Isolate",
+    ];
+    const CHUNK: usize = 1 << 20;
+    const LIMIT: u64 = 1 << 30;
+    let overlap = MARKERS.iter().map(|m| m.len()).max().unwrap_or(0);
+    let mut file = fs::File::open(path).ok()?;
+    let mut window: Vec<u8> = Vec::with_capacity(CHUNK + overlap);
+    let mut buffer = vec![0u8; CHUNK];
+    let mut read_total = 0u64;
+    loop {
+        let count = file.read(&mut buffer).ok()?;
+        if count == 0 {
+            return None;
+        }
+        if read_total >= LIMIT {
+            // Too large to scan fully: fail closed rather than pass unscanned.
+            return Some("unscannable-size");
+        }
+        read_total += count as u64;
+        window.extend_from_slice(&buffer[..count]);
+        if let Some(marker) = MARKERS.iter().find(|marker| {
+            window
+                .windows(marker.len())
+                .any(|candidate| candidate == marker.as_bytes())
+        }) {
+            return Some(marker);
+        }
+        let keep = window.len().saturating_sub(overlap);
+        window.drain(..keep);
+    }
+}
+
+pub fn resolve(
+    options: &RuntimeOptions,
+    cwd: &Path,
+    forbidden: &[PathBuf],
+) -> Result<PathBuf, AuditError> {
     let executable = if let Some(path) = &options.claude {
         path.clone()
     } else {
@@ -149,14 +371,16 @@ pub fn resolve(options: &RuntimeOptions, cwd: &Path) -> Result<PathBuf, AuditErr
             &["claude"]
         };
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+            .filter(|dir| dir.is_absolute())
             .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
             .find(|path| path.is_file())
             .ok_or_else(|| {
                 invalid("incomplete:host-unavailable: native Claude executable missing")
             })?
     };
-    let binary = fs::canonicalize(&executable)
-        .map_err(|_| invalid("incomplete:host-unavailable: invalid Claude executable"))?;
+    // Validation precedes every spawn: a rejected path is never executed.
+    let binary = validate_executable(&executable, forbidden)?;
+    admit_host(super::model::current_host()?)?;
     let mut cmd = command(&binary, cwd);
     cmd.command_mut().arg("--help");
     let mut child = cmd
@@ -289,6 +513,8 @@ pub fn invoke(
     let result = (|| -> Result<(), String> {
         super::model::validate_execution_host(execution).map_err(|error| error.to_string())?;
         admit_host(execution.host).map_err(|error| error.to_string())?;
+        // Re-check at launch: the file may have been replaced since the probe.
+        validate_executable(binary, &[]).map_err(|error| error.to_string())?;
         let mut cmd = command(binary, cwd);
         // Without the thinking allowance a high-effort author is cut at the text cap mid-JSON and
         // the CLI's structured-output retries repeat the truncation (observed: 4 x 4096, stop_sequence).
@@ -1678,5 +1904,35 @@ mod tests {
             0
         )
         .is_err());
+    }
+}
+
+#[cfg(test)]
+mod interpreter_marker_tests {
+    use super::embedded_interpreter_marker;
+
+    fn file_with(bytes: &[u8]) -> std::path::PathBuf {
+        let mut nonce = [0u8; 8];
+        getrandom::fill(&mut nonce).unwrap();
+        let path = std::env::temp_dir().join(format!("legion-marker-{}", hex::encode(nonce)));
+        std::fs::write(&path, bytes).unwrap();
+        path
+    }
+
+    #[test]
+    fn renamed_python_or_node_binary_is_detected_by_content() {
+        let mut python = vec![0xcf, 0xfa, 0xed, 0xfe];
+        python.extend(std::iter::repeat_n(0u8, (1 << 20) - 6));
+        // Marker straddles the 1 MiB chunk boundary.
+        python.extend_from_slice(b"Py_Initialize");
+        let path = file_with(&python);
+        assert_eq!(embedded_interpreter_marker(&path), Some("Py_Initialize"));
+        let node = file_with(b"\xcf\xfa\xed\xfe....node::Start(int, char**)");
+        assert_eq!(embedded_interpreter_marker(&node), Some("node::Start"));
+        let bun = file_with(b"\xcf\xfa\xed\xfe....JSC::VM bun_main Bun.serve");
+        assert_eq!(embedded_interpreter_marker(&bun), None);
+        for path in [path, node, bun] {
+            let _ = std::fs::remove_file(path);
+        }
     }
 }

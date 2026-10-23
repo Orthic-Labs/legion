@@ -3,6 +3,7 @@ pub mod applicability;
 pub mod common;
 pub mod dotnet;
 pub mod evidence;
+pub mod gradle_model;
 pub mod javascript;
 pub mod javascript_native;
 pub mod jvm;
@@ -15,6 +16,7 @@ pub mod python;
 pub mod rust;
 pub mod rust_targets;
 pub mod tools;
+pub mod xcode_bridge;
 pub mod xcode_targets;
 
 use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
@@ -54,6 +56,42 @@ pub struct ProviderExecutorAdapter {
     tool_timeout_ms: Option<u64>,
     /// Total wall-clock budget for all tool runs of one provider.
     tool_budget_ms: Option<u64>,
+    /// Adapter-scoped host-owner wiring (Apple bridge, Gradle pins). Empty unless the host has an active owner.
+    owner: HostOwnerWiring,
+}
+
+/// What the host hands the code adapter when an owner is active. Everything
+/// here comes from the host policy, never from audited repository input.
+/// Absent pieces leave the corresponding obligations as explicit gaps.
+#[derive(Clone, Default)]
+pub struct HostOwnerWiring {
+    /// Policy-declared Gradle pins.
+    pub gradle_pins: Option<gradle_model::GradlePins>,
+    /// Explicit Apple bridge. When `None` and an owner context is active, the
+    /// adapter builds an owner-backed bridge bound to the frozen plan digest
+    /// when the plan is first seen (the digest does not exist earlier).
+    pub apple_bridge: Option<Arc<dyn xcode_targets::AppleTargetBridge + Send + Sync>>,
+    model_cache: Arc<std::sync::Mutex<BTreeMap<String, producer::ModelExtraction>>>,
+}
+
+impl HostOwnerWiring {
+    /// Gradle model extraction is submitted through the owner-backed executor
+    /// the adapter is run with; the wiring holds no process of its own.
+    pub fn new(gradle_pins: Option<gradle_model::GradlePins>) -> Self {
+        Self {
+            gradle_pins,
+            ..Self::default()
+        }
+    }
+}
+
+impl std::fmt::Debug for HostOwnerWiring {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HostOwnerWiring")
+            .field("gradle_pins", &self.gradle_pins.is_some())
+            .field("apple_bridge", &self.apple_bridge.is_some())
+            .finish()
+    }
 }
 
 /// Default total tool budget for one provider (all runs together).
@@ -102,6 +140,21 @@ impl ProviderExecutorAdapter {
         self
     }
 
+    /// Inject the host-owner wiring (adapter-scoped; no process-global state).
+    pub fn with_host_owner(mut self, wiring: HostOwnerWiring) -> Self {
+        self.owner = wiring;
+        self
+    }
+
+    /// Inject only an Apple bridge (tests and hosts with a prebuilt bridge).
+    pub fn with_apple_bridge(
+        mut self,
+        bridge: Arc<dyn xcode_targets::AppleTargetBridge + Send + Sync>,
+    ) -> Self {
+        self.owner.apple_bridge = Some(bridge);
+        self
+    }
+
     pub fn with_tool_bounds(mut self, per_tool_timeout_ms: u64, total_budget_ms: u64) -> Self {
         self.tool_timeout_ms = Some(per_tool_timeout_ms);
         self.tool_budget_ms = Some(total_budget_ms);
@@ -124,6 +177,25 @@ impl ProviderExecutorAdapter {
         scratch: Arc<AuditScratch>,
         cancellation: CancellationToken,
     ) -> Result<ProviderResult, AuditError> {
+        // Assurance providers: with an active owner (the run's scratch carries
+        // the owner request context) they get host-derived execution; without
+        // one they keep their explicit-gap plan-only behaviour.
+        if producer::is_assurance_provider(&provider.id) {
+            let host = producer::AssuranceHost::from_run(
+                &self.owner,
+                self.root.as_deref(),
+                plan,
+                tool,
+                &scratch,
+            );
+            return producer::execute_assurance_hosted(self, provider, inventory, host.as_ref())
+                .unwrap_or_else(|| {
+                    Err(AuditError::Provider(format!(
+                        "unsupported native assurance provider: {}",
+                        provider.id
+                    )))
+                });
+        }
         let injected =
             provider.configuration.contains_key("input") || self.inputs.contains_key(&provider.id);
         let Some(config) = evidence::config_for(&provider.id) else {

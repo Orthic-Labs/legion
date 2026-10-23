@@ -371,6 +371,34 @@ fn local_validation_failures_never_reach_the_owner() {
         (
             "argument-path-outside-admitted-roots",
             ExternalToolRequest {
+                args: vec!["-o/etc/x".into()],
+                ..base.clone()
+            },
+        ),
+        (
+            "argument-path-outside-admitted-roots",
+            ExternalToolRequest {
+                args: vec!["-I../../x".into()],
+                ..base.clone()
+            },
+        ),
+        (
+            "argument-path-outside-admitted-roots",
+            ExternalToolRequest {
+                args: vec!["-xI/etc".into()],
+                ..base.clone()
+            },
+        ),
+        (
+            "argument-path-outside-admitted-roots",
+            ExternalToolRequest {
+                args: vec!["-I~/x".into()],
+                ..base.clone()
+            },
+        ),
+        (
+            "argument-path-outside-admitted-roots",
+            ExternalToolRequest {
                 args: vec!["../../elsewhere/x".into()],
                 ..base.clone()
             },

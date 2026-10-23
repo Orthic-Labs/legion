@@ -1296,12 +1296,18 @@ fn append_candidate_parts(
         built.0.first().cloned().ok_or_else(|| {
             AuditError::Invalid("candidate continuation has no source packet".into())
         })?;
+    let domain_contract = template.packet.pointer("/lensPlan/domainContract").cloned();
     template.packet["excerpts"] = json!([]);
     template.packet["lensPlan"] = lens_plan_for_part(
         lens_plan::lens_plan_packet_value(&provider.id).as_ref(),
         &[],
     )
     .unwrap_or(Value::Null);
+    if let (Some(domain_contract), Some(plan)) =
+        (domain_contract, template.packet["lensPlan"].as_object_mut())
+    {
+        plan.insert("domainContract".into(), domain_contract);
+    }
     template.packet["reviewContext"] = packet_context::review_context(plan, provider, &[])?;
     for field in [
         "selectedPaths",
@@ -1437,6 +1443,38 @@ fn selected_part_source_paths(part: Option<&excerpts::ExcerptPart>) -> Vec<Strin
         .collect()
 }
 
+/// Build the frozen domain-contract set from `.legion/domain-contracts/*`
+/// (see `domain_contract::DOMAIN_CONTRACT_DIR`). `None` only when no contract
+/// file is declared and none is required; a declared-but-unreadable file or a
+/// required-but-missing set is an unresolved boundary inside the set.
+fn domain_contract_set(
+    source: &excerpts::SourceReader<'_>,
+    inventory: &InventoryEnvelope,
+    provider: &AuditProvider,
+) -> Option<crate::domain_contract::DomainContractSet> {
+    use crate::domain_contract as dc;
+    let required = dc::contracts_required(inventory)
+        || provider
+            .configuration
+            .get("domainContractsRequired")
+            .and_then(Value::as_bool)
+            == Some(true);
+    let inputs = dc::contract_inputs_from_inventory(inventory, |path| {
+        source
+            .read(path, dc::DOMAIN_CONTRACT_MAX_BYTES)
+            .ok()
+            .map(|(bytes, _)| bytes)
+    });
+    if inputs.is_empty() && !required {
+        return None;
+    }
+    Some(dc::DomainContractSet::build(
+        &inputs,
+        &[dc::inventory_snapshot(inventory)],
+        required,
+    ))
+}
+
 fn lens_plan_for_part(lens_plan: Option<&Value>, source_paths: &[String]) -> Option<Value> {
     lens_plan.map(|lens_plan| {
         let mut bound = lens_plan.clone();
@@ -1487,6 +1525,7 @@ fn build_invocations_with_budget(
     // packet shape via `security_adjudication.rs`.
     let lens_plan = lens_plan::lens_plan_packet_value(&provider.id);
     let lens_id = lens_plan::lens_id_for_provider(&provider.id);
+    let domain_set = domain_contract_set(source, inventory, provider);
     // Scoped excerpts: RAW (bounded, file:line anchored, secret-redacted)
     // for security/schema/correctness/performance/minimize/doc-drift/architecture/ai-slop,
     // SKELETON (signatures/declarations, no bodies) for
@@ -1606,7 +1645,12 @@ fn build_invocations_with_budget(
         // Continued chunks still need their selected file's graph hints even
         // though denominator ownership remains with the file's first part.
         let context_paths = selected_part_source_paths(part);
-        let part_lens_plan = lens_plan_for_part(lens_plan.as_ref(), &context_paths);
+        let mut part_lens_plan = lens_plan_for_part(lens_plan.as_ref(), &context_paths);
+        // A12: repository-declared domain contracts reach every lens packet;
+        // none declared is an explicit `absent`, never silence.
+        if let Some(bound) = part_lens_plan.as_mut() {
+            pattern_cards::bind_domain_contract_set(bound, domain_set.as_ref());
+        }
         let review_context = packet_context::review_context(plan, provider, &context_paths)?;
         // Packet materialization is separate from host delivery & review.
         // Constructing an excerpt cannot prove a reviewer received it.

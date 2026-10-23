@@ -126,10 +126,17 @@ pub struct AuditArgs {
     pub dir: Option<PathBuf>,
     #[arg(long)]
     pub json: bool,
-    /// `standard` (legacy, unchanged) or an assurance profile: `pre-pr`,
-    /// `repository`, `release`. Assurance profiles freeze a denominator into the plan.
-    #[arg(long, default_value = "standard")]
-    pub profile: String,
+    /// Assurance profile: `pre-pr`, `repository` (the default) or `release`.
+    /// Each freezes a mandatory denominator into the signed plan; `legion audit
+    /// gate` later judges the run against it. An unknown name is a usage error
+    /// (exit 4). The legacy `standard` profile (no frozen denominator, never
+    /// gate-eligible) is used only when named explicitly; the direct
+    /// `--provider-plan`/`--provider-result`/`--native-rule-manifest` routes
+    /// cannot carry a denominator and run as `standard` unless a profile is named.
+    /// `--only`, `--skip`, `--dir`, `--base` and diff scopes are frozen into the
+    /// plan and make the run incomplete at the gate for every profile.
+    #[arg(long)]
+    pub profile: Option<String>,
     #[command(flatten)]
     pub assurance: super::audit_assurance::AssuranceArgs,
     #[command(flatten)]
@@ -175,6 +182,8 @@ pub struct AuditArgs {
     pub native_rule_manifest: Option<PathBuf>,
     /// `legion audit ingest --run <dir> --result <file> [--result <file> ...]`: ingest
     /// reasoning-lens results into a frozen run in one pass (see `ingest_command`).
+    /// Also `findings resolve --run <dir>`: the verified, complete run the
+    /// resolution evidence is bound to.
     /// `--provider <id>` names the provider of every result; without it each
     /// result file names its own.
     #[arg(long = "run", hide = true)]
@@ -208,6 +217,15 @@ pub struct AuditArgs {
     /// `findings list`: only `open` findings.
     #[arg(long = "active", hide = true)]
     pub findings_active: bool,
+    /// `findings resolve`: JSON ResolutionEvidence proving the fix.
+    #[arg(long = "evidence", hide = true)]
+    pub findings_evidence: Option<PathBuf>,
+    /// `findings dismiss`: who accepts the risk.
+    #[arg(long = "authority", hide = true)]
+    pub findings_authority: Option<String>,
+    /// `findings dismiss`: why the finding is accepted without repair.
+    #[arg(long = "reason", hide = true)]
+    pub findings_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -771,7 +789,17 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
         )));
     }
     let resume_context = prepare_resume(&mut args)?;
-    let assurance_request = super::audit_assurance::request(&args.profile, &args.assurance)?;
+    let profile_name: String = match &args.profile {
+        Some(name) => name.clone(),
+        None if args.provider_plan.is_some()
+            || !args.provider_results.is_empty()
+            || args.native_rule_manifest.is_some() =>
+        {
+            super::audit_assurance::LEGACY_PROFILE.to_owned()
+        }
+        None => super::audit_assurance::DEFAULT_PROFILE.to_owned(),
+    };
+    let mut assurance_request = super::audit_assurance::request(&profile_name, &args.assurance)?;
     let source_root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let scope_spec = if let Some(base) = &args.base_commit {
         legion_audit::scope::ScopeSpec::Range {
@@ -910,6 +938,25 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
         return Err(CommandError::usage(
             "provider selection produced an empty plan",
         ));
+    }
+    // The selection (filters, diff/dir scope, omitted providers) is frozen into
+    // the signed plan so the gate can refuse any narrowed run.
+    if let Some(request) = assurance_request.as_mut() {
+        request.set_selection(legion_audit::assurance::SelectionScope {
+            schema_version: legion_audit::assurance::SelectionScope::SCHEMA_VERSION,
+            only: args.only.clone(),
+            skip: args.skip.clone(),
+            scope_mode: scope.mode.to_owned(),
+            scope_type: scope.scope_type.clone(),
+            base: args.base.clone(),
+            base_commit: args.base_commit.clone(),
+            dir: scope.dir.clone(),
+            selected_provider_ids: selected_specs
+                .iter()
+                .map(|p| p.id.as_str().to_owned())
+                .collect(),
+            universe_provider_ids: all_specs.iter().map(|p| p.id.as_str().to_owned()).collect(),
+        });
     }
     // Key creation removes the run's prior epoch key and lens receipts, so it
     // runs only after every argument and provider-ID check above has passed.
@@ -1302,7 +1349,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
             "repository": repository_id,
             "sourceRepository": source_root,
             "snapshotManifest": frozen_snapshot.manifest_path,
-            "profile": args.profile,
+            "profile": profile_name,
             "assurance": assurance_summary.clone(),
             "scope": scope.plan_json(),
             "reviewContext": review_context,
@@ -1441,6 +1488,10 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
             report.gaps.extend(lens_work_gaps);
             let (lens_coverage, sampled_run) = lens_coverage_summary(&lens_basis);
             report.claims.insert("lensWork".into(), json!(lens_work));
+            // Signing keys live with the same OS user as the agent; say so.
+            report
+                .claims
+                .insert("signingAuthority".into(), json!("same-user"));
             if let Some(dispatch) = &lens_dispatch {
                 report
                     .claims
@@ -1578,6 +1629,9 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 )
                 .map_err(|error| CommandError::integrity(error.to_string()))?;
             }
+            report
+                .claims
+                .insert("signingAuthority".into(), json!("same-user"));
             // Head of the journal before `report_finalized`. The key ends in `At`
             // so replay-equivalence treats it as volatile like other timestamps.
             if let Some(recorder) = &journal_run {
@@ -1619,7 +1673,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                     "repository": root,
                     "sourceRepository": source_root,
                     "snapshotManifest": frozen_snapshot.manifest_path,
-                    "profile": args.profile,
+                    "profile": profile_name,
                     "scope": scope.plan_json(),
                     "reviewContext": review_context,
                     "sourcePerformance": {"snapshot": frozen_snapshot.manifest.source_cache, "graph": graph_cache_stats},
@@ -1693,7 +1747,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 "root": source_root,
                 "executionRoot": root,
                 "snapshotManifest": frozen_snapshot.manifest_path,
-                "profile": args.profile,
+                "profile": profile_name,
                 "assurance": assurance_summary.clone(),
                 "scope": scope.plan_json(),
                 "planDigest": execution.plan_digest,
@@ -1746,7 +1800,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
 /// finding-store lifecycle over `<repo>/.audit/audit/findings.jsonl`.
 ///
 /// * `findings list [<repo-root>] [--active] [--repo <dir>]`
-/// * `findings resolve <id> [--generation <g>] [--repo <dir>]`, `findings dismiss <id> [--generation <g>] [--repo <dir>]`
+/// * `findings resolve <id> --evidence <file> --run <verified-run-dir> [--generation <g>] [--repo <dir>]`, `findings dismiss <id> [--generation <g>] [--repo <dir>]`
 /// * `findings reopen <id> [--repo <dir>]`
 /// * `findings supersede <old-id> --by <successor-record.json> [--repo <dir>]`
 ///
@@ -1816,12 +1870,46 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
                 "findings": findings,
             }));
         }
-        "resolve" => store
-            .set_status(require_id()?, "resolved", generation, None)
-            .map_err(store_error)?,
-        "dismiss" => store
-            .set_status(require_id()?, "dismissed", generation, None)
-            .map_err(store_error)?,
+        // Verified-fixed needs ResolutionEvidence bound to a completed report;
+        // otherwise only an attributed dismissal is recorded, never a fix.
+        "resolve" | "dismiss" => {
+            use legion_audit::finding_history::{
+                resolve_finding, verified_run_view, Dismissal, ResolutionEvidence,
+            };
+            let evidence = match (
+                action == "resolve",
+                &args.findings_evidence,
+                &args.ingest_run,
+            ) {
+                (true, Some(evidence), Some(run_dir)) => {
+                    let evidence: ResolutionEvidence =
+                        serde_json::from_slice(&std::fs::read(evidence).map_err(super::io_error)?)
+                            .map_err(|error| {
+                                CommandError::usage(format!("invalid evidence: {error}"))
+                            })?;
+                    let run = verified_run_view(run_dir, &repo)
+                        .map_err(|error| CommandError::usage(error.to_string()))?;
+                    Some((evidence, run))
+                }
+                _ => None,
+            };
+            let dismissal = match (&args.findings_authority, &args.findings_reason) {
+                (Some(authority), Some(reason)) => Some(Dismissal {
+                    authority: authority.clone(),
+                    reason: reason.clone(),
+                    at: None,
+                }),
+                _ => None,
+            };
+            resolve_finding(
+                &store,
+                require_id()?,
+                evidence.as_ref().map(|(evidence, run)| (evidence, run)),
+                dismissal,
+                generation,
+            )
+            .map_err(|error| CommandError::usage(error.to_string()))?
+        }
         "reopen" => store
             .set_status(require_id()?, "open", None, None)
             .map_err(store_error)?,
@@ -2183,6 +2271,12 @@ pub(super) fn write_run_reports(
     let report_json = render_report_json(report, scope, schema)?;
     let report_sarif = legion_report::render_sarif(report).map_err(super::io_error)?;
     write_artifact(dir, "report.json", report_json.as_bytes())?;
+    // A report rewritten after finalization must be journaled, or verify fails.
+    legion_audit::native_providers::reasoning::ingest::record_report_update(
+        dir,
+        report_json.as_bytes(),
+    )
+    .map_err(|error| CommandError::integrity(error.to_string()))?;
     write_artifact(dir, "report.sarif", report_sarif.as_bytes())
 }
 
@@ -2326,9 +2420,30 @@ fn freeze_lens_basis(
         .map_err(|error| error.to_string())?;
     let pending = match assurance {
         Some(request) => {
-            let frozen = request.build(&pending, root)?;
+            let runtime = legion_audit::runtime_obligations::RuntimeDeclarations::from_inventory(
+                &inventory,
+                |path| {
+                    let entry = inventory.entries.iter().find(|entry| entry.path == path)?;
+                    legion_audit::native_providers::code::producer::read_frozen(
+                        Some(root),
+                        [entry],
+                        legion_audit::native_providers::code::producer::MAX_FILE_BYTES,
+                        legion_audit::native_providers::code::producer::MAX_FILE_BYTES,
+                    )
+                    .files
+                    .remove(path)
+                },
+            )
+            .obligation_candidates(&[
+                legion_audit::profiles::AuditProfile::Repository,
+                legion_audit::profiles::AuditProfile::Release,
+            ])
+            .map_err(|error| error.to_string())?;
+            let frozen = request.build(&pending, root, &runtime)?;
+            let selection = request.selection()?.clone();
             pending
                 .with_assurance(&frozen)
+                .and_then(|plan| plan.with_selection_scope(&selection))
                 .map_err(|error| error.to_string())?
         }
         None => pending,
@@ -4766,10 +4881,13 @@ fn native_registry_application(
                 .map_err(|error| CommandError::usage(error.to_string()))
         })
         .transpose()?;
-    let external_tool = native_audit_external_tool(&scratch);
+    let (external_tool, code_owner) = native_audit_external_tool(&scratch, root);
     let mut registry = legion_audit::NativeProviderRegistry::new(root.to_path_buf())
         .with_scratch(scratch.clone())
         .with_external_project_tool(external_tool);
+    if let Some(wiring) = code_owner {
+        registry.code = registry.code.clone().with_host_owner(wiring);
+    }
     if let Some(run_dir) = run_dir {
         registry.security = registry.security.with_run_dir(run_dir);
     }
@@ -4806,9 +4924,26 @@ fn native_registry_application(
 
 fn native_audit_external_tool(
     scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
+    root: &std::path::Path,
+) -> (
+    std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool>,
+    Option<legion_audit::native_providers::code::HostOwnerWiring>,
+) {
+    // A host-owned policy file outside every audited tree makes a real trusted
+    // owner available (rightkit-sandbox containment). Without it, or when any
+    // step fails, resolution yields the fail-closed OwnerAdmissionRequired
+    // fallback exactly as before (and no code-adapter owner wiring).
+    #[cfg(unix)]
+    if let Some((tool, wiring)) = host_owned_external_tool(scratch, root) {
+        return (tool, Some(wiring));
+    }
+    let _ = root;
+    (native_audit_fallback_tool(scratch), None)
+}
+
+fn native_audit_fallback_tool(
+    scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
 ) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
-    // No trusted owner is wired into this CLI, so resolution yields the
-    // fail-closed OwnerAdmissionRequired fallback exactly as before.
     let policy = legion_audit::owner_admission::NativeAuthorizer::resolve(None, None);
     #[cfg(windows)]
     let process = legion_effects::platform::windows::WindowsProcess;
@@ -4822,6 +4957,71 @@ fn native_audit_external_tool(
     // Admission precedes project command resolution, version probes & launch.
     // The SDK adapter remains available for explicit in-process test fixtures.
     std::sync::Arc::new(effects)
+}
+
+/// Owner-backed, OS-contained external tool execution. `None` leaves the caller on
+/// the deny-all fallback: no policy file, untrusted/malformed policy, no
+/// confinement backend, or an owner the admission layer will not accept.
+#[cfg(unix)]
+fn host_owned_external_tool(
+    scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
+    root: &std::path::Path,
+) -> Option<(
+    std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool>,
+    legion_audit::native_providers::code::HostOwnerWiring,
+)> {
+    use legion_audit::host_owner::{default_policy_path, HostPolicyOwner};
+    let frozen = std::fs::canonicalize(root).ok()?;
+    let output = std::fs::canonicalize(scratch.root()).ok()?;
+    let owner = HostPolicyOwner::load(&default_policy_path()?, &[frozen.clone(), output.clone()])
+        .ok()??;
+    // The run's frozen plan digest does not exist yet when the executor is
+    // built: the plan binds once, from the host's frozen plan, when the first
+    // request is built. Until then (and for any other digest afterwards)
+    // admission denies every request.
+    let config = owner
+        .owner_config_bound(
+            legion_audit::owner_admission::PlanBinding::unbound(),
+            &frozen,
+            &output,
+        )
+        .ok()?;
+    // Fails closed when this host cannot apply OS confinement.
+    let process = owner.process(&config).ok()?;
+    // Adapter-scoped wiring for the `code.*` assurance providers: the policy's
+    // Gradle pins. Gradle model extraction and the Apple bridge both submit
+    // typed requests through the owner-backed executor built below (per-request
+    // admission); no second raw process is wired. The Apple bridge is built by
+    // the adapter once the frozen plan digest exists.
+    let wiring = legion_audit::native_providers::code::HostOwnerWiring::new(owner.gradle_pins());
+    let request_context = owner.request_context(&config);
+    let policy = std::sync::Arc::new(legion_audit::owner_admission::NativeAuthorizer::resolve(
+        Some(owner.into_trusted()),
+        Some(config),
+    ));
+    if !policy.is_owner_backed() {
+        return None;
+    }
+    // Request builders read the plan binding, containment receipt and policy
+    // pins from here; without it they keep the no-owner request shape.
+    if !scratch.set_owner_context(request_context) {
+        return None;
+    }
+    // Attested-run preparation decides through the same owner-backed policy.
+    if !scratch.set_owner_authorizer(policy.clone()) {
+        return None;
+    }
+    // Owner identity/provenance, roots, limits and policy digest for this run;
+    // receipts carry the same digest as their policy decision.
+    if let Ok(bytes) = serde_json::to_vec_pretty(&policy.binding()) {
+        let _ = std::fs::write(output.join("execution-policy-owner-binding.json"), bytes);
+    }
+    let effects = legion_effects::EffectExecutor::new(
+        process,
+        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        policy,
+    );
+    Some((std::sync::Arc::new(effects), wiring))
 }
 
 fn native_provider_registry_path() -> Option<std::path::PathBuf> {
@@ -5820,7 +6020,7 @@ mod closure_tests {
             base_commit: None,
             dir: None,
             json: false,
-            profile: "standard".into(),
+            profile: Some("standard".into()),
             out: None,
             provider_plan: None,
             provider_results: Vec::new(),
@@ -5834,6 +6034,9 @@ mod closure_tests {
             findings_by: None,
             findings_generation: None,
             findings_active: false,
+            findings_evidence: None,
+            findings_authority: None,
+            findings_reason: None,
             seat_token_budget: 150_000,
             max_lens_seats: 16,
             allow_oversize_lenses: false,
@@ -6668,7 +6871,7 @@ mod closure_tests {
             base_commit: None,
             dir: None,
             json: false,
-            profile: "standard".into(),
+            profile: Some("standard".into()),
             out: None,
             provider_plan: None,
             provider_results: Vec::new(),
@@ -6682,6 +6885,9 @@ mod closure_tests {
             findings_by: None,
             findings_generation: None,
             findings_active: false,
+            findings_evidence: None,
+            findings_authority: None,
+            findings_reason: None,
             seat_token_budget: 150_000,
             max_lens_seats: 16,
             allow_oversize_lenses: false,

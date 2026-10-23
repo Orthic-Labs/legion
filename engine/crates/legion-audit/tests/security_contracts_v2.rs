@@ -232,11 +232,37 @@ fn possible_strength_still_cannot_survive() {
 
 // ---- variant ledger ---------------------------------------------------------------
 
+fn ledger_entries(
+    confirmed: u64,
+    rejected: u64,
+    unresolved: u64,
+) -> Vec<legion_audit::native_providers::reasoning::followup::VariantEntry> {
+    use legion_audit::native_providers::reasoning::followup::{VariantDisposition, VariantEntry};
+    let mut entries = Vec::new();
+    for (count, disposition) in [
+        (confirmed, VariantDisposition::Confirmed),
+        (rejected, VariantDisposition::Rejected),
+        (unresolved, VariantDisposition::Unresolved),
+    ] {
+        for _ in 0..count {
+            let index = entries.len();
+            entries.push(VariantEntry {
+                id: format!("v{index}"),
+                path: format!("p{index}"),
+                anchor: format!("sink.call({index})"),
+                disposition,
+                reason: "guarded".into(),
+            });
+        }
+    }
+    entries
+}
+
 fn ledger(matched: u64, confirmed: u64, rejected: u64, unresolved: u64) -> VariantLedger {
     VariantLedger {
         root_cause_signature: root_cause_signature("cmd-injection", "process.exec", "shell-escape")
             .unwrap(),
-        denominator_count: 12,
+        denominator_count: (confirmed + rejected + unresolved).max(1),
         matched,
         examined: confirmed + rejected + unresolved,
         confirmed,
@@ -248,6 +274,10 @@ fn ledger(matched: u64, confirmed: u64, rejected: u64, unresolved: u64) -> Varia
         parent_plan_digest: "sha256:parent".into(),
         followup_plan_digest: "sha256:followup".into(),
         confirmed_digest: "sha256:confirmed".into(),
+        entries: ledger_entries(confirmed, rejected, unresolved),
+        analysis_paths: (0..(confirmed + rejected + unresolved).max(1))
+            .map(|index| format!("p{index}"))
+            .collect(),
         ledger_digest: String::new(),
     }
     .seal()
@@ -293,19 +323,19 @@ fn inconsistent_or_unreasoned_ledgers_are_never_complete() {
 fn ledger_binding_rejects_tampering_and_foreign_plans() {
     let sealed = ledger(5, 5, 0, 0);
     sealed
-        .verify_binding("sha256:parent", "sha256:followup", "sha256:confirmed", 12)
+        .verify_binding("sha256:parent", "sha256:followup", "sha256:confirmed", 5)
         .unwrap();
     assert!(sealed
-        .verify_binding("sha256:other", "sha256:followup", "sha256:confirmed", 12)
+        .verify_binding("sha256:other", "sha256:followup", "sha256:confirmed", 5)
         .is_err());
     assert!(sealed
-        .verify_binding("sha256:parent", "sha256:followup", "sha256:confirmed", 11)
+        .verify_binding("sha256:parent", "sha256:followup", "sha256:confirmed", 4)
         .is_err());
     let mut tampered = sealed.clone();
     tampered.unresolved = 0;
     tampered.matched = 1;
     assert!(tampered
-        .verify_binding("sha256:parent", "sha256:followup", "sha256:confirmed", 12)
+        .verify_binding("sha256:parent", "sha256:followup", "sha256:confirmed", 5)
         .is_err());
     assert!(root_cause_signature("", "sink", "control").is_err());
 }

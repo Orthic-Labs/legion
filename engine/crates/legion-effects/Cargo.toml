@@ -13,6 +13,7 @@ tokio.workspace = true
 tokio-util.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+rightkit-sandbox = "=0.6.1"
 windows-sys.workspace = true
 
 [dev-dependencies]

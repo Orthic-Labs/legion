@@ -1280,7 +1280,7 @@ pub(crate) mod tests {
             fixture
         }
         fn git(&self, args: &[&str]) {
-            let mut command = rightkit_child_process::OwnedCommand::new("git");
+            let mut command = crate::trusted_git::owned_command(&self.0).expect("trusted git");
             command
                 .command_mut()
                 .current_dir(&self.0)

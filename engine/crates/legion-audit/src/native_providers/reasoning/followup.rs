@@ -92,6 +92,28 @@ pub enum LedgerAssessment {
     Inconsistent(String),
 }
 
+/// Disposition of one enumerated variant.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum VariantDisposition {
+    Confirmed,
+    Rejected,
+    Unresolved,
+}
+
+/// One enumerated variant: counts are derived from these entries, never
+/// accepted as caller-asserted numbers.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariantEntry {
+    pub id: String,
+    pub path: String,
+    pub anchor: String,
+    pub disposition: VariantDisposition,
+    #[serde(default)]
+    pub reason: String,
+}
+
 /// Variant ledger: the denominator-bound accounting of a pattern-exhaustion
 /// pass. It is sealed with a digest and bound to the parent plan, the
 /// follow-up plan, and the confirmed verdicts, so a stale or hand-edited
@@ -112,6 +134,12 @@ pub struct VariantLedger {
     /// One reason per rejected variant (required when `rejected > 0`).
     #[serde(default)]
     pub rejection_reasons: Vec<String>,
+    /// Explicit variant entries; every count above must derive from them.
+    #[serde(default)]
+    pub entries: Vec<VariantEntry>,
+    /// The analysis denominator paths; each needs a dispositioned entry.
+    #[serde(default)]
+    pub analysis_paths: Vec<String>,
     pub parent_plan_digest: String,
     pub followup_plan_digest: String,
     pub confirmed_digest: String,
@@ -163,6 +191,84 @@ impl VariantLedger {
             .any(|reason| reason.trim().is_empty())
         {
             return LedgerAssessment::Inconsistent("a rejection reason is blank".into());
+        }
+        // Counts must derive from the explicit entry list.
+        let count_of = |wanted: VariantDisposition| {
+            self.entries
+                .iter()
+                .filter(|entry| entry.disposition == wanted)
+                .count() as u64
+        };
+        if count_of(VariantDisposition::Confirmed) != self.confirmed
+            || count_of(VariantDisposition::Rejected) != self.rejected
+            || count_of(VariantDisposition::Unresolved) != self.unresolved
+        {
+            if self.entries.is_empty() {
+                return LedgerAssessment::Incomplete(
+                    "no variant entries recorded; an absent or empty ledger is never complete"
+                        .into(),
+                );
+            }
+            return LedgerAssessment::Inconsistent(
+                "ledger counts do not derive from its variant entries".into(),
+            );
+        }
+        if self.entries.is_empty() {
+            return LedgerAssessment::Incomplete(
+                "no variant entries recorded; an absent or empty ledger is never complete".into(),
+            );
+        }
+        let mut ids = BTreeSet::new();
+        for entry in &self.entries {
+            if entry.id.trim().is_empty()
+                || entry.path.trim().is_empty()
+                || entry.anchor.trim().is_empty()
+            {
+                return LedgerAssessment::Inconsistent(
+                    "a variant entry lacks an id, path, or anchor".into(),
+                );
+            }
+            if !ids.insert(entry.id.as_str()) {
+                return LedgerAssessment::Inconsistent(format!(
+                    "duplicate variant entry id {}",
+                    entry.id
+                ));
+            }
+            if entry.disposition == VariantDisposition::Rejected && entry.reason.trim().is_empty() {
+                return LedgerAssessment::Inconsistent(
+                    "a rejected variant entry lacks a reason".into(),
+                );
+            }
+        }
+        if self.analysis_paths.len() as u64 != self.denominator_count {
+            return LedgerAssessment::Inconsistent(
+                "analysis paths do not match the denominator count".into(),
+            );
+        }
+        let denominator: BTreeSet<&str> = self.analysis_paths.iter().map(String::as_str).collect();
+        if let Some(stray) = self
+            .entries
+            .iter()
+            .find(|entry| !denominator.contains(entry.path.as_str()))
+        {
+            return LedgerAssessment::Inconsistent(format!(
+                "variant entry {} names a path outside the analysis denominator",
+                stray.id
+            ));
+        }
+        let covered: BTreeSet<&str> = self
+            .entries
+            .iter()
+            .map(|entry| entry.path.as_str())
+            .collect();
+        let unexamined: Vec<&str> = denominator.difference(&covered).copied().collect();
+        if !unexamined.is_empty() {
+            return LedgerAssessment::Incomplete(format!(
+                "{} of {} analysis path(s) have no dispositioned variant entry (unexamined: {})",
+                unexamined.len(),
+                denominator.len(),
+                unexamined.join(", ")
+            ));
         }
         if self.unresolved > 0 {
             return LedgerAssessment::Incomplete(format!(
@@ -219,6 +325,7 @@ impl VariantLedger {
             "confirmed": self.confirmed,
             "rejected": self.rejected,
             "unresolved": self.unresolved,
+            "entryCount": self.entries.len(),
             "ledgerDigest": self.ledger_digest,
         })
     }
@@ -325,6 +432,55 @@ fn verify_followup_generation(
 
 /// (confirmed, rejected, rejection reasons) over every authenticated variant
 /// receipt of the follow-up run (single packet or every part).
+/// Paths of authenticated variant findings and of withdrawn findings, read
+/// from the MAC'd variant receipts. A finding without a path is a defect.
+pub(super) fn variant_receipt_paths(
+    run_dir: &Path,
+) -> Result<(BTreeSet<String>, BTreeSet<String>), AuditError> {
+    let dir = run_dir.join(LENS_RECEIPT_DIR);
+    let single = format!("{VARIANT_PROVIDER_ID}.json");
+    let prefix = format!("{VARIANT_PROVIDER_ID}.part-");
+    let path_of = |item: &Value| -> Option<String> {
+        item.pointer("/anchor/path")
+            .or_else(|| item.get("path"))
+            .or_else(|| item.get("file"))
+            .or_else(|| item.pointer("/location/path"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    };
+    let mut names = Vec::new();
+    for entry in fs::read_dir(&dir)
+        .map_err(|error| io(error, "could not list the variant receipts"))?
+        .filter_map(Result::ok)
+    {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name == single || (name.starts_with(&prefix) && name.ends_with(".json")) {
+            names.push(entry.path());
+        }
+    }
+    let (mut findings, mut withdrawn) = (BTreeSet::new(), BTreeSet::new());
+    for path in names {
+        let receipt = read_json(&path)?;
+        for (pointer, set) in [
+            ("/result/details/lensFindings", &mut findings),
+            ("/result/details/withdrawnFindings", &mut withdrawn),
+        ] {
+            for item in receipt
+                .pointer(pointer)
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                set.insert(
+                    path_of(item)
+                        .ok_or_else(|| invalid("variant receipt holds a finding without a path"))?,
+                );
+            }
+        }
+    }
+    Ok((findings, withdrawn))
+}
+
 pub(super) fn variant_receipt_counts(
     run_dir: &Path,
 ) -> Result<(u64, u64, Vec<String>), AuditError> {
@@ -396,10 +552,25 @@ pub(super) fn record_variant_pass(
         .and_then(Value::as_array)
         .map(|paths| paths.len() as u64)
         .ok_or_else(|| invalid("followupOf.analysisPaths is missing"))?;
+    let analysis_paths: Vec<String> = binding
+        .get("analysisPaths")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(ToOwned::to_owned)
+        .collect();
+    // An absent or null ledger is an empty (incomplete) submission, never a
+    // zero-complete one: counts are derived from the explicit entry list.
     let submitted = match result.get("variantLedger") {
         None | Some(Value::Null) => json!({}),
         Some(value) if value.is_object() => value.clone(),
         Some(_) => return Err(invalid("variantLedger must be an object")),
+    };
+    let entries: Vec<VariantEntry> = match submitted.get("entries") {
+        None | Some(Value::Null) => Vec::new(),
+        Some(value) => serde_json::from_value(value.clone())
+            .map_err(|error| invalid(format!("variantLedger.entries is invalid: {error}")))?,
     };
     let count = |name: &str| -> Result<u64, AuditError> {
         match submitted.get(name) {
@@ -416,8 +587,7 @@ pub(super) fn record_variant_pass(
         Err(error) => return Err(io(error, "could not read the variant ledger input")),
     };
     let key = part.map_or_else(|| "0".to_owned(), |number| number.to_string());
-    input["parts"][&key] =
-        json!({"unresolved": count("unresolved")?, "matched": count("matched")?});
+    input["parts"][&key] = json!({"entries": entries, "matched": count("matched")?});
     if input.get("rootCause").is_none() {
         let seeds = packet
             .get("variantSeeds")
@@ -459,7 +629,6 @@ pub(super) fn record_variant_pass(
             .to_owned()
     };
     let signature = root_cause_signature(&cause("rule"), &cause("sink"), &cause("missingControl"))?;
-    let (confirmed, rejected, rejection_reasons) = variant_receipt_counts(run_dir)?;
     let parts = input["parts"].as_object().cloned().unwrap_or_default();
     let sum = |name: &str| -> u64 {
         parts
@@ -467,11 +636,30 @@ pub(super) fn record_variant_pass(
             .map(|entry| entry.get(name).and_then(Value::as_u64).unwrap_or(0))
             .sum()
     };
-    let unresolved = sum("unresolved");
+    let all_entries: Vec<VariantEntry> = parts
+        .values()
+        .filter_map(|entry| entry.get("entries"))
+        .filter_map(|list| serde_json::from_value::<Vec<VariantEntry>>(list.clone()).ok())
+        .flatten()
+        .collect();
+    let tally = |wanted: VariantDisposition| {
+        all_entries
+            .iter()
+            .filter(|entry| entry.disposition == wanted)
+            .count() as u64
+    };
+    let confirmed = tally(VariantDisposition::Confirmed);
+    let rejected = tally(VariantDisposition::Rejected);
+    let unresolved = tally(VariantDisposition::Unresolved);
     let examined = confirmed
         .checked_add(rejected)
         .and_then(|total| total.checked_add(unresolved))
         .ok_or_else(|| invalid("variant ledger count overflow"))?;
+    let rejection_reasons: Vec<String> = all_entries
+        .iter()
+        .filter(|entry| entry.disposition == VariantDisposition::Rejected)
+        .map(|entry| entry.reason.clone())
+        .collect();
     let ledger = VariantLedger {
         root_cause_signature: signature,
         denominator_count: denominator,
@@ -481,6 +669,8 @@ pub(super) fn record_variant_pass(
         rejected,
         unresolved,
         rejection_reasons,
+        entries: all_entries,
+        analysis_paths,
         parent_plan_digest: text("parentPlanDigest")?,
         followup_plan_digest: seal_digest(plan, "follow-up plan.json")?,
         confirmed_digest: text("confirmedDigest")?,
@@ -1475,8 +1665,32 @@ fn check(
                 &digest_of_confirmed,
                 expected_analysis_paths.len() as u64,
             )?;
-            let (confirmed_receipts, rejected_receipts, _) = variant_receipt_counts(dir)?;
-            if ledger.confirmed != confirmed_receipts || ledger.rejected != rejected_receipts {
+            // Ledger entries are per-path dispositions; receipts carry
+            // findings. Compare like with like: the set of paths holding an
+            // authenticated variant finding must equal the set of paths the
+            // ledger marks confirmed, and every withdrawn finding's path must
+            // be dispositioned.
+            let (finding_paths, withdrawn_paths) = variant_receipt_paths(dir)?;
+            let confirmed_paths: BTreeSet<&str> = ledger
+                .entries
+                .iter()
+                .filter(|entry| entry.disposition == VariantDisposition::Confirmed)
+                .map(|entry| entry.path.as_str())
+                .collect();
+            let entry_paths: BTreeSet<&str> = ledger
+                .entries
+                .iter()
+                .map(|entry| entry.path.as_str())
+                .collect();
+            if confirmed_paths
+                != finding_paths
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<BTreeSet<_>>()
+                || withdrawn_paths
+                    .iter()
+                    .any(|path| !entry_paths.contains(path.as_str()))
+            {
                 return Err(invalid(
                     "variant ledger disagrees with the authenticated variant receipts",
                 ));

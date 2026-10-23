@@ -2,18 +2,26 @@
 //!
 //! `code.kotlin.detekt-source`, `code.kotlin.detekt-typed`, `code.android.lint`,
 //! `code.apple.targets`, `code.javascript.native` and `code.rust.targets` are
-//! planners and parsers: their modules launch nothing. This dispatcher binds
-//! each one to the frozen denominator, runs the planner over the frozen
-//! inventory (reading only digest-verified bytes), and reports the plan.
+//! planners and parsers: their modules launch nothing themselves. This
+//! dispatcher binds each one to the frozen denominator, runs the planner over
+//! the frozen inventory (reading only digest-verified bytes), and reports the
+//! plan.
 //!
 //! Boundaries kept deliberately:
 //!
-//! * No process is started here. Tool execution belongs to the sandboxed
-//!   `ExternalProjectTool` route behind SDK policy admission
-//!   (`OwnerAdmissionRequired` on the installed CLI). Until a plan-bound runner
-//!   consumes the runner records below and returns receipts, every provider
-//!   carries `unavailable:tool-not-run:<tool>` (or its own typed equivalent)
-//!   and is never complete.
+//! * Nothing runs unless an active host owner admits it. When the host supplies
+//!   an owner context, two launches may start here, and both are typed
+//!   `ExternalToolRequest`s submitted through the owner-backed executor, so
+//!   every one passes per-request owner admission (plan binding, policy pin and
+//!   digest, environment, roots, runtime closure, classification) before any
+//!   spawn: the pinned-JDK Gradle model extraction (`gradle_model`, project
+//!   executing, network denied) and the Xcode bridge (`xcode_bridge`). An
+//!   admission denial or missing pin is an explicit gap, never a raw launch.
+//!   Lint and test runners remain plans for the sandboxed `ExternalProjectTool`
+//!   route (`OwnerAdmissionRequired` on the installed CLI). Without an owner,
+//!   or until a plan-bound runner returns receipts, every provider carries
+//!   `unavailable:tool-not-run:<tool>` (or its own typed equivalent) and is
+//!   never complete.
 //! * Tool pins, Gradle build models, typed classpaths, Xcode obligations and
 //!   Rust target matrices are never minted from raw provider configuration
 //!   except for declarations that can only add obligations (Xcode obligations,
@@ -27,9 +35,11 @@
 
 use super::{
     android::{self, AndroidLintOptions, ExecutionRoute},
+    gradle_model::{self, ExtractedAndroidModel, GradlePins},
     javascript_native::{self, Linter, NativeLintOptions, NativeLinterPin},
     kotlin_detekt::{self, DetektMode, DetektOptions, DetektToolPin},
     rust_targets::{self, RustObligationKind, RustTargetMatrix},
+    xcode_bridge,
     xcode_targets::{self, SnapshotFiles, XcodeObligation},
     ProviderExecutorAdapter,
 };
@@ -45,8 +55,111 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::{Component, Path},
+    path::{Component, Path, PathBuf},
+    sync::{Arc, Mutex},
 };
+
+use crate::host_owner::OwnerRequestContext;
+use legion_provider_sdk::ExternalProjectTool;
+
+/// Result of one owner-contained Gradle model extraction (cached per plan).
+pub(super) type ModelExtraction = Result<ExtractedAndroidModel, Vec<String>>;
+
+/// Host-derived execution facts for one assurance provider run. Exists only
+/// when the run's scratch carries an owner request context (an active owner);
+/// every field comes from the host (policy, frozen plan, scratch roots), never
+/// from repository or provider-configuration input.
+pub(super) struct AssuranceHost {
+    ctx: Arc<OwnerRequestContext>,
+    plan_digest: String,
+    output_root: PathBuf,
+    /// The owner-backed executor: Gradle extraction is admitted per request.
+    tool: Arc<dyn ExternalProjectTool>,
+    gradle_pins: Option<GradlePins>,
+    apple_bridge: Option<Arc<dyn xcode_targets::AppleTargetBridge + Send + Sync>>,
+    model_cache: Arc<Mutex<BTreeMap<String, ModelExtraction>>>,
+}
+
+impl AssuranceHost {
+    pub(super) fn from_run(
+        wiring: &super::HostOwnerWiring,
+        root: Option<&Path>,
+        plan: &crate::FrozenPlan,
+        tool: Arc<dyn ExternalProjectTool>,
+        scratch: &crate::native_providers::legacy_checks::AuditScratch,
+    ) -> Option<Self> {
+        let ctx = scratch.owner_context()?;
+        let fallback_root = std::env::current_dir().ok();
+        let root = root.or(fallback_root.as_deref());
+        let gradle_tool = tool.clone();
+        let apple_bridge = wiring.apple_bridge.clone().or_else(|| {
+            let bridge = xcode_bridge::OwnedXcodeBridge::new(
+                tool,
+                ctx.clone(),
+                plan.digest(),
+                root?,
+                scratch.root(),
+                &scratch.artifacts_dir(),
+            )
+            .ok()?;
+            Some(Arc::new(bridge) as Arc<dyn xcode_targets::AppleTargetBridge + Send + Sync>)
+        });
+        Some(Self {
+            ctx,
+            plan_digest: plan.digest().to_owned(),
+            tool: gradle_tool,
+            output_root: scratch.root().to_path_buf(),
+            gradle_pins: wiring.gradle_pins.clone(),
+            apple_bridge,
+            model_cache: wiring.model_cache.clone(),
+        })
+    }
+}
+
+/// Run (once per plan) the owner-contained Gradle model extraction. Missing
+/// pins or an admission denial yield the extractor's explicit gaps; nothing runs then.
+fn extract_model(
+    host: &AssuranceHost,
+    root: Option<&Path>,
+    entries: &[InventoryEntry],
+) -> ModelExtraction {
+    if let Some(cached) = host
+        .model_cache
+        .lock()
+        .ok()
+        .and_then(|cache| cache.get(&host.plan_digest).cloned())
+    {
+        return cached;
+    }
+    let result = match root {
+        None => Err(vec![format!(
+            "{}:gradle-project-root-unreadable:no-root",
+            android::PROVIDER_ID
+        )]),
+        Some(root) => {
+            let output = host.output_root.join("gradle-model");
+            xcode_bridge::block_on(gradle_model::extract_android_model(
+                Some(host.ctx.as_ref()),
+                Some(host.tool.as_ref()),
+                &host.plan_digest,
+                root,
+                &output,
+                host.gradle_pins.as_ref(),
+                entries,
+            ))
+            .unwrap_or_else(|| {
+                Err(vec![format!(
+                    "{}:gradle-model-runtime-unavailable",
+                    android::PROVIDER_ID
+                )])
+            })
+        }
+    };
+    if let Ok(mut cache) = host.model_cache.lock() {
+        cache.insert(host.plan_digest.clone(), result.clone());
+    }
+    result
+}
 
 /// Largest single file the assurance dispatcher reads.
 pub const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
@@ -219,13 +332,25 @@ pub(super) fn execute_assurance(
     provider: &AuditProvider,
     inventory: &InventoryEnvelope,
 ) -> Option<Result<ProviderResult, AuditError>> {
-    is_assurance_provider(&provider.id).then(|| run(adapter, provider, inventory))
+    is_assurance_provider(&provider.id).then(|| run(adapter, provider, inventory, None))
+}
+
+/// As [`execute_assurance`], with the host-derived execution facts of an
+/// active owner (`None` keeps the plan-only, explicit-gap behaviour).
+pub(super) fn execute_assurance_hosted(
+    adapter: &ProviderExecutorAdapter,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    host: Option<&AssuranceHost>,
+) -> Option<Result<ProviderResult, AuditError>> {
+    is_assurance_provider(&provider.id).then(|| run(adapter, provider, inventory, host))
 }
 
 fn run(
     adapter: &ProviderExecutorAdapter,
     provider: &AuditProvider,
     inventory: &InventoryEnvelope,
+    host: Option<&AssuranceHost>,
 ) -> Result<ProviderResult, AuditError> {
     let selector = provider
         .configuration
@@ -256,16 +381,28 @@ fn run(
         .unwrap_or(Value::Null);
 
     let produced = match provider.id.as_str() {
-        kotlin_detekt::SOURCE_PROVIDER_ID => {
-            kotlin(DetektMode::Source, inventory, &denominator.entries)
+        kotlin_detekt::SOURCE_PROVIDER_ID => kotlin(
+            DetektMode::Source,
+            inventory,
+            &denominator.entries,
+            root,
+            None,
+        ),
+        kotlin_detekt::TYPED_PROVIDER_ID => kotlin(
+            DetektMode::Typed,
+            inventory,
+            &denominator.entries,
+            root,
+            host,
+        ),
+        android::PROVIDER_ID => android_lint(root, inventory, &denominator.entries, &input, host),
+        xcode_targets::PROVIDER_ID => {
+            apple_targets(root, inventory, &denominator.entries, &input, host)
         }
-        kotlin_detekt::TYPED_PROVIDER_ID => {
-            kotlin(DetektMode::Typed, inventory, &denominator.entries)
-        }
-        android::PROVIDER_ID => android_lint(root, inventory, &denominator.entries, &input),
-        xcode_targets::PROVIDER_ID => apple_targets(root, &denominator.entries, &input),
         javascript_native::PROVIDER_ID => javascript(root, inventory, &denominator.entries, &input),
-        rust_targets::PROVIDER_ID => rust_target_matrix(&denominator.entries, &input),
+        rust_targets::PROVIDER_ID => {
+            rust_target_matrix(root, inventory, &denominator.entries, &input)
+        }
         other => {
             return Err(AuditError::Provider(format!(
                 "unsupported native assurance provider: {other}"
@@ -321,6 +458,8 @@ fn kotlin(
     mode: DetektMode,
     inventory: &InventoryEnvelope,
     selected: &[InventoryEntry],
+    root: Option<&Path>,
+    host: Option<&AssuranceHost>,
 ) -> Produced {
     if selected.is_empty() {
         return Produced::NotApplicable {
@@ -330,19 +469,68 @@ fn kotlin(
     }
     // The pin catalog is root-owned; the unenrolled default has no
     // distribution digest, so the planner names `detekt-distribution-digest-missing`
-    // and plans no argv. Typed mode has no admitted classpath here.
+    // and plans no argv. Typed mode takes its classpath only from an
+    // owner-extracted Gradle model (never from repository input).
     let pin = DetektToolPin::pinned();
     let options = DetektOptions::default();
+    let mut model_gaps: Vec<String> = Vec::new();
     let plan = match mode {
         DetektMode::Source => kotlin_detekt::plan_source(&inventory.entries, &pin, &options),
         DetektMode::Typed => {
-            kotlin_detekt::plan_typed(&inventory.entries, &pin, &options, None, "", "")
+            let android_project = inventory
+                .entries
+                .iter()
+                .any(|entry| name_of(&entry.path) == "AndroidManifest.xml");
+            let mut chosen: Option<(kotlin_detekt::TypedClasspathEvidence, String, String)> = None;
+            if let (Some(host), true) = (host, android_project) {
+                match extract_model(host, root, &inventory.entries) {
+                    Err(gaps) => model_gaps.extend(gaps),
+                    Ok(extracted) => {
+                        model_gaps.extend(extracted.typed_gaps.iter().cloned());
+                        match extracted.typed.len() {
+                            1 => {
+                                if let Some((key, evidence)) = extracted.typed.iter().next() {
+                                    // Variant comes from the model key, target from the
+                                    // model's SDK identity: both checked against the
+                                    // evidence's own claims by `validate_typed_evidence`.
+                                    let variant =
+                                        key.rsplit(':').next().unwrap_or_default().to_owned();
+                                    let target = extracted
+                                        .model
+                                        .sdk
+                                        .as_ref()
+                                        .map(|sdk| format!("android-{}", sdk.compile_sdk))
+                                        .unwrap_or_default();
+                                    chosen = Some((evidence.clone(), target, variant));
+                                }
+                            }
+                            0 => {}
+                            count => model_gaps.push(format!(
+                                "{}:typed-classpath-ambiguous:{count}-variants",
+                                kotlin_detekt::TYPED_PROVIDER_ID
+                            )),
+                        }
+                    }
+                }
+            }
+            match &chosen {
+                Some((evidence, target, variant)) => kotlin_detekt::plan_typed(
+                    &inventory.entries,
+                    &pin,
+                    &options,
+                    Some(evidence),
+                    target,
+                    variant,
+                ),
+                None => kotlin_detekt::plan_typed(&inventory.entries, &pin, &options, None, "", ""),
+            }
         }
     };
     let mut out = Outcome {
         gaps: plan.gaps.clone(),
         ..Outcome::default()
     };
+    out.gaps.extend(model_gaps);
     out.unavailable
         .push(format!("tool-not-run:{}", kotlin_detekt::TOOL_ID));
     out.details.insert(
@@ -370,6 +558,7 @@ fn android_lint(
     inventory: &InventoryEnvelope,
     selected: &[InventoryEntry],
     input: &Value,
+    host: Option<&AssuranceHost>,
 ) -> Produced {
     if selected.is_empty() {
         return Produced::NotApplicable {
@@ -402,20 +591,38 @@ fn android_lint(
         .and_then(Value::as_str)
         .and_then(AuditProfile::parse)
         .unwrap_or(AuditProfile::Repository);
-    // No Gradle model producer is enrolled and no execution is admitted:
-    // `None` yields `android-model-missing` for an applicable project.
+    // Without an active owner no Gradle model producer is enrolled and no
+    // execution is admitted: `None` yields `android-model-missing` for an
+    // applicable project. With an owner, the model is extracted under owner
+    // containment from host-policy pins (absent pins/process stay gaps).
     let options = AndroidLintOptions::new(profile, ExecutionRoute::NotAdmitted);
-    let plan = android::plan_lint(&inventory.entries, &build_texts, None, &options);
-    if !plan.is_applicable() {
+    let base = android::plan_lint(&inventory.entries, &build_texts, None, &options);
+    if !base.is_applicable() {
         return Produced::NotApplicable {
             subject: "android",
             reason: "no-android-files-in-inventory".into(),
         };
     }
+    let extraction = host.map(|host| extract_model(host, root, &inventory.entries));
+    let plan = match &extraction {
+        Some(Ok(extracted)) => {
+            android::plan_with_owner(&inventory.entries, &build_texts, Ok(extracted), &options)
+        }
+        Some(Err(gaps)) => android::plan_with_owner(
+            &inventory.entries,
+            &build_texts,
+            Err(gaps.as_slice()),
+            &options,
+        ),
+        None => base,
+    };
     let mut out = Outcome {
         examined: build_texts.len() as u64,
         ..Outcome::default()
     };
+    if let Some(Ok(extracted)) = &extraction {
+        out.gaps.extend(extracted.typed_gaps.iter().cloned());
+    }
     out.gaps.extend(plan.gaps.iter().cloned());
     out.gaps.extend(plan.applicability.gaps.iter().cloned());
     out.gaps
@@ -443,6 +650,7 @@ fn android_lint(
             "executed": false,
             "profile": profile.as_str(),
             "route": "not-admitted",
+            "modelExtracted": matches!(extraction, Some(Ok(_))),
             "applicability": plan.applicability.reasons,
             "manifests": plan.applicability.manifests,
             "obligations": plan.obligations.len(),
@@ -454,7 +662,13 @@ fn android_lint(
 
 // ----------------------------------------------------------------- Apple
 
-fn apple_targets(root: Option<&Path>, selected: &[InventoryEntry], input: &Value) -> Produced {
+fn apple_targets(
+    root: Option<&Path>,
+    inventory: &InventoryEnvelope,
+    selected: &[InventoryEntry],
+    input: &Value,
+    host: Option<&AssuranceHost>,
+) -> Produced {
     if selected.is_empty() {
         return Produced::NotApplicable {
             subject: "xcode",
@@ -477,7 +691,26 @@ fn apple_targets(root: Option<&Path>, selected: &[InventoryEntry], input: &Value
     out.examined = read.files.len() as u64;
     out.gaps.extend(skip_gaps(id, &read.skips));
     let files: SnapshotFiles = read.files;
-    let analysis = xcode_targets::analyze_targets(&files, &obligations);
+    let mut analysis = xcode_targets::analyze_targets(&files, &obligations);
+    // The evidence context is derived on the host. A repository- or
+    // configuration-supplied `xcodeEvidenceContext` is never read.
+    if input
+        .get("xcodeEvidenceContext")
+        .is_some_and(|v| !v.is_null())
+    {
+        out.gaps
+            .push(format!("{id}:input-ignored:xcodeEvidenceContext"));
+    }
+    let discharged = host.is_some_and(|host| {
+        discharge_apple_obligations(
+            &files,
+            &obligations,
+            inventory,
+            host,
+            &mut analysis,
+            &mut out,
+        )
+    });
     coded_gaps(
         analysis
             .get("inventory")
@@ -516,17 +749,110 @@ fn apple_targets(root: Option<&Path>, selected: &[InventoryEntry], input: &Value
             &mut out.gaps,
         );
     }
-    out.unavailable.push("apple-bridge-unconfigured".into());
+    if !discharged {
+        out.unavailable.push("apple-bridge-unconfigured".into());
+    }
     out.details.insert("nativeAnalysis".into(), analysis);
     out.details.insert(
         "nativeProducer".into(),
         json!({
-            "mode": "static-inventory",
-            "executed": false,
+            "mode": if discharged { "host-executed" } else { "static-inventory" },
+            "executed": discharged,
             "declaredObligations": obligations.len(),
         }),
     );
     Produced::Done(out)
+}
+
+/// Run each declared obligation through the adapter's owner-backed Apple
+/// bridge. The expected-evidence context is derived here from the frozen
+/// inventory (repository/snapshot digests) and the host-policy xcodebuild pin
+/// (toolchain version, executable digest) plus the obligation's own canonical
+/// command; repository or configuration input never supplies it. Without a
+/// bridge (or without a host pin) nothing runs and `false` is returned so the
+/// caller keeps the `apple-bridge-unconfigured` gap. Unmet outcomes keep their
+/// bridge gaps.
+fn discharge_apple_obligations(
+    files: &SnapshotFiles,
+    obligations: &[XcodeObligation],
+    envelope: &InventoryEnvelope,
+    host: &AssuranceHost,
+    analysis: &mut Value,
+    out: &mut Outcome,
+) -> bool {
+    use crate::artifact_evidence::{RepositoryBinding, TrustEnrollment, UnconfiguredVerifier};
+    let id = xcode_targets::PROVIDER_ID;
+    let Some(bridge) = host.apple_bridge.clone() else {
+        return false;
+    };
+    if obligations.is_empty() {
+        return false;
+    }
+    let Some((xcodebuild_version, xcodebuild_digest)) = bridge.host_binding() else {
+        out.gaps.push(format!("{id}:xcodebuild-host-pin-missing"));
+        return false;
+    };
+    let binding = xcode_targets::HostEvidenceBinding {
+        repositories: vec![RepositoryBinding {
+            repository_id: envelope.repository_id.clone(),
+            revision: envelope.generation.clone(),
+            branch: None,
+            snapshot_digest: envelope.digest.clone(),
+        }],
+        xcodebuild_version,
+        xcodebuild_digest,
+    };
+    let inventory = xcode_targets::inventory_xcode(files);
+    let trust = TrustEnrollment {
+        schema_version: 1,
+        issuers: Vec::new(),
+    };
+    let now = crate::p12_pipeline::store::utc_now();
+    let mut outcomes = BTreeMap::new();
+    for obligation in obligations {
+        let coverage = xcode_targets::evaluate_static(&inventory, files, obligation);
+        let context = match xcode_targets::host_expected_context(obligation, &coverage, &binding) {
+            Ok(context) => context,
+            Err(gap) => {
+                out.gaps
+                    .push(format!("{id}:bridge:{}:{}", obligation.id, clip(&gap.code)));
+                continue;
+            }
+        };
+        let outcome = xcode_targets::discharge_via_bridge(
+            bridge.as_ref(),
+            obligation,
+            &coverage,
+            &context,
+            &trust,
+            &UnconfiguredVerifier,
+            &now,
+        );
+        for gap in &outcome.gaps {
+            out.gaps
+                .push(format!("{id}:bridge:{}:{}", obligation.id, clip(&gap.code)));
+        }
+        outcomes.insert(obligation.id.clone(), outcome);
+    }
+    if let Some(rows) = analysis
+        .get_mut("obligations")
+        .and_then(Value::as_array_mut)
+    {
+        for row in rows {
+            let Some(outcome) = row
+                .get("id")
+                .and_then(Value::as_str)
+                .and_then(|row_id| outcomes.get(row_id))
+            else {
+                continue;
+            };
+            if let (Some(map), Ok(value)) = (row.as_object_mut(), serde_json::to_value(outcome)) {
+                map.insert("status".into(), json!(outcome.status));
+                map.insert("bridge".into(), value);
+            }
+        }
+    }
+    true
 }
 
 // ------------------------------------------------------------ JavaScript
@@ -597,7 +923,12 @@ fn javascript(
 
 // ------------------------------------------------------------ Rust targets
 
-fn rust_target_matrix(selected: &[InventoryEntry], input: &Value) -> Produced {
+fn rust_target_matrix(
+    root: Option<&Path>,
+    inventory: &InventoryEnvelope,
+    selected: &[InventoryEntry],
+    input: &Value,
+) -> Produced {
     if selected.is_empty() {
         return Produced::NotApplicable {
             subject: "rust-manifest",
@@ -608,9 +939,20 @@ fn rust_target_matrix(selected: &[InventoryEntry], input: &Value) -> Produced {
     let mut out = Outcome::default();
     // The matrix is a product declaration (it can only add obligations);
     // evidence for each obligation arrives only as authenticated imports.
+    // Repository declaration (`.legion/rust-targets.json`) when the host gave
+    // no matrix; read only through the frozen, digest-checked inventory.
+    let declarations =
+        crate::runtime_obligations::RuntimeDeclarations::from_inventory(inventory, |path| {
+            let entry = inventory.entries.iter().find(|entry| entry.path == path)?;
+            read_frozen(root, [entry], MAX_FILE_BYTES, MAX_FILE_BYTES)
+                .files
+                .remove(path)
+        });
+    out.gaps
+        .extend(declarations.gaps_for_stack(crate::runtime_obligations::Stack::RustCore));
     let matrix = match input_field::<RustTargetMatrix>(input, "rustTargetMatrix") {
         Ok(Some(matrix)) => matrix,
-        Ok(None) => RustTargetMatrix::default(),
+        Ok(None) => declarations.rust_matrix.clone().unwrap_or_default(),
         Err(_) => {
             out.gaps
                 .push(format!("{id}:input-invalid:rustTargetMatrix"));

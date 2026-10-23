@@ -137,7 +137,12 @@ impl GitRunner {
             return Err(invalid("Git scope command is not read-only allowlisted"));
         }
         if args.first().copied() == Some("diff") {
-            let mut safe_args = vec!["diff", "--no-ext-diff", "--no-textconv"];
+            let mut safe_args = vec![
+                "diff",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--ignore-submodules=all",
+            ];
             safe_args.extend_from_slice(&args[1..]);
             self.invoke("git", &safe_args)
         } else {
@@ -145,36 +150,33 @@ impl GitRunner {
         }
     }
     fn invoke(&self, executable: &str, args: &[&str]) -> Result<Vec<u8>, AuditError> {
-        let mut command = rightkit_child_process::OwnedCommand::new(executable);
-        command.env_allowlist([
-            "PATH",
-            "SystemRoot",
-            "WINDIR",
-            "TMP",
-            "TEMP",
-            "HOME",
-            "USERPROFILE",
-            "APPDATA",
-            "LOCALAPPDATA",
-            "GH_CONFIG_DIR",
-            "GH_TOKEN",
-            "GITHUB_TOKEN",
-        ]);
-        if executable == "git" {
-            command.command_mut().args([
-                "--no-optional-locks",
-                "-c",
-                "core.fsmonitor=false",
-                "-c",
-                "gc.auto=0",
-                "-c",
-                "diff.external=",
-                "-c",
-                "core.hooksPath=/dev/null",
-                "-c",
-                "core.quotePath=false",
-            ]);
-        }
+        let mut command = if executable == "git" {
+            // Trusted absolute git outside the audited root, scrubbed env and
+            // config-execution denial; unavailable trusted git fails closed.
+            crate::trusted_git::owned_command(&self.root)
+                .ok_or_else(|| invalid("scope Git unavailable: no trusted git binary"))?
+        } else {
+            // Trusted absolute helper (never PATH/repo-local), scrubbed env that
+            // admits only OS essentials, gh config location and gh token names.
+            crate::trusted_git::owned_tool_command(
+                &self.root,
+                executable,
+                &[
+                    "SystemRoot",
+                    "WINDIR",
+                    "TMP",
+                    "TEMP",
+                    "HOME",
+                    "USERPROFILE",
+                    "APPDATA",
+                    "LOCALAPPDATA",
+                    "GH_CONFIG_DIR",
+                    "GH_TOKEN",
+                    "GITHUB_TOKEN",
+                ],
+            )
+            .ok_or_else(|| invalid(format!("scope {executable} unavailable: no trusted binary")))?
+        };
         command
             .command_mut()
             .current_dir(&self.root)
@@ -395,7 +397,12 @@ fn acquire_pr(git: &GitRunner, selector: &str) -> Result<AcquiredPr, AuditError>
         objects
             .invoke(
                 "git",
+                // The hardened launcher denies every transport; this one fetch,
+                // into a store the audit built itself with global/system
+                // config nulled, may use https to github.com only.
                 &[
+                    "-c",
+                    "protocol.https.allow=always",
                     "fetch",
                     "--no-tags",
                     "--no-write-fetch-head",
@@ -598,11 +605,15 @@ impl ResolvedScope {
         let head = git.oid("HEAD")?;
         let index = index_entries(&git)?;
         let index_digest = crate::digest(&index)?;
+        // `--ignore-submodules=all`: git never runs status inside a submodule
+        // (whose own filter config is not neutralized); the gitlink itself is
+        // covered by the index digest above.
         let status_digest = crate::digest(&filtered_status(&git.run(&[
             "status",
             "--porcelain=v2",
             "-z",
             "--untracked-files=all",
+            "--ignore-submodules=all",
         ])?)?)?;
         let untracked_paths =
             names(&git.run(&["ls-files", "--others", "--exclude-standard", "-z"])?)?;

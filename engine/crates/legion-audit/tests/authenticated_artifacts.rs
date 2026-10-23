@@ -12,6 +12,9 @@ use legion_audit::artifact_evidence::{
     ArtifactEvidenceEnvelope, ExecutionMode, ExpectedEvidence, ProvenanceVerifier, ReplayPolicy,
     TrustEnrollment, UnconfiguredVerifier, VerifiedIssuer,
 };
+use legion_audit::evidence_issuers::{
+    evidence_attestation_message, key_id_for, HostEvidenceVerifier, TRUST_ROOT_ID,
+};
 use legion_audit::native_providers::security::imported_sarif::{ingest_sarif, SarifAuthentication};
 use serde_json::{json, Value};
 
@@ -378,4 +381,248 @@ fn exported_projection_redacts_secret_spellings_but_keeps_digest() {
         .is_some_and(|digest| digest.starts_with("sha256:")));
     assert!(!exported.to_string().contains("do-not-export"));
     assert_eq!(exported["evidenceId"], json!("node-ci-test-2026-10-23-001"));
+}
+
+// ---- Host-enrolled Ed25519 issuer verification ----
+
+const SEED: [u8; 32] = [7u8; 32];
+
+fn issuers_json(public_hex: &str, repos: &[&str], workflow: &str, subject: &str) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "schemaVersion": 1,
+        "issuers": [{
+            "issuerId": "ci.example.invalid",
+            "publicKey": public_hex,
+            "allowedRepositories": repos,
+            "allowedWorkflows": [workflow],
+            "allowedSubjects": [subject],
+        }]
+    }))
+    .unwrap()
+}
+
+fn signed_envelope(seed: [u8; 32]) -> (ArtifactEvidenceEnvelope, Vec<u8>, String) {
+    use ed25519_dalek::{Signer, SigningKey};
+    let enrolled = SigningKey::from_bytes(&SEED).verifying_key();
+    let mut value = read_json("node-ci/envelope.json");
+    value["issuer"]["trustRootId"] = json!(TRUST_ROOT_ID);
+    value["issuer"]["keyId"] = json!(key_id_for(&hex::encode(enrolled.to_bytes())).unwrap());
+    let mut envelope = ArtifactEvidenceEnvelope::from_value(&value).unwrap();
+    let claims = envelope.canonical_claims_digest().unwrap();
+    let signing = SigningKey::from_bytes(&seed);
+    let signature = hex::encode(
+        signing
+            .sign(&evidence_attestation_message(&claims))
+            .to_bytes(),
+    );
+    let digest = {
+        use sha2::{Digest, Sha256};
+        format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(signature.as_bytes()))
+        )
+    };
+    envelope.issuer.attestation_digest = digest;
+    (envelope, signature.into_bytes(), claims)
+}
+
+fn host_verifier(
+    repos: &[&str],
+    workflow: &str,
+    subject: &str,
+) -> (HostEvidenceVerifier, TrustEnrollment) {
+    let public = hex::encode(
+        ed25519_dalek::SigningKey::from_bytes(&SEED)
+            .verifying_key()
+            .to_bytes(),
+    );
+    HostEvidenceVerifier::from_bytes(&issuers_json(&public, repos, workflow, subject)).unwrap()
+}
+
+fn run(
+    envelope: &ArtifactEvidenceEnvelope,
+    attestation: &[u8],
+    verifier: &HostEvidenceVerifier,
+    trust: &TrustEnrollment,
+    now: &str,
+    expected: &ExpectedEvidence,
+) -> legion_audit::artifact_evidence::ImportVerdict {
+    verify_artifact_evidence(
+        envelope,
+        &raw_for(envelope),
+        attestation,
+        expected,
+        trust,
+        verifier,
+        now,
+    )
+}
+
+fn allowed(envelope: &ArtifactEvidenceEnvelope) -> (HostEvidenceVerifier, TrustEnrollment) {
+    host_verifier(
+        &["web", "api"],
+        &envelope.subject.command.adapter_id,
+        &envelope.subject.target,
+    )
+}
+
+#[test]
+fn enrolled_signed_envelope_satisfies_matching_obligation() {
+    let (envelope, attestation, _) = signed_envelope(SEED);
+    let (verifier, trust) = allowed(&envelope);
+    let verdict = run(
+        &envelope,
+        &attestation,
+        &verifier,
+        &trust,
+        NOW,
+        &expected_for(&envelope),
+    );
+    assert!(verdict.reasons.is_empty(), "{:?}", verdict.reasons);
+    assert!(verdict.authenticated && verdict.satisfies_obligation);
+}
+
+fn reasons_of(verdict: &legion_audit::artifact_evidence::ImportVerdict) -> String {
+    verdict.reasons.join(",")
+}
+
+#[test]
+fn wrong_signing_key_is_unmet_with_named_reason() {
+    let (envelope, attestation, _) = signed_envelope([9u8; 32]);
+    let (verifier, trust) = allowed(&envelope);
+    let verdict = run(
+        &envelope,
+        &attestation,
+        &verifier,
+        &trust,
+        NOW,
+        &expected_for(&envelope),
+    );
+    assert!(!verdict.satisfies_obligation && !verdict.authenticated);
+    assert!(
+        reasons_of(&verdict).contains("signature-invalid"),
+        "{:?}",
+        verdict.reasons
+    );
+}
+
+#[test]
+fn unenrolled_issuer_is_unmet() {
+    let (mut envelope, attestation, _) = signed_envelope(SEED);
+    envelope.issuer.issuer_id = "rogue.example.invalid".into();
+    let (verifier, trust) = allowed(&envelope);
+    let verdict = run(
+        &envelope,
+        &attestation,
+        &verifier,
+        &trust,
+        NOW,
+        &expected_for(&envelope),
+    );
+    assert!(!verdict.satisfies_obligation);
+    assert!(
+        reasons_of(&verdict).contains("untrusted-issuer"),
+        "{:?}",
+        verdict.reasons
+    );
+}
+
+#[test]
+fn repository_supplied_enrollment_is_refused() {
+    let dir = std::env::temp_dir().join(format!("legion-issuers-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("audit-evidence-issuers.json");
+    let public = hex::encode(
+        ed25519_dalek::SigningKey::from_bytes(&SEED)
+            .verifying_key()
+            .to_bytes(),
+    );
+    fs::write(&path, issuers_json(&public, &["web"], "w", "t")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let canonical = fs::canonicalize(&path).unwrap();
+    // The audited root contains the enrollment file: refused, never loaded.
+    let refused = HostEvidenceVerifier::load(&canonical, &[fs::canonicalize(&dir).unwrap()]);
+    assert!(refused.is_err(), "repo-supplied enrollment must be refused");
+    // Loose permissions are refused too.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        let other = std::env::temp_dir().join("legion-issuers-elsewhere-root");
+        fs::create_dir_all(&other).unwrap();
+        let loose = HostEvidenceVerifier::load(&canonical, &[fs::canonicalize(&other).unwrap()]);
+        assert!(loose.is_err());
+    }
+    // Absent file: unchanged (None).
+    assert!(HostEvidenceVerifier::load(&dir.join("absent.json"), &[])
+        .unwrap()
+        .is_none());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn wrong_subject_and_disallowed_scope_are_unmet() {
+    let (envelope, attestation, _) = signed_envelope(SEED);
+    // Expectation names a different target.
+    let (verifier, trust) = allowed(&envelope);
+    let mut wrong = expected_for(&envelope);
+    wrong.target = "other-target".into();
+    let verdict = run(&envelope, &attestation, &verifier, &trust, NOW, &wrong);
+    assert!(reasons_of(&verdict).contains("target-mismatch"));
+    assert!(!verdict.satisfies_obligation);
+    // Issuer not allowed for the claimed repository set.
+    let (verifier, trust) = host_verifier(
+        &["web"],
+        &envelope.subject.command.adapter_id,
+        &envelope.subject.target,
+    );
+    let verdict = run(
+        &envelope,
+        &attestation,
+        &verifier,
+        &trust,
+        NOW,
+        &expected_for(&envelope),
+    );
+    assert!(reasons_of(&verdict).contains("repository-not-allowed-for-issuer"));
+    assert!(!verdict.satisfies_obligation);
+}
+
+#[test]
+fn stale_evidence_is_unmet() {
+    let (envelope, attestation, _) = signed_envelope(SEED);
+    let (verifier, trust) = allowed(&envelope);
+    let verdict = run(
+        &envelope,
+        &attestation,
+        &verifier,
+        &trust,
+        "2099-01-01T00:00:00Z",
+        &expected_for(&envelope),
+    );
+    assert!(!verdict.satisfies_obligation);
+    assert!(
+        reasons_of(&verdict).contains("evidence-stale"),
+        "{:?}",
+        verdict.reasons
+    );
+}
+
+#[test]
+fn replayed_envelope_in_the_same_run_is_unmet() {
+    let (envelope, attestation, _) = signed_envelope(SEED);
+    let (verifier, trust) = allowed(&envelope);
+    let expected = expected_for(&envelope);
+    assert!(run(&envelope, &attestation, &verifier, &trust, NOW, &expected).satisfies_obligation);
+    let second = run(&envelope, &attestation, &verifier, &trust, NOW, &expected);
+    assert!(!second.satisfies_obligation);
+    assert!(
+        reasons_of(&second).contains("replayed-evidence"),
+        "{:?}",
+        second.reasons
+    );
 }

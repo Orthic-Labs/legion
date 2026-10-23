@@ -1214,9 +1214,22 @@ impl<'a> Run<'a> {
             }));
         }
         let files: Vec<String> = self.entries().map(|entry| entry.path.clone()).collect();
+        // A08 inventory over the frozen lock inputs, advisory source = this scan.
+        let inventory_artifact = dependency_osv::frozen_inventory_artifact(
+            self.root(),
+            self.inventory,
+            Some((
+                &output,
+                &format!("local-cache:{database_files}-files"),
+                &database_digest,
+            )),
+        );
         Production::Artifact(self.input(
             &files,
-            json!({"dependencyReceipts": receipts}),
+            json!({
+                "dependencyReceipts": receipts,
+                dependency_osv::INVENTORY_ARTIFACT: inventory_artifact,
+            }),
             run.producer(),
         ))
     }

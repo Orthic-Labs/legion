@@ -77,7 +77,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:516edd5d180fbebfb903be1f4f1b50330a72beead6d2bdb0af46bb708557f4d7"
+      "digest": "sha256:89170f0e2ba569d4586c28da4dc29e6d2326f1dc148d4c95e2aa174a73062871"
     },
     {
       "path": "agents/openai.yaml",
@@ -92,7 +92,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://audit/evals/evals.json",
-      "digest": "sha256:43c81d6790942465831353e1877d74d03361e60ada88c48c02a51a756c0dac90"
+      "digest": "sha256:acc533ea981756b965c60057253d1d38095ee35319e202687300ede0fc8a1287"
     },
     {
       "path": "evals/patterns/cases.json",
@@ -122,12 +122,12 @@
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:2cbb8e44b3ac04abcb0236744db480852f8edd8f3f243a073fc51ed0b37a64c7"
+      "digest": "sha256:7ccfa1f9554a66c3b2e1e5a199d5647b60bb5160dc5fb47b85913fcf20de2c7f"
     },
     {
       "path": "references/execution-contract.md",
       "uri": "legion-skill://audit/references/execution-contract.md",
-      "digest": "sha256:ac041d90085e083fd4cc1ba4aa98717e05e93104db955c30290293e940853515"
+      "digest": "sha256:a7a9d94136d983cbfda2d41c7d3f3d1a82f1befb2e2e108a78cd9d07d2e45cbe"
     },
     {
       "path": "references/lens-cues.md",
@@ -172,7 +172,7 @@
     {
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
-      "digest": "sha256:0629d4d74317809af6d41c9f32c4be2cd247c1d7a0f0741ea93b6b30e77674f6"
+      "digest": "sha256:bd6cddaba39c740f0d700539d968d11dc06d7a0635b9751ab752c54756eb8f3e"
     },
     {
       "path": "references/reasoning-runtime.md",
