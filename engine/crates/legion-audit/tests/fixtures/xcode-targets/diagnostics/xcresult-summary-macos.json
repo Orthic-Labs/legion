@@ -1,0 +1,10 @@
+{
+  "result" : "Passed",
+  "totalTestCount" : 12,
+  "passedTests" : 12,
+  "failedTests" : 0,
+  "skippedTests" : 0,
+  "devicesAndConfigurations" : [
+    { "device" : { "platform" : "macOS", "osVersion" : "15.2", "deviceName" : "Mac" } }
+  ]
+}

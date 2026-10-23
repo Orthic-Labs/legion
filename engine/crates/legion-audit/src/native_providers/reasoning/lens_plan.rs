@@ -774,7 +774,7 @@ mod tests {
             .iter()
             .all(|card| card["ownerLens"] == "correctness"));
 
-        let architecture = lens_plan_packet_value("reasoning.architecture").expect("plan");
-        assert_eq!(architecture["patternCards"].as_array().unwrap().len(), 0);
+        let naming = lens_plan_packet_value("reasoning.naming").expect("plan");
+        assert_eq!(naming["patternCards"].as_array().unwrap().len(), 0);
     }
 }

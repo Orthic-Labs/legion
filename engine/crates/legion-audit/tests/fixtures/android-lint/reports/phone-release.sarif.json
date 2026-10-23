@@ -1,0 +1,19 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "Android Lint", "version": "31.5.0"}},
+      "results": [
+        {
+          "ruleId": "HardcodedText",
+          "level": "warning",
+          "message": {"text": "Hardcoded string \"Hello\""},
+          "locations": [{"physicalLocation": {
+            "artifactLocation": {"uri": "app/src/main/res/layout/activity_main.xml"},
+            "region": {"startLine": 7, "startColumn": 9}
+          }}]
+        }
+      ]
+    }
+  ]
+}

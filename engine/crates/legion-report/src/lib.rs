@@ -10,6 +10,7 @@ pub mod markdown;
 pub mod ponytail;
 pub mod review;
 pub mod sarif;
+pub mod trend;
 
 pub use error::ReportError;
 

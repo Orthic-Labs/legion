@@ -1,0 +1,14 @@
+{
+  "providerVersion": "1.2.3",
+  "ruleProfileRevision": "rev-8",
+  "tool": "example-tool",
+  "toolVersion": "4.5.6",
+  "configDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "platform": "macos-15",
+  "toolchain": "rustc-1.90",
+  "target": "aarch64-apple-darwin",
+  "variant": "release",
+  "features": ["default"],
+  "implementationDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "sourceClosureDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

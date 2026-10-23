@@ -1,0 +1,36 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "detekt",
+          "version": "1.23.8",
+          "rules": [
+            { "id": "detekt.coroutines.GlobalCoroutineUsage" },
+            { "id": "detekt.compose.CompositionLocalAllowlist" }
+          ]
+        }
+      },
+      "invocations": [{ "executionSuccessful": true }],
+      "artifacts": [
+        { "location": { "uri": "app/src/main/kotlin/com/example/Answer.kt" } }
+      ],
+      "results": [
+        {
+          "ruleId": "detekt.coroutines.GlobalCoroutineUsage",
+          "level": "warning",
+          "message": { "text": "GlobalScope usage is forbidden" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "app/src/main/kotlin/com/example/Answer.kt" },
+                "region": { "startLine": 4, "startColumn": 5, "endLine": 4, "endColumn": 24 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

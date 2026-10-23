@@ -1,0 +1,10 @@
+{
+  "result" : "Passed",
+  "totalTestCount" : 12,
+  "passedTests" : 12,
+  "failedTests" : 0,
+  "skippedTests" : 0,
+  "devicesAndConfigurations" : [
+    { "device" : { "platform" : "iOS Simulator", "osVersion" : "18.2", "deviceName" : "iPhone 16" } }
+  ]
+}

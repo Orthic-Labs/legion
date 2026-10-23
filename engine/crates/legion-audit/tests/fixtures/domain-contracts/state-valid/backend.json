@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "terms": [
+    {
+      "namespace": "orders",
+      "id": "status",
+      "version": "1.0.0",
+      "owner": "platform-team",
+      "authority": "architecture-board",
+      "meaning": "status",
+      "externalConsumersEnumerated": true,
+      "semantics": {
+        "kind": "state"
+      },
+      "states": [
+        "pending",
+        "paid",
+        "shipped",
+        "cancelled"
+      ],
+      "transitions": [
+        {
+          "from": "pending",
+          "to": "paid"
+        },
+        {
+          "from": "paid",
+          "to": "shipped"
+        },
+        {
+          "from": "pending",
+          "to": "cancelled"
+        }
+      ],
+      "consumers": [
+        {
+          "repositoryId": "storefront"
+        }
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "termId": "orders/status",
+      "termVersion": "1.0.0",
+      "repositoryId": "backend",
+      "role": "producer",
+      "surface": "api",
+      "symbol": "status",
+      "evidence": [
+        {
+          "path": "src/status.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "states": [
+        "pending",
+        "paid",
+        "shipped",
+        "cancelled"
+      ],
+      "transitions": [
+        {
+          "from": "pending",
+          "to": "paid"
+        },
+        {
+          "from": "paid",
+          "to": "shipped"
+        },
+        {
+          "from": "pending",
+          "to": "cancelled"
+        }
+      ],
+      "semantics": {
+        "kind": "state"
+      }
+    }
+  ]
+}

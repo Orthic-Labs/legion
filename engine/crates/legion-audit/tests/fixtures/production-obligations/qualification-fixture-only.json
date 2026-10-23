@@ -1,0 +1,13 @@
+{
+  "providerId": "fixture.provider",
+  "providerVersion": "1.0.0",
+  "host": "macos-arm64",
+  "toolchain": "rustc-1.90",
+  "target": "aarch64-apple-darwin",
+  "variant": "release",
+  "features": [],
+  "evidenceBasis": "fixture",
+  "fixtureScope": "constructed planted and clean controls only",
+  "freshUntil": "2026-01-01T00:00:00Z",
+  "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

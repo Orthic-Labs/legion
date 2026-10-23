@@ -1,0 +1,52 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "detekt",
+          "version": "1.23.8",
+          "informationUri": "https://detekt.dev",
+          "rules": [
+            { "id": "detekt.empty-blocks.EmptyCatchBlock" },
+            { "id": "detekt.style.MagicNumber" }
+          ]
+        }
+      },
+      "invocations": [{ "executionSuccessful": true }],
+      "artifacts": [
+        { "location": { "uri": "app/src/main/kotlin/com/example/Answer.kt" } },
+        { "location": { "uri": "app/src/main/kotlin/com/example/Smelly.kt" } }
+      ],
+      "results": [
+        {
+          "ruleId": "detekt.empty-blocks.EmptyCatchBlock",
+          "level": "warning",
+          "message": { "text": "Empty catch block detected" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "app/src/main/kotlin/com/example/Smelly.kt" },
+                "region": { "startLine": 7, "startColumn": 9, "endLine": 8, "endColumn": 10 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "detekt.style.MagicNumber",
+          "level": "warning",
+          "message": { "text": "This expression contains a magic number" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "app/src/main/kotlin/com/example/Smelly.kt" },
+                "region": { "startLine": 11, "startColumn": 30, "endLine": 11, "endColumn": 35 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

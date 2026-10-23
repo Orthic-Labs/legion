@@ -11,9 +11,12 @@ pub mod docs_contract;
 pub mod evidence;
 pub mod framework;
 pub mod frontend;
+pub mod nginx;
+pub mod postgres;
 pub mod producer;
 pub mod report_compatibility;
 pub mod requirements;
+pub mod structure;
 pub mod test_quality;
 
 pub use common::Analysis;

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "profile": {
+    "profile": "release",
+    "revision": "rev-1",
+    "runtimeConstraint": "no-node-python",
+    "mandatoryEvidenceKinds": [
+      "provider-execution",
+      "test",
+      "build",
+      "runtime",
+      "artifact",
+      "review"
+    ]
+  },
+  "runtimeConstraint": "no-node-python",
+  "productTarget": {
+    "product": "fixture-app",
+    "snapshots": [
+      {
+        "repositoryId": "fixture-repo",
+        "snapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "target": "aarch64-apple-darwin",
+    "variant": "release"
+  },
+  "obligations": [
+    {
+      "id": {
+        "product": "fixture-app",
+        "snapshots": [
+          {
+            "repositoryId": "fixture-repo",
+            "snapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "target": "aarch64-apple-darwin",
+        "variant": "release",
+        "concern": "source-static",
+        "evidenceKind": "provider-execution",
+        "ruleProfileRevision": "rev-1"
+      },
+      "requiredIn": ["release"],
+      "providerIds": ["fixture.provider"],
+      "status": "satisfied",
+      "evidenceRefs": [
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "id": {
+        "product": "fixture-app",
+        "snapshots": [
+          {
+            "repositoryId": "fixture-repo",
+            "snapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "target": "aarch64-apple-darwin",
+        "variant": "release",
+        "concern": "runtime-journey",
+        "evidenceKind": "runtime",
+        "ruleProfileRevision": "rev-1"
+      },
+      "requiredIn": ["release"],
+      "status": "waived",
+      "reason": "waived-by-owner: not executed",
+      "waiver": {
+        "grantedBy": "owner:adrian",
+        "rationale": "device lab unavailable this cycle",
+        "scope": ["runtime-journey"],
+        "expiresAt": "2026-12-31T00:00:00Z"
+      }
+    }
+  ],
+  "summary": {
+    "completion": "partial",
+    "findingOutcome": "unproven",
+    "releaseEligibility": "not-eligible",
+    "total": 2,
+    "satisfied": 1,
+    "findings": 0,
+    "unmet": 0,
+    "deferred": 0,
+    "waived": 1,
+    "inapplicable": 0
+  }
+}

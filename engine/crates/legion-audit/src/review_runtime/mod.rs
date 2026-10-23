@@ -22,6 +22,11 @@ use crate::{
 pub(crate) use model::validate_metadata as validate_execution_metadata;
 use native::Observation;
 pub use partial::{project_runtime_state, recompute_with_partial_results};
+#[doc(hidden)]
+pub use batch::{
+    graph_gap_labels, plan_waves, split_bundle, BundleSplit, Completion, LedgerRefusal,
+    ObligationState, ReviewLedger, VerifierReserve,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};

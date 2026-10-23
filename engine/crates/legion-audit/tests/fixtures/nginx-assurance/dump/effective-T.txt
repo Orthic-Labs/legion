@@ -1,0 +1,11 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+# configuration file /etc/nginx/nginx.conf:
+events {}
+http {
+    server { listen 80;
+        proxy_set_header Authorization "Bearer topsecret";
+        ssl_certificate_key /etc/ssl/private/k.pem;
+        location / { proxy_pass http://user:hunter2@app; add_header X-Ok yes; } }
+}
+# configuration file /etc/nginx/conf.d/x.conf:
+server { listen 81; }

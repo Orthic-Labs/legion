@@ -1,0 +1,26 @@
+{
+  "classpath": [
+    {
+      "path": "platforms/android-35/android.jar",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "path": "libs/kotlinx-coroutines-android-1.8.1.jar",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "classpathDigest": "sha256:83661912354390502e8f880d05cbffd66c4b5ec4c2c33d1e2a649167b3e96667",
+  "generatedSources": [
+    {
+      "path": "app/build/generated/Generated.kt",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "compilationTarget": "android-35",
+  "variant": "debug",
+  "provenance": {
+    "kind": "admitted-build",
+    "receiptId": "receipt:fixture-build-1",
+    "artifactDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

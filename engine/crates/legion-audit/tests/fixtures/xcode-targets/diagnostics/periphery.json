@@ -1,0 +1,3 @@
+[
+  { "kind" : "function.method.instance", "name" : "legacyHelper()", "modules" : ["App"], "location" : "/build/src/App/App/Isolated.swift:9:10", "hints" : ["unused"], "accessibility" : "internal", "ids" : ["s:3App6LedgerC12legacyHelperyyF"], "attributes" : [] }
+]

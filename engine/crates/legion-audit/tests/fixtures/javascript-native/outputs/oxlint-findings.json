@@ -1,0 +1,1 @@
+{"diagnostics":[{"message":"Disallow debugger statements.","code":"eslint(no-debugger)","severity":"error","causes":[],"url":null,"help":null,"filename":"apps/web/src/root.tsx","labels":[{"span":{"offset":120,"length":9,"line":6,"column":3},"label":null}]}],"number_of_files":3,"number_of_rules":18,"threads_count":1}

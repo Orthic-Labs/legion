@@ -2859,8 +2859,8 @@ mod tests {
         let raw_before = serde_json::to_value(&continued.excerpts).unwrap();
         for (part, expected_count, expected_paths) in [
             (&rust, 2, json!(["src/lib.rs"])),
-            (&typescript, 5, json!(["src/view.tsx"])),
-            (&continued, 5, json!(["src/view.tsx", "src/worker.rs"])),
+            (&typescript, 7, json!(["src/view.tsx"])),
+            (&continued, 7, json!(["src/view.tsx", "src/worker.rs"])),
         ] {
             let bound =
                 lens_plan_for_part(Some(&base), &selected_part_source_paths(Some(part))).unwrap();
@@ -2877,9 +2877,9 @@ mod tests {
             serde_json::to_value(&continued.excerpts).unwrap(),
             raw_before
         );
-        assert_eq!(base["patternCards"].as_array().unwrap().len(), 5);
+        assert_eq!(base["patternCards"].as_array().unwrap().len(), 10);
         let empty = lens_plan_for_part(Some(&base), &selected_part_source_paths(None)).unwrap();
-        assert_eq!(empty["patternCards"].as_array().unwrap().len(), 5);
+        assert_eq!(empty["patternCards"].as_array().unwrap().len(), 10);
         assert!(lens_plan_for_part(None, &["src/lib.rs".into()]).is_none());
     }
 

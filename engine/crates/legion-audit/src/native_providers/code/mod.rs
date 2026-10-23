@@ -1,15 +1,20 @@
+pub mod android;
 pub mod applicability;
 pub mod common;
 pub mod dotnet;
 pub mod evidence;
 pub mod javascript;
+pub mod javascript_native;
 pub mod jvm;
 mod jvm_sdk;
+pub mod kotlin_detekt;
 pub mod long_tail;
 pub mod mobile;
 pub mod python;
 pub mod rust;
+pub mod rust_targets;
 pub mod tools;
+pub mod xcode_targets;
 
 use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
 use legion_contracts::{

@@ -1,0 +1,39 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "detekt",
+          "version": "1.23.8",
+          "rules": [{ "id": "detekt.naming.ObjectName" }]
+        }
+      },
+      "invocations": [{ "executionSuccessful": true }],
+      "artifacts": [
+        {
+          "location": {
+            "uri": "app/src/main/kotlin/com/example/%C3%9Cn%C3%AFcode%20N%C3%A2me.kt"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "detekt.naming.ObjectName",
+          "level": "warning",
+          "message": { "text": "Fixture naming finding on a unicode path" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/src/main/kotlin/com/example/%C3%9Cn%C3%AFcode%20N%C3%A2me.kt"
+                },
+                "region": { "startLine": 3, "startColumn": 1, "endLine": 3, "endColumn": 19 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

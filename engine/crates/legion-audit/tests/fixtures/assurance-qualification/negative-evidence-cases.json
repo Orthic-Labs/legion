@@ -1,0 +1,14 @@
+[
+  { "id": "neg-forged-import", "kind": "forged-import", "claimedOutcome": "clean", "authenticated": false, "digestMatches": false, "coverageComplete": true, "findings": 0, "expectedVerdict": "rejected" },
+  { "id": "neg-stale-import", "kind": "stale-import", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": true, "findings": 0, "expectedVerdict": "unmet" },
+  { "id": "neg-wrong-target-import", "kind": "wrong-target-import", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": true, "findings": 0, "expectedVerdict": "rejected" },
+  { "id": "neg-zero-input", "kind": "zero-input", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 0, "expectedVerdict": "unmet" },
+  { "id": "neg-source-drift", "kind": "source-drift", "claimedOutcome": "clean", "authenticated": true, "digestMatches": false, "coverageComplete": true, "findings": 0, "expectedVerdict": "rejected" },
+  { "id": "neg-invalid-parser-output", "kind": "invalid-parser-output", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 0, "expectedVerdict": "rejected" },
+  { "id": "neg-skipped-provider", "kind": "skipped-provider", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 0, "expectedVerdict": "unmet" },
+  { "id": "neg-missing-graph", "kind": "missing-graph", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 0, "expectedVerdict": "unmet" },
+  { "id": "neg-dependency-format-gap", "kind": "dependency-format-gap", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 0, "expectedVerdict": "unmet" },
+  { "id": "neg-runtime-closure-mismatch", "kind": "runtime-closure-mismatch", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": true, "findings": 0, "expectedVerdict": "rejected" },
+  { "id": "neg-incomplete-review", "kind": "incomplete-review", "claimedOutcome": "clean", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 0, "expectedVerdict": "unmet" },
+  { "id": "neg-incomplete-review-keeps-findings", "kind": "incomplete-review", "claimedOutcome": "findings", "authenticated": true, "digestMatches": true, "coverageComplete": false, "findings": 2, "expectedVerdict": "findings-retained" }
+]

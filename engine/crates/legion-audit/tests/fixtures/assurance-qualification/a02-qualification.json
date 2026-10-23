@@ -1,0 +1,26 @@
+{
+  "now": "2026-10-23T00:00:00Z",
+  "expectedApplicable": false,
+  "scope": {
+    "provider": "code.example",
+    "providerVersion": "1.2.3",
+    "ruleProfileRevision": "rev-7",
+    "host": "macos-15",
+    "toolchain": "rustc-1.90",
+    "target": "aarch64-apple-darwin",
+    "variant": "release",
+    "features": ["default"],
+    "basis": "fixture-only",
+    "freshUntil": "2026-01-01T00:00:00Z"
+  },
+  "context": {
+    "provider": "code.example",
+    "providerVersion": "1.2.3",
+    "ruleProfileRevision": "rev-7",
+    "host": "macos-15",
+    "toolchain": "rustc-1.90",
+    "target": "aarch64-apple-darwin",
+    "variant": "release",
+    "features": ["default"]
+  }
+}

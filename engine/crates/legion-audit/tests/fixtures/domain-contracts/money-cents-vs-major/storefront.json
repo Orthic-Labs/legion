@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "terms": [],
+  "mappings": [
+    {
+      "termId": "orders/total",
+      "termVersion": "1.0.0",
+      "repositoryId": "storefront",
+      "role": "consumer",
+      "surface": "storefront",
+      "symbol": "price",
+      "evidence": [
+        {
+          "path": "src/price.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "semantics": {
+        "kind": "money",
+        "unit": "major",
+        "scale": 0,
+        "currency": "USD"
+      },
+      "nullable": false
+    }
+  ]
+}

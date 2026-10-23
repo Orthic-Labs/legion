@@ -1,0 +1,10 @@
+{
+  "configurations" : [
+    { "id" : "00000000-0000-0000-0000-000000000001", "name" : "Configuration 1", "options" : { } }
+  ],
+  "defaultOptions" : { "language" : "en" },
+  "testTargets" : [
+    { "target" : { "containerPath" : "container:App.xcodeproj", "identifier" : "T1000002", "name" : "AppTests" } }
+  ],
+  "version" : 1
+}

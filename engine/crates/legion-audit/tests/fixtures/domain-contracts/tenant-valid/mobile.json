@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "terms": [],
+  "mappings": [
+    {
+      "termId": "orders/order-id",
+      "termVersion": "1.0.0",
+      "repositoryId": "mobile",
+      "role": "consumer",
+      "surface": "mobile",
+      "symbol": "orderId",
+      "evidence": [
+        {
+          "path": "src/orderId.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "tenantTerm": "orders/tenant-id",
+      "semantics": {
+        "kind": "identifier"
+      }
+    }
+  ]
+}

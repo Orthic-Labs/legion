@@ -151,6 +151,21 @@ impl Controller<'_> {
         initial: Option<String>,
         context_byte_limit: usize,
     ) -> Result<Value, AuditError> {
+        // Spend on gathering is author-phase spend: the fresh verifier reserve
+        // must survive it, mirroring the deterministic-author admission check.
+        let budget_run = self.options.budget_run.as_deref().unwrap_or(self.run);
+        if !crate::next::native_author_has_verifier_reserve(
+            budget_run,
+            if budget_run == self.run {
+                initial.as_deref()
+            } else {
+                None
+            },
+        )? {
+            return Err(AuditError::BoundExceeded(
+                "budget-exhausted:preserved-fresh-verification-reserve".into(),
+            ));
+        }
         let execution = model::gatherer(self.options)?;
         let observation = self.call(
             seat,

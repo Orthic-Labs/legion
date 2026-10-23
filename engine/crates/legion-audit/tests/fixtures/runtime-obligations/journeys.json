@@ -1,0 +1,40 @@
+[
+  {
+    "id": "node-checkout-duplicate-delivery",
+    "stack": "node-commerce",
+    "category": "checkout",
+    "axis": "functional",
+    "title": "Checkout with duplicate payment delivery",
+    "steps": ["create-cart", "pay", "deliver-webhook-twice", "assert-single-order"],
+    "pair": { "pairId": "checkout-pair", "role": "duplicate-delivery" },
+    "producer": { "kind": "imported-receipt", "issuerId": "host-ci" }
+  },
+  {
+    "id": "node-checkout-cancellation",
+    "stack": "node-commerce",
+    "category": "checkout",
+    "axis": "functional",
+    "title": "Checkout cancellation restores stock",
+    "steps": ["create-cart", "cancel", "assert-stock-restored"],
+    "pair": { "pairId": "checkout-pair", "role": "cancellation" },
+    "producer": { "kind": "imported-receipt", "issuerId": "host-ci" }
+  },
+  {
+    "id": "ios-state-restoration",
+    "stack": "swift-ios",
+    "category": "cancellation-state-restoration",
+    "axis": "functional",
+    "title": "Cancel then restore state",
+    "steps": ["start-task", "cancel", "terminate", "relaunch", "assert-restored"],
+    "producer": { "kind": "owner", "owner": "apple-simulator-or-device", "qualifiedOwnerId": "apple-owner-1" }
+  },
+  {
+    "id": "android-process-death",
+    "stack": "kotlin-android",
+    "category": "process-death-restore",
+    "axis": "functional",
+    "title": "Process death and restore",
+    "steps": ["open-form", "kill-process", "relaunch", "assert-restored"],
+    "producer": { "kind": "gap", "reason": "no-qualified-android-device-owner" }
+  }
+]

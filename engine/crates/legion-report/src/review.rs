@@ -1,5 +1,9 @@
 use std::collections::BTreeMap;
 
+use legion_contracts::source_anchor::{
+    project_to_pr, validate_evidence_claims, AnchorValidation, PrDiff, PrProjection, SourceSide,
+    PR_DIFF_EXTENSION_KEY,
+};
 use legion_contracts::{AnchorState, Confidence, FindingV2, ReportV2};
 use serde_json::{json, Value};
 
@@ -66,6 +70,30 @@ pub(crate) fn render(report: &ReportV2) -> String {
             ));
         } else {
             output.push_str("- Source anchor: unavailable\n");
+        }
+        match finding.source_anchor_evidence() {
+            Some(Ok(evidence)) => {
+                output.push_str(&format!(
+                    "- Canonical anchor: {}:{}:{}-{}:{} (side `{}`, bytes {}..{}, file `{}`, span `{}`, snapshot {})\n",
+                    escape::markdown_code(&evidence.path),
+                    evidence.lines.start,
+                    evidence.start_column,
+                    evidence.lines.end,
+                    evidence.end_column,
+                    evidence.side.label(),
+                    evidence.byte_range.start,
+                    evidence.byte_range.end,
+                    escape::markdown_code(&evidence.file_digest),
+                    escape::markdown_code(&evidence.span_digest),
+                    evidence
+                        .snapshot_key
+                        .as_deref()
+                        .map(|key| format!("`{}`", escape::markdown_code(key)))
+                        .unwrap_or_else(|| "unrecorded".into()),
+                ));
+            }
+            Some(Err(_)) => output.push_str("- Canonical anchor: invalid\n"),
+            None => {}
         }
         if !finding.locations.is_empty() {
             output.push_str("- Reported locations: ");
@@ -147,21 +175,96 @@ pub(crate) fn render(report: &ReportV2) -> String {
     output
 }
 
+/// Exact PR diff supplied by the caller under the reserved `prDiff` report
+/// extension (or claim). A malformed value is treated as unavailable: it can
+/// only suppress inline comments, never enable them.
+fn pr_diff(report: &ReportV2) -> Option<PrDiff> {
+    let value = report
+        .extensions
+        .get(PR_DIFF_EXTENSION_KEY)
+        .or_else(|| report.claims.get(PR_DIFF_EXTENSION_KEY))?;
+    serde_json::from_value(value.clone()).ok()
+}
+
+fn side_label(side: SourceSide) -> &'static str {
+    match side {
+        SourceSide::Selected => "RIGHT",
+        SourceSide::Base => "LEFT",
+    }
+}
+
 pub(crate) fn render_github_review(report: &ReportV2) -> Result<String, crate::ReportError> {
+    let diff = pr_diff(report);
     let mut comments = Vec::new();
     for finding in ordered(report) {
-        let Some(anchor) = finding.anchor.as_ref() else {
-            continue;
-        };
-        if anchor.state != AnchorState::InDiff || !usable_anchor(finding) {
-            continue;
+        match finding.source_anchor_evidence() {
+            // Canonical findings inline only when the exact supplied diff
+            // can represent them at the report's head. This renderer holds
+            // no scoped bytes: byte-level validation
+            // (`validate_evidence_against_bytes`) is the ingest/verifier
+            // gate that must already have passed before a report carrying
+            // canonical evidence is rendered for a PR. Structural, snapshot
+            // & diff representability gates are re-checked here. Anything
+            // not inlined remains in the rendered body as a summary finding.
+            Some(Ok(evidence)) => {
+                let Some(diff) = diff.as_ref() else {
+                    continue;
+                };
+                let claims =
+                    validate_evidence_claims(&evidence, report.scope.snapshot_key.as_deref());
+                if !claims.is_validated() || !usable_anchor(finding) {
+                    continue;
+                }
+                if finding.anchor.as_ref().is_some_and(|anchor| {
+                    anchor.path != evidence.path || anchor.range != evidence.lines
+                }) {
+                    continue;
+                }
+                let PrProjection::Inline {
+                    path,
+                    side,
+                    line,
+                    start_line,
+                } = project_to_pr(
+                    &evidence,
+                    AnchorValidation::Validated,
+                    &report.scope.head,
+                    diff,
+                )
+                else {
+                    continue;
+                };
+                let mut comment = json!({
+                    "path": path,
+                    "line": line,
+                    "side": side_label(side),
+                    "body": comment_body(finding),
+                });
+                if let Some(start_line) = start_line {
+                    comment["start_line"] = json!(start_line);
+                    comment["start_side"] = json!(side_label(side));
+                }
+                comments.push(comment);
+            }
+            // Present-but-malformed canonical evidence never inlines (the
+            // public entry point rejects such a report in `validate`).
+            Some(Err(_)) => continue,
+            // Legacy findings keep the pre-canonical behaviour exactly.
+            None => {
+                let Some(anchor) = finding.anchor.as_ref() else {
+                    continue;
+                };
+                if anchor.state != AnchorState::InDiff || !usable_anchor(finding) {
+                    continue;
+                }
+                comments.push(json!({
+                    "path": anchor.path,
+                    "line": anchor.range.end,
+                    "side": "RIGHT",
+                    "body": comment_body(finding),
+                }));
+            }
         }
-        comments.push(json!({
-            "path": anchor.path,
-            "line": anchor.range.end,
-            "side": "RIGHT",
-            "body": comment_body(finding),
-        }));
     }
     let payload = json!({
         "body": render(report),
@@ -614,6 +717,89 @@ mod tests {
         report.unresolved_possible = 3;
         let payload: Value = serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
         assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
+    }
+
+    fn canonical_report(side: legion_contracts::source_anchor::SourceSide) -> ReportV2 {
+        use legion_contracts::source_anchor::{build_evidence, line_byte_range};
+        const BYTES: &[u8] = b"1\n2\n3\n4\n5\n6\n7\n8\nnine\n10\n";
+        let mut report = report();
+        report.scope.head = "head-1".into();
+        report.scope.snapshot_key = Some("snap-1".into());
+        let mut item = finding("f-1", Some(anchor(AnchorState::InDiff)));
+        let evidence = build_evidence(
+            "src/lib.rs",
+            side,
+            None,
+            Some("snap-1"),
+            BYTES,
+            line_byte_range(BYTES, LineRange { start: 9, end: 9 }).unwrap(),
+        )
+        .unwrap();
+        item.set_source_anchor_evidence(&evidence).unwrap();
+        report.findings.push(item);
+        report.unresolved_possible = 1;
+        report
+    }
+
+    fn with_pr_diff(report: &mut ReportV2, head: &str, base: bool) {
+        report.extensions.insert(
+            "prDiff".into(),
+            json!({
+                "headOid": head,
+                "files": [{
+                    "basePath": "src/lib.rs",
+                    "headPath": if base { Value::Null } else { json!("src/lib.rs") },
+                    "baseHunks": [{"start": 8, "end": 10}],
+                    "headHunks": [{"start": 8, "end": 10}],
+                }],
+            }),
+        );
+    }
+
+    #[test]
+    fn canonical_anchor_inlines_only_on_exact_supplied_diff() {
+        use legion_contracts::source_anchor::SourceSide;
+        // No supplied diff: no fabricated inline comment, finding stays in
+        // the summary body with its canonical coordinates.
+        let report = canonical_report(SourceSide::Selected);
+        let payload: Value =
+            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
+        let body = payload["body"].as_str().unwrap();
+        assert!(body.contains("Canonical anchor:"));
+        assert!(body.contains("unverified finding"));
+        // Exact diff at the report head: RIGHT inline comment.
+        let mut report = canonical_report(SourceSide::Selected);
+        with_pr_diff(&mut report, "head-1", false);
+        let payload: Value =
+            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        let comments = payload["comments"].as_array().unwrap();
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0]["path"], "src/lib.rs");
+        assert_eq!(comments[0]["line"], 9);
+        assert_eq!(comments[0]["side"], "RIGHT");
+        assert!(comments[0].get("start_line").is_none());
+        // PR head moved: no inline comment on a stale diff.
+        let mut report = canonical_report(SourceSide::Selected);
+        with_pr_diff(&mut report, "head-2", false);
+        let payload: Value =
+            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
+        assert!(payload["body"].as_str().unwrap().contains("unverified finding"));
+    }
+
+    #[test]
+    fn canonical_base_anchor_uses_left_side_of_deleted_file() {
+        use legion_contracts::source_anchor::SourceSide;
+        let mut report = canonical_report(SourceSide::Base);
+        with_pr_diff(&mut report, "head-1", true);
+        let payload: Value =
+            serde_json::from_str(&render_github_review(&report).unwrap()).unwrap();
+        let comments = payload["comments"].as_array().unwrap();
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0]["side"], "LEFT");
+        assert_eq!(comments[0]["path"], "src/lib.rs");
+        assert_eq!(comments[0]["line"], 9);
     }
 
     #[test]

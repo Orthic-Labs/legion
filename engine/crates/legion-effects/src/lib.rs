@@ -4,6 +4,7 @@ pub mod environment;
 pub mod error;
 pub mod executable;
 pub mod executor;
+pub mod owner_process;
 pub mod gradle_sandbox;
 pub mod platform;
 pub mod receipt;

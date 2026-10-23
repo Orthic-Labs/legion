@@ -1,0 +1,39 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "detekt",
+          "version": "1.23.8",
+          "rules": [{ "id": "detekt.style.MagicNumber" }]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "level": "error",
+              "message": { "text": "Expecting member declaration" },
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "app/src/main/kotlin/com/example/Broken.kt"
+                    },
+                    "region": { "startLine": 4, "startColumn": 14 }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        { "location": { "uri": "app/src/main/kotlin/com/example/Broken.kt" } }
+      ],
+      "results": []
+    }
+  ]
+}

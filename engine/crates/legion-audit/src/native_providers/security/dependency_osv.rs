@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::common::{array, files, same_binding, valid_digest};
+use crate::dependency_inventory::{AdvisoryDatabase, AdvisoryRecord, Ecosystem, SourceStatus};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -282,4 +283,112 @@ pub fn analyze(input: &Value) -> Value {
         })
         .collect::<Vec<_>>();
     json!({"status":if gaps.is_empty(){"pass"}else{"unproven"},"complete":gaps.is_empty(),"denominator":{"kind":"dependency-manifests","expected":manifests.len(),"examined":receipts.len()},"findings":findings,"coverageGaps":gaps})
+}
+
+// --- Advisory bridge into dependency_inventory (A08) ---
+// Raw OSV output keeps affected/fixed pairs that normalize_vulnerability drops.
+// Records are namespaced by OSV ecosystem mapped to the inventory registry.
+// Unknown OSV ecosystems produce no record; inventory reports them as coverage gaps.
+
+/// Builds the advisory database from one raw OSV scan. Freshness of an offline
+/// database is not provable from the scan, so it stays `Unknown` unless the
+/// caller supplies authenticated freshness; incomplete scans are `Partial`.
+pub fn advisory_database_from_scan(
+    raw: &Value,
+    version: &str,
+    database_digest: &str,
+) -> AdvisoryDatabase {
+    let incomplete = raw.get("scan_complete").and_then(Value::as_bool) == Some(false)
+        || !array(raw.get("scan_incomplete_reasons")).is_empty();
+    AdvisoryDatabase {
+        version: version.to_owned(),
+        digest: database_digest.to_owned(),
+        status: if incomplete {
+            SourceStatus::Partial
+        } else {
+            SourceStatus::Unknown
+        },
+        records: advisory_records_from_scan(raw),
+    }
+}
+
+pub fn advisory_records_from_scan(raw: &Value) -> Vec<AdvisoryRecord> {
+    let mut out = Vec::new();
+    for result in array(raw.get("results")) {
+        for source in array(result.get("packages")) {
+            for vulnerability in array(source.get("vulnerabilities")) {
+                out.extend(advisory_records(&vulnerability));
+            }
+        }
+    }
+    out
+}
+
+pub fn advisory_records(vulnerability: &Value) -> Vec<AdvisoryRecord> {
+    let Some(id) = vulnerability
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+    else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for affected in array(vulnerability.get("affected")) {
+        let Some(package) = affected.get("package") else {
+            continue;
+        };
+        let osv_ecosystem_name = package
+            .get("ecosystem")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let Some((ecosystem, registry)) = osv_ecosystem(osv_ecosystem_name) else {
+            continue;
+        };
+        let Some(name) = package
+            .get("name")
+            .and_then(Value::as_str)
+            .filter(|name| !name.is_empty())
+        else {
+            continue;
+        };
+        let mut fixed_versions = Vec::new();
+        let mut range_events = false;
+        for range in array(affected.get("ranges")) {
+            for event in array(range.get("events")) {
+                if let Some(fixed) = event.get("fixed").and_then(Value::as_str) {
+                    fixed_versions.push(fixed.to_owned());
+                } else if event.is_object() {
+                    range_events = true;
+                }
+            }
+        }
+        out.push(AdvisoryRecord {
+            id: id.to_owned(),
+            ecosystem,
+            registry: registry.to_owned(),
+            name: name.to_owned(),
+            affected_versions: strings(affected.get("versions")),
+            fixed_versions,
+            range_events,
+        });
+    }
+    out
+}
+
+fn osv_ecosystem(name: &str) -> Option<(Ecosystem, &'static str)> {
+    match name {
+        "crates.io" => Some((Ecosystem::Cargo, "crates.io")),
+        "npm" => Some((Ecosystem::Npm, "registry.npmjs.org")),
+        "Go" => Some((Ecosystem::Golang, "proxy.golang.org")),
+        "PyPI" => Some((Ecosystem::Pypi, "pypi.org")),
+        _ => None,
+    }
+}
+
+fn strings(value: Option<&Value>) -> Vec<String> {
+    let items = array(value);
+    items
+        .iter()
+        .filter_map(|item| item.as_str().map(str::to_owned))
+        .collect()
 }

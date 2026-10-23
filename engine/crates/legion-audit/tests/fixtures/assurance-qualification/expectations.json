@@ -1,0 +1,45 @@
+{
+  "now": "2026-10-23T00:00:00Z",
+  "records": {
+    "heldout-synthetic.json": {
+      "verdict": "fixture-scoped",
+      "effectiveLifecycle": "shadow",
+      "reasonsInclude": ["synthetic-fixture-not-enrolled", "not-ci-enrolled"]
+    },
+    "fixture-only-claims-qualified.json": {
+      "verdict": "fixture-scoped",
+      "effectiveLifecycle": "shadow",
+      "reasonsInclude": ["fixture-only-basis-capped-shadow"]
+    },
+    "forged-digest.json": {
+      "verdict": "rejected",
+      "effectiveLifecycle": "draft",
+      "reasonsInclude": ["qualification-digest-mismatch"]
+    },
+    "stale-record.json": {
+      "verdict": "invalidated",
+      "effectiveLifecycle": "draft",
+      "reasonsInclude": ["stale-record"]
+    },
+    "wrong-target.json": {
+      "verdict": "rejected",
+      "effectiveLifecycle": "draft",
+      "reasonsInclude": ["wrong-target-outcome"]
+    },
+    "missing-raw-output.json": {
+      "verdict": "rejected",
+      "effectiveLifecycle": "draft",
+      "reasonsInclude": ["raw-output-missing"]
+    },
+    "false-green.json": {
+      "verdict": "rejected",
+      "effectiveLifecycle": "draft",
+      "reasonsInclude": ["false-green-outcome"]
+    },
+    "zero-input.json": {
+      "verdict": "rejected",
+      "effectiveLifecycle": "draft",
+      "reasonsInclude": ["zero-input"]
+    }
+  }
+}

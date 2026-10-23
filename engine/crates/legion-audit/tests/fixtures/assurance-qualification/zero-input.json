@@ -1,0 +1,59 @@
+{
+  "schema": "legion-audit-assurance-qualification/1",
+  "lifecycle": "shadow",
+  "syntheticFixture": true,
+  "scope": {
+    "provider": "code.example",
+    "providerVersion": "1.2.3",
+    "lens": "security",
+    "stack": "rust",
+    "ruleId": "example.rule",
+    "ruleProfileRevision": "rev-7",
+    "tool": "example-tool",
+    "toolVersion": "4.5.6",
+    "configDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "platform": "macos-15",
+    "toolchain": "rustc-1.90",
+    "target": "aarch64-apple-darwin",
+    "variant": "release",
+    "features": [
+      "default"
+    ],
+    "excludedSupport": [
+      "windows",
+      "wasm32"
+    ]
+  },
+  "basis": {
+    "kind": "heldout",
+    "fixtureIds": [],
+    "heldoutFixtureIds": [],
+    "productionObservations": 0
+  },
+  "provenance": {
+    "source": "local",
+    "commit": null,
+    "workflow": null,
+    "runId": null,
+    "attestor": "synthetic-corpus",
+    "authenticated": false,
+    "capturedAt": "2026-10-20T00:00:00Z",
+    "freshUntil": "2027-01-01T00:00:00Z",
+    "rawOutputs": [
+      {
+        "path": "engine/crates/legion-audit/tests/fixtures/assurance-qualification/raw/example-raw.txt",
+        "sha256": "sha256:752e227fc4737c18d0748c19fd1497c19f527b66d89d20b47a55aba8bc76cf57"
+      }
+    ],
+    "sourceClosureDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "implementationDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "outcomes": [],
+  "metrics": null,
+  "cost": {
+    "wallTimeMs": 25,
+    "modelCalls": 0,
+    "tokens": null
+  },
+  "qualificationDigest": "sha256:9eba6b977f16ef574b2d275385e29dffb1c8d7908af6d26e42c3b933ea4c553c"
+}

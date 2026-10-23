@@ -4,6 +4,10 @@ use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision};
 use serde_json::{json, Value};
 
 pub const POLICY_ID: &str = "audit-native-owner-admission-v1";
+/// Policy id carried by decisions of an owner-backed authorizer. Distinct from
+/// `POLICY_ID` so a receipt can never claim owner admission via the fallback id.
+pub const OWNER_POLICY_ID: &str = "audit-native-owner-admission-v2";
+pub const OWNER_POLICY_VERSION: u32 = 2;
 pub const ADMISSION_UNAVAILABLE: &str = "native-owner-admission-unavailable";
 pub const NOTICE: &str = "External checks require native owner admission; unavailable checks remain explicit coverage gaps.";
 
@@ -45,12 +49,50 @@ impl PolicyAuthorizer for OwnerAdmissionRequired {
     }
 }
 
+/// Frozen policy meaning for an owner-backed run. `descriptor` is the
+/// authorizer's own description (owner identity, policy revision, roots,
+/// limits); its digest is what receipts carry as the policy digest.
+pub fn owner_binding(descriptor: &Value) -> Value {
+    let policy = json!({
+        "externalProcesses": "owner-admitted",
+        "admissionStatus": "available",
+        "effectiveMode": "owner-contained",
+        "owner": descriptor,
+    });
+    json!({
+        "executionPolicy": policy,
+        "executionPolicyIdentity": {
+            "id": OWNER_POLICY_ID,
+            "version": OWNER_POLICY_VERSION,
+            "digest": crate::digest(descriptor).expect("owner policy descriptor is serializable"),
+        },
+    })
+}
+
 /// Receipt projections retain both decision evidence & frozen policy meaning.
 pub fn project_binding(receipt: &mut Value) {
-    if receipt.pointer("/policy/id").and_then(Value::as_str) == Some(POLICY_ID) {
-        let binding = binding();
-        receipt["executionPolicy"] = binding["executionPolicy"].clone();
-        receipt["executionPolicyIdentity"] = binding["executionPolicyIdentity"].clone();
+    match receipt.pointer("/policy/id").and_then(Value::as_str) {
+        Some(POLICY_ID) => {
+            let binding = binding();
+            receipt["executionPolicy"] = binding["executionPolicy"].clone();
+            receipt["executionPolicyIdentity"] = binding["executionPolicyIdentity"].clone();
+        }
+        Some(OWNER_POLICY_ID) => {
+            // The receipt's own decision evidence is the source of truth; the
+            // owner descriptor is not reconstructible here, so only the
+            // decision outcome & identity are projected.
+            let policy = receipt["policy"].clone();
+            receipt["executionPolicy"] = json!({
+                "externalProcesses": "owner-admitted",
+                "admissionStatus": if policy["allowed"].as_bool() == Some(true) { "granted" } else { "denied" },
+                "effectiveMode": if policy["allowed"].as_bool() == Some(true) { "owner-contained" } else { "deny-external" },
+                "reason": policy["reason"],
+            });
+            receipt["executionPolicyIdentity"] = json!({
+                "id": policy["id"], "version": policy["version"], "digest": policy["digest"],
+            });
+        }
+        _ => {}
     }
 }
 

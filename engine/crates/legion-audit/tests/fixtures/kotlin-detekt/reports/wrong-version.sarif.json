@@ -1,0 +1,19 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "detekt",
+          "version": "1.23.7",
+          "rules": [{ "id": "detekt.style.MagicNumber" }]
+        }
+      },
+      "invocations": [{ "executionSuccessful": true }],
+      "artifacts": [
+        { "location": { "uri": "app/src/main/kotlin/com/example/Answer.kt" } }
+      ],
+      "results": []
+    }
+  ]
+}

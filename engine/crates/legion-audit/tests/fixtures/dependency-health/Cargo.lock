@@ -1,0 +1,26 @@
+version = 3
+
+[[package]]
+name = "app"
+version = "0.1.0"
+dependencies = [
+ "gitdep",
+ "smallvec",
+]
+
+[[package]]
+name = "gitdep"
+version = "0.2.0"
+source = "git+https://github.com/example/gitdep?branch=main#0123456789abcdef0123456789abcdef01234567"
+
+[[package]]
+name = "serde"
+version = "1.0.200"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1111111111111111111111111111111111111111111111111111111111111111"
+
+[[package]]
+name = "smallvec"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2222222222222222222222222222222222222222222222222222222222222222"

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "terms": [],
+  "mappings": [
+    {
+      "termId": "orders/status",
+      "termVersion": "1.0.0",
+      "repositoryId": "storefront",
+      "role": "consumer",
+      "surface": "storefront",
+      "symbol": "orderStatus",
+      "evidence": [
+        {
+          "path": "src/orderStatus.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "states": [
+        "pending",
+        "paid",
+        "shipped"
+      ],
+      "transitions": [
+        {
+          "from": "shipped",
+          "to": "pending"
+        }
+      ],
+      "semantics": {
+        "kind": "state"
+      }
+    }
+  ]
+}

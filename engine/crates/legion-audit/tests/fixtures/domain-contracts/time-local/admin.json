@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "terms": [],
+  "mappings": [
+    {
+      "termId": "orders/created-at",
+      "termVersion": "1.0.0",
+      "repositoryId": "admin",
+      "role": "consumer",
+      "surface": "admin",
+      "symbol": "createdAt",
+      "evidence": [
+        {
+          "path": "src/createdAt.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "semantics": {
+        "kind": "instant",
+        "timezone": "local"
+      }
+    }
+  ]
+}

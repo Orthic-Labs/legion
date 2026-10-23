@@ -1,0 +1,36 @@
+lockfileVersion: '9.0'
+
+importers:
+
+  apps/web:
+    dependencies:
+      '@builder.io/qwik':
+        specifier: ^1.12.0
+        version: 1.12.1
+      '@builder.io/qwik-city':
+        specifier: ^1.12.0
+        version: 1.12.1
+  packages/ui:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+
+packages:
+
+  '@builder.io/qwik@1.12.1':
+    resolution: {integrity: sha512-fixture}
+
+  '@builder.io/qwik-city@1.12.1':
+    resolution: {integrity: sha512-fixture}
+
+  react@18.3.1:
+    resolution: {integrity: sha512-fixture}
+
+snapshots:
+
+  '@builder.io/qwik@1.12.1': {}
+
+  '@builder.io/qwik-city@1.12.1': {}
+
+  react@18.3.1: {}

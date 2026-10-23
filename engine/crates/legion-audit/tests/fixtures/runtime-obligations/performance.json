@@ -1,0 +1,33 @@
+{
+  "baseline": {
+    "baselineRef": "evidence-baseline-1",
+    "measurement": {
+      "target": "web:production",
+      "metric": "checkout-latency",
+      "unit": "ms",
+      "percentile": "p95",
+      "value": 800,
+      "workload": {
+        "workloadId": "checkout-mix-a",
+        "workloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "warmState": "warm",
+        "datasetDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "trafficMixDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "concurrency": 50,
+        "excludedRoutes": [],
+        "environmentId": "perf-env-1",
+        "hardware": { "cpuModel": "c-class", "logicalCores": 8, "memoryMb": 16384, "os": "linux", "osVersion": "6.1" },
+        "measurementMethod": "k6-constant-vus",
+        "sampleCount": 5000
+      }
+    }
+  },
+  "budget": {
+    "metric": "checkout-latency",
+    "unit": "ms",
+    "percentile": "p95",
+    "limit": 1000,
+    "minSamples": 1000,
+    "regressionTolerancePpm": 50000
+  }
+}

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 31.5.0">
+
+    <issue
+        id="HardcodedText"
+        severity="Warning"
+        message="Hardcoded string &quot;Hello&quot;, should use `@string` resource"
+        category="Internationalization"
+        priority="5"
+        summary="Hardcoded text"
+        explanation="Hardcoded text is not translatable.">
+        <location
+            file="app/src/main/res/layout/activity_main.xml"
+            line="7"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ExportedReceiver"
+        severity="Error"
+        message="Exported receiver does not require permission"
+        category="Security"
+        priority="6"
+        summary="Receiver does not require permission">
+        <location
+            file="app/src/main/AndroidManifest.xml"
+            line="23"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        severity="Warning"
+        message="The resource R.string.gen is not used"
+        category="Performance"
+        priority="3"
+        summary="Unused resources">
+        <location
+            file="app/build/generated/res/resValues/phoneRelease/values/gradleResValues.xml"
+            line="2"
+            column="5"/>
+    </issue>
+
+</issues>

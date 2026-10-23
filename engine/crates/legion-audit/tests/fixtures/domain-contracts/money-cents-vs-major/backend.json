@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "terms": [
+    {
+      "namespace": "orders",
+      "id": "total",
+      "version": "1.0.0",
+      "owner": "platform-team",
+      "authority": "architecture-board",
+      "meaning": "total",
+      "externalConsumersEnumerated": true,
+      "semantics": {
+        "kind": "money",
+        "unit": "minor",
+        "scale": 2,
+        "currency": "USD"
+      },
+      "nullable": false,
+      "consumers": [
+        {
+          "repositoryId": "storefront"
+        }
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "termId": "orders/total",
+      "termVersion": "1.0.0",
+      "repositoryId": "backend",
+      "role": "producer",
+      "surface": "api",
+      "symbol": "total_cents",
+      "evidence": [
+        {
+          "path": "src/total_cents.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "semantics": {
+        "kind": "money",
+        "unit": "minor",
+        "scale": 2,
+        "currency": "USD"
+      },
+      "nullable": false
+    }
+  ]
+}

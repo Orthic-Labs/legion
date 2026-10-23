@@ -8,6 +8,10 @@ use crate::{
     id::{FindingId, ReportId},
     require_version, ContractError,
 };
+use crate::source_anchor::{
+    build_evidence, line_byte_range, validate_evidence_claims, AnchorValidation, SourceAnchorEvidence,
+    SourceSide, SOURCE_ANCHOR_EVIDENCE_KEY,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -334,6 +338,36 @@ pub fn position_anchor(
     }
 }
 
+/// Positions an anchor exactly as [`position_anchor`] & additionally builds
+/// canonical byte-exact evidence (see `source_anchor`) when positioning
+/// succeeds against the scoped bytes. A failed position yields `None`
+/// evidence; it is never repaired by searching for similar text. Evidence
+/// byte range covers the anchored lines' content in the original bytes
+/// (BOM excluded from line 1 content, CRLF retained between lines).
+pub fn position_anchor_canonical(
+    path: &str,
+    start: u32,
+    end: u32,
+    claimed_hash: Option<&str>,
+    bytes: Option<&[u8]>,
+    diff: Option<DiffTag>,
+    side: SourceSide,
+    repository: Option<&str>,
+    snapshot_key: Option<&str>,
+) -> (Anchor, Option<SourceAnchorEvidence>) {
+    let anchor = position_anchor(path, start, end, claimed_hash, bytes, diff);
+    if anchor.failed() {
+        return (anchor, None);
+    }
+    let Some(bytes) = bytes else {
+        return (anchor, None);
+    };
+    let evidence = line_byte_range(bytes, anchor.range).and_then(|byte_range| {
+        build_evidence(path, side, repository, snapshot_key, bytes, byte_range).ok()
+    });
+    (anchor, evidence)
+}
+
 // ----- confidence (C4) ------------------------------------------------------
 
 /// Whether the provider declares exact results for the finding's rule class
@@ -415,6 +449,35 @@ impl FindingV2 {
     pub fn required_anchor_failed(&self) -> bool {
         self.anchor.as_ref().is_some_and(Anchor::failed)
             && (at_least_medium(&self.severity) || is_security(self))
+    }
+
+    /// Canonical byte-exact anchor evidence carried under the reserved
+    /// `sourceAnchor` evidence key, when present. `None` means the finding
+    /// has only a legacy anchor (or none); that state is preserved as-is and
+    /// is never upgraded by guessing. A present-but-malformed value is an
+    /// error, not an absence.
+    pub fn source_anchor_evidence(
+        &self,
+    ) -> Option<Result<SourceAnchorEvidence, ContractError>> {
+        let value = self.evidence.get(SOURCE_ANCHOR_EVIDENCE_KEY)?;
+        Some(
+            serde_json::from_value(value.clone())
+                .map_err(|error| invalid("findings.evidence.sourceAnchor", error.to_string())),
+        )
+    }
+
+    /// Records canonical anchor evidence under the reserved evidence key.
+    /// The v1 projection carries `evidence` verbatim, so the extension
+    /// round-trips through schema 1 without new top-level fields.
+    pub fn set_source_anchor_evidence(
+        &mut self,
+        evidence: &SourceAnchorEvidence,
+    ) -> Result<(), ContractError> {
+        let value = serde_json::to_value(evidence)
+            .map_err(|error| invalid("findings.evidence.sourceAnchor", error.to_string()))?;
+        self.evidence
+            .insert(SOURCE_ANCHOR_EVIDENCE_KEY.into(), value);
+        Ok(())
     }
 
     fn v2_fields(&self) -> Value {
@@ -724,6 +787,44 @@ impl ReportV2 {
                         "findings.anchor",
                         "a resolved anchor needs a 1-based range and a line hash",
                     ));
+                }
+            }
+            // Additive canonical evidence (A14): when present it must parse,
+            // be structurally valid, belong to this report's snapshot when
+            // both record one, & agree with the legacy anchor it refines.
+            // Absent evidence (legacy / unknown anchors) is untouched.
+            // Byte-level truth is checked against scoped bytes by ingest /
+            // verification via `validate_evidence_against_bytes`; a stored
+            // report alone cannot re-derive it.
+            if let Some(evidence) = finding.source_anchor_evidence() {
+                let evidence = evidence?;
+                let claims = validate_evidence_claims(&evidence, None);
+                if claims != AnchorValidation::Validated {
+                    return Err(invalid(
+                        "findings.evidence.sourceAnchor",
+                        format!("canonical anchor evidence is {}", claims.code()),
+                    ));
+                }
+                if let (Some(recorded), Some(scoped)) = (
+                    evidence.snapshot_key.as_deref(),
+                    self.scope.snapshot_key.as_deref(),
+                ) {
+                    if recorded != scoped {
+                        return Err(invalid(
+                            "findings.evidence.sourceAnchor",
+                            "canonical anchor snapshot differs from report scope snapshot",
+                        ));
+                    }
+                }
+                if let Some(anchor) = &finding.anchor {
+                    if !anchor.failed()
+                        && (evidence.path != anchor.path || evidence.lines != anchor.range)
+                    {
+                        return Err(invalid(
+                            "findings.evidence.sourceAnchor",
+                            "canonical anchor path/lines disagree with the resolved anchor",
+                        ));
+                    }
                 }
             }
             if finding.confidence == Confidence::Proven && finding.anchor.is_none() {
@@ -1296,6 +1397,82 @@ mod v2_tests {
             parse_location("src\\a.rs:2"),
             Some(("src/a.rs".into(), 2, 2))
         );
+    }
+
+    #[test]
+    fn canonical_positioning_builds_agreeing_evidence_and_round_trips() {
+        use crate::source_anchor::{validate_evidence_against_bytes, AnchorValidation};
+        let (anchor, evidence) = position_anchor_canonical(
+            "src/a.rs",
+            2,
+            3,
+            None,
+            Some(SOURCE),
+            Some(DiffTag::InDiff),
+            crate::source_anchor::SourceSide::Selected,
+            Some("repo"),
+            Some("snap"),
+        );
+        assert_eq!(anchor.state, AnchorState::InDiff);
+        let evidence = evidence.expect("resolved position carries canonical evidence");
+        assert_eq!(evidence.lines, anchor.range);
+        assert_eq!(evidence.path, anchor.path);
+        assert_eq!(
+            validate_evidence_against_bytes(&evidence, Some("snap"), Some(SOURCE)),
+            AnchorValidation::Validated
+        );
+        // A failed position never invents canonical evidence.
+        let (failed, none) = position_anchor_canonical(
+            "src/a.rs",
+            99,
+            99,
+            None,
+            Some(SOURCE),
+            None,
+            crate::source_anchor::SourceSide::Selected,
+            None,
+            None,
+        );
+        assert!(failed.failed());
+        assert!(none.is_none());
+
+        // Evidence rides the v1 projection & native v2 wire form unchanged.
+        let resolve = |_: &str| -> Option<Vec<u8>> { Some(SOURCE.to_vec()) };
+        let mut v2 = ReportV2::from_v1_with(
+            &v1_report("high", "security.source", "src/a.rs:2-3"),
+            &ctx_with(&resolve),
+        )
+        .unwrap();
+        v2.findings[0].set_source_anchor_evidence(&evidence).unwrap();
+        v2.validate().unwrap();
+        let wire = v2.to_value_for_schema(1).unwrap();
+        let back = Report::read_any(&wire).unwrap();
+        assert_eq!(back, v2);
+        assert_eq!(
+            back.findings[0].source_anchor_evidence().unwrap().unwrap(),
+            evidence
+        );
+        let native = v2.to_value_for_schema(2).unwrap();
+        assert_eq!(Report::read_any(&native).unwrap(), v2);
+
+        // Scope snapshot disagreement & anchor disagreement are refused;
+        // ctx scope records snapshot "snap", matching the evidence above.
+        let mut wrong_snapshot = v2.clone();
+        wrong_snapshot.scope.snapshot_key = Some("other".into());
+        assert!(wrong_snapshot.validate().is_err());
+        let mut wrong_lines = v2.clone();
+        let mut moved = evidence.clone();
+        moved.lines = LineRange { start: 1, end: 1 };
+        wrong_lines.findings[0]
+            .set_source_anchor_evidence(&moved)
+            .unwrap();
+        assert!(wrong_lines.validate().is_err());
+        // Malformed canonical evidence is an error, not a legacy anchor.
+        let mut malformed = v2;
+        malformed.findings[0]
+            .evidence
+            .insert("sourceAnchor".into(), json!({"path": "src/a.rs"}));
+        assert!(malformed.validate().is_err());
     }
 
     #[test]

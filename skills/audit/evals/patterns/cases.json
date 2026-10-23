@@ -92,6 +92,267 @@
         { "id": "promise-all-read-aggregation", "expected": "no-finding", "scenario": "Promise.all gathers independent reads and the caller requires every value before continuing." },
         { "id": "promise-all-operation-kind-unclear", "expected": "unknown", "scenario": "Promise.all is visible, but operation effects and recovery semantics are unavailable." }
       ]
+    },
+    {
+      "card": "qwik-server-client-serialization",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "qwik-server-client-serialization-broken", "expected": "finding", "scenario": "A routeLoader$ returns the full user row including an API token and the component renders only the name." },
+        { "id": "qwik-server-client-serialization-valid", "expected": "no-finding", "scenario": "The loader maps the row to {name} before returning, and production output contains no token." },
+        { "id": "qwik-server-client-serialization-unknown", "expected": "unknown", "scenario": "A loader returns an object built by a helper whose fields are not visible and no production output is available." }
+      ]
+    },
+    {
+      "card": "qwik-resumability-closure-capture",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "qwik-resumability-closure-capture-broken", "expected": "finding", "scenario": "A component$ captures a WebSocket instance created outside the closure and uses it in an onClick$ handler." },
+        { "id": "qwik-resumability-closure-capture-valid", "expected": "no-finding", "scenario": "The socket is held with noSerialize and re-opened in useVisibleTask$, or the handler captures only an id." },
+        { "id": "qwik-resumability-closure-capture-unknown", "expected": "unknown", "scenario": "A handler captures an imported object whose class definition is outside the selected source." }
+      ]
+    },
+    {
+      "card": "qwik-loader-action-validation",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "qwik-loader-action-validation-broken", "expected": "finding", "scenario": "routeAction$ passes formData.get('id') straight into a SQL query with no validator$." },
+        { "id": "qwik-loader-action-validation-valid", "expected": "no-finding", "scenario": "routeAction$ declares zod$({id: z.string().uuid()}) before the query." },
+        { "id": "qwik-loader-action-validation-unknown", "expected": "unknown", "scenario": "The action delegates to an imported service whose validation is outside the selected source." }
+      ]
+    },
+    {
+      "card": "react-state-effect-ownership",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "react-state-effect-ownership-broken", "expected": "finding", "scenario": "useEffect(() => setFiltered(items.filter(f)), [items]) duplicates derivable data, and a fetch effect has no cancellation so an older response overwrites a newer one." },
+        { "id": "react-state-effect-ownership-valid", "expected": "no-finding", "scenario": "The filtered list is computed during render, and the fetch effect ignores results after cleanup." },
+        { "id": "react-state-effect-ownership-unknown", "expected": "unknown", "scenario": "The effect calls an imported hook whose state ownership is not visible." }
+      ]
+    },
+    {
+      "card": "secret-serialization-through-logs-and-telemetry",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "secret-serialization-through-logs-and-telemetry-broken", "expected": "finding", "scenario": "A request handler logs the whole headers object including Authorization, or a config struct with an api_key derives Debug and is logged." },
+        { "id": "secret-serialization-through-logs-and-telemetry-valid", "expected": "no-finding", "scenario": "The logger redacts Authorization, or the struct implements Debug with the key masked." },
+        { "id": "secret-serialization-through-logs-and-telemetry-unknown", "expected": "unknown", "scenario": "A value named token reaches a logger wrapper whose redaction rules are not visible." }
+      ]
+    },
+    {
+      "card": "commerce-money-and-inventory-invariants",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "commerce-money-and-inventory-invariants-broken", "expected": "finding", "scenario": "Two refund requests each check refundable balance before either writes, and the total exceeds the captured amount." },
+        { "id": "commerce-money-and-inventory-invariants-valid", "expected": "no-finding", "scenario": "The refund runs as one conditional UPDATE ... WHERE refundable >= amount inside a transaction." },
+        { "id": "commerce-money-and-inventory-invariants-unknown", "expected": "unknown", "scenario": "The code compares quantity to stock, but whether stock includes reservations is defined nowhere in the selected source." }
+      ]
+    },
+    {
+      "card": "webhook-idempotency-and-verification-order",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "webhook-idempotency-and-verification-order-broken", "expected": "finding", "scenario": "A payment webhook inserts a ledger row and sends a receipt on every delivery with no event-id check." },
+        { "id": "webhook-idempotency-and-verification-order-valid", "expected": "no-finding", "scenario": "The handler inserts the event id under a unique constraint first and returns early on conflict." },
+        { "id": "webhook-idempotency-and-verification-order-unknown", "expected": "unknown", "scenario": "The handler calls a shared processEvent helper whose idempotency is not visible." }
+      ]
+    },
+    {
+      "card": "tenant-authorization-scope",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "tenant-authorization-scope-broken", "expected": "finding", "scenario": "GET /orders/:id loads the order by id alone and returns it to any authenticated user." },
+        { "id": "tenant-authorization-scope-valid", "expected": "no-finding", "scenario": "The query adds AND tenant_id = $caller, or a row-level policy enforces the same." },
+        { "id": "tenant-authorization-scope-unknown", "expected": "unknown", "scenario": "The handler calls a repository whose scoping is defined outside the selected source." }
+      ]
+    },
+    {
+      "card": "swift-actor-reentrancy-stale-state",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "swift-actor-reentrancy-stale-state-broken", "expected": "finding", "scenario": "An actor checks balance >= amount, awaits a remote authorization, then subtracts amount." },
+        { "id": "swift-actor-reentrancy-stale-state-valid", "expected": "no-finding", "scenario": "The actor reserves the amount before the await and releases it on failure." },
+        { "id": "swift-actor-reentrancy-stale-state-unknown", "expected": "unknown", "scenario": "A method checks state and awaits a function whose isolation and suspension behavior is outside the selected source." }
+      ]
+    },
+    {
+      "card": "swift-task-cancellation-ignored",
+      "owner_lens": "resilience",
+      "cases": [
+        { "id": "swift-task-cancellation-ignored-broken", "expected": "finding", "scenario": "A retry loop catches every error including CancellationError and keeps posting after the view is dismissed." },
+        { "id": "swift-task-cancellation-ignored-valid", "expected": "no-finding", "scenario": "The loop calls try Task.checkCancellation() each pass and rethrows CancellationError." },
+        { "id": "swift-task-cancellation-ignored-unknown", "expected": "unknown", "scenario": "The loop awaits a library call whose cancellation handling is not visible." }
+      ]
+    },
+    {
+      "card": "swift-closure-retain-cycle",
+      "owner_lens": "resilience",
+      "cases": [
+        { "id": "swift-closure-retain-cycle-broken", "expected": "finding", "scenario": "A view model stores a Combine sink that captures self strongly and never cancels it." },
+        { "id": "swift-closure-retain-cycle-valid", "expected": "no-finding", "scenario": "The sink uses [weak self] and is stored in a cancellable set cleared on deinit." },
+        { "id": "swift-closure-retain-cycle-unknown", "expected": "unknown", "scenario": "A closure is passed to a framework API whose retention behavior is not documented in the selected source." }
+      ]
+    },
+    {
+      "card": "kotlin-cancellation-swallowed",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "kotlin-cancellation-swallowed-broken", "expected": "finding", "scenario": "A retry loop catches Exception around delay() and api.send() and keeps sending after the scope is canceled." },
+        { "id": "kotlin-cancellation-swallowed-valid", "expected": "no-finding", "scenario": "The catch rethrows CancellationException before handling other failures." },
+        { "id": "kotlin-cancellation-swallowed-unknown", "expected": "unknown", "scenario": "The catch wraps a call whose suspend status is not visible." }
+      ]
+    },
+    {
+      "card": "android-lifecycle-scope-and-context-leak",
+      "owner_lens": "resilience",
+      "cases": [
+        { "id": "android-lifecycle-scope-and-context-leak-broken", "expected": "finding", "scenario": "A fragment collects a location Flow in lifecycleScope.launch and keeps collecting while stopped, and a singleton stores the Activity." },
+        { "id": "android-lifecycle-scope-and-context-leak-valid", "expected": "no-finding", "scenario": "Collection uses repeatOnLifecycle(STARTED) and the singleton stores applicationContext." },
+        { "id": "android-lifecycle-scope-and-context-leak-unknown", "expected": "unknown", "scenario": "The scope is injected from a module not included in the selected source." }
+      ]
+    },
+    {
+      "card": "compose-state-ownership-and-side-effects",
+      "owner_lens": "correctness",
+      "cases": [
+        { "id": "compose-state-ownership-and-side-effects-broken", "expected": "finding", "scenario": "A composable adds to a mutableListOf in an onClick and expects recomposition, and calls a network request in the composition body." },
+        { "id": "compose-state-ownership-and-side-effects-valid", "expected": "no-finding", "scenario": "The list is a mutableStateListOf and the request runs in LaunchedEffect(userId)." },
+        { "id": "compose-state-ownership-and-side-effects-unknown", "expected": "unknown", "scenario": "The state comes from a ViewModel property whose type is outside the selected source." }
+      ]
+    },
+    {
+      "card": "rust-async-blocking-call",
+      "owner_lens": "performance",
+      "cases": [
+        { "id": "rust-async-blocking-call-broken", "expected": "finding", "scenario": "An async handler calls std::fs::read_to_string for a large file on the multi-thread runtime." },
+        { "id": "rust-async-blocking-call-valid", "expected": "no-finding", "scenario": "The handler uses tokio::fs or wraps the read in spawn_blocking." },
+        { "id": "rust-async-blocking-call-unknown", "expected": "unknown", "scenario": "The handler calls a helper whose blocking behavior is not visible." }
+      ]
+    },
+    {
+      "card": "rust-async-cancellation-safety",
+      "owner_lens": "resilience",
+      "cases": [
+        { "id": "rust-async-cancellation-safety-broken", "expected": "finding", "scenario": "A loop uses select! on read_exact and a timer, so a timer win discards partially read bytes." },
+        { "id": "rust-async-cancellation-safety-valid", "expected": "no-finding", "scenario": "The loop reads into a buffer owned outside the future and resumes with it." },
+        { "id": "rust-async-cancellation-safety-unknown", "expected": "unknown", "scenario": "The raced future is a custom type whose drop behavior is not visible." }
+      ]
+    },
+    {
+      "card": "rust-unsafe-invariant-evidence",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "rust-unsafe-invariant-evidence-broken", "expected": "finding", "scenario": "get_unchecked(idx) uses an index parsed from a network packet without a bounds check." },
+        { "id": "rust-unsafe-invariant-evidence-valid", "expected": "no-finding", "scenario": "The wrapper asserts idx < len before the unchecked access and is the only caller." },
+        { "id": "rust-unsafe-invariant-evidence-unknown", "expected": "unknown", "scenario": "An unsafe block relies on a caller contract whose callers are outside the selected source." }
+      ]
+    },
+    {
+      "card": "tauri-ipc-command-boundary",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "tauri-ipc-command-boundary-broken", "expected": "finding", "scenario": "A read_file command joins an invoke-supplied path to the home directory and reads it without a containment check." },
+        { "id": "tauri-ipc-command-boundary-valid", "expected": "no-finding", "scenario": "The command canonicalizes the path and rejects any outside the app data directory." },
+        { "id": "tauri-ipc-command-boundary-unknown", "expected": "unknown", "scenario": "The command forwards its argument to a helper whose confinement is not visible." }
+      ]
+    },
+    {
+      "card": "tauri-capability-scope-breadth",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "tauri-capability-scope-breadth-broken", "expected": "finding", "scenario": "A capability grants fs:scope for $HOME/** to a window that loads a remote URL, and only $APPDATA is used." },
+        { "id": "tauri-capability-scope-breadth-valid", "expected": "no-finding", "scenario": "The capability scopes fs to $APPDATA/** for the local main window only." },
+        { "id": "tauri-capability-scope-breadth-unknown", "expected": "unknown", "scenario": "The capability is broad, but which windows use it and what the app needs are not documented in the selected source." }
+      ]
+    },
+    {
+      "card": "tauri-deeplink-and-update-trust",
+      "owner_lens": "security",
+      "cases": [
+        { "id": "tauri-deeplink-and-update-trust-broken", "expected": "finding", "scenario": "A deep link app://open?path=... opens the supplied path, and the updater has no public key configured." },
+        { "id": "tauri-deeplink-and-update-trust-valid", "expected": "no-finding", "scenario": "The handler maps the link to an allow-listed route, and the updater requires a signature checked against a configured key." },
+        { "id": "tauri-deeplink-and-update-trust-unknown", "expected": "unknown", "scenario": "The updater endpoint is configured, but the signing configuration lives in a release pipeline outside the selected source." }
+      ]
+    },
+    {
+      "card": "rust-gui-per-frame-work",
+      "owner_lens": "performance",
+      "cases": [
+        { "id": "rust-gui-per-frame-work-broken", "expected": "finding", "scenario": "An egui update function re-reads and re-parses a config file every frame." },
+        { "id": "rust-gui-per-frame-work-valid", "expected": "no-finding", "scenario": "The file is parsed once and re-parsed only when its modification time changes." },
+        { "id": "rust-gui-per-frame-work-unknown", "expected": "unknown", "scenario": "A draw function calls a helper whose cost and cache behavior are not visible." }
+      ]
+    },
+    {
+      "card": "migration-expand-contract-rollout",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "migration-expand-contract-rollout-broken", "expected": "finding", "scenario": "A migration drops a column that the currently deployed service still selects." },
+        { "id": "migration-expand-contract-rollout-valid", "expected": "no-finding", "scenario": "The migration adds the new column first and a later release drops the old one after readers moved." },
+        { "id": "migration-expand-contract-rollout-unknown", "expected": "unknown", "scenario": "The migration renames a column, but consumers and deploy order are outside the selected source." }
+      ]
+    },
+    {
+      "card": "version-gated-api-without-minimum-guard",
+      "owner_lens": "release-readiness",
+      "cases": [
+        { "id": "version-gated-api-without-minimum-guard-broken", "expected": "finding", "scenario": "Code calls an API added in Android API 33 with minSdk 26 and no SDK_INT check." },
+        { "id": "version-gated-api-without-minimum-guard-valid", "expected": "no-finding", "scenario": "The call sits behind Build.VERSION.SDK_INT >= 33 with a fallback." },
+        { "id": "version-gated-api-without-minimum-guard-unknown", "expected": "unknown", "scenario": "The project does not declare a minimum, so reachability on older versions cannot be established." }
+      ]
+    },
+    {
+      "card": "config-key-drift-between-code-and-environments",
+      "owner_lens": "release-readiness",
+      "cases": [
+        { "id": "config-key-drift-between-code-and-environments-broken", "expected": "finding", "scenario": "Code requires STRIPE_WEBHOOK_SECRET and the production deployment file does not define it." },
+        { "id": "config-key-drift-between-code-and-environments-valid", "expected": "no-finding", "scenario": "The key is defined in every environment file or has a documented safe default." },
+        { "id": "config-key-drift-between-code-and-environments-unknown", "expected": "unknown", "scenario": "The deployment secrets are managed outside the repository and no manifest lists them." }
+      ]
+    },
+    {
+      "card": "a11y-interactive-name-role-keyboard",
+      "owner_lens": "a11y",
+      "cases": [
+        { "id": "a11y-interactive-name-role-keyboard-broken", "expected": "finding", "scenario": "A div with onClick is the only close control and has no role, label, or key handler." },
+        { "id": "a11y-interactive-name-role-keyboard-valid", "expected": "no-finding", "scenario": "The control is a button with an aria-label, or Compose clickable has a contentDescription." },
+        { "id": "a11y-interactive-name-role-keyboard-unknown", "expected": "unknown", "scenario": "A custom component wraps an imported control whose semantics are not visible." }
+      ]
+    },
+    {
+      "card": "privacy-collection-consent-and-disclosure",
+      "owner_lens": "data-safety",
+      "cases": [
+        { "id": "privacy-collection-consent-and-disclosure-broken", "expected": "finding", "scenario": "An analytics SDK sends the advertising id at launch and the privacy manifest declares no collection." },
+        { "id": "privacy-collection-consent-and-disclosure-valid", "expected": "no-finding", "scenario": "The SDK is initialized after consent and the manifest declares the collected type." },
+        { "id": "privacy-collection-consent-and-disclosure-unknown", "expected": "unknown", "scenario": "Data is sent, but the repository holds no privacy declaration to compare against." }
+      ]
+    },
+    {
+      "card": "outbound-call-timeout-and-retry-bound",
+      "owner_lens": "resilience",
+      "cases": [
+        { "id": "outbound-call-timeout-and-retry-bound-broken", "expected": "finding", "scenario": "A request handler awaits an upstream fetch with no timeout and retries forever on error." },
+        { "id": "outbound-call-timeout-and-retry-bound-valid", "expected": "no-finding", "scenario": "The call uses a 5s timeout, three retries with backoff, and an idempotency key." },
+        { "id": "outbound-call-timeout-and-retry-bound-unknown", "expected": "unknown", "scenario": "The call goes through a shared client whose configuration is not visible." }
+      ]
+    },
+    {
+      "card": "release-debug-surface-shipped",
+      "owner_lens": "release-readiness",
+      "cases": [
+        { "id": "release-debug-surface-shipped-broken", "expected": "finding", "scenario": "A debug route is registered unconditionally, behind only a runtime flag defaulting to on." },
+        { "id": "release-debug-surface-shipped-valid", "expected": "no-finding", "scenario": "The route is under a compile-time feature excluded from the release profile." },
+        { "id": "release-debug-surface-shipped-unknown", "expected": "unknown", "scenario": "The release profile is defined in a pipeline outside the selected source." }
+      ]
+    },
+    {
+      "card": "component-decomposition-recommendation-contract",
+      "owner_lens": "architecture",
+      "cases": [
+        { "id": "component-decomposition-recommendation-contract-broken", "expected": "finding", "scenario": "A 1200-line component is flagged as too large with no named responsibilities or callers." },
+        { "id": "component-decomposition-recommendation-contract-valid", "expected": "no-finding", "scenario": "The finding names three responsibilities, the state each owns, the callers, and the invariant to preserve." },
+        { "id": "component-decomposition-recommendation-contract-unknown", "expected": "unknown", "scenario": "A large component is visible, but its callers and state ownership are outside the selected source." }
+      ]
     }
   ]
 }

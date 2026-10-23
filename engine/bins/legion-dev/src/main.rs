@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod apple_skill_integrity;
 mod audit_bench;
+mod audit_assurance;
 mod audit_capsule;
 mod audit_security_controls;
 mod checks;
@@ -214,6 +215,21 @@ enum Command {
         #[arg(long)]
         diagnostic: bool,
     },
+    /// Validate audit assurance qualification records; never writes enrollment or catalog state.
+    CheckAuditAssurance {
+        /// Record JSON files, or directories scanned for `*.json` records.
+        #[arg(long = "record", required = true)]
+        records: Vec<std::path::PathBuf>,
+        #[arg(long)]
+        context: Option<std::path::PathBuf>,
+        #[arg(long)]
+        negative_cases: Option<std::path::PathBuf>,
+        /// RFC3339 UTC instant used for freshness checks.
+        #[arg(long)]
+        now: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Observe completed security pipeline controls without executing models or issuing qualification.
     AuditSecurityControls {
         #[arg(long)]
@@ -369,6 +385,22 @@ fn main() -> ExitCode {
         Command::NativeCliCaptureRust { diagnostic } => {
             generators::native_cli_rust_characterization::run(&root, diagnostic)
         }
+        Command::CheckAuditAssurance {
+            records,
+            context,
+            negative_cases,
+            now,
+            json,
+        } => audit_assurance::run(
+            &root,
+            audit_assurance::Options {
+                records,
+                context,
+                negative_cases,
+                now,
+                json,
+            },
+        ),
         Command::AuditSecurityControls { corpus, runs_root } => {
             match audit_security_controls::run(&corpus, &runs_root) {
                 Ok(observations) => {

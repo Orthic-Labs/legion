@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "terms": [
+    {
+      "namespace": "orders",
+      "id": "created-at",
+      "version": "1.0.0",
+      "owner": "platform-team",
+      "authority": "architecture-board",
+      "meaning": "created-at",
+      "externalConsumersEnumerated": true,
+      "semantics": {
+        "kind": "instant",
+        "timezone": "UTC"
+      },
+      "consumers": [
+        {
+          "repositoryId": "admin"
+        }
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "termId": "orders/created-at",
+      "termVersion": "1.0.0",
+      "repositoryId": "backend",
+      "role": "store",
+      "surface": "database",
+      "symbol": "created_at",
+      "evidence": [
+        {
+          "path": "src/created_at.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "semantics": {
+        "kind": "instant",
+        "timezone": "UTC"
+      }
+    }
+  ]
+}

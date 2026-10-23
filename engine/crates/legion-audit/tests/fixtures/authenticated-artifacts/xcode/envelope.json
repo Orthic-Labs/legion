@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "xcode-build-2026-10-23-001",
+  "kind": "build",
+  "executionMode": "executed",
+  "issuer": {
+    "issuerId": "ci.example.invalid",
+    "trustRootId": "ci-trust-1",
+    "keyId": "1111111111111111111111111111111111111111111111111111111111111111",
+    "attestationFormat": "host-ci-provenance",
+    "attestationDigest": "sha256:50688f2db869588d7f337ccd93c9c9b76272c86789b8d51f90e1d46258c12540"
+  },
+  "subject": {
+    "repositories": [
+      {
+        "repositoryId": "ios-app",
+        "revision": "cccccccccccccccccccccccccccccccccccccccc",
+        "branch": "main",
+        "snapshotDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    ],
+    "target": "ios-app",
+    "variant": "release",
+    "toolchain": "xcode-16.0",
+    "configDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "dependencyGraphDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "command": {
+      "adapterId": "xcodebuild",
+      "commandDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "xcode/build-receipt.json",
+      "digest": "sha256:a9134fd7e903e70d87937ab596f63c883e9036704a7bb0903711296b78b01745",
+      "bytes": 63,
+      "role": "primary"
+    }
+  ],
+  "outcome": "passed",
+  "scope": {
+    "examined": ["build:release"],
+    "missing": []
+  },
+  "upstreamRuntime": "xcode-16",
+  "issuedAt": "2026-10-23T09:30:00Z",
+  "freshUntil": "2026-10-24T09:30:00Z"
+}

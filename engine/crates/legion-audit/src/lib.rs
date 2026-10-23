@@ -1,20 +1,29 @@
 #![forbid(unsafe_code)]
 
+pub mod artifact_evidence;
+pub mod assurance;
 pub mod continuation;
 mod dag;
+pub mod debt;
+pub mod dependency_inventory;
+pub mod domain_contract;
 mod error;
 mod execution;
+pub mod finding_history;
 pub mod execution_policy;
 pub mod graph_context;
 mod integrity;
 mod inventory;
 pub mod native_providers;
 pub mod next;
+pub mod owner_admission;
 mod normalize;
 pub mod p12_pipeline;
 mod plan;
+pub mod profiles;
 mod report;
 pub mod review_runtime;
+pub mod runtime_obligations;
 pub mod scope;
 pub mod snapshot;
 pub mod source_cache;

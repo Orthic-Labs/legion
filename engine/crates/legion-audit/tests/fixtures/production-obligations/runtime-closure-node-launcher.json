@@ -1,0 +1,22 @@
+{
+  "steps": [
+    {
+      "name": "eslint-bridge",
+      "runtime": "node",
+      "kind": "launcher",
+      "auditOwned": true
+    },
+    {
+      "name": "detekt",
+      "runtime": "jvm",
+      "kind": "tool",
+      "auditOwned": true
+    },
+    {
+      "name": "app-ci-eslint-report",
+      "runtime": "node",
+      "kind": "imported-evidence",
+      "auditOwned": false
+    }
+  ]
+}

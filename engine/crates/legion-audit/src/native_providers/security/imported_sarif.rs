@@ -3,6 +3,25 @@ use serde_json::{json, Value};
 
 use super::common::{array, digest};
 
+/// A locally parsed SARIF file is self-attested candidate evidence. Only an
+/// A03 authenticated envelope covering the exact SARIF bytes upgrades it;
+/// parser success is never proof of test execution.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SarifAuthentication {
+    SelfAttestedCandidate,
+    Authenticated {
+        evidence_digest: String,
+        attestor: String,
+    },
+}
+
+impl Default for SarifAuthentication {
+    fn default() -> Self {
+        Self::SelfAttestedCandidate
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportedSarif {
@@ -12,6 +31,24 @@ pub struct ImportedSarif {
     pub raw_immutable: bool,
     pub raw_bytes: usize,
     pub results: Vec<Value>,
+    #[serde(default)]
+    pub authentication: SarifAuthentication,
+}
+
+impl ImportedSarif {
+    pub fn with_authentication(mut self, authentication: SarifAuthentication) -> Self {
+        self.authentication = authentication;
+        self
+    }
+
+    /// Execution provenance exists only after independent authentication.
+    pub fn has_execution_provenance(&self) -> bool {
+        matches!(self.authentication, SarifAuthentication::Authenticated { .. })
+    }
+
+    pub fn satisfies_obligation(&self) -> bool {
+        self.has_execution_provenance()
+    }
 }
 
 pub fn ingest_sarif(
@@ -64,6 +101,8 @@ pub fn ingest_sarif(
         raw_immutable: true,
         raw_bytes: raw_bytes.len(),
         results: array(parsed.get("results")),
+        // Local ingestion authenticates nothing; A03 upgrades explicitly.
+        authentication: SarifAuthentication::SelfAttestedCandidate,
     })
 }
 
@@ -94,5 +133,7 @@ pub fn analyze(input: &Value) -> Value {
         .iter()
         .flat_map(|item| item.results.clone())
         .collect::<Vec<_>>();
-    json!({"applicable":!supplied.is_empty(),"status":if gaps.is_empty(){"pass"}else{"unproven"},"complete":!supplied.is_empty()&&gaps.is_empty(),"denominator":{"kind":"supplied-sarif-artifacts","expected":supplied.len(),"examined":normalized.len()},"findings":findings,"coverageGaps":gaps})
+    // Legacy fields stay for existing consumers; the authentication fields
+    // are authoritative for obligations: unauthenticated SARIF satisfies none.
+    json!({"applicable":!supplied.is_empty(),"status":if gaps.is_empty(){"pass"}else{"unproven"},"complete":!supplied.is_empty()&&gaps.is_empty(),"authentication":"self-attested-candidate","executionProvenance":false,"satisfiesObligation":false,"denominator":{"kind":"supplied-sarif-artifacts","expected":supplied.len(),"examined":normalized.len()},"findings":findings,"coverageGaps":gaps})
 }

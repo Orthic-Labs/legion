@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "terms": [
+    {
+      "namespace": "orders",
+      "id": "total",
+      "version": "2.0.0",
+      "owner": "platform-team",
+      "authority": "architecture-board",
+      "meaning": "total",
+      "externalConsumersEnumerated": true,
+      "semantics": {
+        "kind": "money",
+        "unit": "major",
+        "scale": 0,
+        "currency": "USD"
+      }
+    }
+  ],
+  "mappings": []
+}

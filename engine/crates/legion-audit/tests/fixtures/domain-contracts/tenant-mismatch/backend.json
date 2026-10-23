@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "terms": [
+    {
+      "namespace": "orders",
+      "id": "tenant-id",
+      "version": "1.0.0",
+      "owner": "platform-team",
+      "authority": "architecture-board",
+      "meaning": "tenant-id",
+      "externalConsumersEnumerated": true,
+      "semantics": {
+        "kind": "identifier"
+      }
+    },
+    {
+      "namespace": "orders",
+      "id": "order-id",
+      "version": "1.0.0",
+      "owner": "platform-team",
+      "authority": "architecture-board",
+      "meaning": "order-id",
+      "externalConsumersEnumerated": true,
+      "semantics": {
+        "kind": "identifier"
+      },
+      "identity": {
+        "tenantScoped": true,
+        "tenantTerm": "orders/tenant-id"
+      },
+      "consumers": [
+        {
+          "repositoryId": "mobile"
+        }
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "termId": "orders/order-id",
+      "termVersion": "1.0.0",
+      "repositoryId": "backend",
+      "role": "producer",
+      "surface": "api",
+      "symbol": "orderId",
+      "evidence": [
+        {
+          "path": "src/orderId.ts",
+          "startLine": 1,
+          "endLine": 5
+        }
+      ],
+      "tenantTerm": "orders/tenant-id",
+      "semantics": {
+        "kind": "identifier"
+      }
+    }
+  ]
+}

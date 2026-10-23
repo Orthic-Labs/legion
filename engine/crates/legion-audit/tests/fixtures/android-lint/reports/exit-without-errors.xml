@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 31.5.0">
+    <issue id="HardcodedText" severity="Warning" message="Hardcoded">
+        <location file="app/src/main/res/layout/activity_main.xml" line="7" column="9"/>
+    </issue>
+</issues>

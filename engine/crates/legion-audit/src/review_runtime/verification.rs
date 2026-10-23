@@ -249,6 +249,11 @@ fn partition_rows(
     found
 }
 
+/// Candidates one fresh verifier can carry within its output ceiling.
+pub(super) fn candidate_capacity(output_ceiling: u64) -> usize {
+    (output_ceiling / 300).clamp(1, 12) as usize
+}
+
 fn verifier_output_ceiling(seat: &Value) -> u64 {
     seat["outputTokenCeiling"]
         .as_u64()
@@ -299,7 +304,7 @@ pub(super) fn verify_pending(
         .and_then(|seat| seat["perCallTokenAllowance"].as_u64())
         .unwrap_or(0)
         .min(60_000);
-    let candidate_cap = (output_ceiling / 300).clamp(1, 12) as usize;
+    let candidate_cap = candidate_capacity(output_ceiling);
     for (packet_index, item) in pending.iter().enumerate() {
         if item.result["withdrawn"]
             .as_array()
@@ -395,24 +400,29 @@ pub(super) fn verify_pending(
     if !candidates.is_empty() || !negative.is_empty() {
         let prompt = review_prompt(&candidates, &negative, &controller.snapshot.manifest.key);
         let bytes = super::model_visible_input_bytes(&prompt, SYSTEM, &schema)?;
+        // An unaffordable verifier leaves every author result retained as
+        // unverified/unresolved; it must never abort and drop candidates.
         let output = verifier_output_tokens(
             allowance,
             output_ceiling,
             bytes,
             candidates.len() + negative.len(),
-        )
-        .ok_or_else(|| invalid("fresh verifier output cannot fit physical allowance"))?;
-        seat.as_mut().unwrap()["outputTokenLimit"] = json!(output);
+        );
+        seat.as_mut().unwrap()["outputTokenLimit"] = json!(output.unwrap_or(0));
         // One admitted fresh process; schema repair must not add a second call.
-        match controller.call_once(
-            seat.as_ref().unwrap(),
-            prompt,
-            SYSTEM,
-            &schema,
-            None,
-            &execution,
-            None,
-        ) {
+        match if output.is_none() {
+            Err(invalid("incomplete:verifier-budget-exhausted:fresh verifier output cannot fit physical allowance"))
+        } else {
+            controller.call_once(
+                seat.as_ref().unwrap(),
+                prompt,
+                SYSTEM,
+                &schema,
+                None,
+                &execution,
+                None,
+            )
+        } {
             Ok((observation, _)) => {
                 if pending.iter().any(|item| {
                     observation.process_id == item.author.process_id
@@ -561,6 +571,12 @@ pub(super) fn verify_pending(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn candidate_capacity_is_bounded_and_never_zero() {
+        assert_eq!(candidate_capacity(0), 1);
+        assert_eq!(candidate_capacity(900), 3);
+        assert_eq!(candidate_capacity(1_000_000), 12);
+    }
     #[test]
     fn fresh_verifier_chooses_output_from_frozen_ceiling_independently_of_author() {
         let seat = json!({"outputTokenLimit":1000,"outputTokenCeiling":2500});

@@ -1,0 +1,3 @@
+[
+  { "character" : 20, "file" : "/build/src/App/App/AppMain.swift", "line" : 18, "reason" : "Force casts should be avoided.", "rule_id" : "force_cast", "severity" : "Error", "type" : "Force Cast" }
+]

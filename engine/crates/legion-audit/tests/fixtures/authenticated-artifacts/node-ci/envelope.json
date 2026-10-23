@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "node-ci-test-2026-10-23-001",
+  "kind": "test",
+  "executionMode": "executed",
+  "issuer": {
+    "issuerId": "ci.example.invalid",
+    "trustRootId": "ci-trust-1",
+    "keyId": "1111111111111111111111111111111111111111111111111111111111111111",
+    "attestationFormat": "host-ci-provenance",
+    "attestationDigest": "sha256:50688f2db869588d7f337ccd93c9c9b76272c86789b8d51f90e1d46258c12540"
+  },
+  "subject": {
+    "repositories": [
+      {
+        "repositoryId": "web",
+        "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "branch": "main",
+        "snapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "repositoryId": "api",
+        "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "branch": "main",
+        "snapshotDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "target": "web-production",
+    "variant": "release",
+    "toolchain": "node-20.11.0/pnpm-9",
+    "configDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "testSelectionDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "dependencyGraphDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "workloadDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "command": {
+      "adapterId": "pnpm-test",
+      "commandDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "node-ci/test-results.json",
+      "digest": "sha256:4474131c7336675e8477094c9dafbd71275968387c50c06704c72ab6ac38d57d",
+      "bytes": 35,
+      "role": "primary"
+    }
+  ],
+  "outcome": "passed",
+  "scope": {
+    "examined": ["unit", "integration", "journey:checkout"],
+    "missing": []
+  },
+  "upstreamRuntime": "node-20",
+  "issuedAt": "2026-10-23T09:00:00Z",
+  "freshUntil": "2026-10-24T09:00:00Z"
+}

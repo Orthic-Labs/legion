@@ -1,0 +1,101 @@
+{
+  "schema": "legion-audit-assurance-qualification/1",
+  "lifecycle": "qualified",
+  "syntheticFixture": true,
+  "scope": {
+    "provider": "code.example",
+    "providerVersion": "1.2.3",
+    "lens": "security",
+    "stack": "rust",
+    "ruleId": "example.rule",
+    "ruleProfileRevision": "rev-7",
+    "tool": "example-tool",
+    "toolVersion": "4.5.6",
+    "configDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "platform": "macos-15",
+    "toolchain": "rustc-1.90",
+    "target": "aarch64-apple-darwin",
+    "variant": "release",
+    "features": [
+      "default"
+    ],
+    "excludedSupport": [
+      "windows",
+      "wasm32"
+    ]
+  },
+  "basis": {
+    "kind": "heldout",
+    "fixtureIds": [
+      "authored-pos"
+    ],
+    "heldoutFixtureIds": [
+      "heldout-pos",
+      "heldout-clean"
+    ],
+    "productionObservations": 0
+  },
+  "provenance": {
+    "source": "local",
+    "commit": null,
+    "workflow": null,
+    "runId": null,
+    "attestor": "synthetic-corpus",
+    "authenticated": false,
+    "capturedAt": "2026-10-20T00:00:00Z",
+    "freshUntil": "2027-01-01T00:00:00Z",
+    "rawOutputs": [],
+    "sourceClosureDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "implementationDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "outcomes": [
+    {
+      "fixtureId": "authored-pos",
+      "split": "authored",
+      "kind": "positive",
+      "target": "aarch64-apple-darwin",
+      "expectedFindings": 1,
+      "emittedFindings": 1,
+      "matchedFindings": 1,
+      "locatedFindings": 1,
+      "unsupportedClaims": 0,
+      "claimedClean": false
+    },
+    {
+      "fixtureId": "heldout-pos",
+      "split": "heldout",
+      "kind": "positive",
+      "target": "aarch64-apple-darwin",
+      "expectedFindings": 1,
+      "emittedFindings": 1,
+      "matchedFindings": 1,
+      "locatedFindings": 1,
+      "unsupportedClaims": 0,
+      "claimedClean": false
+    },
+    {
+      "fixtureId": "heldout-clean",
+      "split": "heldout",
+      "kind": "negative",
+      "target": "aarch64-apple-darwin",
+      "expectedFindings": 0,
+      "emittedFindings": 0,
+      "matchedFindings": 0,
+      "locatedFindings": 0,
+      "unsupportedClaims": 0,
+      "claimedClean": true
+    }
+  ],
+  "metrics": {
+    "method": "per-fixture expected/emitted/matched counts; synthetic corpus values",
+    "sampleSize": 3,
+    "precision": 1.0,
+    "recall": 1.0
+  },
+  "cost": {
+    "wallTimeMs": 25,
+    "modelCalls": 0,
+    "tokens": null
+  },
+  "qualificationDigest": "sha256:e9315211854e531ddda0e6aa369bdb4d6a9a505253632c717325ba6fe6e4f1aa"
+}

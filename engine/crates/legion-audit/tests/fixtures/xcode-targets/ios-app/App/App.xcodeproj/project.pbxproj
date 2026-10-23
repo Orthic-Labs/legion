@@ -1,0 +1,189 @@
+// !$*UTF8*!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000001 /* AppMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000001 /* AppMain.swift */; };
+		A1000002 /* Isolated.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002 /* Isolated.swift */; };
+		A1000003 /* AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000003 /* AppTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F1000001 /* AppMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMain.swift; sourceTree = "<group>"; };
+		F1000002 /* Isolated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Isolated.swift; sourceTree = "<group>"; };
+		F1000003 /* AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTests.swift; sourceTree = "<group>"; };
+		F1000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F1000005 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		F1000006 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		G1000000 = {
+			isa = PBXGroup;
+			children = (
+				G1000001 /* App */,
+				G1000002 /* AppTests */,
+			);
+			sourceTree = "<group>";
+		};
+		G1000001 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F1000001 /* AppMain.swift */,
+				F1000002 /* Isolated.swift */,
+				F1000004 /* Info.plist */,
+				F1000005 /* App.entitlements */,
+				F1000006 /* PrivacyInfo.xcprivacy */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		G1000002 /* AppTests */ = {
+			isa = PBXGroup;
+			children = (
+				F1000003 /* AppTests.swift */,
+			);
+			path = AppTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		T1000001 /* App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = L1000001 /* Build configuration list for PBXNativeTarget "App" */;
+			buildPhases = (
+				P1000001 /* Sources */,
+			);
+			name = App;
+			productType = "com.apple.product-type.application";
+		};
+		T1000002 /* AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = L1000002 /* Build configuration list for PBXNativeTarget "AppTests" */;
+			buildPhases = (
+				P1000002 /* Sources */,
+			);
+			name = AppTests;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		R1000000 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = L1000000 /* Build configuration list for PBXProject "App" */;
+			mainGroup = G1000000;
+			targets = (
+				T1000001 /* App */,
+				T1000002 /* AppTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		P1000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				A1000001 /* AppMain.swift in Sources */,
+				A1000002 /* Isolated.swift in Sources */,
+			);
+		};
+		P1000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				A1000003 /* AppTests.swift in Sources */,
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C1000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C1000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		C1000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				INFOPLIST_FILE = App/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Debug;
+		};
+		C1000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				INFOPLIST_FILE = App/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Release;
+		};
+		C1000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Debug;
+		};
+		C1000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		L1000000 /* Build configuration list for PBXProject "App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1000001 /* Debug */,
+				C1000002 /* Release */,
+			);
+			defaultConfigurationName = Release;
+		};
+		L1000001 /* Build configuration list for PBXNativeTarget "App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1000003 /* Debug */,
+				C1000004 /* Release */,
+			);
+			defaultConfigurationName = Release;
+		};
+		L1000002 /* Build configuration list for PBXNativeTarget "AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1000005 /* Debug */,
+				C1000006 /* Release */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = R1000000 /* Project object */;
+}

@@ -1,0 +1,4 @@
+/build/src/App/App/Isolated.swift:12:9: error: main actor-isolated property 'count' can not be mutated from a nonisolated context [#ActorIsolation]
+/build/src/App/App/AppMain.swift:30:21: warning: capture of 'value' with non-sendable type 'Box' in a `@Sendable` closure [#SendableClosureCaptures]
+/build/src/App/App/AppMain.swift:41:5: warning: variable 'unused' was never used; consider replacing with '_' or removing it
+/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/Foo.swiftinterface:3:1: warning: sendable noise from the SDK

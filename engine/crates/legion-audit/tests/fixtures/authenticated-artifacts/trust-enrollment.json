@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "issuers": [
+    {
+      "issuerId": "ci.example.invalid",
+      "trustRootId": "ci-trust-1",
+      "keyId": "1111111111111111111111111111111111111111111111111111111111111111",
+      "attestationFormat": "host-ci-provenance",
+      "verifierId": "fixture-ci-verifier"
+    }
+  ]
+}
