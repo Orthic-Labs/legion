@@ -321,7 +321,7 @@ fn cli_end_to_end_bootstrap_continuity_reconcile_and_notes() {
         cli(&args, &env)
     };
     let (code, text) = verify(&[]);
-    assert_eq!(code, 0, "{text}");
+    assert_eq!(code, 1, "unreconciled in-flight work must fail: {text}");
     assert!(text.contains("SOURCE_ASSERTION") && text.contains("NOT transcript evidence"));
     assert!(text.contains("IN_FLIGHT_UNRECONCILED: 2"));
 
@@ -364,12 +364,12 @@ fn cli_end_to_end_bootstrap_continuity_reconcile_and_notes() {
         &env,
     );
     assert_eq!(code, 0, "{text}");
-    let (code, text) = verify(&[]);
+    let (code, text) = verify(&["--reconciliation", rec.to_str().unwrap()]);
     assert_eq!(code, 0, "{text}");
     assert!(text.contains("NOTES_PASS: 1 note(s)") && text.contains("agent-7 exited"));
     let original = fs::read_to_string(&notes).unwrap();
     fs::write(&notes, original.replace("exited", "alive")).unwrap();
-    assert_eq!(verify(&[]).0, 1);
+    assert_eq!(verify(&["--reconciliation", rec.to_str().unwrap()]).0, 1);
 }
 
 #[test]

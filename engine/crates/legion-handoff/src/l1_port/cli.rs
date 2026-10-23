@@ -498,6 +498,7 @@ fn report_live_state(
                     "IN_FLIGHT_UNRECONCILED: {} item(s); rerun with --reconciliation before writing the packet",
                     block.in_flight.len()
                 );
+                return 1;
             }
             None => {}
         }

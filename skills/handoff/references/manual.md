@@ -116,7 +116,7 @@ legion script handoff/transcript-handoff continuity --output "<session.context.j
 ```
 
 `resolution`: `still_running|stopped|completed|failed|abandoned`. Missing, duplicate, undeclared, or evidence-free
-entries fail. Without `--reconciliation` the command prints `IN_FLIGHT_UNRECONCILED` & the packet may not be written yet.
+entries fail. Without `--reconciliation` the command prints `IN_FLIGHT_UNRECONCILED` & exits 1; the packet may not be written until reconciliation passes.
 Keep both files with packet.
 Packet's `Source prefix receipt` uses `PLATFORM:`, `SESSION_ID:`, `CUTOFF_BYTES:`, `SHA256:`,
 & `PARSER_VERSION:` labels from context's `source` fields & `parserVersion`.

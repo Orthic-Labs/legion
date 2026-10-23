@@ -61,7 +61,7 @@
     {
       "path": "assets/handoff-template.md",
       "uri": "legion-skill://handoff/assets/handoff-template.md",
-      "digest": "sha256:fd500565e98e8a97728109977f25a213fb31c194eb7975c0e70d851031194603"
+      "digest": "sha256:21ed946aa84cc7b911b8ec4798a1761734a4f25ac2ed46aeae8912454bfe7545"
     },
     {
       "path": "dependencies.json",
@@ -86,7 +86,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://handoff/references/manual.md",
-      "digest": "sha256:9e8a062d91afa7229f765fcbd81115838b2a562cd7895915d0829853763f1594"
+      "digest": "sha256:ab919ecd7d6cb8b985cd8571012438d6d4c7122175fa7ba914f2fd4a233c95e4"
     }
   ]
 }

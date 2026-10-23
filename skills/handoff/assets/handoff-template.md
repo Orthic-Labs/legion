@@ -52,6 +52,10 @@
 - **Agents / tasks / threads:** {{ACTIVE_IDS_AND_SCOPES_OR_NONE_CHECKED}}
 - **Scheduled work:** {{AUTOMATIONS_CRON_JOBS_OR_NONE_CHECKED}}
 - **Credentials / access:** {{NAMES_STORES_PRESENCE_SCOPES_NO_VALUES}}
+- **Source assertion (hash-bound claim, not transcript evidence):** {{SOURCE_BLOCK_SHA256_OR_NONE_DECLARED}}
+- **In-flight reconciliation:** {{EACH_ITEM_ID_STATE_AND_EVIDENCE_OR_RECONCILE_PASS_LINE}}
+- **Partial / unreviewed paths:** {{PATH_OWNER_PARTIAL_OR_UNREVIEWED_FLAG_EACH_OR_NONE}}
+- **Post-cutoff notes:** {{NOTES_PASS_COUNT_AND_HEAD_OR_NONE}}
 
 ## 4. Decisions, Invariants & User Corrections
 
