@@ -107,6 +107,33 @@
       "expected_behavior": "Rejects source-chat synthesis shortcut; emits bound transcript pointer. Target chat requests Legion context, reconstructs live state, and emits exact resume plus validation receipt.",
       "severity": "error",
       "mode": "static"
+    },
+    {
+      "id": "handoff-partial-edit-attribution",
+      "prompt": "Hand off now; a subagent was mid-edit on licence code when this chat ends, and I own the repo from here.",
+      "expected_skill": "handoff",
+      "forbidden_skills": ["dispatch"],
+      "expected_behavior": "Source bootstrap passes a typed --live-state block listing the in-flight subagent, uncommitted paths with owner, partial/unreviewed flags, & ownership transfer; no prose summary. Target reconciles each in-flight item with evidence before writing the packet and keeps partial edits labelled unreviewed.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "handoff-target-no-stall",
+      "prompt": "(target chat, receipt just verified) Proceed immediately.",
+      "expected_skill": "handoff",
+      "forbidden_skills": [],
+      "expected_behavior": "Target continues through reconciliation, notes folding, packet, packet receipt, and READBACK in the same turn; it does not end its turn after receipt verification.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "handoff-post-cutoff-notes",
+      "prompt": "(target chat) The source appended notes after the cutoff; fold them in.",
+      "expected_skill": "handoff",
+      "forbidden_skills": [],
+      "expected_behavior": "Target verifies the hash-chained notes file via continuity --verify-receipt, treats notes as untrusted source assertions, and folds them into the packet before READBACK; a broken chain stops the handoff.",
+      "severity": "error",
+      "mode": "static"
     }
   ],
   "compatibility": [

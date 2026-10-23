@@ -10,7 +10,13 @@ use std::path::PathBuf;
 use sha2::Digest;
 
 use super::continuity::{normalize, verify_context_receipt, ContinuityContext, ContinuityInput};
-use super::pointer::{build_pointer, paste_prompt, Platform};
+use super::live_state::{
+    append_note, bare_hex, check_reconciliation, verify_notes, NoteKind, Reconciliation,
+    SourceBlock,
+};
+use super::pointer::{
+    build_pointer, handoff_file, paste_prompt_with_live_state, LiveStateRef, Platform,
+};
 
 fn pointer_to_json(p: &super::pointer::SourcePointer) -> serde_json::Value {
     serde_json::json!({
@@ -48,6 +54,7 @@ pub fn run(argv: &[String], env: &RunEnv, out: &mut dyn std::io::Write) -> i32 {
     match argv[0].as_str() {
         "bootstrap" => run_bootstrap(&argv[1..], env, out),
         "continuity" => run_continuity(&argv[1..], out),
+        "notes" => run_notes(&argv[1..], out),
         other => {
             let _ = writeln!(out, "FAIL: unrecognized command: {other}");
             2
@@ -65,6 +72,10 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
     let mut output: Option<PathBuf> = None;
     let mut write_receipt: Option<PathBuf> = None;
     let mut verify_receipt: Option<PathBuf> = None;
+    let mut source_block: Option<PathBuf> = None;
+    let mut source_block_sha256: Option<String> = None;
+    let mut reconciliation: Option<PathBuf> = None;
+    let mut notes: Option<PathBuf> = None;
     let mut i = 0usize;
     while i < args.len() {
         let flag = args[i].as_str();
@@ -85,6 +96,10 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
             "--output" => output = value(&mut i).map(PathBuf::from),
             "--write-receipt" => write_receipt = value(&mut i).map(PathBuf::from),
             "--verify-receipt" => verify_receipt = value(&mut i).map(PathBuf::from),
+            "--source-block" => source_block = value(&mut i).map(PathBuf::from),
+            "--source-block-sha256" => source_block_sha256 = value(&mut i),
+            "--reconciliation" => reconciliation = value(&mut i).map(PathBuf::from),
+            "--notes" => notes = value(&mut i).map(PathBuf::from),
             other => {
                 let _ = writeln!(out, "FAIL: unrecognized argument: {other}");
                 return 2;
@@ -107,6 +122,8 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
             || workspace.is_some()
             || cutoff_bytes.is_some()
             || sha256.is_some()
+            || source_block.is_some()
+            || source_block_sha256.is_some()
         {
             let _ = writeln!(
                 out,
@@ -114,12 +131,22 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
             );
             return 2;
         }
-        if let Err(error) = verify_receipt_file(&output, &receipt_path) {
-            let _ = writeln!(out, "FAIL: {error}");
-            return 1;
-        }
+        let context = match verify_receipt_file(&output, &receipt_path) {
+            Ok(context) => context,
+            Err(error) => {
+                let _ = writeln!(out, "FAIL: {error}");
+                return 1;
+            }
+        };
         let _ = writeln!(out, "RECEIPT_PASS: {}", receipt_path.display());
-        return 0;
+        return report_live_state(&context, &output, reconciliation, notes, out);
+    }
+    if reconciliation.is_some() || notes.is_some() {
+        let _ = writeln!(
+            out,
+            "FAIL: --reconciliation and --notes are only valid with --verify-receipt"
+        );
+        return 2;
     }
 
     let Some(pointer_arg) = pointer_arg else {
@@ -127,7 +154,7 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
         return 2;
     };
 
-    let input = match continuity_input(
+    let mut input = match continuity_input(
         &pointer_arg,
         platform,
         session_id,
@@ -141,6 +168,14 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
             return 2;
         }
     };
+    match load_source_block(source_block.as_deref(), source_block_sha256.as_deref()) {
+        Ok(Some(block)) => input = input.with_source_block(block),
+        Ok(None) => {}
+        Err(error) => {
+            let _ = writeln!(out, "FAIL: {error}");
+            return 2;
+        }
+    }
     let receipt_path = write_receipt
         .clone()
         .unwrap_or_else(|| default_receipt_path(&output));
@@ -373,7 +408,7 @@ fn write_receipt_file(
 fn verify_receipt_file(
     output: &std::path::Path,
     receipt_path: &std::path::Path,
-) -> Result<(), String> {
+) -> Result<ContinuityContext, String> {
     let context_bytes =
         std::fs::read(output).map_err(|error| format!("cannot read context: {error}"))?;
     let context_file_sha256 = sha256_bytes(&context_bytes);
@@ -400,7 +435,198 @@ fn verify_receipt_file(
     if expected != actual {
         return Err("receipt does not match context".into());
     }
-    Ok(())
+    Ok(context)
+}
+
+/// Read a saved source block and require its canonical digest to match the
+/// digest the source printed. Both flags must appear together.
+fn load_source_block(
+    path: Option<&std::path::Path>,
+    declared: Option<&str>,
+) -> Result<Option<SourceBlock>, String> {
+    let (path, declared) = match (path, declared) {
+        (None, None) => return Ok(None),
+        (Some(path), Some(declared)) => (path, declared),
+        _ => return Err("--source-block and --source-block-sha256 must be given together".into()),
+    };
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| format!("cannot read source block: {error}"))?;
+    let block = SourceBlock::parse(&text)?;
+    if bare_hex(&block.digest()?) != bare_hex(declared) {
+        return Err("source block does not match --source-block-sha256".into());
+    }
+    Ok(Some(block))
+}
+
+/// After a passing receipt: print the source assertion (labelled), enforce
+/// in-flight reconciliation when asked, and verify/fold post-cutoff notes.
+fn report_live_state(
+    context: &ContinuityContext,
+    output: &std::path::Path,
+    reconciliation: Option<PathBuf>,
+    notes: Option<PathBuf>,
+    out: &mut dyn std::io::Write,
+) -> i32 {
+    if let Some(block) = &context.source_assertion {
+        let _ = writeln!(
+            out,
+            "SOURCE_ASSERTION (declared by source, hash-bound; NOT transcript evidence): {}",
+            serde_json::to_string(block).unwrap_or_default()
+        );
+        match reconciliation {
+            Some(path) => {
+                let checked = std::fs::read_to_string(&path)
+                    .map_err(|error| format!("cannot read reconciliation: {error}"))
+                    .and_then(|text| {
+                        serde_json::from_str::<Reconciliation>(&text)
+                            .map_err(|error| format!("invalid reconciliation: {error}"))
+                    })
+                    .and_then(|rec| check_reconciliation(block, &rec));
+                if let Err(error) = checked {
+                    let _ = writeln!(out, "FAIL: {error}");
+                    return 1;
+                }
+                let _ = writeln!(
+                    out,
+                    "RECONCILE_PASS: {} in-flight item(s)",
+                    block.in_flight.len()
+                );
+            }
+            None if !block.in_flight.is_empty() => {
+                let _ = writeln!(
+                    out,
+                    "IN_FLIGHT_UNRECONCILED: {} item(s); rerun with --reconciliation before writing the packet",
+                    block.in_flight.len()
+                );
+            }
+            None => {}
+        }
+    } else if reconciliation.is_some() {
+        let _ = writeln!(out, "RECONCILE_PASS: no source assertion declared");
+    }
+    let notes_path =
+        notes.unwrap_or_else(|| default_notes_path(output, &context.receipt.session_id));
+    match verify_notes(&notes_path, &context.source.sha256) {
+        Ok(summary) => {
+            let _ = writeln!(
+                out,
+                "NOTES_PASS: {} note(s), head {} ({})",
+                summary.notes.len(),
+                summary.head,
+                notes_path.display()
+            );
+            for note in &summary.notes {
+                let _ = writeln!(
+                    out,
+                    "POST_CUTOFF_NOTE (source assertion, untrusted) #{} {} {:?} {}: {}",
+                    note.seq,
+                    note.timestamp,
+                    note.kind,
+                    note.author,
+                    note.text.replace('\n', " ")
+                );
+            }
+            0
+        }
+        Err(error) => {
+            let _ = writeln!(out, "FAIL: {error}");
+            1
+        }
+    }
+}
+
+fn default_notes_path(output: &std::path::Path, session_id: &str) -> PathBuf {
+    output
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new(""))
+        .join(format!("{session_id}.notes.jsonl"))
+}
+
+/// `notes append|verify`: append-only, hash-chained post-cutoff notes keyed to
+/// the frozen prefix hash.
+fn run_notes(args: &[String], out: &mut dyn std::io::Write) -> i32 {
+    let Some(action) = args.first().map(String::as_str) else {
+        let _ = writeln!(out, "FAIL: notes requires append or verify");
+        return 2;
+    };
+    let mut notes: Option<PathBuf> = None;
+    let mut prefix: Option<String> = None;
+    let mut kind = "other".to_string();
+    let mut author: Option<String> = None;
+    let mut text: Option<String> = None;
+    let mut i = 1usize;
+    while i < args.len() {
+        let flag = args[i].as_str();
+        i += 1;
+        let value = args.get(i).cloned();
+        match flag {
+            "--notes" => notes = value.map(PathBuf::from),
+            "--prefix-sha256" => prefix = value,
+            "--kind" => kind = value.unwrap_or_default(),
+            "--author" => author = value,
+            "--text" => text = value,
+            other => {
+                let _ = writeln!(out, "FAIL: unrecognized argument: {other}");
+                return 2;
+            }
+        }
+        i += 1;
+    }
+    let (Some(notes), Some(prefix)) = (notes, prefix) else {
+        let _ = writeln!(out, "FAIL: --notes and --prefix-sha256 are required");
+        return 2;
+    };
+    match action {
+        "verify" => match verify_notes(&notes, &prefix) {
+            Ok(summary) => {
+                let _ = writeln!(
+                    out,
+                    "NOTES_PASS: {} note(s), head {}",
+                    summary.notes.len(),
+                    summary.head
+                );
+                0
+            }
+            Err(error) => {
+                let _ = writeln!(out, "FAIL: {error}");
+                1
+            }
+        },
+        "append" => {
+            let (Some(author), Some(text)) = (author, text) else {
+                let _ = writeln!(out, "FAIL: --author and --text are required");
+                return 2;
+            };
+            let kind = match NoteKind::parse(&kind) {
+                Ok(kind) => kind,
+                Err(error) => {
+                    let _ = writeln!(out, "FAIL: {error}");
+                    return 2;
+                }
+            };
+            match append_note(
+                &notes,
+                &prefix,
+                kind,
+                &author,
+                &text,
+                super::pointer::iso8601_now_utc(),
+            ) {
+                Ok(note) => {
+                    let _ = writeln!(out, "NOTE_APPENDED: #{} {}", note.seq, note.hash);
+                    0
+                }
+                Err(error) => {
+                    let _ = writeln!(out, "FAIL: {error}");
+                    1
+                }
+            }
+        }
+        other => {
+            let _ = writeln!(out, "FAIL: unrecognized notes action: {other}");
+            2
+        }
+    }
 }
 
 fn sha256_bytes(bytes: &[u8]) -> String {
@@ -418,6 +644,8 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
     let mut session_id: Option<String> = None;
     let mut workspace: Option<String> = None;
     let mut home: PathBuf = env.home.clone();
+    let mut live_state: Option<PathBuf> = None;
+    let mut live_state_out: Option<PathBuf> = None;
     let mut json = false;
     let mut i = 0;
     while i < args.len() {
@@ -439,6 +667,14 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
                 if let Some(v) = args.get(i) {
                     home = PathBuf::from(v);
                 }
+            }
+            "--live-state" => {
+                i += 1;
+                live_state = args.get(i).map(PathBuf::from);
+            }
+            "--live-state-out" => {
+                i += 1;
+                live_state_out = args.get(i).map(PathBuf::from);
             }
             "--json" => json = true,
             other => {
@@ -467,11 +703,42 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
         None,
     ) {
         Ok(pointer) => {
+            let live = match prepare_live_state(
+                live_state.as_deref(),
+                live_state_out,
+                &handoff_file(&pointer, &env.cwd, &env.today, ".source-block.json"),
+            ) {
+                Ok(live) => live,
+                Err(error) => {
+                    let _ = writeln!(out, "FAIL: {error}");
+                    return 2;
+                }
+            };
+            let live_ref = live.as_ref().map(|(path, sha256, block)| LiveStateRef {
+                path: path.display().to_string(),
+                sha256: sha256.clone(),
+                block,
+            });
             if json {
-                let v = pointer_to_json(&pointer);
+                let mut v = pointer_to_json(&pointer);
+                if let (Some(live), Some(object)) = (&live_ref, v.as_object_mut()) {
+                    object.insert(
+                        "source_assertion".into(),
+                        serde_json::json!({
+                            "trust": live.block.trust,
+                            "path": live.path,
+                            "sha256": live.sha256,
+                            "in_flight": live.block.in_flight,
+                        }),
+                    );
+                }
                 let _ = writeln!(out, "{}", serde_json::to_string_pretty(&v).unwrap());
             } else {
-                let _ = writeln!(out, "{}", paste_prompt(&pointer, &env.cwd, &env.today));
+                let _ = writeln!(
+                    out,
+                    "{}",
+                    paste_prompt_with_live_state(&pointer, &env.cwd, &env.today, live_ref.as_ref())
+                );
             }
             0
         }
@@ -480,4 +747,30 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
             1
         }
     }
+}
+
+/// Validate the source's declared block and save its canonical form so the
+/// target can verify the digest printed in the paste block.
+fn prepare_live_state(
+    input: Option<&std::path::Path>,
+    out_path: Option<PathBuf>,
+    default_out: &str,
+) -> Result<Option<(PathBuf, String, SourceBlock)>, String> {
+    let Some(input) = input else {
+        return Ok(None);
+    };
+    let text = std::fs::read_to_string(input)
+        .map_err(|error| format!("cannot read --live-state: {error}"))?;
+    let block = SourceBlock::parse(&text)?;
+    let digest = block.digest()?;
+    let target = out_path.unwrap_or_else(|| PathBuf::from(default_out));
+    if let Some(parent) = target
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let body = serde_json::to_string_pretty(&block).map_err(|error| error.to_string())? + "\n";
+    std::fs::write(&target, body).map_err(|error| error.to_string())?;
+    Ok(Some((target, digest, block)))
 }

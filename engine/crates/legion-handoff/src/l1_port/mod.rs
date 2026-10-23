@@ -5,11 +5,12 @@
 
 pub mod cli;
 pub mod continuity;
+pub mod live_state;
 pub mod pointer;
 
 pub use cli::{run, RunEnv};
 pub use continuity::{normalize, verify_context_receipt, ContinuityContext, ContinuityInput};
 pub use pointer::{
-    build_pointer, candidates, normalized_path, paste_prompt, read_header, resolve_source,
-    Platform, SourcePointer,
+    build_pointer, candidates, normalized_path, paste_prompt, paste_prompt_with_live_state,
+    read_header, resolve_source, Platform, SourcePointer,
 };

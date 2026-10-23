@@ -43,6 +43,12 @@ legion script handoff/transcript-handoff bootstrap --platform codex --session-id
 Use this native command on macOS & Windows. Return its generated paste block only. If runtime exposes no ID, omit `--session-id`; resolver must declare
 its selection method. Source output is a pointer, not a permanent handoff packet.
 
+The source may add one small typed **source assertion block** (JSON, `--live-state <file>`; schema in
+[manual](references/manual.md)): repository HEADs (40-hex), uncommitted paths with owner, complete/partial & reviewed
+flags, ownership transfer, & every in-flight item (subagent, broker build, background job: id, state, output path,
+owner). List in-flight items even when empty. The block is validated, hash-bound by the continuity receipt, & kept
+apart from transcript evidence; it is the source's claim, never a summary and never proof. Source never writes prose.
+
 ## Target chat — `TRANSCRIPT_INGEST`
 
 1. Run native continuity command in source paste block; reject pointer/hash mismatch.
@@ -53,10 +59,17 @@ its selection method. Source output is a pointer, not a permanent handoff packet
    ```bash
    legion script handoff/transcript-handoff continuity --output <context.json> --verify-receipt <context.receipt.json>
    ```
-3. Verify drift-prone live state.
+   Add `--reconciliation <rec.json>` (one entry per declared in-flight item, each with evidence) before writing the packet:
+   it fails until every item is reconciled. Verification also verifies & prints post-cutoff notes
+   (`<session>.notes.jsonl` beside the context); fold them into the packet before `READBACK`.
+3. Verify drift-prone live state; confirm every source assertion (HEAD, path owners, partial edits) rather than trusting it.
 4. Read [manual](references/manual.md), copy [template](assets/handoff-template.md), & write a
    permanent packet plus sidecar receipt.
 5. Validate packet, verify receipt, return required `READBACK`, then proceed under packet mode.
+
+Never end the turn, & never wait for "carry on", until the permanent packet, its receipt, & `READBACK` all exist.
+Verifying the context receipt is a checkpoint, not a stopping point. A path marked partial or unreviewed stays
+labelled that way in the packet.
 
 ```bash
 legion script handoff/validate-handoff <handoff.md> --write-receipt <handoff.receipt.json>

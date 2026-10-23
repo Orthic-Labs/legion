@@ -17,6 +17,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use super::live_state::SourceBlock;
 use super::pointer::Platform;
 
 pub const CONTINUITY_SCHEMA: &str = "legion.handoff.continuity.v1";
@@ -130,6 +131,9 @@ pub struct ContinuityReceipt {
     pub events_observed: usize,
     pub parser_version: String,
     pub parser_digest: String,
+    /// Canonical digest of the typed source assertion block, when supplied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_block_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -143,6 +147,10 @@ pub struct ContinuityContext {
     pub omissions: Vec<ContinuityOmission>,
     pub gaps: Vec<ContinuityGap>,
     pub provenance: Vec<String>,
+    /// Source-declared live state. Typed and hash-bound by the receipt, but a
+    /// source assertion: never transcript evidence, never merged into `events`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_assertion: Option<SourceBlock>,
     pub receipt: ContinuityReceipt,
 }
 
@@ -154,6 +162,7 @@ pub struct ContinuityInput {
     pub workspace: String,
     pub cutoff_bytes: u64,
     pub sha256: String,
+    pub source_block: Option<SourceBlock>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -184,7 +193,14 @@ impl ContinuityInput {
             workspace: workspace.into(),
             cutoff_bytes,
             sha256: sha256.into(),
+            source_block: None,
         }
+    }
+
+    /// Attach a validated source assertion block (validated again on use).
+    pub fn with_source_block(mut self, block: SourceBlock) -> Self {
+        self.source_block = Some(block);
+        self
     }
 }
 
@@ -463,6 +479,7 @@ pub fn normalize(input: &ContinuityInput) -> Result<ContinuityContext, String> {
         omissions,
         gaps,
         provenance,
+        source_assertion: input.source_block.clone(),
         receipt: ContinuityReceipt {
             schema: RECEIPT_SCHEMA.into(),
             host: input.platform.as_str().into(),
@@ -485,8 +502,13 @@ pub fn normalize(input: &ContinuityInput) -> Result<ContinuityContext, String> {
             events_observed: 0,
             parser_version: PARSER_VERSION.into(),
             parser_digest: parser_digest(),
+            source_block_sha256: None,
         },
     };
+    if let Some(block) = &context.source_assertion {
+        block.validate()?;
+        context.receipt.source_block_sha256 = Some(block.digest()?);
+    }
     context.receipt.event_count = context.events.len();
     context.receipt.omission_count = context.omissions.len();
     context.receipt.events_observed = context.events.len();
@@ -507,6 +529,19 @@ pub fn verify_context_receipt(context: &ContinuityContext) -> Result<(), String>
         || context.receipt.omission_count != context.omissions.len()
     {
         return Err("continuity receipt counts do not match context".into());
+    }
+    match (
+        &context.source_assertion,
+        &context.receipt.source_block_sha256,
+    ) {
+        (None, None) => {}
+        (Some(block), Some(declared)) => {
+            block.validate()?;
+            if &block.digest()? != declared {
+                return Err("source assertion does not match receipt digest".into());
+            }
+        }
+        _ => return Err("source assertion and receipt digest must appear together".into()),
     }
     let expected = context.receipt.context_sha256.clone();
     let actual = context_digest(context)?;
@@ -1001,6 +1036,10 @@ fn compact_text(value: &str) -> String {
         text = text.chars().take(MAX_TEXT_CHARS).collect::<String>() + "\n[TRUNCATED]";
     }
     text
+}
+
+pub(super) fn redact_text(value: &str) -> String {
+    redact(value)
 }
 
 fn redact(value: &str) -> String {
