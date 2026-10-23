@@ -74,6 +74,19 @@ fn entries() -> Vec<InventoryEntry> {
     let root = repo_root();
     let mut out = Vec::new();
     collect(&root, &root, &mut out);
+    // A dependency tree is never committed as a fixture (RightKit ownership
+    // refuses unverified node_modules provenance); the inventory entry alone
+    // is what the excluded-segment rule examines.
+    let vendored = b"module.exports = {};\n";
+    out.push(InventoryEntry {
+        path: "node_modules/lib/index.js".into(),
+        symbols: Vec::new(),
+        dependencies: Vec::new(),
+        package_scripts: Vec::new(),
+        source_file: true,
+        digest: Some(digest(vendored)),
+    });
+    out.sort_by(|left, right| left.path.cmp(&right.path));
     out
 }
 
