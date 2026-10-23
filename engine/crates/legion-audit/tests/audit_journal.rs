@@ -236,7 +236,7 @@ fn amendment_moves_effective_plan_and_wrong_plan_events_are_rejected() {
     );
     assert!(v.is_valid(), "{:?}", v.defects);
     let mut l = lines(&dir);
-    // Forge a later event bound to the superseded plan.
+    // Fabricate a later event bound to the superseded plan.
     let mut ev: AuditEvent = serde_json::from_str(&l[2]).unwrap();
     ev.plan_digest = PLAN.into();
     l[2] = serde_json::to_string(&ev).unwrap();

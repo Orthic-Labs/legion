@@ -64,7 +64,7 @@ pub const EPOCH_REF_FILE: &str = "epoch.ref";
 /// Directory name, beside the plan-key directory in host state, holding lens
 /// epoch keys by epoch digest (mode 0600).
 pub const EPOCH_KEY_DIR: &str = "audit-lens-epoch-keys";
-/// Who can forge receipts: the invoking OS user (and so any agent running as
+/// Who can mint valid receipts: the invoking OS user (and so any agent running as
 /// that user) until an out-of-process signer exists.
 pub const SIGNING_AUTHORITY: &str = "same-user";
 pub const LENS_PACKET_DIR: &str = "lens-packets";
