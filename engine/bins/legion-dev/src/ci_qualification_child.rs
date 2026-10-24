@@ -77,6 +77,27 @@ fn command_timeout(argv: &[OsString]) -> Duration {
         "--nocapture",
         "--test-threads=1",
     ];
+    // Run40060030080 macOS seq31 (and run39839571253 seq31): the JVM harness
+    // (15 sequential child controls, each re-driving Gradle/Kotlin/Scala builds
+    // cold) hit the 300s default (exit124) after finishing only its first
+    // control; that `positive` child alone took 206.55s (retained
+    // child.stdout.log). 15 x 206.55s = 3098s bounds the span if every control
+    // were as slow as the slowest one seen, so the deadline is 3600s. The
+    // receipt's elapsedMillis from the next full run replaces this bound.
+    let jvm = [
+        "test",
+        "--locked",
+        "-p",
+        "legion-audit",
+        "--test",
+        "real_jvm_sdk_accuracy",
+        "real_jvm_sdk_accuracy",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1",
+    ];
     // The .NET span runs cargo through its recording child
     // (`python3 run-dotnet-sdk-qualification-child.py --output-root DIR -- cargo ...`);
     // the deadline belongs to the cargo command after the separator.
@@ -112,6 +133,7 @@ fn command_timeout(argv: &[OsString]) -> Duration {
             (javascript.as_slice(), 1800),
             (rust.as_slice(), 2400),
             (dotnet.as_slice(), 2400),
+            (jvm.as_slice(), 3600),
         ] {
             if argv.len() == selector.len() + 1
                 && argv[1..]
@@ -273,6 +295,7 @@ mod tests {
                 "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls",
                 2400,
             ),
+            ("--test", "real_jvm_sdk_accuracy", 3600),
         ]
         .into_iter()
         .map(|(kind, target, seconds)| {
@@ -307,7 +330,13 @@ mod tests {
 
     #[test]
     fn dotnet_child_wrapped_command_gets_the_dotnet_deadline() {
-        let (cargo_argv, seconds) = matrix_commands().pop().unwrap();
+        let (cargo_argv, seconds) = matrix_commands()
+            .into_iter()
+            .find(|(argv, _)| {
+                argv.iter()
+                    .any(|value| value.to_string_lossy().contains("dotnet_sdk"))
+            })
+            .unwrap();
         let mut argv: Vec<OsString> = [
             "/usr/bin/python3",
             "/work/scripts/ci/run-dotnet-sdk-qualification-child.py",
