@@ -60,7 +60,9 @@ const CHANGING_SUBCOMMANDS: [&str; 14] = [
     "clean",
 ];
 
-/// Phrases that mean the author is not claiming completion.
+/// Phrases that mean the author is not claiming completion. Each is matched
+/// as whole words, tokenised like `CLAIM_WORDS`: `wip` is not found in
+/// "wiped", `not run` is not found in "cannot run".
 const NOT_A_CLAIM: [&str; 24] = [
     "not done",
     "not complete",
@@ -124,14 +126,33 @@ pub(crate) struct Turn {
     pub evidence: Option<Evidence>,
 }
 
+/// Lowercase alphanumeric runs: the one tokenisation for claim words and
+/// honest-partial phrases, so "can't" is `can` `t` on both sides.
+fn words_of(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|character: char| !character.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Does `phrase` occur in `words` as consecutive whole words?
+fn contains_phrase(words: &[String], phrase: &str) -> bool {
+    let phrase = words_of(phrase);
+    !phrase.is_empty() && words.windows(phrase.len()).any(|window| window == phrase)
+}
+
 pub(crate) fn claims_completion(message: &str) -> bool {
-    let lowered = message.to_lowercase();
-    if NOT_A_CLAIM.iter().any(|phrase| lowered.contains(phrase)) {
+    let words = words_of(message);
+    if NOT_A_CLAIM
+        .iter()
+        .any(|phrase| contains_phrase(&words, phrase))
+    {
         return false;
     }
-    lowered
-        .split(|character: char| !character.is_alphanumeric())
-        .any(|word| CLAIM_WORDS.contains(&word))
+    words
+        .iter()
+        .any(|word| CLAIM_WORDS.contains(&word.as_str()))
 }
 
 // ---------------------------------------------------------------------------
@@ -957,8 +978,39 @@ mod tests {
             "Partial: two of three files changed; unverified.",
             "Blocked on the CI queue.",
             "Here is the plan.",
+            // Phrases keep matching across punctuation, case and apostrophes.
+            "WIP - not DONE yet",
+            "Done with the edit, but I can't verify it.",
+            "Done with the edit, but I can\u{2019}t verify it.",
+            "Fixed it; haven't run the gate.",
+            "Fixed it; the gate did not run.",
+            "Fixed it; the tests could not run, so this is a work in progress.",
+            "Fixed it. Still failing: two cases.",
+            "Fixed it, wip.",
         ] {
             assert!(!claims_completion(message), "{message}");
         }
+    }
+
+    #[test]
+    fn honest_partial_phrases_match_whole_words_only() {
+        // These contain a phrase as a substring ("wip", "not run",
+        // "blocked", "partial", "unable to") but say nothing of the sort.
+        for message in [
+            "Done: wiped the stale cache.",
+            "Fixed. The binary cannot run without the config, so it now bundles it.",
+            "Fixed: the unblocked path ships.",
+            "Done. Wipe-and-reload is gone.",
+            "Complete: it was impartial to ordering.",
+            "Resolved: the job is not running late any more.",
+        ] {
+            assert!(claims_completion(message), "{message}");
+        }
+        assert!(contains_phrase(&words_of("it is a wip."), "wip"));
+        assert!(!contains_phrase(&words_of("wiped"), "wip"));
+        assert!(!contains_phrase(&words_of("cannot run"), "not run"));
+        assert!(contains_phrase(&words_of("we could not run it"), "not run"));
+        assert!(!contains_phrase(&words_of("not"), "not run"));
+        assert!(!contains_phrase(&words_of("anything"), ""));
     }
 }
