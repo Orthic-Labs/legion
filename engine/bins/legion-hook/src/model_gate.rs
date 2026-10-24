@@ -168,21 +168,34 @@ impl Policy {
         &self.marker
     }
 
-    /// The tier rank a model id names. Tiers that resolve to the same model
-    /// share the lowest of their ranks (the model is the same). When the string
-    /// names several different models, the highest wins, so a string that
-    /// mentions two models is judged by the stronger. `None` is a model the
-    /// map does not know (including `inherit`).
+    /// The tier rank a model string names. The string is read as a list of
+    /// names (whitespace and list separators divide them) and every name must
+    /// match a tier, so one unrecognised name makes the whole string unknown:
+    /// `<known>,<unlisted>` is not judged by its known half. Tiers that
+    /// resolve to the same model share the lowest of their ranks (the model is
+    /// the same). When the string names several different known models, the
+    /// highest wins, so a string that mentions two models is judged by the
+    /// stronger. `None` is a model the map does not know (including
+    /// `inherit`).
     fn rank(&self, model: &str) -> Option<usize> {
-        let lowered = model.trim().to_ascii_lowercase();
-        if lowered.is_empty() {
-            return None;
+        let lowered = model.to_ascii_lowercase();
+        let mut highest = None;
+        for name in lowered
+            .split(is_model_separator)
+            .filter(|name| !name.is_empty())
+        {
+            highest = highest.max(Some(self.name_rank(name)?));
         }
+        highest
+    }
+
+    /// The rank of one name: the tier whose host model it contains (ids carry
+    /// vendor prefixes and date or context suffixes around the mapped name).
+    fn name_rank(&self, name: &str) -> Option<usize> {
         self.tiers
             .iter()
-            .enumerate()
-            .filter(|(_, (_, host_model))| lowered.contains(&host_model.to_ascii_lowercase()))
-            .map(|(_, (_, host_model))| {
+            .filter(|(_, host_model)| name.contains(&host_model.to_ascii_lowercase()))
+            .map(|(_, host_model)| {
                 self.tiers
                     .iter()
                     .position(|(_, other)| other == host_model)
@@ -252,6 +265,16 @@ impl Policy {
             ),
         }
     }
+}
+
+/// What divides the names in a model string: whitespace, list separators and
+/// quoting. Model ids themselves use letters, digits and `-_.:/@[]`.
+fn is_model_separator(character: char) -> bool {
+    character.is_whitespace()
+        || matches!(
+            character,
+            ',' | ';' | '|' | '+' | '&' | '(' | ')' | '"' | '\'' | '`'
+        )
 }
 
 /// `legion:oracle`, `oracle` and `plugin:legion:oracle` all name the card.
@@ -394,6 +417,65 @@ mod tests {
             policy.evaluate(&launch(Some(&both), None, "work")),
             Decision::Deny { .. }
         ));
+    }
+
+    #[test]
+    fn a_model_string_with_any_unrecognised_name_is_unknown() {
+        let policy = policy();
+        let low = tier_model(&policy, "mechanical-cheap");
+        let mid = tier_model(&policy, "balanced-executor");
+        let unlisted = "an-unlisted-model";
+        for model in [
+            format!("{low},{unlisted}"),
+            format!("{low}, {unlisted}"),
+            format!("{low} {unlisted}"),
+            format!("{unlisted} {low}"),
+            format!("{low};{unlisted}"),
+            format!("{mid}|{unlisted}"),
+            format!("({low}) {unlisted}"),
+            format!("{mid}\t{unlisted}"),
+        ] {
+            assert_eq!(policy.rank(&model), None, "{model}");
+            assert!(
+                matches!(
+                    policy.evaluate(&launch(Some(&model), Some("general-purpose"), "work")),
+                    Decision::Deny { .. }
+                ),
+                "{model}"
+            );
+        }
+        // An unrecognised name does not hide behind a recognised one on a
+        // launch whose card names no model either.
+        assert!(matches!(
+            policy.evaluate(&launch(Some(unlisted), None, "work")),
+            Decision::Deny { .. }
+        ));
+    }
+
+    #[test]
+    fn recognised_names_keep_their_vendor_decorations_and_the_stronger_wins() {
+        let policy = policy();
+        let low = tier_model(&policy, "mechanical-cheap");
+        let mid = tier_model(&policy, "balanced-executor");
+        let high = tier_model(&policy, "deliberation");
+        let low_rank = policy.rank(&low).expect("the cheap tier ranks");
+        let mid_rank = policy.rank(&mid).expect("the balanced tier ranks");
+        for model in [
+            format!("vendor-{low}-4-5-20251001"),
+            format!("{low}[1m]"),
+            format!("provider/{low}:0"),
+            format!("\"{low}\""),
+            format!("  {low}  "),
+        ] {
+            assert_eq!(policy.rank(&model), Some(low_rank), "{model}");
+            assert!(policy.within_ceiling(&model), "{model}");
+        }
+        for model in [format!("{low},{mid}"), format!("{low} {mid}")] {
+            assert_eq!(policy.rank(&model), Some(mid_rank), "{model}");
+        }
+        assert!(!policy.within_ceiling(&format!("{low},{high}")));
+        assert_eq!(policy.rank(""), None);
+        assert_eq!(policy.rank(" , "), None);
     }
 
     #[test]

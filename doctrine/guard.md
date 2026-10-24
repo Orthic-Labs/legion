@@ -333,7 +333,10 @@ each `agents/<role>.md` model equal to its tier's model.
 
 For an `Agent` or `Task` launch the effective model is the `model` the launch
 names, else the model of the packaged agent card its `subagent_type` names, else
-the default tier's model.
+the default tier's model. A model string is read as a list of names (whitespace,
+commas, semicolons, `|`, `+`, `&`, parentheses and quotes divide them). Every
+name must match a tier, so one unrecognised name makes the whole string unknown,
+and a string naming several known models is judged by the strongest.
 
 - At or under the ceiling: allowed as requested.
 - No model and no packaged card: allowed with the default tier's model filled
