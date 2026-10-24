@@ -1128,6 +1128,22 @@ fn host_requirements(index: &Path) -> Value {
     json!({"present":true,"state":state,"skills":skills})
 }
 
+/// Claude Code reads `AGENTS.md` natively only while no `CLAUDE.md` sits beside it. The
+/// Legion package ships `AGENTS.md` as its single constitution and no `CLAUDE.md`, so a
+/// `CLAUDE.md` that does not import it (`@AGENTS.md`) would silently hide the constitution.
+fn claude_md_shadow_conflict(root: &Path) -> Option<Value> {
+    if !root.join("AGENTS.md").is_file() {
+        return None;
+    }
+    let claude_md = std::fs::read_to_string(root.join("CLAUDE.md")).ok()?;
+    if claude_md.lines().any(|line| line.trim() == "@AGENTS.md") {
+        return None;
+    }
+    Some(
+        json!({"harness":"claude-code","kind":"claude-md-shadows-agents-md","detail":"CLAUDE.md is present without importing AGENTS.md, so Claude Code stops reading AGENTS.md natively; delete CLAUDE.md or add an @AGENTS.md import"}),
+    )
+}
+
 fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> Value {
     let home = home_dir();
     let skills_install = skills_dir_install_path(&home);
@@ -1237,6 +1253,9 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     if root.join(".claude/agents").is_dir() && root.join("agents").is_dir() {
         conflicts.push(json!({"harness":"claude-code","kind":"duplicate-installation-path","detail":"both the plugin package (agents/) and a legion bind projection (.claude/agents/) are present; one installation path must own each harness"}));
     }
+    if in_repository {
+        conflicts.extend(claude_md_shadow_conflict(root));
+    }
     let hook_events = hooks
         .as_ref()
         .and_then(|v| v.get("hooks"))
@@ -1265,6 +1284,8 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
         }
     }
     let mut detected = Vec::new();
+    // A `CLAUDE.md` is still a Claude Code signal in a project that owns one; the Legion
+    // package itself ships none and is detected through `.claude-plugin/plugin.json`.
     if root.join(".claude").exists()
         || native_claude_install_present
         || skills_dir_manifest(&skills_install).is_some()
@@ -1691,5 +1712,41 @@ mod tests {
         .unwrap();
         assert_eq!(claude_marketplace_install_path(&home), Some(install));
         let _ = std::fs::remove_dir_all(home);
+    }
+    #[test]
+    fn claude_md_shadow_conflict_flags_only_a_claude_md_that_hides_agents_md() {
+        let root =
+            std::env::temp_dir().join(format!("legion-doctor-claude-md-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        // No AGENTS.md and no CLAUDE.md: nothing to shadow.
+        assert!(claude_md_shadow_conflict(&root).is_none());
+
+        // The package shape: AGENTS.md alone, read natively by Claude Code.
+        std::fs::write(root.join("AGENTS.md"), "# rules\n").unwrap();
+        assert!(claude_md_shadow_conflict(&root).is_none());
+
+        // A CLAUDE.md that does not import AGENTS.md hides it.
+        std::fs::write(root.join("CLAUDE.md"), "# local notes\n").unwrap();
+        let conflict = claude_md_shadow_conflict(&root).expect("shadowing CLAUDE.md is a conflict");
+        assert_eq!(conflict["harness"], "claude-code");
+        assert_eq!(conflict["kind"], "claude-md-shadows-agents-md");
+
+        // A CLAUDE.md that imports AGENTS.md does not.
+        std::fs::write(root.join("CLAUDE.md"), "@AGENTS.md\n").unwrap();
+        assert!(claude_md_shadow_conflict(&root).is_none());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+    #[test]
+    fn legion_package_root_ships_agents_md_without_a_shadowing_claude_md() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        assert!(root.join("AGENTS.md").is_file());
+        assert!(
+            !root.join("CLAUDE.md").exists(),
+            "Claude Code reads AGENTS.md natively only while no CLAUDE.md exists"
+        );
+        assert!(claude_md_shadow_conflict(&root).is_none());
     }
 }

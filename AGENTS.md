@@ -64,7 +64,7 @@ Report requested states actually reached. Independent nested repositories are de
 - Legion executes ambient-tier work directly under the operator's authorization. Inside the contract chain, settled meaning remains owned by the producing capability; Legion selects capabilities, attaches authority, materializes work, & routes it; Sage adjudicates only genuinely unresolved material meaning; Alchemist owns controlled bounded transformation where required; Oracle owns independent completion assurance; Council dispositions are never Legion's; Arcane shapes cognitive processing & response policy; Guard gates declared typed effects.
 - No false clean. No unbounded execution. No silent scope expansion. Independent work is parallel unless a named reason forbids it.
 
-> Claude Code loads this file through `CLAUDE.md`; `docs/agent-rules.md` mirrors the Package Rules section below. Edit both together.
+> Claude Code and Codex read this file directly (the package ships no `CLAUDE.md`); `docs/agent-rules.md` mirrors the Package Rules section below. Edit both together.
 
 # Legion Package Rules
 
@@ -79,7 +79,7 @@ Legion provides shared routing, execution, and independent semantic validation a
 - `docs/provenance/**` (including `docs/provenance/canon/` & `docs/provenance/pending/`) is frozen history that cites deleted code. It is not authoritative and not a pending-work index.
 
 ## Commands
-- Before local build/check/test admission, inspect managed RightKit inventory once, including past 30 minutes. If another build is queued, running, or was processed within that window, never start or queue local work: use GitHub CI. Missing inventory fails closed to CI; do not poll or wait for local capacity.
+- Compile locally, one build per host through RustRight: dev profile, incremental, primary checkout, warm cache, never cold. RustRight queues concurrent builds; never divert local work to CI because another build is queued or running. Legion is public, so GitHub CI also qualifies every push in parallel; CI never replaces the local build.
 - Windows installer commands (native check, unsigned development build, CI route) live in `docs/reference/release/local-windows-development.md`. Read it before any installer work.
 
 ## Locked invariants
