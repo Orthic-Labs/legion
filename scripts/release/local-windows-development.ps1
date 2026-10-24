@@ -29,10 +29,10 @@ try {
         $compiler = 'cargo'
         $compilerPrefix = @()
     } else {
-        $compiler = 'rightkit'
+        $compiler = 'rustright'
         $compilerPrefix = @('cargo')
     }
-    # Keep compilation inside RightKit. The local development policy permits
+    # Keep compilation inside RustRight. The local development policy permits
     # native builds, while arbitrary cargo-run commands remain denied.
     if (-not $PreassembledRoot) {
         & $compiler @compilerPrefix build --locked --profile dev --manifest-path engine/Cargo.toml `

@@ -1,7 +1,7 @@
 # Windows unsigned installer development
 
 Follow the build rule in `AGENTS.md` (Commands): compile locally, one build per host
-through the managed `rightkit` commands below, dev profile, incremental, primary
+through the managed `rustright` commands below, dev profile, incremental, primary
 checkout, warm cache, never cold. The managed queue serializes concurrent builds;
 never divert local work to CI because another build is queued or running. Legion is
 public, so GitHub CI also qualifies every push in parallel; CI never replaces the

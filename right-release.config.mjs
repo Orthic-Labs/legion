@@ -193,12 +193,12 @@ export default {
 					{
 						name: "unsigned native Legion binaries",
 						cmd: "pnpm",
-						args: ["exec", "rightkit", "cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "-p", "xtask", "--message-format=json-render-diagnostics"],
+						args: ["exec", "rustright", "cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "-p", "xtask", "--message-format=json-render-diagnostics"],
 					},
 					{
 						name: "assemble unsigned development payload",
 						cmd: "pnpm",
-						args: ["exec", "rightkit", "cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "debug", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
+						args: ["exec", "rustright", "cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "debug", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
 					},
 				],
 				install: {
