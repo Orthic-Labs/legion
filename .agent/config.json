@@ -1,7 +1,6 @@
 {
   "canonicalDocs": [
     "AGENTS.md",
-    "CLAUDE.md",
     "README.md"
   ],
   "archiveGlobs": [

@@ -320,3 +320,11 @@ Owner decision (Adrian, 2026-10-23): "get rid of things we don't need". Removed 
 | `bench/corpora/go`, `bench/corpora/php-ruby`, `bench/corpora/c-family`, `src/registry/coverage/language.go.json`, `src/registry/coverage/language.php-ruby.json`, `src/registry/coverage/language.c-family.json` | 2026-10-23 audit provider removal | none — provider removed (Adrian 2026-10-23: apps don't use Go/PHP/Ruby/C/C++/Terraform/Kubernetes) | intentionally dropped |
 | `qualification/provider-accuracy/records/security.scanner-brakeman`, `qualification/provider-accuracy/records/security.scanner-golangci-lint`, `qualification/provider-accuracy/records/security.scanner-kube-linter`, `qualification/provider-accuracy/records/security.scanner-kubeconform`, `qualification/provider-accuracy/records/security.scanner-tflint`, `qualification/provider-accuracy/verification/security.scanner-brakeman`, `qualification/provider-accuracy/verification/security.scanner-golangci-lint`, `qualification/provider-accuracy/verification/security.scanner-kube-linter`, `qualification/provider-accuracy/verification/security.scanner-kubeconform`, `qualification/provider-accuracy/verification/security.scanner-tflint` | 2026-10-23 audit provider removal | none — provider removed (Adrian 2026-10-23: apps don't use Go/PHP/Ruby/C/C++/Terraform/Kubernetes) | intentionally dropped |
 | `engine/crates/legion-runtime/src/p5_core/adapters_chain_adjudication.rs` | 2026-10-23 security chain adjudication consolidation (#114) | `engine/crates/legion-audit/src/native_providers/security/chain_adjudication.rs` (provider `security.chain-adjudication`) | moved |
+
+## Claude Code reads AGENTS.md natively (2026-10-24)
+
+Claude Code (v2.1.277+) loads `AGENTS.md` itself when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the directory or above. The root `CLAUDE.md` held only `@AGENTS.md`, so it was redundant, and a `CLAUDE.md` that does not import `AGENTS.md` would hide it. `legion doctor` now reports a shadowing `CLAUDE.md` as a conflict.
+
+| Path or rule | Retired in commit | Successor | Reason |
+|---|---|---|---|
+| `CLAUDE.md` (root compatibility adapter containing only `@AGENTS.md`) | 2026-10-24 CLAUDE.md retirement (PR #119) | `AGENTS.md`, read natively by Claude Code (and Codex) | successor |
