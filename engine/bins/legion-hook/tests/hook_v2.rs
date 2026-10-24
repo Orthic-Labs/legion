@@ -740,6 +740,7 @@ fn session_start_reports_the_workspace_gate_hook_check() {
     let workspace = scratch.path().join("workspace");
     fs::create_dir_all(workspace.join("tools")).unwrap();
     fs::create_dir_all(workspace.join("app")).unwrap();
+    fs::write(workspace.join("decisions.md"), "# decisions\n").unwrap();
     fs::write(
         workspace.join("tools/setup-workspace.py"),
         "import sys\nif '--check' not in sys.argv:\n    sys.exit(3)\nprint('app: core.hooksPath unset')\nsys.exit(1)\n",
@@ -768,6 +769,43 @@ fn session_start_reports_the_workspace_gate_hook_check() {
         .unwrap();
     assert!(context.contains("exited 0"), "{context}");
     assert!(context.contains("hooks ok"), "{context}");
+}
+
+#[test]
+fn session_start_does_not_run_a_setup_script_that_has_no_workspace_marker_beside_it() {
+    if !python_available() {
+        return;
+    }
+    let scratch = Scratch::new("session-unmarked");
+    let project = scratch.path().join("project");
+    fs::create_dir_all(project.join("tools")).unwrap();
+    let ran_marker = scratch.path().join("script-ran");
+    fs::write(
+        project.join("tools/setup-workspace.py"),
+        format!(
+            "import pathlib\npathlib.Path({:?}).write_text('ran')\n",
+            ran_marker.to_string_lossy()
+        ),
+    )
+    .unwrap();
+    let result = session_start(&project);
+    let context = result["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    assert!(!context.contains("Workspace gate hook"), "{context}");
+    assert!(
+        !ran_marker.exists(),
+        "an unmarked project's script must not run"
+    );
+
+    // The same script beside the workspace's doctrine directory does run.
+    fs::create_dir_all(project.join("docs/agent-rules")).unwrap();
+    let marked = session_start(&project);
+    let context = marked["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    assert!(context.contains("Workspace gate hook"), "{context}");
+    assert!(ran_marker.exists());
 }
 
 #[test]

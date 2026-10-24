@@ -5,6 +5,11 @@
 //! The check is read-only by contract and bounded; it never installs. A
 //! missing hook is reported with the command that installs it, because a hook
 //! may deny but must not decide to change git configuration on its own.
+//!
+//! `tools/setup-workspace.py` alone does not make a workspace: any project may
+//! carry a script of that name, and SessionStart would run it. The directory
+//! must also hold the workspace's own doctrine beside `tools/`, either
+//! `docs/agent-rules/` or `decisions.md`.
 
 use std::{
     path::{Path, PathBuf},
@@ -21,8 +26,17 @@ use crate::{
 };
 
 const SCRIPT: &str = "tools/setup-workspace.py";
+/// The second marker: a directory (`docs/agent-rules`) or a file
+/// (`decisions.md`) that must sit beside `tools/`.
+const DOCTRINE_DIRECTORY: &str = "docs/agent-rules";
+const DECISIONS_FILE: &str = "decisions.md";
 const LIMIT: Duration = Duration::from_secs(7);
 const MAX_OUTPUT_CHARS: usize = 600;
+
+fn is_workspace_root(dir: &Path) -> bool {
+    dir.join(SCRIPT).is_file()
+        && (dir.join(DOCTRINE_DIRECTORY).is_dir() || dir.join(DECISIONS_FILE).is_file())
+}
 
 pub(crate) fn workspace_root(payload: &Value) -> Option<PathBuf> {
     let object = payload.as_object()?;
@@ -36,7 +50,7 @@ pub(crate) fn workspace_root(payload: &Value) -> Option<PathBuf> {
     };
     start
         .ancestors()
-        .find(|dir| dir.join(SCRIPT).is_file())
+        .find(|dir| is_workspace_root(dir))
         .map(Path::to_path_buf)
 }
 
@@ -124,6 +138,7 @@ mod tests {
         fs::create_dir_all(root.join("tools")).unwrap();
         fs::create_dir_all(root.join("app/src")).unwrap();
         fs::write(root.join(SCRIPT), script).unwrap();
+        fs::write(root.join(DECISIONS_FILE), "# decisions\n").unwrap();
         root
     }
 
@@ -138,6 +153,50 @@ mod tests {
         assert!(workspace_root(&json!({"cwd": bare})).is_none());
         assert!(pre_push_hook_notice(&json!({"cwd": bare})).is_none());
         let _ = fs::remove_dir_all(bare);
+    }
+
+    #[test]
+    fn a_setup_script_without_the_workspace_doctrine_beside_it_is_not_a_workspace() {
+        let root = workspace("raise SystemExit(1)\n");
+        fs::remove_file(root.join(DECISIONS_FILE)).unwrap();
+        // Another project that happens to ship a script of that name.
+        assert!(workspace_root(&json!({"cwd": root.join("app/src")})).is_none());
+        assert!(pre_push_hook_notice(&json!({"cwd": root})).is_none());
+        // `docs/agent-rules` as a plain file (the package's own mirror is
+        // `docs/agent-rules.md`) is not the doctrine directory either.
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join("docs/agent-rules"), "x").unwrap();
+        fs::write(root.join("docs/agent-rules.md"), "x").unwrap();
+        assert!(workspace_root(&json!({"cwd": root})).is_none());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn either_second_marker_makes_a_workspace_and_the_nearest_marked_root_wins() {
+        let by_directory = workspace("pass\n");
+        fs::remove_file(by_directory.join(DECISIONS_FILE)).unwrap();
+        fs::create_dir_all(by_directory.join(DOCTRINE_DIRECTORY)).unwrap();
+        assert_eq!(
+            workspace_root(&json!({"cwd": by_directory.join("app/src")})),
+            Some(by_directory.clone())
+        );
+
+        let by_file = workspace("pass\n");
+        assert_eq!(
+            workspace_root(&json!({"cwd": by_file.join("app")})),
+            Some(by_file.clone())
+        );
+
+        // A nested project with its own unmarked script does not hide the
+        // marked workspace above it.
+        fs::create_dir_all(by_file.join("app/tools")).unwrap();
+        fs::write(by_file.join("app").join(SCRIPT), "pass\n").unwrap();
+        assert_eq!(
+            workspace_root(&json!({"cwd": by_file.join("app/src")})),
+            Some(by_file.clone())
+        );
+        let _ = fs::remove_dir_all(by_directory);
+        let _ = fs::remove_dir_all(by_file);
     }
 
     #[test]

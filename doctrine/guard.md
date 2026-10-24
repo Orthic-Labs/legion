@@ -89,7 +89,7 @@ mutation interception or publication authorization.
 
 | Event | Current registration | Current Guard treatment |
 | --- | --- | --- |
-| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle, and inject the hand-maintained `SESSION_START_CONTEXT` routing/scope/gate text as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` (a test pins the shared gate keywords). Inside a workspace (a `tools/setup-workspace.py` above the session cwd) it also runs `setup-workspace.py --check`, bounded to seven seconds, and adds its result to the context and the operator message |
+| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle, and inject the hand-maintained `SESSION_START_CONTEXT` routing/scope/gate text as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` (a test pins the shared gate keywords). Inside a workspace (a `tools/setup-workspace.py` above the session cwd, with `docs/agent-rules/` or `decisions.md` beside `tools/`) it also runs `setup-workspace.py --check`, bounded to seven seconds, and adds its result to the context and the operator message |
 | `SubagentStart` | all | acknowledge as lifecycle |
 | `SubagentStop` | all | acknowledge as lifecycle |
 | `UserPromptSubmit` | all | acknowledge as lifecycle; record HEAD and a working-tree digest as the turn baseline, so Stop can tell a shell edit from a conversational turn |
