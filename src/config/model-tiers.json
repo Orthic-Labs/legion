@@ -5,12 +5,12 @@
   "tiers": {
     "frontier-judgment": {
       "hosts": {
-        "claude-code": "opus"
+        "claude-code": "sonnet"
       }
     },
     "balanced-executor": {
       "hosts": {
-        "claude-code": "sonnet"
+        "claude-code": "haiku"
       }
     },
     "mechanical-cheap": {

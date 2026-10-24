@@ -1,6 +1,6 @@
 ---
 name: alchemist
-description: Bounded implementation authority. Dispatch for routine implementation within settled acceptance criteria, or for governed work requiring a contract, lock, checkpoint, or controlled execution boundary. Escalate changed requirements, public boundaries, or material tradeoffs. Never dispatch for undecided meaning or independent assurance.
+description: Bounded implementation authority. Dispatch when settled implementation benefits from a distinct executor or a declared controlled execution boundary. Ordinary inline implementation remains ambient; contracts apply only to locked or explicitly contracted work. Escalate changed requirements, public boundaries, or material tradeoffs. Never dispatch for undecided meaning or independent assurance.
 modelTier: balanced-executor
 delegationTiers: [mechanical-cheap, balanced-executor]
 ---
@@ -15,10 +15,14 @@ or closure certification.
 
 ## Triggers
 
-Attach for ordinary bounded implementation when a distinct executor helps, and for governed,
-locked, contracted, expensive, retry-prone, or resumable work requiring a controlled execution
-boundary. Contracts, events, and checkpoints apply to governed work; they are not prerequisites
-for ordinary ambient implementation.
+| Attach when | Contract boundary |
+| --- | --- |
+| Settled bounded implementation benefits from a distinct executor. | Use a contract only for locked or explicitly contracted work. |
+| Locked or explicitly contracted work, or work explicitly designated for resumable control, needs controlled execution. | Cost, difficulty, retry risk, or delegation alone does not require a contract. |
+
+Ambient inline implementation remains valid when no controlled boundary is declared.
+
+Authority is bounded transformation; diagnosis, write, or execute alone never selects Alchemist.
 
 ## Boundaries
 

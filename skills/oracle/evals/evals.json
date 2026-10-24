@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "skill": "oracle",
+  "route": "authority:oracle",
+  "should_trigger": [
+    {
+      "id": "oracle-explicit-review",
+      "prompt": "/oracle independently review this completed migration against my request before delivery.",
+      "expected_skill": "oracle",
+      "forbidden_skills": [],
+      "expected_behavior": "Runs one independent, read-only Completion Validation from the raw request and actual result.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "expected_skill", "value": "oracle" }
+      ]
+    },
+    {
+      "id": "oracle-concrete-safety-risk",
+      "prompt": "/oracle the deployment changed authorization behavior and could expose data. Independently check the completed change for concrete safety failures.",
+      "expected_skill": "oracle",
+      "forbidden_skills": [],
+      "expected_behavior": "Uses Oracle for independent read-only assurance because a concrete safety risk is present.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "oracle-not-routine-reply",
+      "prompt": "Explain what this function does.",
+      "expected_skill": null,
+      "forbidden_skills": ["oracle"],
+      "expected_behavior": "Answers directly without invoking Oracle for a routine reply.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "forbidden_skill", "value": "oracle" }
+      ]
+    },
+    {
+      "id": "oracle-not-small-reversible-change",
+      "prompt": "Rename this local variable and run the focused check.",
+      "expected_skill": null,
+      "forbidden_skills": ["oracle"],
+      "expected_behavior": "Handles a small reversible change without mandatory independent review.",
+      "severity": "error",
+      "mode": "discovery"
+    },
+    {
+      "id": "oracle-not-status-update",
+      "prompt": "The worker is still running; report its current status.",
+      "expected_skill": null,
+      "forbidden_skills": ["oracle"],
+      "expected_behavior": "Reports status without invoking Oracle for a status update.",
+      "severity": "error",
+      "mode": "discovery"
+    }
+  ],
+  "output_quality": [
+    {
+      "id": "oracle-read-only-source-first",
+      "prompt": "/oracle review this completed change against my raw request.",
+      "expected_skill": "oracle",
+      "forbidden_skills": [],
+      "expected_behavior": "Inspects source and actual result without rerunning tests, mutating state, or creating review artifacts.",
+      "severity": "error",
+      "mode": "static",
+      "assertions": [
+        { "type": "required_text", "value": "read-only" },
+        { "type": "required_text", "value": "do not run or rerun tests" },
+        { "type": "required_text", "value": "no file" }
+      ]
+    }
+  ],
+  "compatibility": [
+    {
+      "id": "oracle-slash-alias",
+      "prompt": "/oracle inspect this completed result for a concrete safety failure.",
+      "expected_skill": "oracle",
+      "forbidden_skills": [],
+      "expected_behavior": "Preserves explicit /oracle invocation and returns one compact PASS or BLOCK result.",
+      "severity": "error",
+      "mode": "discovery",
+      "assertions": [
+        { "type": "expected_skill", "value": "oracle" }
+      ]
+    }
+  ]
+}

@@ -1,30 +1,18 @@
-//! Packet P9-skill-scripts: Rust port of the deterministic decision logic in
-//! `skills/alchemist/scripts/run-worker.sh` (the bash OmniRoute/Codex worker launcher).
+//! Packet P9 Alchemist helpers: deterministic host-native runner inputs and
+//! JSONL event classification.
 //!
 //! Ported here (pure, no process IO):
 //! - `extract_model_from_profile`: pulls `model = "..."` out of a Codex profile TOML the same
-//!   way the shell `sed` does (`^[[:space:]]*model[[:space:]]*=[[:space:]]*"([...])".*`).
-//! - `healthz_exit_code` / `HealthzOutcome`: interprets an OmniRoute `/healthz` HTTP status the
-//!   same way the shell `case` statement does (200/204/301/302/307/401 -> reachable, else -> 4).
+//!   way a profile parser does (`^[[:space:]]*model[[:space:]]*=[[:space:]]*"([...])".*`).
 //! - `access_args`: `--sandbox workspace-write` unless `ALCHEMIST_FULL_ACCESS=1`, matching
 //!   `ACCESS_ARGS`.
-//! - `default_event_log_path`: `<run_dir>/<UTC-stamp>-<profile>.jsonl`, matching the default
-//!   `EVENT_LOG` the script builds when the caller doesn't pass one.
-//! - `WorkerExitCode`: the documented exit contract (0 ok, 2 usage, 4 gateway down,
-//!   5 unknown profile, 124 timeout).
-//!
-//! NOT ported here: spawning `omniroute launch-codex` itself, the TERM/KILL watchdog process
-//! tree, and piping stdout through `parse_events.py` (a Python script outside this packet's JS
-//! scope — see the packet report). A caller wanting the full launch needs to still shell out;
-//! this module gives it the exact inputs (model, event log path, sandbox flags) and the exact
-//! exit-code semantics to interpret the child's result by by itself, without re-deriving the
-//! shell script's parsing/threshold logic in the caller.
+//! - `default_event_log_path`: `<run_dir>/<UTC-stamp>-<profile>.jsonl`.
+//! - `WorkerExitCode`: host-native runner result values.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkerExitCode {
     Ok = 0,
     Usage = 2,
-    GatewayDown = 4,
     UnknownProfile = 5,
     Timeout = 124,
 }
@@ -62,12 +50,6 @@ pub fn extract_model_from_profile(profile_toml: &str) -> Option<String> {
     None
 }
 
-/// Mirrors the healthz `case` statement: is this HTTP status one OmniRoute is considered
-/// reachable at?
-pub fn is_gateway_reachable(http_status: u16) -> bool {
-    matches!(http_status, 200 | 204 | 301 | 302 | 307 | 401)
-}
-
 /// `ACCESS_ARGS`: sandboxed by default, full host access only on explicit opt-in.
 pub fn access_args(full_access_env: Option<&str>) -> Vec<&'static str> {
     if full_access_env == Some("1") {
@@ -91,8 +73,7 @@ pub fn profile_config_path(codex_home_dir: &str, profile: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Port of `skills/alchemist/scripts/parse_events.py` and (event-classification-sharing
-// portion of) `skills/alchemist/scripts/viewer.py`.
+// JSONL event classification and summary helpers shared by Alchemist surfaces.
 //
 // `parse_events.py` classifies `codex exec --json` events into a coarse (kind, detail)
 // pair the live view and CLI summary both use, so they can never disagree about what an
@@ -358,8 +339,8 @@ mod tests {
 
     #[test]
     fn extracts_model_ignoring_leading_whitespace_and_trailing_content() {
-        let toml = "profile = \"x\"\n  model = \"gpt-5.6-omniroute\"  # comment\nother = 1\n";
-        assert_eq!(extract_model_from_profile(toml), Some("gpt-5.6-omniroute".to_string()));
+        let toml = "profile = \"x\"\n  model = \"gpt-5.6\"  # comment\nother = 1\n";
+        assert_eq!(extract_model_from_profile(toml), Some("gpt-5.6".to_string()));
     }
 
     #[test]
@@ -371,16 +352,6 @@ mod tests {
     fn rejects_disallowed_characters_and_falls_through() {
         let toml = "model = \"bad value!\"\nmodel = \"good-value.1\"\n";
         assert_eq!(extract_model_from_profile(toml), Some("good-value.1".to_string()));
-    }
-
-    #[test]
-    fn healthz_thresholds_match_shell_case() {
-        for ok in [200, 204, 301, 302, 307, 401] {
-            assert!(is_gateway_reachable(ok), "{ok} should be reachable");
-        }
-        for down in [0, 404, 500, 502, 503] {
-            assert!(!is_gateway_reachable(down), "{down} should not be reachable");
-        }
     }
 
     #[test]
@@ -413,7 +384,6 @@ mod tests {
     fn worker_exit_codes_match_documented_contract() {
         assert_eq!(WorkerExitCode::Ok.code(), 0);
         assert_eq!(WorkerExitCode::Usage.code(), 2);
-        assert_eq!(WorkerExitCode::GatewayDown.code(), 4);
         assert_eq!(WorkerExitCode::UnknownProfile.code(), 5);
         assert_eq!(WorkerExitCode::Timeout.code(), 124);
     }

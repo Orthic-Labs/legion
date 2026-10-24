@@ -14,11 +14,13 @@ advance the outcome. Sage is domain-independent and attaches only to work that b
 
 ## Triggers
 
-Attach when a cross-cutting choice needs reassessment before an expensive commitment; when a
-material unresolved decision, competing interpretation, cross-capability conflict, or disputed
-ownership/boundary needs authoritative closure; when repeated local repairs fail to advance the
-outcome; or when explicitly requested. Routine local architecture, diagnosis, research, design,
-marketing, SEO, and strategy judgment stay with their capabilities.
+| Attach when | Keep inline when |
+| --- | --- |
+| A material choice needs reassessment before expensive commitment. | Routine capability judgment has one settled reading. |
+| Competing interpretations, cross-capability conflict, or disputed ownership/boundary needs closure. | Diagnosis, writing, or execution merely has an effect. |
+| Repeated local repairs fail to advance outcome, or Sage is explicitly requested. | Work is bounded implementation inside accepted criteria. |
+
+Authority is exceptional material judgment; diagnosis, write, or execute alone never selects Sage.
 
 ## Boundaries
 

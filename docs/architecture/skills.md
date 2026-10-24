@@ -43,11 +43,6 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Absent behavior:** Research skips the notebooklm provider and records it as unrun.
 - **Remedy:** Provide NotebookLM access in the host.
 
-### `omniroute`
-
-- **Absent behavior:** Alchemist exits 4 (gateway down). Callers must treat Alchemist as unavailable, not as returning an empty result.
-- **Remedy:** Install the OmniRoute gateway and put `omniroute` on `PATH`, or run Alchemist against a host that provides it.
-
 ### `pi-cli`
 
 - **Absent behavior:** Coder returns a typed unavailable-provider result and performs no outsourced analysis.
@@ -55,7 +50,7 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 
 ### `python-runtime`
 
-- **Absent behavior:** The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.
+- **Absent behavior:** The dependent skill reports that its local validator is unavailable and does not substitute another runtime.
 - **Remedy:** Install Python 3 and expose either `python3` or `python` on `PATH`.
 
 ### `scholarly-search`
@@ -259,7 +254,7 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `execute`
 - **Effects:** `source-read`, `repository-write`, `process-exec`
-- **Host requirements:** `omniroute`, `python-runtime`. See [their declared absence behavior](#host-capability-degradation).
+- **Host requirements:** none. Execution uses host-native agents.
 - **Discoverability:** `explicit`
 
 ### `brand`

@@ -2,7 +2,7 @@
 
 use std::{
     fs,
-    io::{self, Read, Seek, SeekFrom, Write},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -10,13 +10,14 @@ use std::{
 use legion_application::{NativeApplication, NativeApplicationConfig};
 use legion_contracts::{
     AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ComputePosture, ContextUsage,
-    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, Route, RouteOutcomeTrace,
-    SemanticRequirement, TaskId, TraceId,
+    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, RoleDecision,
+    Route, RouteOutcomeTrace, SemanticRequirement, TaskId, TraceId,
 };
 use serde_json::{Map, Value};
 
 mod error;
 mod protocol;
+mod codex;
 
 use error::HookError;
 use protocol::{HookRequest, HookResponse};
@@ -196,16 +197,9 @@ fn stop_response(request: &HookRequest) -> HookResponse {
         };
         return HookResponse::denied(request.event_type.clone(), code, reason, "strong");
     }
-    if let Some(final_text) = stop_transcript_text(&request.payload) {
-        if let Some(reason) = stop_shape_reason(&final_text) {
-            return HookResponse::denied(
-                request.event_type.clone(),
-                "ARC_STOP_SHAPE",
-                reason,
-                "advisory",
-            );
-        }
-    }
+    // Assistant wording is not completion evidence. Optional response policy
+    // cannot reopen a turn; only the explicit verification requirement above
+    // may deny Stop. A later semantic classifier must remain bounded.
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")
 }
 
@@ -664,219 +658,6 @@ fn stop_reentry_exhausted(payload: &Value) -> bool {
     .iter()
     .filter_map(|key| object.get(*key).and_then(Value::as_u64))
     .any(|value| value >= MAX_STOP_REOPENINGS)
-}
-
-fn stop_transcript_text(payload: &Value) -> Option<String> {
-    let object = payload.as_object()?;
-    if let Some(text) = object
-        .get("lastAssistantText")
-        .or_else(|| object.get("last_assistant_text"))
-        .and_then(Value::as_str)
-        .filter(|text| !text.is_empty())
-    {
-        return Some(text.to_owned());
-    }
-    transcript_tail(payload).and_then(|raw| {
-        raw.lines()
-            .rev()
-            .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-            .find_map(|entry| assistant_text(&entry))
-    })
-}
-
-fn transcript_tail(payload: &Value) -> Option<String> {
-    let path = payload
-        .as_object()?
-        .get("transcript_path")
-        .or_else(|| payload.as_object()?.get("transcriptPath"))
-        .and_then(Value::as_str)
-        .filter(|path| !path.is_empty())?;
-    let mut file = fs::File::open(path).ok()?;
-    let length = file.metadata().ok()?.len();
-    if length > MAX_TRANSCRIPT_BYTES {
-        file.seek(SeekFrom::End(-(MAX_TRANSCRIPT_BYTES as i64)))
-            .ok()?;
-    }
-    let mut bytes = Vec::new();
-    file.take(MAX_TRANSCRIPT_BYTES)
-        .read_to_end(&mut bytes)
-        .ok()?;
-    Some(String::from_utf8_lossy(&bytes).into_owned())
-}
-
-fn assistant_text(entry: &Value) -> Option<String> {
-    let object = entry.as_object()?;
-    let message = object.get("message").and_then(Value::as_object);
-    let payload = object.get("payload").and_then(Value::as_object);
-    let role = message
-        .and_then(|value| value.get("role"))
-        .or_else(|| payload.and_then(|value| value.get("role")))
-        .or_else(|| object.get("role"))
-        .and_then(Value::as_str);
-    if role != Some("assistant") {
-        return None;
-    }
-    let content = message
-        .and_then(|value| value.get("content"))
-        .or_else(|| payload.and_then(|value| value.get("content")))
-        .or_else(|| object.get("content"))?;
-    text_content(content)
-}
-
-fn text_content(value: &Value) -> Option<String> {
-    if let Some(text) = value.as_str() {
-        return Some(text.to_owned());
-    }
-    let items = value.as_array()?;
-    let text = items
-        .iter()
-        .filter_map(|item| item.as_object())
-        .filter(|item| {
-            matches!(
-                item.get("type").and_then(Value::as_str),
-                Some("text" | "output_text")
-            )
-        })
-        .filter_map(|item| item.get("text").and_then(Value::as_str))
-        .collect::<Vec<_>>()
-        .join("\n");
-    (!text.is_empty()).then_some(text)
-}
-
-fn stop_shape_reason(text: &str) -> Option<&'static str> {
-    let lower = text.to_ascii_lowercase();
-    let tail = bounded_tail(&lower, 1_200);
-    if real_failure(tail) {
-        return None;
-    }
-    if [
-        "say go",
-        "say yes",
-        "shall i",
-        "should i proceed",
-        "should i continue",
-        "do you want me to",
-        "awaiting your approval",
-        "awaiting your confirmation",
-        "tell me to",
-        "if you want, i can",
-        "let me know if",
-        "let me know and i will",
-    ]
-    .iter()
-    .any(|phrase| tail.contains(phrase))
-    {
-        return Some(
-            "end the turn with verified work instead of asking permission or offering to act",
-        );
-    }
-    if [
-        "i can ",
-        "i will ",
-        "i'll ",
-        "we can ",
-        "we will ",
-        "we'll ",
-        "i would ",
-        "we would ",
-        "next step",
-        "recommend ",
-        "would be ",
-    ]
-    .iter()
-    .any(|phrase| tail.contains(phrase))
-    {
-        return Some(
-            "end with the completed result, not a permission-seeking or future-work ending",
-        );
-    }
-    let completion_position = last_phrase_position(
-        &lower,
-        &[
-            "done", "fixed", "shipped", "pushed", "landed", "complete", "verified", "passed",
-            "green",
-        ],
-    );
-    let caveat_position = last_phrase_position(
-        tail,
-        &[
-            "one caveat",
-            "a caveat",
-            "caveat:",
-            "one thing that isn't",
-            "one thing that is not",
-            "keep in mind",
-            "bear in mind",
-            "that said,",
-            "one last thing",
-            "not fixed",
-        ],
-    )
-    .map(|position| position + lower.len() - tail.len());
-    if caveat_position.is_some_and(|caveat| completion_position.is_some_and(|done| caveat > done)) {
-        return Some(
-            "resolve the ending caveat before stopping, or report the real failure as the outcome",
-        );
-    }
-    if [
-        "left as a follow-up",
-        "left as follow-up",
-        "remains to be done",
-        "do this later",
-        "for later",
-    ]
-    .iter()
-    .any(|phrase| tail.contains(phrase))
-    {
-        return Some("complete the promised work now instead of ending on a future-work promise");
-    }
-    None
-}
-
-fn last_phrase_position(text: &str, phrases: &[&str]) -> Option<usize> {
-    phrases
-        .iter()
-        .filter_map(|phrase| {
-            let position = text.rfind(phrase)?;
-            let negated_fixed = *phrase == "fixed"
-                && position >= 4
-                && text.get(position - 4..position) == Some("not ");
-            (!negated_fixed).then_some(position)
-        })
-        .max()
-}
-
-fn real_failure(lower: &str) -> bool {
-    [
-        "hard blocker",
-        "blocked because",
-        "tests failed",
-        "test failed",
-        "build failed",
-        "command failed",
-        "verification failed",
-        "could not proceed",
-        "couldn't proceed",
-        "cannot proceed",
-        "unable to proceed",
-        "fatal error",
-        "failed",
-        "failure",
-        "error:",
-    ]
-    .iter()
-    .any(|phrase| lower.contains(phrase))
-}
-
-fn bounded_tail(value: &str, max_bytes: usize) -> &str {
-    if value.len() <= max_bytes {
-        return value;
-    }
-    let mut start = value.len() - max_bytes;
-    while !value.is_char_boundary(start) {
-        start += 1;
-    }
-    &value[start..]
 }
 
 fn authorize_effect(
@@ -1926,6 +1707,15 @@ pub struct TraceMetrics {
     /// challenged, evidence-available traces ending in NARROW or REVISE /
     /// materially assumption-dependent traces.
     pub avoidable_user_challenge_rate: MetricValue,
+    /// Launched role decisions / labelled eligible=true role decisions.
+    pub role_adoption_rate: MetricValue,
+    pub labelled_role_eligibility: usize,
+    pub selected_roles: usize,
+    pub bound_roles: usize,
+    pub launched_roles: usize,
+    pub skipped_roles: usize,
+    pub unnecessary_role_launches: usize,
+    pub unknown_role_launches: usize,
 }
 
 /// Fold route traces into the tracker rates without inspecting prose or
@@ -1996,6 +1786,7 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
                 )
         })
         .count();
+    let adoption = legion_contracts::fold_role_adoption(traces);
 
     TraceMetrics {
         sage_dispatch_rate: MetricValue::ratio(sage_dispatches, traces.len()),
@@ -2006,6 +1797,17 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
             avoidable_challenges,
             assumption_dependent,
         ),
+        role_adoption_rate: MetricValue::ratio(
+            adoption.eligible_launches,
+            adoption.labelled_eligible,
+        ),
+        labelled_role_eligibility: adoption.labelled_eligible,
+        selected_roles: adoption.pending_selected,
+        bound_roles: adoption.pending_bound,
+        launched_roles: adoption.eligible_launches,
+        skipped_roles: adoption.eligible_skips,
+        unnecessary_role_launches: adoption.unnecessary_launches,
+        unknown_role_launches: adoption.unknown_launches,
     }
 }
 
@@ -2073,8 +1875,36 @@ fn route_trace_from_request(
     let cost = trace_cost(source, payload)?;
     let challenge = trace_value(source, payload, &["challenge"])
         .and_then(|value| serde_json::from_value::<ChallengePass>(value.clone()).ok())?;
+    // Role lifecycle data is optional and host/lead supplied. Absent data
+    // preserves legacy v1 emission; invalid supplied data is rejected.
+    let role_decisions = match trace_value(source, payload, &["roleDecisions", "role_decisions"])
+    {
+        None => None,
+        Some(value) => Some(serde_json::from_value::<Vec<RoleDecision>>(value.clone()).ok()?),
+    };
+    let supplied_trace_version = match trace_value(
+        source,
+        payload,
+        &["schema_version", "schemaVersion"],
+    ) {
+        None => None,
+        Some(Value::Number(version)) => Some(
+            version
+                .as_u64()
+                .and_then(|value| u32::try_from(value).ok())?,
+        ),
+        Some(_) => return None,
+    };
+    if let Some(version) = supplied_trace_version {
+        if !matches!(version, 1 | 2)
+            || (role_decisions.is_some() && version != 2)
+            || (role_decisions.is_none() && version == 2)
+        {
+            return None;
+        }
+    }
     let trace = RouteOutcomeTrace {
-        schema_version: 1,
+        schema_version: if role_decisions.is_some() { 2 } else { 1 },
         trace_id,
         request_id,
         task_id,
@@ -2149,6 +1979,7 @@ fn route_trace_from_request(
         latency_ms: latency.as_millis().min(u64::MAX as u128) as u64,
         cost,
         challenge,
+        role_decisions,
     };
     trace.validate().ok().map(|_| trace)
 }
@@ -2385,13 +2216,26 @@ fn error_response(error: HookError) -> HookResponse {
 }
 
 fn main() {
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let codex_host = arguments == ["--host", "codex"];
+    if !arguments.is_empty() && !codex_host {
+        eprintln!("usage: legion-hook [--host codex]");
+        std::process::exit(2);
+    }
+    let mut parsed_request = None;
     let response = match read_request() {
         Ok(input) => match HookRequest::parse(&input) {
-            Ok(request) => dispatch(request),
+            Ok(request) => {
+                parsed_request = Some(request.clone());
+                dispatch(request)
+            }
             Err(error) => error_response(error),
         },
         Err(error) => error_response(error),
     };
+    if codex_host {
+        std::process::exit(codex::emit_response(&response, parsed_request.as_ref()));
+    }
     let _ = write_response(response);
 }
 
@@ -2461,6 +2305,7 @@ mod tests {
                 evidence_available_at_first_answer: false,
                 user_challenge_event: false,
             },
+            role_decisions: None,
         }
     }
 
@@ -2724,6 +2569,68 @@ mod tests {
             metrics.avoidable_user_challenge_rate,
             MetricValue::NotEnoughData
         );
+        assert_eq!(metrics.role_adoption_rate, MetricValue::NotEnoughData);
+    }
+
+    #[test]
+    fn role_decision_data_emits_v2_and_rejects_invalid_extension_or_version() {
+        let mut payload = complete_trace_payload("unused-trace-path");
+        payload["roleDecisions"] = json!([{
+            "role": "sage",
+            "eligible": true,
+            "state": "launched",
+            "reason": "host launched sage"
+        }]);
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload,
+        };
+        let response = dispatch_inner(request.clone());
+        let trace = route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+            .expect("valid role data emits trace");
+        assert_eq!(trace.schema_version, 2);
+        assert!(trace.role_decisions.is_some());
+
+        let mut invalid = complete_trace_payload("unused-trace-path");
+        invalid["roleDecisions"] = json!([{
+            "role": "sage",
+            "eligible": null,
+            "state": "skipped"
+        }]);
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: invalid,
+        };
+        let response = dispatch_inner(request.clone());
+        assert!(route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+            .is_none(), "invalid supplied extension must not downgrade to v1");
+
+        for supplied_version in [
+            json!(9),
+            json!("2"),
+            Value::Null,
+            json!(-1),
+            json!(4_294_967_297_u64),
+        ] {
+            let mut unknown = complete_trace_payload("unused-trace-path");
+            unknown["schemaVersion"] = supplied_version;
+            let request = HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: "SessionStart".into(),
+                payload: unknown,
+            };
+            let response = dispatch_inner(request.clone());
+            assert!(
+                route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+                    .is_none(),
+                "malformed or unknown trace version must be rejected"
+            );
+        }
     }
 
     #[test]
@@ -2834,7 +2741,7 @@ mod tests {
     }
 
     #[test]
-    fn unrecognized_mcp_tools_fail_closed_with_truthful_receipts() {
+    fn unrecognized_mcp_tools_are_allowed_with_truthful_receipts() {
         // A third-party MCP tool whose name matches no positive
         // classification arm must never be silently skipped (no policy
         // object built, no receipt) and must never be relabeled as an
@@ -2842,7 +2749,7 @@ mod tests {
         // write/send/delete, and reusing it here would make the receipt lie
         // about what was actually observed). It is instead classified
         // MCP_UNCLASSIFIED_OBSERVATION, which still reaches
-        // `CanonicalEffectPolicy::authorize` for a fail-closed, receipted decision.
+        // `CanonicalEffectPolicy::authorize` for an allowed, receipted decision.
         let unclassified = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,
             kind: protocol::REQUEST_KIND.into(),
@@ -2856,19 +2763,21 @@ mod tests {
             .expect("unrecognized MCP tool classification should succeed")
             .expect("unrecognized MCP tool must carry an effect to adjudicate, not be skipped");
         assert_eq!(effect.effect_class, EffectClass::MCP_UNCLASSIFIED_OBSERVATION);
-        let response = dispatch(unclassified);
+        let application = NativeApplicationConfig::default_for_repository("test-repository")
+            .expect("canonical default native application builds");
+        let response = authorize_effect("PreToolUse".into(), &effect, &application);
         assert!(
-            !response.allowed,
-            "an unclassified MCP tool must fail closed"
+            response.allowed,
+            "an unclassified MCP tool without a write/send/delete signal is allowed"
         );
         assert!(
             response.reason.contains("mcp__docs__query"),
-            "deny reason should name the unclassified tool: {}",
+            "allow reason should name the unclassified tool: {}",
             response.reason
         );
         assert!(
             response.reason.contains("could not be classified"),
-            "deny reason should state plainly that classification failed: {}",
+            "allow reason should state plainly that classification failed: {}",
             response.reason
         );
 
@@ -3049,7 +2958,7 @@ mod tests {
             &effect(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
             &application,
         );
-        assert!(!unknown.allowed, "an unknown MCP tool must still fail closed");
+        assert!(unknown.allowed, "an unknown non-destructive MCP tool is allowed");
     }
 
     #[test]
@@ -3196,34 +3105,24 @@ mod tests {
     }
 
     #[test]
-    fn stop_shape_checks_only_the_ending_and_exempts_real_failures() {
-        let blocked = dispatch(stop(json!({
-            "lastAssistantText": "Changed the file. Shall I run the checks?",
-        })));
-        assert_eq!(blocked.code.as_deref(), Some("ARC_STOP_SHAPE"));
-        let allowed = dispatch(stop(json!({
-            "lastAssistantText": "The build failed: cannot proceed without the missing SDK.",
-        })));
-        assert!(
-            allowed.allowed,
-            "real failure must be reportable without a loop"
-        );
-        let ending_only = dispatch(stop(json!({
-            "lastAssistantText": "I mentioned a caveat earlier, then fixed it. Done.",
-        })));
-        assert!(
-            ending_only.allowed,
-            "resolved mid-report caveats must not block"
-        );
-        let unresolved = dispatch(stop(json!({
-            "lastAssistantText": "The change is done. One caveat: the migration is not fixed.",
-        })));
-        assert_eq!(unresolved.code.as_deref(), Some("ARC_STOP_SHAPE"));
-        let capped = dispatch(stop(json!({
-            "stopOrdinal": 3,
-            "lastAssistantText": "Shall I continue?",
-        })));
-        assert!(capped.allowed, "bounded re-entry must force a clean exit");
+    fn stop_prose_never_reopens_fresh_or_continued_turns() {
+        for text in [
+            "Changed the file. Shall I run the checks?",
+            "I recommend this approach. Next step would be measuring it.",
+            "The change is done. One caveat: the migration is not fixed.",
+            "Build is running; verification remains to be done after completion.",
+            "The build failed: cannot proceed without the missing SDK.",
+        ] {
+            for active in [false, true] {
+                let response = dispatch(stop(json!({
+                    "stop_hook_active": active,
+                    "last_assistant_message": text,
+                    "lastAssistantText": text,
+                })));
+                assert!(response.allowed, "prose must not reopen Stop: {text}");
+                assert!(response.code.is_none());
+            }
+        }
     }
 
     #[test]

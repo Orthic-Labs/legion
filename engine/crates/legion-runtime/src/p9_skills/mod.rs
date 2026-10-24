@@ -7,8 +7,7 @@
 //! confirmed by exhaustive `find` for `*.js`/`*.mjs`/`*.cjs`/`*.ts`/`*.sh`); there is nothing to
 //! port for them. See the packet report (`full-P9-skill-scripts.md`) for the exact per-file
 //! table, including the JS that remains unported and why (raw-CDP browser automation in
-//! `render_gap.mjs`, process/watchdog orchestration in `run-worker.sh`, and provider-IO
-//! orchestration in `covenant/lib/flows.mjs`).
+//! `render_gap.mjs` and provider-IO orchestration in `covenant/lib/flows.mjs`).
 //!
 //! `skills/coder` since grew Python hooks/scripts (not JS, so outside this doc note's original
 //! scope): `hooks/enforce_cheap_review_routing.py` and `scripts/api-worker.py` are owned and

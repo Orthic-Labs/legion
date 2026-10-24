@@ -1,7 +1,5 @@
-//! Integration tests for chunk w2_001
-//! (`skills/alchemist/scripts/{parse_events.py,run-worker.sh,run-worker.ps1,
-//! start-stack.vbs,tray.ps1}`), exercising the port through the crate's
-//! public `wf_port::w2_001` module against a fixture event log.
+//! Host-native Alchemist event, runner-input, & Citadel status tests through
+//! public `wf_port::w2_001` helpers against a fixture event log.
 
 use legion_runtime::wf_port::w2_001::parse_events::{run_summary, ParsedLine};
 use legion_runtime::wf_port::w2_001::stack_status;
@@ -45,22 +43,13 @@ fn fixture_log_has_no_non_json_lines() {
 
 #[test]
 fn worker_launch_profile_round_trip() {
-    let toml = "profile_name = \"fast\"\nmodel = \"omniroute/qwen3.6-27b\"\n";
+    let toml = "profile_name = \"fast\"\nmodel = \"gpt-5.6\"\n";
     let model = worker_launch::extract_model(toml).expect("model line present");
-    assert_eq!(model, "omniroute/qwen3.6-27b");
+    assert_eq!(model, "gpt-5.6");
 
     assert_eq!(
         worker_launch::profile_file_path("/home/u/.codex", "fast"),
         "/home/u/.codex/fast.config.toml"
-    );
-
-    assert_eq!(
-        worker_launch::classify_healthz(Some(200)),
-        worker_launch::GatewayHealth::Reachable
-    );
-    assert_eq!(
-        worker_launch::classify_healthz(Some(503)),
-        worker_launch::GatewayHealth::Unreachable
     );
 
     assert!(worker_launch::validate_brief("  \n").is_err());
@@ -72,11 +61,11 @@ fn stack_status_idempotency_and_text() {
     assert!(stack_status::should_start(false));
     assert!(!stack_status::should_start(true));
     assert_eq!(
-        stack_status::status_menu_text(true, false),
-        "OmniRoute: up   Citadel: down"
+        stack_status::status_menu_text(false),
+        "Citadel: down"
     );
     assert_eq!(
-        stack_status::tray_tooltip_text(false, false),
-        "Alchemist - OmniRoute down, Citadel down"
+        stack_status::tray_tooltip_text(false),
+        "Alchemist - Citadel down"
     );
 }

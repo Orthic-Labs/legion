@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     canonical_digest,
     id::{RequestId, TaskId, TraceId},
-    require_version, ContractError,
+    ContractError,
 };
 
 /// Cognition axis (Arcane §5): direct answer, deliberate thinking, or
@@ -52,6 +52,44 @@ pub enum AuthorityKind {
     Sage,
     Alchemist,
     Oracle,
+}
+
+/// Host/lead supplied observation of role adoption for this route.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoleDecisionState {
+    Selected,
+    Bound,
+    Launched,
+    Skipped,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoleDecision {
+    pub role: AuthorityKind,
+    /// None means eligibility was not labelled. It is distinct from false.
+    pub eligible: Option<bool>,
+    pub state: RoleDecisionState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl RoleDecision {
+    fn validate(&self) -> Result<(), ContractError> {
+        if self.state == RoleDecisionState::Skipped
+            && self
+                .reason
+                .as_deref()
+                .map_or(true, |reason| reason.trim().is_empty())
+        {
+            return Err(ContractError::InvalidContract {
+                path: "role_decisions.reason".into(),
+                reason: "skipped role decision must include a reason".into(),
+            });
+        }
+        Ok(())
+    }
 }
 
 /// Compute posture (Arcane §5/§9/§18): whether a model runs at all, and if
@@ -227,7 +265,7 @@ impl ChallengePass {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouteOutcomeTrace {
-    #[serde(deserialize_with = "crate::deserialize_schema_version_1")]
+    #[serde(deserialize_with = "deserialize_trace_schema_version")]
     pub schema_version: u32,
     pub trace_id: TraceId,
     pub request_id: RequestId,
@@ -258,11 +296,118 @@ pub struct RouteOutcomeTrace {
     pub latency_ms: u64,
     pub cost: CostUsage,
     pub challenge: ChallengePass,
+    /// Present only for schema v2. Omitted from v1 serialization so all v1
+    /// fields and canonical digests remain unchanged.
+    #[serde(default, rename = "roleDecisions", skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_role_decisions")]
+    pub role_decisions: Option<Vec<RoleDecision>>,
+}
+
+fn deserialize_role_decisions<'de, D>(deserializer: D) -> Result<Option<Vec<RoleDecision>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // Omission denotes v1; explicit null is malformed, not legacy omission.
+    Vec::<RoleDecision>::deserialize(deserializer).map(Some)
+}
+
+/// V2 keeps the v1 flat record shape and adds labelled role observations.
+/// This reader accepts both v1 and v2; strict v1-only readers remain v1-only.
+pub type RouteOutcomeTraceV2 = RouteOutcomeTrace;
+
+/// Adoption counts from the latest valid role observation per request/role.
+/// Eligibility is an independent host/lead label; unknown and false remain
+/// separate from labelled eligible=true.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default, Serialize, Deserialize)]
+pub struct RoleAdoptionMetrics {
+    pub labelled_eligible: usize,
+    pub eligible_launches: usize,
+    pub unnecessary_launches: usize,
+    pub unknown_launches: usize,
+    pub eligible_skips: usize,
+    pub pending_selected: usize,
+    pub pending_bound: usize,
+}
+
+pub fn fold_role_adoption(traces: &[RouteOutcomeTrace]) -> RoleAdoptionMetrics {
+    let mut latest: Vec<(&RequestId, AuthorityKind, &RoleDecision)> = Vec::new();
+    for trace in traces {
+        if trace.validate().is_err() {
+            continue;
+        }
+        let Some(decisions) = trace.role_decisions.as_ref() else {
+            continue;
+        };
+        for decision in decisions {
+            if let Some(existing) = latest.iter_mut().find(|(request, role, _)| {
+                request.as_str() == trace.request_id.as_str() && *role == decision.role
+            }) {
+                *existing = (&trace.request_id, decision.role, decision);
+            } else {
+                latest.push((&trace.request_id, decision.role, decision));
+            }
+        }
+    }
+    let mut metrics = RoleAdoptionMetrics::default();
+    for (_, _, decision) in latest {
+        match decision.eligible {
+            Some(true) => metrics.labelled_eligible += 1,
+            Some(false) | None => {}
+        }
+        match (decision.state, decision.eligible) {
+            (RoleDecisionState::Launched, Some(true)) => metrics.eligible_launches += 1,
+            (RoleDecisionState::Launched, Some(false)) => metrics.unnecessary_launches += 1,
+            (RoleDecisionState::Launched, None) => metrics.unknown_launches += 1,
+            (RoleDecisionState::Skipped, Some(true)) => metrics.eligible_skips += 1,
+            (RoleDecisionState::Selected, _) => metrics.pending_selected += 1,
+            (RoleDecisionState::Bound, _) => metrics.pending_bound += 1,
+            _ => {}
+        }
+    }
+    metrics
+}
+
+fn deserialize_trace_schema_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if matches!(version, 1 | 2) {
+        Ok(version)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "unsupported schema major version {version}"
+        )))
+    }
 }
 
 impl RouteOutcomeTrace {
     pub fn validate(&self) -> Result<(), ContractError> {
-        require_version(self.schema_version, 1)?;
+        if !matches!(self.schema_version, 1 | 2) {
+            return Err(ContractError::UnsupportedVersion(self.schema_version));
+        }
+        if self.schema_version == 1 && self.role_decisions.is_some() {
+            return Err(ContractError::InvalidContract {
+                path: "role_decisions".into(),
+                reason: "v1 trace cannot contain role decisions".into(),
+            });
+        }
+        if self.schema_version == 2 {
+            let decisions = self.role_decisions.as_ref().ok_or_else(|| ContractError::InvalidContract {
+                path: "role_decisions".into(),
+                reason: "v2 trace must contain role decisions".into(),
+            })?;
+            let mut roles = Vec::new();
+            for decision in decisions {
+                decision.validate()?;
+                if roles.contains(&decision.role) {
+                    return Err(ContractError::InvalidContract {
+                        path: "role_decisions.role".into(),
+                        reason: "role may occur only once per trace".into(),
+                    });
+                }
+                roles.push(decision.role);
+            }
+        }
         self.challenge.validate()?;
         Ok(())
     }
@@ -275,6 +420,7 @@ impl RouteOutcomeTrace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     fn sample() -> RouteOutcomeTrace {
         RouteOutcomeTrace {
@@ -314,6 +460,7 @@ mod tests {
                 evidence_available_at_first_answer: true,
                 user_challenge_event: false,
             },
+            role_decisions: None,
         }
     }
 
@@ -350,8 +497,8 @@ mod tests {
         let mut trace = sample();
         trace.schema_version = 2;
         let json = serde_json::to_string(&trace).expect("serialize");
-        let parsed: Result<RouteOutcomeTrace, _> = serde_json::from_str(&json);
-        assert!(parsed.is_err());
+        let parsed: RouteOutcomeTrace = serde_json::from_str(&json).expect("deserialize version");
+        assert!(parsed.validate().is_err());
     }
 
     #[test]
@@ -381,5 +528,99 @@ mod tests {
             user_challenge_event: false,
         };
         trace.validate().expect("L0 trace is valid");
+    }
+
+    #[test]
+    fn v1_fixture_keeps_shape_and_digest_compatibility() {
+        let trace = sample();
+        let json = serde_json::to_value(&trace).expect("serialize v1");
+        assert_eq!(json.get("schema_version").and_then(Value::as_u64), Some(1));
+        assert!(json.get("roleDecisions").is_none());
+        assert_eq!(
+            trace.digest().expect("digest"),
+            "sha256:2a3fd18375f14d3343cdbbd5b4b46799232484ad549c55a90a581dcc3916f1fa"
+        );
+        let parsed: RouteOutcomeTraceV2 = serde_json::from_value(json).expect("v1 reader");
+        parsed.validate().expect("v1 remains valid");
+    }
+
+    #[test]
+    fn v2_role_decisions_round_trip() {
+        let mut trace = sample();
+        trace.schema_version = 2;
+        trace.role_decisions = Some(vec![RoleDecision {
+            role: AuthorityKind::Alchemist,
+            eligible: Some(true),
+            state: RoleDecisionState::Launched,
+            reason: Some("host launched bounded implementation".into()),
+        }]);
+        trace.validate().expect("v2 trace is valid");
+        let parsed: RouteOutcomeTrace = serde_json::from_str(
+            &serde_json::to_string(&trace).expect("serialize v2"),
+        )
+        .expect("deserialize v2");
+        assert_eq!(parsed, trace);
+    }
+
+    #[test]
+    fn rejects_invalid_role_lifecycle_and_unknown_version() {
+        let mut trace = sample();
+        trace.schema_version = 2;
+        trace.role_decisions = Some(vec![RoleDecision {
+            role: AuthorityKind::Sage,
+            eligible: None,
+            state: RoleDecisionState::Skipped,
+            reason: None,
+        }]);
+        assert!(trace.validate().is_err());
+        let mut json = serde_json::to_value(sample()).expect("serialize");
+        json["schema_version"] = serde_json::json!(9);
+        assert!(serde_json::from_value::<RouteOutcomeTrace>(json).is_err());
+        let mut json = serde_json::to_value(sample()).expect("serialize");
+        json["roleDecisions"] = serde_json::Value::Null;
+        assert!(serde_json::from_value::<RouteOutcomeTrace>(json).is_err());
+    }
+
+    #[test]
+    fn role_adoption_keeps_labels_and_deduplicates_latest_state() {
+        let mut selected = sample();
+        selected.schema_version = 2;
+        selected.role_decisions = Some(vec![RoleDecision {
+            role: AuthorityKind::Sage,
+            eligible: Some(true),
+            state: RoleDecisionState::Selected,
+            reason: None,
+        }]);
+        let mut launched = selected.clone();
+        launched.role_decisions = Some(vec![RoleDecision {
+            role: AuthorityKind::Sage,
+            eligible: Some(true),
+            state: RoleDecisionState::Launched,
+            reason: None,
+        }]);
+        let mut unnecessary = sample();
+        unnecessary.request_id = RequestId::new("request-2").unwrap();
+        unnecessary.schema_version = 2;
+        unnecessary.role_decisions = Some(vec![RoleDecision {
+            role: AuthorityKind::Alchemist,
+            eligible: Some(false),
+            state: RoleDecisionState::Launched,
+            reason: None,
+        }]);
+        let mut unknown = sample();
+        unknown.request_id = RequestId::new("request-3").unwrap();
+        unknown.schema_version = 2;
+        unknown.role_decisions = Some(vec![RoleDecision {
+            role: AuthorityKind::Oracle,
+            eligible: None,
+            state: RoleDecisionState::Launched,
+            reason: None,
+        }]);
+        let metrics = fold_role_adoption(&[selected, launched, unnecessary, unknown]);
+        assert_eq!(metrics.labelled_eligible, 1);
+        assert_eq!(metrics.eligible_launches, 1);
+        assert_eq!(metrics.unnecessary_launches, 1);
+        assert_eq!(metrics.unknown_launches, 1);
+        assert_eq!(metrics.pending_selected, 0);
     }
 }

@@ -26,14 +26,16 @@
   "parity": {
     "triggers": [
       "/oracle",
-      "Independent read-only Completion Validation against the raw user request. Use /oracle before successful delivery."
+      "Optional independent read-only Completion Validation against the raw user request. Use /oracle only for explicit review requests or concrete outcome or safety risk."
     ],
     "outputs": [],
     "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
-    "evals": [],
+    "evals": [
+      "evals/evals.json"
+    ],
     "consumers": [
       "src/registry/skills/index.json",
       "src/registry/routing/domains.json"
@@ -43,7 +45,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://oracle/SKILL.md",
-      "digest": "sha256:7374424db67233fc73f2744111681d5195067fa019e0948397ad172eb5bb3f4c"
+      "digest": "sha256:299b2761764800fe6b83380c273a1bbab03d651ce5e2ae45d441b4cc9aa27303"
     },
     {
       "path": "agents/openai.yaml",
@@ -54,6 +56,11 @@
       "path": "dependencies.json",
       "uri": "legion-skill://oracle/dependencies.json",
       "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://oracle/evals/evals.json",
+      "digest": "sha256:45d4cafa2019958c1fb8c03ac9966a475fe8c0d8b8d8563ba7d26a6ab94194b8"
     }
   ]
 }

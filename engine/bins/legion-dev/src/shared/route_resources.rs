@@ -62,7 +62,7 @@ pub fn scoped_host_capabilities(skill_root: &Path) -> HashSet<String> {
 
 /// Scoped host requirements with their registry detail, one row per
 /// (scope, capability) pair. `scope` names the binding (`provider:notebooklm`,
-/// `adapter:omniroute-codex-worker`); `scopeKind` is the section singular.
+/// `adapter:demo-worker`); `scopeKind` is the section singular.
 ///
 /// Faithful port of `scopedRequirementDetails(skillRoot, registry, { id })`.
 pub fn scoped_requirement_details(skill_root: &Path, registry: &Value, id: &str) -> Result<Vec<Value>, String> {

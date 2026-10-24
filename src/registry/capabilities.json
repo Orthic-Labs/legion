@@ -28,16 +28,6 @@
       },
       "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it."
     },
-    "omniroute": {
-      "kind": "local-gateway",
-      "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the optional Alchemist worker adapter.",
-      "degradation": "The optional OmniRoute worker adapter is unavailable; host-native Alchemist execution and every other Legion capability are unaffected. Callers selecting the adapter must treat that route as unavailable, never as an empty result.",
-      "probe": {
-        "kind": "command",
-        "command": "omniroute"
-      },
-      "remedy": "Only when the OmniRoute worker adapter is explicitly selected: install the OmniRoute gateway and put `omniroute` on PATH. Hosts that do not select the adapter need nothing."
-    },
     "pi-cli": {
       "kind": "command-line-provider",
       "summary": "Pi command-line model provider used only by Coder's explicit, bounded read-only analysis route.",
@@ -55,8 +45,8 @@
     },
     "python-runtime": {
       "kind": "language-runtime",
-      "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
-      "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+      "summary": "Python runtime used by package-local validators.",
+      "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
       "probe": {
         "kind": "command-any",
         "commands": [

@@ -2393,7 +2393,7 @@ mod m1_tests {
         let app = M1Application::from_inputs(inputs_with_catalog(
             &root,
             true,
-            r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"M1 fixture","scopedRequirementDetails":[{"scope":"adapter:demo-worker","scopeKind":"adapter","id":"omniroute","degradation":"adapter down","remedy":"install it","probe":{"kind":"command","command":"__legion_requirement_is_not_installed__"}},{"scope":"provider:demo-search","scopeKind":"provider","id":"demo-search","degradation":"unprobeable","remedy":"","probe":null}]}]}"#,
+            r#"{"schemaVersion":2,"bundles":[{"id":"demo","source":"skills/demo/SKILL.md","description":"M1 fixture","scopedRequirementDetails":[{"scope":"adapter:demo-worker","scopeKind":"adapter","id":"demo-executor","degradation":"adapter down","remedy":"install it","probe":{"kind":"command","command":"__legion_requirement_is_not_installed__"}},{"scope":"provider:demo-search","scopeKind":"provider","id":"demo-search","degradation":"unprobeable","remedy":"","probe":null}]}]}"#,
         ))
         .expect("application");
         let status = app.status();

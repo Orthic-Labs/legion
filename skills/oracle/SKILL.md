@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Independent read-only Completion Validation against the raw user request. Use /oracle before successful delivery.
+description: Optional independent read-only Completion Validation against the raw user request. Use /oracle only for explicit review requests or concrete outcome or safety risk.
 kind: entrypoint
 discoverability: explicit
 target: authority:oracle
@@ -12,6 +12,10 @@ hostRequirements: []
 ---
 
 # Oracle
+
+Use `/oracle` only when the user explicitly requests independent review or when a concrete
+outcome or safety risk benefits from independent examination. Routine replies, read-only answers,
+status updates, & small reversible changes do not need Oracle.
 
 PRIMARY_DELIVERABLE: Compact PASS or BLOCK Completion Validation result.
 CHILD_AGENTS_MAX: 0

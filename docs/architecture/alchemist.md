@@ -105,12 +105,9 @@ universal delivery proof.
 Legion attaches Alchemist only after scope, ownership, acceptance, and checks are settled. The
 current package also exposes explicit `/alchemist` as an entrypoint targeting
 `authority:alchemist`; it is not a second contract system. The entrypoint declares `execute`,
-`source-read`, `repository-write`, and `process-exec`, and requires the host capability `omniroute`
-for its packaged worker path (with `python-runtime` declared as a host requirement).
-
-The packaged worker is an adapter for the local OmniRoute/Codex host, not the general definition of
-Alchemist execution. If that host capability is unavailable, the route reports the path as
-unavailable rather than substituting an empty or semantic result.
+`source-read`, `repository-write`, and `process-exec`, with no external host requirements.
+Legion attaches Alchemist before delegation; execution uses host-native agents & host-supported
+model tiers.
 
 The canonical model policy is `balanced-executor`. Exact, narrow mechanical units may use
 `mechanical-cheap` where policy says safe; this cost choice does not change Alchemist's authority

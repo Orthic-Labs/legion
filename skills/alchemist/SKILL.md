@@ -34,12 +34,10 @@ direct owner instruction to cancel/stop does.
 This entrypoint routes to Legion's existing Alchemist authority. It does not own execution
 infrastructure or create a second contract system.
 
-The packaged worker scripts under `scripts/` are an **adapter** for one specific host: a local
-OmniRoute gateway plus a Codex CLI profile set. They are not Legion's general execution path and
-must not be treated as one. Their host requirements are adapter-scoped in
-`references/route-resources.json`: a host that never selects the adapter needs neither the
-`omniroute` command nor `python-runtime`. When the adapter is selected and its probe fails,
-report that adapter as unavailable — host-native Alchemist execution is unaffected.
+Legion attaches Alchemist above capability selection & delegation. Execute through host-native
+agents with host-supported model tiers. This entrypoint needs no external model gateway,
+provider profiles, or package-local worker launcher. See `references/manual.md` for assignment
+& return requirements.
 
 1. Require settled scope, ownership boundaries, acceptance criteria, and focused checks.
    EXECUTOR:

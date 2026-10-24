@@ -30,6 +30,32 @@ Routine work may remain inline. Only shared contract writes, integration, commit
 pushes serialize. Constitution, authority, scope, acceptance, and completion semantics remain
 owned by the canonical sources above.
 
+## Role selection reference
+
+Legion decides whether authority is needed before selecting Dispatch or another capability.
+Use each canonical roster's Triggers table; explicit role requests take precedence over routine-work
+exclusions. Sage closes material unresolved meaning, Alchemist executes settled bounded work when
+a distinct executor or declared controlled boundary is useful, & Oracle examines explicit review
+requests or concrete outcome/safety risks. Ordinary inline implementation remains ambient.
+Dispatch transports assignments; it neither selects authority nor grants it.
+
+Resolve role registration & model compatibility against effective host configuration before launch.
+If a host forbids inherited models, provide an explicit compatible model through its native launch
+argument. Keep roster tiers vendor-neutral; never silently downgrade required judgment or skip
+requested authority to satisfy a host gate. Surface a rejected launch with its observed reason,
+repair compatible configuration when authorized, then retry within existing bounds.
+
+Codex projections preserve explicit role model/settings. Otherwise judgment roles use configured
+parent model/effort, & executor roles use configured subagent defaults when available. Exact model
+names belong to host configuration. This prevents accidental inheritance of a cheaper worker
+default; configuration alone still proves neither model availability nor tier compatibility.
+
+Configuration presence proves registration only. Record selected, bound, launched, or skipped from
+observed events; launched requires host acceptance, & skipped requires a reason. Eligibility labels
+remain independent of observed launches. Missing evidence stays unknown. Trace v2 carries these
+decisions; legacy v1 carries no adoption label. Compare labelled replays before changing triggers;
+measure eligible launches, unnecessary launches, eligible skips, pending work & unknown launches.
+
 ## Orchestration boundary
 
 Dispatch is Legion's fresh-context delegation primitive; ordinary work uses an inline assignment. Its governed

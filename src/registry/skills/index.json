@@ -47,38 +47,7 @@
       ],
       "hostRequirements": [],
       "hostRequirementDetails": [],
-      "scopedRequirementDetails": [
-        {
-          "scope": "adapter:omniroute-codex-worker",
-          "scopeKind": "adapter",
-          "id": "omniroute",
-          "kind": "local-gateway",
-          "summary": "OmniRoute model gateway plus the Codex CLI profile set used by the optional Alchemist worker adapter.",
-          "degradation": "The optional OmniRoute worker adapter is unavailable; host-native Alchemist execution and every other Legion capability are unaffected. Callers selecting the adapter must treat that route as unavailable, never as an empty result.",
-          "remedy": "Only when the OmniRoute worker adapter is explicitly selected: install the OmniRoute gateway and put `omniroute` on PATH. Hosts that do not select the adapter need nothing.",
-          "probe": {
-            "kind": "command",
-            "command": "omniroute"
-          }
-        },
-        {
-          "scope": "adapter:omniroute-codex-worker",
-          "scopeKind": "adapter",
-          "id": "python-runtime",
-          "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
-          "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
-          }
-        }
-      ],
+      "scopedRequirementDetails": [],
       "source": "skills/alchemist/SKILL.md",
       "manifest": "skills/manifests/alchemist.json"
     },
@@ -357,7 +326,7 @@
         },
         {
           "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
           "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
@@ -477,7 +446,7 @@
       "hostRequirementDetails": [
         {
           "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
           "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
@@ -516,7 +485,7 @@
       "hostRequirementDetails": [
         {
           "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
           "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
@@ -614,7 +583,7 @@
       "hostRequirementDetails": [
         {
           "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
           "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
@@ -665,7 +634,7 @@
     {
       "id": "oracle",
       "name": "oracle",
-      "description": "Independent read-only Completion Validation against the raw user request. Use /oracle before successful delivery.",
+      "description": "Optional independent read-only Completion Validation against the raw user request. Use /oracle only for explicit review requests or concrete outcome or safety risk.",
       "kind": "entrypoint",
       "capabilityClass": null,
       "discoverability": "explicit",
@@ -832,7 +801,7 @@
       "hostRequirementDetails": [
         {
           "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
           "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",
@@ -905,7 +874,7 @@
       "hostRequirementDetails": [
         {
           "id": "python-runtime",
-          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
           "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
           "probe": {
             "kind": "command-any",

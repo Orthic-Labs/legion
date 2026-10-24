@@ -5,22 +5,6 @@
     {
       "class": "PACKAGE_INTERNAL",
       "path": "references/manual.md"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "references/route-resources.json"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "model-catalog.json"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "scripts/run-worker.ps1"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "scripts/run-worker.sh"
     }
   ]
 }

@@ -13,7 +13,14 @@ structurally independent from work production and is read-only.
 
 ## Triggers
 
-Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle. Oracle never certifies its own fix or implements.
+| Attach when | Keep out when |
+| --- | --- |
+| Review is explicitly requested. | Routine reply, read-only answer, status update, or small reversible change. |
+| A concrete outcome or safety risk needs independent examination. | A producer is asking Oracle to certify its own fix. |
+
+Explicit review requests & concrete risks override routine-work exclusions.
+
+Authority is independent read-only assurance; diagnosis, write, or execute alone never selects Oracle.
 
 ## Boundaries
 

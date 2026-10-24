@@ -5,6 +5,24 @@ import Darwin
 final class LegionInstaller: NSObject, NSApplicationDelegate {
   private let fileManager = FileManager.default
   private let commandTimeout: TimeInterval = 60
+  private var headless: Bool { CommandLine.arguments.contains("--headless") }
+
+  static func main() {
+    let installer = LegionInstaller()
+    if installer.headless {
+      do {
+        try installer.install()
+        installer.log("installation complete")
+        exit(0)
+      } catch {
+        installer.log(error.localizedDescription)
+        exit(1)
+      }
+    }
+    let application = NSApplication.shared
+    application.delegate = installer
+    withExtendedLifetime(installer) { application.run() }
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {

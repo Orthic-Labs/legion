@@ -231,9 +231,9 @@ Items not confirmed live on this machine tonight, listed so they are not mistake
    rebuilt package, which this read-only pass cannot produce. The hook commands are the bare word
    `legion-hook` (no `${CLAUDE_PLUGIN_ROOT}` prefix); `where legion-hook` resolves to
    `…\current\bin\legion-hook.exe` on this machine, so PATH is not the blocker here — packaging is.
-4. **`blueprint`, `blueprint-graph`, `omniroute`, and other host-capability binaries being on PATH** on
+4. **`blueprint`, `blueprint-graph`, and other host-capability binaries being on PATH** on
    this machine tonight — not checked as part of this pass; scenarios that depend on them (§3.6, and any
-   skill requiring `blueprint-graph`/`omniroute` per `capabilities.json`) are UNVERIFIED live for that
+   skill requiring `blueprint-graph` per `capabilities.json`) are UNVERIFIED live for that
    reason alone, independent of the product's own correctness.
 5. **`legion setup repair` idempotency / exact remediation behavior** — repair was run on this machine
    before tonight's verification pass, but repair itself was not re-run or inspected tonight (mutating

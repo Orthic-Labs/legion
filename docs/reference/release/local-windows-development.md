@@ -1,17 +1,39 @@
-# Local Windows installer development
+# Windows unsigned installer development
+
+Read workspace `../docs/rules/rightkit.md` before Rust work. Ongoing iteration,
+testing & local builds use dev with incremental `release-iterate`. Dev omits
+distribution signing, notarization, updater artifacts & sealing. Signed/notarized
+shipping requires an explicit request for distribution output.
+
+Before any local build/check/test, inspect `rightkit list` once. Another queued or
+running build, or any build processed within preceding **30 minutes**, forces
+GitHub CI. Include completed, failed & cancelled work; inspect completion/activity
+timestamps rather than current running state alone. Missing inventory/timestamps
+also select CI. Never poll, wait for local capacity, or queue another local build.
+`scripts/release/local-build-route.mjs` enforces this at local native-check &
+installer entry points.
+
+CI route: push exact owned source to `codex/legion-windows-*`; this triggers
+`.github/workflows/windows-development.yml` on Windows only. It checks whole
+native workspace/all targets, tests native Codex Stop transport, builds unsigned
+installer & runs isolated installed qualification. Download artifact bound to
+exact run/SHA, verify installer digest against qualification, then install exact
+qualified artifact at stable `current` & verify requested installed behavior.
+This route requires no signing, publication or Mac work. A CI artifact is not
+proof of installation on Adrian's machine.
 
 Adrian authorized local unsigned Legion installer development. Tracked
 `.rightkit-local-development.json` limits this exception to
 `Orthic-Labs/legion`, native Windows, & unsigned installer work.
 
-From primary Legion checkout, run:
+Only after local idle admission, from primary Legion checkout run:
 
 ```powershell
 pnpm run native:check:local
 ```
 
 This is required before spending an installer build. It runs
-`cargo check --workspace --all-targets --locked --release` for Windows MSVC
+`cargo check --workspace --all-targets --locked --profile release-iterate` for Windows MSVC
 through managed RightKit. It uses same persistent external Cargo target &
 compiler cache as release build, but performs no assembly, installer creation,
 qualification, installation, signing, or publication.
@@ -19,13 +41,14 @@ qualification, installation, signing, or publication.
 After check passes, run:
 
 ```powershell
-pnpm run release:local:win:unsigned
+pnpm run dev:build:win
 ```
 
 This command builds `xtask` through managed RightKit with an explicit native
 target, resolves its executable from Cargo's `compiler-artifact` output, then
 runs its existing installer workflow. Generic `cargo run` remains denied.
-The workflow builds release binaries through managed RightKit, reusing its
+The command selects dev mode & incremental `release-iterate` for tooling,
+native binaries & assembly, reusing managed RightKit's
 persistent external Cargo cache. It assembles portable product, builds unsigned
 Inno installer, runs isolated installed qualification, then installs exact
 installer at `%LOCALAPPDATA%\Orthic Labs\Legion\current`. Final JSON records
@@ -35,8 +58,12 @@ source state, installer SHA-256, qualification evidence, installed root, version
 Build only:
 
 ```powershell
-pnpm run release:build:win:unsigned
+pnpm run dev:build:win -BuildOnly
 ```
+
+Older `release:*:win:unsigned` aliases remain compatibility entry points, not
+development defaults. For explicitly authorized Mac development, use
+`pnpm run dev:build:mac` (append `--build-only` to omit installation).
 
 If isolated qualification passes but stable install exits 4 with `untrusted mount
 point` during activation, a packaged Codex shell has redirected LocalAppData

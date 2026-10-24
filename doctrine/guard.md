@@ -95,8 +95,8 @@ Those aliases are protocol support; they are not additional registrations in
 `hooks/hooks.json`.
 
 Lifecycle and post-effect acknowledgements are not effect authorization. The
-`Stop` path delivers the Arcane-owned cognitive ending-shape policy through the
-Guard event; the Guard delivers that policy but does not own it. Stop completion
+`Stop` path does not infer unfinished work from assistant wording or block prose.
+Arcane response policy cannot create Stop re-prompt loops. Stop completion
 verification is proportional: it consults a typed verification requirement and
 checks the `oracle-completion-validation-v1` receipt only when that requirement
 demands one, rather than treating any file write as grounds for mandatory
@@ -263,6 +263,14 @@ The `native_application` failure branch returns
 `ARC_NATIVE_POLICY_UNAVAILABLE` with health `unsupported`. It fails closed
 without claiming strong enforcement; a focused regression test pins this
 label.
+
+Codex bridges invoke installed stable `current/bin/legion-hook --host codex`.
+This native transport emits Codex context output & exit 2 for Guard denials;
+default transport retains its versioned response envelope. Accepted Stop events
+may notify configured computer-use cleanup with bounded thread/turn identity &
+a 500 ms deadline. Missing, stale, invalid, failed, or timed-out cleanup remains
+diagnostic only: it never changes Guard's decision. Host bridges contain no
+completion policy or notifier implementation.
 
 ## Receipts
 
