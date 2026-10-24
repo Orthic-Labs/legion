@@ -111,7 +111,11 @@ fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathB
                 }
                 // Windows keeps drive spelling; its pinned state dirs resolve
                 // verbatim paths themselves (`snapshot::directory_location`).
-                return Ok(if cfg!(windows) { root.clone() } else { resolved });
+                return Ok(if cfg!(windows) {
+                    root.clone()
+                } else {
+                    resolved
+                });
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 suffix.push(
