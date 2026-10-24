@@ -31,7 +31,7 @@ try {
     } else {
         & node (Join-Path $PSScriptRoot 'local-build-route.mjs')
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        $compiler = 'rightkit'
+        $compiler = 'rustright'
         $compilerPrefix = @('cargo')
     }
     # Keep compilation inside RightKit. The local development policy permits

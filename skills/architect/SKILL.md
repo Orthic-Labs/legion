@@ -66,7 +66,7 @@ design gate or a requirement to obtain approval before ordinary execution.
 Before proposing new components or dependencies, read the host-declared shared-capability index
 (session-injected ownership index or host-declared lookup command) and the workspace/repository
 agent rules, then decide reuse owner → extend owner → build new. Building new, or adding a
-third-party dependency for a capability the index declares, needs a recorded reason. When the host provides `rightkit owns --compact`, start every design from its full output:
+third-party dependency for a capability the index declares, needs a recorded reason. When the host provides `rustright owns --compact`, start every design from its full output:
 name the owner for each capability, integrate owners, and design only the gaps. Carry that output
 into the tasklist's RightKit Capabilities block. If the host
 declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/01-frame.md`.

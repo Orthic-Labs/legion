@@ -78,7 +78,16 @@
           "id": "macos-development"
         },
         {
+          "id": "preflight"
+        },
+        {
           "id": "qa"
+        },
+        {
+          "id": "release"
+        },
+        {
+          "id": "rightkit-adopt"
         }
       ]
     },

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "rightkit-adopt",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://rightkit-adopt/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/rightkit-adopt",
+      "Adopt or repin a RightKit package in an app, delete the code it replaces, and place new code by class. Use for adopt rightkit-qa, repin a package, does RightKit already own this, where should this code live, or replace our own version with the shared one."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://rightkit-adopt/SKILL.md",
+      "digest": "sha256:96f67b5b6a2d850553a020ee0a2acd7b805b17ad6dee8c0e57a357d1e1cb108a"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://rightkit-adopt/agents/openai.yaml",
+      "digest": "sha256:e76724ab6259c3f1432ea91c02d2aa8f7fc46cbeb084ff8792902f98d0bda710"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://rightkit-adopt/dependencies.json",
+      "digest": "sha256:e00aa2fe222766e6f3121d3912b41c7e8adf27e1bc3ce875e49b5c6c2708d965"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://rightkit-adopt/evals/evals.json",
+      "digest": "sha256:01a569b402d35b64439d08a9f7219ea82ee5be214afb9e2e63cad8c2fa29466f"
+    }
+  ]
+}

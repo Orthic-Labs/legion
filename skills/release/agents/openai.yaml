@@ -1,0 +1,6 @@
+interface:
+  display_name: "Release"
+  short_description: "Before building, signing, uploading or publishing an app release, run the deterministic-first pipeline: check, admission, build, QA of the exact commit, upload, with no skipped step and no escape hatch. Use for release, ship a build, cut a patch or update, publish."
+  default_prompt: "Use $release when this request matches: Before building, signing, uploading or publishing an app release, run the deterministic-first pipeline: check, admission, build, QA of the exact commit, upload, with no skipped step and no escape hatch. Use for release, ship a build, cut a patch or update, publish."
+policy:
+  allow_implicit_invocation: true

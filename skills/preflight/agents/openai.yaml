@@ -1,0 +1,6 @@
+interface:
+  display_name: "Preflight"
+  short_description: "Before any build, push, merge, release or done claim, run the repository's deterministic check first, read every finding, and fix it or baseline it with a filed issue. Use for push this, ship it, merge it, is it done, or before building."
+  default_prompt: "Use $preflight when this request matches: Before any build, push, merge, release or done claim, run the repository's deterministic check first, read every finding, and fix it or baseline it with a filed issue. Use for push this, ship it, merge it, is it done, or before building."
+policy:
+  allow_implicit_invocation: true

@@ -23,7 +23,7 @@ cargo test --workspace
     let errors = managed_rust_route_errors(text, None, None);
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(errors[0].contains("fenced block 1"));
-    assert!(errors[0].contains("direct cargo invocation must use rightkit cargo"));
+    assert!(errors[0].contains("direct cargo invocation must use rustright cargo"));
 }
 
 #[test]

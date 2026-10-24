@@ -23,7 +23,7 @@
 
 ## 1A. RightKit Capabilities
 
-- **Source command:** `rightkit owns --compact` (run at plan time; paste the full output below, never a summary)
+- **Source command:** `rustright owns --compact` (run at plan time; paste the full output below, never a summary)
 - **Capability output:**
 
 ```text

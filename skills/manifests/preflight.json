@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "preflight",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://preflight/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/preflight",
+      "Before any build, push, merge, release or done claim, run the repository's deterministic check first, read every finding, and fix it or baseline it with a filed issue. Use for push this, ship it, merge it, is it done, or before building."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://preflight/SKILL.md",
+      "digest": "sha256:ea33c5caa6d4dfe42f26045bbfe3cfa3287f9b76760fab5456b3b7e65f0ecfdf"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://preflight/agents/openai.yaml",
+      "digest": "sha256:1d249ffc82bb43757fb242b86e1b398308ec25cf5624bf9ff59d3ead125cc91f"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://preflight/dependencies.json",
+      "digest": "sha256:a4fee90260fd1eb4f743e84dd892ee936387703f38e6510ce5913708badec1b7"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://preflight/evals/evals.json",
+      "digest": "sha256:fa051b356c971d333fd71a678bd2c20765eba25ed3a7137c032268fd3cb357d3"
+    }
+  ]
+}

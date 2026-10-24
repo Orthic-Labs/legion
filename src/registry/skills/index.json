@@ -69,11 +69,11 @@
         {
           "id": "rightkit-owns",
           "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
-          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "remedy": "Install RustRight so `rustright owns --compact` is on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
-              "rightkit"
+              "rustright"
             ]
           }
         }
@@ -215,11 +215,11 @@
         {
           "id": "rightkit-owns",
           "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
-          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "remedy": "Install RustRight so `rustright owns --compact` is on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
-              "rightkit"
+              "rustright"
             ]
           }
         }
@@ -1118,6 +1118,39 @@
       "manifest": "skills/manifests/oracle.json"
     },
     {
+      "id": "preflight",
+      "name": "preflight",
+      "description": "Before any build, push, merge, release or done claim, run the repository's deterministic check first, read every finding, and fix it or baseline it with a filed issue. Use for push this, ship it, merge it, is it done, or before building.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "execute"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write",
+        "process-exec"
+      ],
+      "hostRequirements": [
+        "repo-gate"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "repo-gate",
+          "degradation": "State that the repository gate is unavailable, run the repository's own documented check if it names one, and report completion as unverified. A missing gate is never a pass.",
+          "remedy": "Install the repository's dependencies so `pnpm exec right-release check` resolves, or adopt @rightkit/release.",
+          "probe": null
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/preflight/SKILL.md",
+      "manifest": "skills/manifests/preflight.json"
+    },
+    {
       "id": "qa",
       "name": "qa",
       "description": "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks.",
@@ -1153,6 +1186,39 @@
       "scopedRequirementDetails": [],
       "source": "skills/qa/SKILL.md",
       "manifest": "skills/manifests/qa.json"
+    },
+    {
+      "id": "release",
+      "name": "release",
+      "description": "Before building, signing, uploading or publishing an app release, run the deterministic-first pipeline: check, admission, build, QA of the exact commit, upload, with no skipped step and no escape hatch. Use for release, ship a build, cut a patch or update, publish.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "execute"
+      ],
+      "effects": [
+        "source-read",
+        "process-exec",
+        "network-request"
+      ],
+      "hostRequirements": [
+        "repo-gate"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "repo-gate",
+          "degradation": "State that the repository gate is unavailable, run the repository's own documented check if it names one, and report completion as unverified. A missing gate is never a pass.",
+          "remedy": "Install the repository's dependencies so `pnpm exec right-release check` resolves, or adopt @rightkit/release.",
+          "probe": null
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/release/SKILL.md",
+      "manifest": "skills/manifests/release.json"
     },
     {
       "id": "research",
@@ -1247,6 +1313,51 @@
       ],
       "source": "skills/research/SKILL.md",
       "manifest": "skills/manifests/research.json"
+    },
+    {
+      "id": "rightkit-adopt",
+      "name": "rightkit-adopt",
+      "description": "Adopt or repin a RightKit package in an app, delete the code it replaces, and place new code by class. Use for adopt rightkit-qa, repin a package, does RightKit already own this, where should this code live, or replace our own version with the shared one.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "decide",
+        "execute"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write",
+        "process-exec"
+      ],
+      "hostRequirements": [
+        "rightkit-owns",
+        "repo-gate"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "rightkit-owns",
+          "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
+          "remedy": "Install RustRight so `rustright owns --compact` is on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "rustright"
+            ]
+          }
+        },
+        {
+          "id": "repo-gate",
+          "degradation": "State that the repository gate is unavailable, run the repository's own documented check if it names one, and report completion as unverified. A missing gate is never a pass.",
+          "remedy": "Install the repository's dependencies so `pnpm exec right-release check` resolves, or adopt @rightkit/release.",
+          "probe": null
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/rightkit-adopt/SKILL.md",
+      "manifest": "skills/manifests/rightkit-adopt.json"
     },
     {
       "id": "seo",
@@ -1442,11 +1553,11 @@
         {
           "id": "rightkit-owns",
           "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
-          "remedy": "Install RightKit so `rightkit owns --compact` is on PATH.",
+          "remedy": "Install RustRight so `rustright owns --compact` is on PATH.",
           "probe": {
             "kind": "command-any",
             "commands": [
-              "rightkit"
+              "rustright"
             ]
           }
         }

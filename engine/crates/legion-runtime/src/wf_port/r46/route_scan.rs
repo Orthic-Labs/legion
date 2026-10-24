@@ -36,11 +36,15 @@ fn rust_tool_plain_re() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"(?i)cargo|rustc|rustdoc").unwrap())
 }
 
-fn rightkit_prefix_re() -> &'static Regex {
+fn managed_prefix_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     // Port of `(?:^|[\s;&|])rightkit\s+(?:build\s+)?$` (case-insensitive),
-    // tested against the text preceding a matched tool token.
-    RE.get_or_init(|| Regex::new(r"(?i)(?:^|[\s;&|])rightkit\s+(?:build\s+)?$").unwrap())
+    // tested against the text preceding a matched tool token. The client is
+    // `rustright`; the retired `rightkit` spelling is still read so packets
+    // written before the rename validate, but it is never the one asked for.
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:^|[\s;&|])(?:rustright|rightkit)\s+(?:build\s+)?$").unwrap()
+    })
 }
 
 fn is_word_char(c: char) -> bool {
@@ -81,7 +85,7 @@ fn find_tool_tokens(value: &str) -> Vec<(usize, String)> {
 }
 
 /// Port of `managed_rust_route_errors()`: reject executable Rust-tool
-/// routes in `text` that bypass `rightkit`. `artifact_path` mirrors the
+/// routes in `text` that bypass `rustright`. `artifact_path` mirrors the
 /// Python function's optional artifact path, used to resolve a
 /// `**Goal route artifact:**` label into a GoalRoute JSON document when
 /// `route_document` is not already supplied. `route_document`, when
@@ -99,13 +103,13 @@ pub fn managed_rust_route_errors(
     let mut check = |value: &str, source: &str| {
         for (start, tool) in find_tool_tokens(value) {
             let prefix = &value[..start];
-            if rightkit_prefix_re().is_match(prefix) {
+            if managed_prefix_re().is_match(prefix) {
                 continue;
             }
             let key = (source.to_string(), tool.clone());
             if seen.insert(key) {
                 errors.push(format!(
-                    "managed Rust route violation in {source}: direct {tool} invocation must use rightkit {tool}"
+                    "managed Rust route violation in {source}: direct {tool} invocation must use rustright {tool}"
                 ));
             }
         }
@@ -187,7 +191,7 @@ mod tests {
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(errors[0].contains("fenced block 1"), "{errors:?}");
         assert!(
-            errors[0].contains("direct cargo invocation must use rightkit cargo"),
+            errors[0].contains("direct cargo invocation must use rustright cargo"),
             "{errors:?}"
         );
     }
@@ -197,6 +201,18 @@ mod tests {
         let text = "```bash\nrightkit build cargo test\n```\n";
         let errors = managed_rust_route_errors(text, None, None);
         assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    #[test]
+    fn allows_the_rustright_client_with_and_without_build() {
+        for text in [
+            "```bash\nrustright cargo test\n```\n",
+            "```bash\nrustright build cargo test\n```\n",
+            "```bash\ncd x && rustright cargo check\n```\n",
+        ] {
+            let errors = managed_rust_route_errors(text, None, None);
+            assert!(errors.is_empty(), "{text}: {errors:?}");
+        }
     }
 
     #[test]

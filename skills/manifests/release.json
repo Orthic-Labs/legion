@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "release",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://release/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/release",
+      "Before building, signing, uploading or publishing an app release, run the deterministic-first pipeline: check, admission, build, QA of the exact commit, upload, with no skipped step and no escape hatch. Use for release, ship a build, cut a patch or update, publish."
+    ],
+    "outputs": [],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://release/SKILL.md",
+      "digest": "sha256:aaeba4af4ad808a02f1cfae79618bed3529bfbc4781e2f6fb173c10c643662f5"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://release/agents/openai.yaml",
+      "digest": "sha256:55b7351ad1abd10d65929b2341c4cf9452a69c6a0865365adb938c023f695518"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://release/dependencies.json",
+      "digest": "sha256:a4fee90260fd1eb4f743e84dd892ee936387703f38e6510ce5913708badec1b7"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://release/evals/evals.json",
+      "digest": "sha256:e0b3af829b8c10aa9ee07a8b26fa1c14eea48cce428196d667bfe5058246aee2"
+    }
+  ]
+}
