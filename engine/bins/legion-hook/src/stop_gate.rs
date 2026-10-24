@@ -6,8 +6,9 @@
 //! assistant's wording. Exactly three kinds count:
 //!
 //! * a green line of the repository gate (`right-release check`,
-//!   `rightkit-gate check`) that the gate command itself printed, for the
-//!   current HEAD;
+//!   `rightkit-gate check`, or, until `rightkit-gate check` ships,
+//!   `node scripts/preflight.mjs`) that the gate command itself printed, for
+//!   the current HEAD;
 //! * a CI run URL together with the current HEAD and a success marker, in a
 //!   tool result (for example `gh run view`);
 //! * a host receipt block: a JSON object with an id, a verification command
@@ -286,6 +287,13 @@ fn evidence_in(command: Option<&str>, text: &str, head: Option<&str>) -> Option<
 const GATE_PROGRAMS: [&str; 2] = ["right-release", "rightkit-gate"];
 const RUNNERS: [&str; 7] = ["pnpm", "npx", "npm", "yarn", "node", "corepack", "bunx"];
 
+/// The gate that exists on RightKit main today: `scripts/preflight.mjs` (stem
+/// `preflight`) prints the same `preflight: <sha> passed <n> rules` line but
+/// takes no `check` subcommand. Transitional: `rightkit-gate check` replaces it
+/// when `@rightkit/release` 0.6.5 ships, and the three spellings stay
+/// recognised until then.
+const TRANSITIONAL_GATE_SCRIPT: &str = "scripts/preflight.mjs";
+
 fn stem(word: &str) -> String {
     let name = crate::program_name(word).to_ascii_lowercase();
     for extension in [".mjs", ".cjs", ".js"] {
@@ -296,12 +304,28 @@ fn stem(word: &str) -> String {
     name
 }
 
+/// `scripts/preflight.mjs`, run from any directory or checkout.
+fn is_transitional_gate_script(word: &str) -> bool {
+    let normalized = word.replace('\\', "/").to_ascii_lowercase();
+    normalized == TRANSITIONAL_GATE_SCRIPT
+        || normalized.ends_with(&format!("/{TRANSITIONAL_GATE_SCRIPT}"))
+}
+
 /// Does this command line run the repository gate's `check`?
 pub(crate) fn is_gate_command(command: &str) -> bool {
     vcs_gate::command_words(command).iter().any(|words| {
         let Some(first) = words.first() else {
             return false;
         };
+        if is_transitional_gate_script(first)
+            || (RUNNERS.contains(&stem(first).as_str())
+                && words
+                    .iter()
+                    .skip(1)
+                    .any(|word| is_transitional_gate_script(word)))
+        {
+            return true;
+        }
         let first = stem(first);
         let program_at = if GATE_PROGRAMS.contains(&first.as_str()) {
             Some(0)
@@ -739,6 +763,15 @@ mod tests {
             "node node_modules/@rightkit/release/bin/rightkit-gate.mjs check",
             "cd app && pnpm right-release check",
             "bash -c 'right-release check'",
+            // Transitional: the only gate on RightKit main takes no subcommand.
+            "node scripts/preflight.mjs",
+            "node ./scripts/preflight.mjs --worktree",
+            "node /work/rightkit/scripts/preflight.mjs --repo ../app --commit HEAD",
+            "node 'scripts\\preflight.mjs'",
+            "pnpm exec node scripts/preflight.mjs",
+            "cd rightkit && node scripts/preflight.mjs",
+            "./scripts/preflight.mjs",
+            "bash -c 'node scripts/preflight.mjs'",
         ] {
             assert!(is_gate_command(command), "{command}");
         }
@@ -748,8 +781,62 @@ mod tests {
             "echo right-release check",
             "pnpm test",
             "grep check right-release.config.mjs",
+            "cat scripts/preflight.mjs",
+            "echo node scripts/preflight.mjs",
+            "node scripts/preflight.test.mjs",
+            "node scripts/check-syntax.mjs",
+            "node tools/preflight.mjs",
+            "node preflight.mjs",
         ] {
             assert!(!is_gate_command(command), "{command}");
+        }
+    }
+
+    #[test]
+    fn a_green_preflight_script_line_is_evidence_for_the_current_head() {
+        for command in [
+            "node scripts/preflight.mjs",
+            "pnpm exec node scripts/preflight.mjs --worktree",
+        ] {
+            let text = transcript(&[
+                user_prompt("fix it"),
+                edit("t1"),
+                tool_result("t1", "ok", false),
+                tool_use("t2", "Bash", json!({"command": command})),
+                tool_result(
+                    "t2",
+                    "preflight: 66c9ddd4d704 passed 7 rules in 1.4s",
+                    false,
+                ),
+            ]);
+            let turn = analyze_turn(&text, Some(HEAD)).expect("understood");
+            assert_eq!(turn.evidence, Some(Evidence::Gate), "{command}");
+        }
+        // The same line for another commit, or from a command that is not the
+        // script, still counts for nothing.
+        for (command, output) in [
+            (
+                "node scripts/preflight.mjs",
+                "preflight: 0123456789ab passed 7 rules in 1.4s",
+            ),
+            (
+                "node scripts/preflight.mjs",
+                "preflight: 66c9ddd4d704 1 problem(s) in 7 rules",
+            ),
+            (
+                "cat scripts/preflight.mjs",
+                "preflight: 66c9ddd4d704 passed 7 rules in 1.4s",
+            ),
+        ] {
+            let text = transcript(&[
+                user_prompt("fix it"),
+                edit("t1"),
+                tool_result("t1", "ok", false),
+                tool_use("t2", "Bash", json!({"command": command})),
+                tool_result("t2", output, false),
+            ]);
+            let turn = analyze_turn(&text, Some(HEAD)).expect("understood");
+            assert_eq!(turn.evidence, None, "{command} / {output}");
         }
     }
 

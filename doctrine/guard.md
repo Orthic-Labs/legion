@@ -364,8 +364,9 @@ A `Stop` is held, once per reopening and at most three times per turn
 3. no objective evidence follows the last change. Evidence is read from the
    turn's tool results, never from assistant wording:
    - the gate's own green line (`<label>: <sha> passed <n> rules ...`) printed by
-     a `right-release check` or `rightkit-gate check` command that did not
-     error, naming the current HEAD;
+     a `right-release check` or `rightkit-gate check` command (or, until
+     `rightkit-gate check` ships, `node scripts/preflight.mjs`, which takes no
+     subcommand) that did not error, naming the current HEAD;
    - a CI run URL (`.../actions/runs/<id>`) in a tool result that also cites the
      current HEAD and a success marker with no failure marker;
    - a host receipt block: a JSON object with an id, a verifying command
