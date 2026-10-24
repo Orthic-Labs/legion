@@ -611,8 +611,13 @@ mod tests {
         // The admitted HOME plus the pinned, never-inherited PATH.
         assert_eq!(policy.env.set.len(), 2);
         let path = policy.env.set.get("PATH").expect("pinned PATH");
-        assert!(path.split(':').all(|dir| dir.starts_with('/')));
-        assert!(path.contains("/usr/bin"));
+        assert!(std::env::split_paths(path).all(|dir| dir.is_absolute()));
+        let platform_dir = if cfg!(windows) {
+            "System32"
+        } else {
+            "/usr/bin"
+        };
+        assert!(path.contains(platform_dir));
     }
 
     #[test]

@@ -469,7 +469,9 @@ fn valid_argv(request: &AppleOperationRequest, out: &Path) -> Vec<String> {
 #[test]
 fn bridge_argv_is_build_or_test_only_with_signing_disabled() {
     let obligation = ios_obligation();
-    let out = Path::new("/owner/out");
+    // Output paths must be absolute on the host platform.
+    let owner = std::env::temp_dir().join("owner").join("out");
+    let out = owner.as_path();
     let request = request_with(&obligation, AppleOperation::Test);
     let argv = valid_argv(&request, out);
     assert!(validate_xcodebuild_argv(&request, &argv, out).is_ok());

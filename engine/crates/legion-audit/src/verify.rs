@@ -607,6 +607,12 @@ pub fn replay_run_value(run_dir: &Path) -> Result<Value, AuditError> {
     if let Ok(canonical) = fs::canonicalize(run_dir) {
         roots.push(canonical.to_string_lossy().into_owned());
     }
+    // Windows records the same directory with or without the verbatim prefix.
+    let plain: Vec<String> = roots
+        .iter()
+        .filter_map(|root| root.strip_prefix(r"\\?\").map(str::to_owned))
+        .collect();
+    roots.extend(plain);
     roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
     Ok(rewrite_run_root(Value::Object(document), &roots))
 }

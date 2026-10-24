@@ -535,11 +535,8 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
     // The per-run plan key lives in host state; isolate it from the real user state.
-    let state = std::env::temp_dir().join(format!(
-        "legion-native-audit-unsigned-state-{}-{}",
-        std::process::id(),
-        std::thread::current().name().unwrap_or("fixture")
-    ));
+    // Kept short: the sealed snapshot path below it must fit Windows MAX_PATH.
+    let state = std::env::temp_dir().join(format!("legion-nau-{}", std::process::id()));
     let out = root.join("audit");
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
