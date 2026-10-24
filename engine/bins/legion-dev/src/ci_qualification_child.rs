@@ -1,14 +1,22 @@
 //! CI-only deadline adapter; lifecycle & containment stay with RightKit.
-use rightkit_child_process::{sweep, AdoptedIdentity, OwnedCommand, ReapOutcome};
+use rightkit_child_process::{sweep, AdoptedIdentity, IdentityCheck, OwnedCommand, ReapOutcome};
 use serde_json::json;
 use std::{
     ffi::OsString,
+    io,
     path::Path,
     process::{ExitStatus, Stdio},
+    thread,
     time::{Duration, Instant},
 };
 
 const CLEANUP_TIMEOUT: Duration = Duration::from_secs(3);
+/// How long a descendant the sweep could not signal may keep reading as present before the
+/// wrapper counts it a survivor. A process that is already exiting refuses `TerminateProcess`
+/// (Windows: `ERROR_ACCESS_DENIED`) a moment before its handle signals; RightKit 0.5.6 waits
+/// the same 2 s on that handle, so this matches it until Legion moves to 0.5.6.
+const FAILED_RECHECK_WINDOW: Duration = Duration::from_secs(2);
+const FAILED_RECHECK_POLL: Duration = Duration::from_millis(20);
 
 fn command_timeout(argv: &[OsString]) -> Duration {
     // Run39394355495 macOS seq44 completed in816.08s (snapshot SHA56fb2...).
@@ -118,10 +126,138 @@ fn command_timeout(argv: &[OsString]) -> Duration {
     Duration::from_secs(300)
 }
 
+/// What re-reading the identity of one pid the sweep listed as `failed` says now.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum Recheck {
+    /// No process has the pid: the descendant is gone.
+    Gone,
+    /// The pid names a different process: the remembered descendant is gone.
+    Replaced,
+    /// The remembered process is still present.
+    Live,
+    /// The identity could not be read, or the pid was never remembered. Nothing proves the
+    /// descendant is gone.
+    Unresolved(String),
+}
+
+/// The pids the sweep listed as `failed`, sorted by what re-reading their identity found.
+#[derive(Debug, Default, Eq, PartialEq)]
+struct FailedRecheck {
+    gone: Vec<u32>,
+    replaced: Vec<u32>,
+    live: Vec<u32>,
+    unresolved: Vec<(u32, String)>,
+}
+
+impl FailedRecheck {
+    /// Only a descendant that is still present or whose state is unknown fails the lane.
+    fn blocks(&self) -> bool {
+        !self.live.is_empty() || !self.unresolved.is_empty()
+    }
+
+    fn receipt(&self) -> serde_json::Value {
+        json!({
+            "gone": self.gone,
+            "replaced": self.replaced,
+            "live": self.live,
+            "unresolved": self.unresolved.iter()
+                .map(|(pid, error)| json!({"pid": pid, "error": error}))
+                .collect::<Vec<_>>(),
+        })
+    }
+}
+
+/// Combines the identity checks of every remembered identity that carries one pid (a pid
+/// reused during the span is remembered once per start time; the sweep reports pids only).
+/// Present beats unreadable beats gone: only proof that every identity is gone clears a pid.
+fn combine_identity_checks(checks: impl IntoIterator<Item = io::Result<IdentityCheck>>) -> Recheck {
+    let (mut replaced, mut error, mut seen) = (false, None, false);
+    for check in checks {
+        seen = true;
+        match check {
+            Ok(IdentityCheck::Same) => return Recheck::Live,
+            Ok(IdentityCheck::Replaced) => replaced = true,
+            Ok(IdentityCheck::Gone) => {}
+            Err(failure) => error = error.or_else(|| Some(failure.to_string())),
+        }
+    }
+    match (seen, error) {
+        (false, _) => Recheck::Unresolved("pid is not a remembered descendant".to_owned()),
+        (true, Some(error)) => Recheck::Unresolved(error),
+        (true, None) if replaced => Recheck::Replaced,
+        (true, None) => Recheck::Gone,
+    }
+}
+
+/// Re-reads, by pid and start identity (the proof the sweep itself uses), each pid the sweep
+/// could not signal. `probe` reads one pid; `keep_waiting` pauses and says whether the window
+/// is still open. A pid that reads as present is probed again until the window closes, since
+/// a process that is mid-exit still reads as present for a moment; only one that never stops
+/// being present is live. Gone, replaced and unreadable pids are settled at once.
+fn recheck_failed(
+    failed: &[u32],
+    mut probe: impl FnMut(u32) -> Recheck,
+    mut keep_waiting: impl FnMut() -> bool,
+) -> FailedRecheck {
+    let mut report = FailedRecheck::default();
+    let mut pending: Vec<u32> = Vec::new();
+    for &pid in failed {
+        if !pending.contains(&pid) {
+            pending.push(pid);
+        }
+    }
+    while !pending.is_empty() {
+        let mut present = Vec::new();
+        for pid in pending {
+            match probe(pid) {
+                Recheck::Gone => report.gone.push(pid),
+                Recheck::Replaced => report.replaced.push(pid),
+                Recheck::Live => present.push(pid),
+                Recheck::Unresolved(error) => report.unresolved.push((pid, error)),
+            }
+        }
+        pending = present;
+        if !pending.is_empty() && !keep_waiting() {
+            report.live.append(&mut pending);
+        }
+    }
+    report
+}
+
+/// [`recheck_failed`] against the identities remembered while the tree was observable, for at
+/// most `window`.
+fn recheck_failed_descendants(
+    descendants: &[AdoptedIdentity],
+    failed: &[u32],
+    window: Duration,
+) -> FailedRecheck {
+    let deadline = Instant::now() + window;
+    recheck_failed(
+        failed,
+        |pid| {
+            combine_identity_checks(
+                descendants
+                    .iter()
+                    .filter(|identity| identity.pid() == pid)
+                    .map(AdoptedIdentity::verify),
+            )
+        },
+        || {
+            if Instant::now() >= deadline {
+                return false;
+            }
+            thread::sleep(FAILED_RECHECK_POLL);
+            true
+        },
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::command_timeout;
-    use std::{ffi::OsString, time::Duration};
+    use super::{combine_identity_checks, command_timeout, recheck_failed, FailedRecheck, Recheck};
+    use rightkit_child_process::IdentityCheck;
+    use serde_json::json;
+    use std::{cell::Cell, ffi::OsString, io, time::Duration};
 
     fn matrix_commands() -> Vec<(Vec<OsString>, u64)> {
         [
@@ -229,6 +365,191 @@ mod tests {
             assert_eq!(command_timeout(&extended), default, "{extended:?}");
         }
     }
+
+    fn ok(check: IdentityCheck) -> io::Result<IdentityCheck> {
+        Ok(check)
+    }
+
+    fn unreadable() -> io::Result<IdentityCheck> {
+        Err(io::Error::other("identity unreadable"))
+    }
+
+    #[test]
+    fn identity_checks_clear_a_pid_only_when_every_identity_is_gone() {
+        use IdentityCheck::{Gone, Replaced, Same};
+        assert_eq!(combine_identity_checks([ok(Gone)]), Recheck::Gone);
+        assert_eq!(combine_identity_checks([ok(Gone), ok(Gone)]), Recheck::Gone);
+        assert_eq!(combine_identity_checks([ok(Replaced)]), Recheck::Replaced);
+        assert_eq!(
+            combine_identity_checks([ok(Gone), ok(Replaced)]),
+            Recheck::Replaced
+        );
+        // Present beats everything, wherever it sits among the identities of one pid.
+        assert_eq!(combine_identity_checks([ok(Same)]), Recheck::Live);
+        assert_eq!(
+            combine_identity_checks([ok(Gone), unreadable(), ok(Same)]),
+            Recheck::Live
+        );
+        // Unreadable beats gone: nothing proves the descendant left.
+        assert_eq!(
+            combine_identity_checks([ok(Gone), unreadable()]),
+            Recheck::Unresolved("identity unreadable".to_owned())
+        );
+        // A pid the wrapper never remembered cannot be proven gone.
+        assert!(matches!(
+            combine_identity_checks([]),
+            Recheck::Unresolved(_)
+        ));
+    }
+
+    #[test]
+    fn descendant_that_was_already_exiting_no_longer_fails_the_lane() {
+        // Windows: TerminateProcess is refused on a process that is exiting, so the sweep
+        // lists it as failed; its handle signals within the window and it reads as gone.
+        let mut reads = 0;
+        let mut waits = 0;
+        let report = recheck_failed(
+            &[4242],
+            |_| {
+                reads += 1;
+                if reads < 3 {
+                    Recheck::Live
+                } else {
+                    Recheck::Gone
+                }
+            },
+            || {
+                waits += 1;
+                true
+            },
+        );
+        assert_eq!(report.gone, vec![4242]);
+        assert!(!report.blocks());
+        assert_eq!((reads, waits), (3, 2));
+    }
+
+    #[test]
+    fn descendant_replaced_by_an_unrelated_process_no_longer_fails_the_lane() {
+        let report = recheck_failed(&[7], |_| Recheck::Replaced, || unreachable!());
+        assert_eq!(report.replaced, vec![7]);
+        assert!(!report.blocks());
+    }
+
+    #[test]
+    fn live_survivor_keeps_the_lane_failed_once_the_window_closes() {
+        let mut waits = 0;
+        let report = recheck_failed(
+            &[11],
+            |_| Recheck::Live,
+            || {
+                waits += 1;
+                waits <= 4
+            },
+        );
+        assert_eq!(report.live, vec![11]);
+        assert!(report.gone.is_empty());
+        assert!(report.blocks());
+        assert_eq!(waits, 5);
+    }
+
+    #[test]
+    fn unresolvable_failure_keeps_the_lane_failed_without_waiting() {
+        let report = recheck_failed(
+            &[13],
+            |_| Recheck::Unresolved("denied".to_owned()),
+            || unreachable!(),
+        );
+        assert_eq!(report.unresolved, vec![(13, "denied".to_owned())]);
+        assert!(report.blocks());
+    }
+
+    #[test]
+    fn mixed_failures_clear_only_the_gone_ones() {
+        let live_reads = Cell::new(0);
+        let report = recheck_failed(
+            &[1, 2, 3, 4, 2],
+            |pid| match pid {
+                1 => Recheck::Gone,
+                2 => {
+                    live_reads.set(live_reads.get() + 1);
+                    Recheck::Live
+                }
+                3 => Recheck::Replaced,
+                _ => Recheck::Unresolved("denied".to_owned()),
+            },
+            || live_reads.get() < 2,
+        );
+        assert_eq!(
+            report,
+            FailedRecheck {
+                gone: vec![1],
+                replaced: vec![3],
+                live: vec![2],
+                unresolved: vec![(4, "denied".to_owned())],
+            }
+        );
+        // The duplicate pid is probed once per round, not once per listing.
+        assert_eq!(live_reads.get(), 2);
+        assert!(report.blocks());
+    }
+
+    #[test]
+    fn no_failures_never_blocks() {
+        let report = recheck_failed(&[], |_| unreachable!(), || unreachable!());
+        assert_eq!(report, FailedRecheck::default());
+        assert!(!report.blocks());
+    }
+
+    #[test]
+    fn recheck_receipt_names_every_entry_with_its_outcome() {
+        let report = FailedRecheck {
+            gone: vec![1],
+            replaced: vec![3],
+            live: vec![2],
+            unresolved: vec![(4, "denied".to_owned())],
+        };
+        assert_eq!(
+            report.receipt(),
+            json!({"gone":[1],"replaced":[3],"live":[2],
+                "unresolved":[{"pid":4,"error":"denied"}]})
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn real_descendant_is_live_until_it_is_gone_and_a_recycled_pid_is_replaced() {
+        use super::recheck_failed_descendants;
+        use rightkit_child_process::{AdoptedIdentity, StartToken};
+        use std::{num::NonZeroU32, process::Command};
+
+        let mut child = Command::new("sleep").arg("60").spawn().unwrap();
+        let pid = child.id();
+        let identity = AdoptedIdentity::capture(NonZeroU32::new(pid).unwrap())
+            .unwrap()
+            .expect("a running child has an identity");
+        let window = Duration::from_millis(100);
+
+        let live = recheck_failed_descendants(std::slice::from_ref(&identity), &[pid], window);
+        assert_eq!(live.live, vec![pid]);
+        assert!(live.blocks());
+
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let gone = recheck_failed_descendants(std::slice::from_ref(&identity), &[pid], window);
+        assert_eq!(gone.gone, vec![pid]);
+        assert!(!gone.blocks());
+
+        // The same pid with another start time names a different process now.
+        let own = std::process::id();
+        let recycled = AdoptedIdentity::from_recorded(
+            NonZeroU32::new(own).unwrap(),
+            StartToken { major: 0, minor: 0 },
+            None,
+        );
+        let replaced = recheck_failed_descendants(&[recycled], &[own], window);
+        assert_eq!(replaced.replaced, vec![own]);
+        assert!(!replaced.blocks());
+    }
 }
 
 #[cfg(unix)]
@@ -326,10 +647,16 @@ pub fn run(sequence: u64, argv: &[OsString]) -> u8 {
     let swept = sweep(&descendants, Duration::ZERO);
     let (sweep_receipt, sweep_failed) = match swept {
         Ok(report) => {
-            let failed = !report.failed.is_empty() || !report.survivors.is_empty();
+            // The sweep lists a descendant it could not signal as `failed` even when that
+            // descendant was already exiting (Windows refuses TerminateProcess on it). Only
+            // one that is still present, or whose state cannot be read, fails the lane.
+            let recheck =
+                recheck_failed_descendants(&descendants, &report.failed, FAILED_RECHECK_WINDOW);
+            let failed = recheck.blocks() || !report.survivors.is_empty();
             (
                 json!({"gone":report.gone,"terminated":report.terminated,
-                "refused":report.refused,"survivors":report.survivors,"failed":report.failed}),
+                "refused":report.refused,"survivors":report.survivors,"failed":report.failed,
+                "failedRecheck":recheck.receipt()}),
                 failed,
             )
         }
