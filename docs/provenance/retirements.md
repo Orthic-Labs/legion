@@ -328,3 +328,11 @@ Claude Code (v2.1.277+) loads `AGENTS.md` itself when no `CLAUDE.md`, `.claude/C
 | Path or rule | Retired in commit | Successor | Reason |
 |---|---|---|---|
 | `CLAUDE.md` (root compatibility adapter containing only `@AGENTS.md`) | 2026-10-24 CLAUDE.md retirement (PR #119) | `AGENTS.md`, read natively by Claude Code (and Codex) | successor |
+
+## Local build rule corrected (2026-10-24)
+
+Owner rule (Adrian): every app compiles locally for a warm cache, and public repositories also qualify on GitHub CI in parallel. The 30-minute idle rule, under which another queued, running or recently processed build diverted local work to CI, is retired. RustRight queues concurrent builds, so the Windows entry-point gate that enforced the old rule is removed.
+
+| Path or rule | Retired in commit | Successor | Reason |
+|---|---|---|---|
+| `scripts/release/local-build-route.mjs`, `scripts/release/local-build-route.test.mjs` (refused local native-check and installer builds when `rightkit list` showed queued, running or recent work, or no inventory) | 2026-10-24 local build rule correction (PR #119) | none; `AGENTS.md` Commands rule: compile locally through RustRight, which queues concurrent builds, with GitHub CI qualifying every push in parallel | intentionally dropped |

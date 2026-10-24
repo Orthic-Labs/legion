@@ -1,14 +1,14 @@
 # Windows unsigned installer development
 
-Before any local build/check/test, inspect `rightkit list` once. Another queued or
-running build, or any build processed within preceding **30 minutes**, forces
-GitHub CI. Include completed, failed & cancelled work; inspect completion/activity
-timestamps rather than current running state alone. Missing inventory/timestamps
-also select CI. Never poll, wait for local capacity, or queue another local build.
-`scripts/release/local-build-route.mjs` enforces this at local native-check &
-installer entry points.
+Follow the build rule in `AGENTS.md` (Commands): compile locally, one build per host
+through the managed `rightkit` commands below, dev profile, incremental, primary
+checkout, warm cache, never cold. The managed queue serializes concurrent builds;
+never divert local work to CI because another build is queued or running. Legion is
+public, so GitHub CI also qualifies every push in parallel; CI never replaces the
+local build.
 
-CI route: push exact owned source to the existing `main` branch, or use an
+CI route (runs in parallel with the local build, never instead of it): push exact
+owned source to the existing `main` branch, or use an
 explicitly authorized branch through manual dispatch. Do not create a branch
 solely for this route. `.github/workflows/ci.yml` checks Windows & macOS. It checks whole
 native workspace/all targets, tests native Codex Stop transport, builds unsigned
@@ -22,7 +22,7 @@ The operator authorized local unsigned Legion installer development. Tracked
 `.rightkit-local-development.json` limits this exception to
 `Orthic-Labs/legion`, native Windows, & unsigned installer work.
 
-Only after local idle admission, from primary Legion checkout run:
+From the primary Legion checkout run:
 
 ```powershell
 pnpm run native:check:local
@@ -74,10 +74,10 @@ installer work.
 
 - Before any Windows installer build, check whole native workspace/all targets on the selected
   build host. The GitHub development workflow includes this gate; the local path uses
-  `pnpm run native:check:local` only after idle admission.
-- For Windows installer development, use `.github/workflows/ci.yml` when local
-  admission is refused or CI is requested. Otherwise use `pnpm run release:local:win:unsigned`
-  from the primary checkout after the native check passes. Both routes require unsigned
+  `pnpm run native:check:local`.
+- For Windows installer development, build locally with `pnpm run release:local:win:unsigned`
+  from the primary checkout after the native check passes; `.github/workflows/ci.yml`
+  qualifies the push in parallel and never replaces the local build. Both require unsigned
   installer, isolated installed qualification, then exact stable-`current` install.
 - Use `pnpm run release:build:win:unsigned` only when build output is requested without install
   or qualification. Focused local tests supporting this route are allowed.
