@@ -300,11 +300,11 @@ fn strip_temp_roots(text: &str) -> String {
     }
     // Per-run scratch directories named `legion-audit-<kind>-<pid>-<nanos>[-n]`:
     // keep the kind, drop the process/time digits.
+    // Segments split on either separator: Windows paths use `\\`.
     let mut rebuilt = String::with_capacity(output.len());
-    for (index, segment) in output.split('/').enumerate() {
-        if index > 0 {
-            rebuilt.push('/');
-        }
+    for piece in output.split_inclusive(['/', '\\']) {
+        let segment = piece.trim_end_matches(['/', '\\']);
+        let separator = &piece[segment.len()..];
         if segment.starts_with("legion-audit-") && segment.chars().any(|c| c.is_ascii_digit()) {
             let mut previous_digit = false;
             for c in segment.chars() {
@@ -321,6 +321,7 @@ fn strip_temp_roots(text: &str) -> String {
         } else {
             rebuilt.push_str(segment);
         }
+        rebuilt.push_str(separator);
     }
     rebuilt
 }
@@ -427,6 +428,14 @@ mod tests {
         assert_ne!(n("/tmp/a/f"), n("/tmp/b/f"));
         assert_ne!(n("/tmp/run12345/a/f"), n("/tmp/run12345/b/f"));
         assert_eq!(n("/tmp/run12345/f"), n("/private/tmp/abc99999/f"));
+    }
+
+    #[test]
+    fn per_run_scratch_digits_are_dropped_with_either_separator() {
+        let unix = strip_temp_paths("<run>/legion-audit-security-63517-1792839388-7/syft.yaml");
+        let windows = strip_temp_paths("<run>\\legion-audit-security-9148-1792839395-7\\syft.yaml");
+        assert_eq!(unix, "<run>/legion-audit-security-N-N-N/syft.yaml");
+        assert_eq!(windows, "<run>\\legion-audit-security-N-N-N\\syft.yaml");
     }
 
     #[test]
