@@ -233,6 +233,46 @@ fn git_config_files_cannot_be_edited_to_set_a_hooks_path() {
     assert_eq!(other["allowed"], true, "{other}");
 }
 
+#[test]
+fn a_document_about_hooks_path_and_git_config_is_not_a_config_edit() {
+    let scratch = Scratch::new("config-doc");
+    let repo = repository(&scratch, "feature");
+    let prose = "Never set core.hooksPath by editing .git/config; the hook denies it.";
+    for (tool, input) in [
+        (
+            "Write",
+            json!({"file_path": repo.join("docs/guard.md"), "content": prose}),
+        ),
+        (
+            "Edit",
+            json!({"file_path": repo.join("docs/guard.md"), "old_string": "a", "new_string": prose}),
+        ),
+    ] {
+        let result = invoke(
+            None,
+            &json!({
+                "hook_event_name": "PreToolUse",
+                "tool_name": tool,
+                "cwd": repo,
+                "sourceRevision": REVISION,
+                "tool_input": input
+            }),
+        );
+        assert_eq!(result["allowed"], true, "{tool}: {result}");
+    }
+    let patch = invoke(
+        None,
+        &json!({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "apply_patch",
+            "cwd": repo,
+            "sourceRevision": REVISION,
+            "tool_input": {"input": "*** Begin Patch\n*** Update File: .git/config\n+\thooksPath = /dev/null\n*** End Patch"}
+        }),
+    );
+    assert_eq!(patch["code"], "ARC_HOOK_BYPASS_DENIED", "{patch}");
+}
+
 // ---------------------------------------------------------------------------
 // Agent / Task model ceiling
 // ---------------------------------------------------------------------------

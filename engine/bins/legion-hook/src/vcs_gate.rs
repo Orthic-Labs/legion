@@ -90,33 +90,58 @@ pub(crate) fn git_subcommands(command: &str) -> Vec<String> {
 
 /// A write to a git configuration file that sets or removes `core.hooksPath`,
 /// made through a file tool instead of `git config`.
-pub(crate) fn tool_input_edits_hooks_path(input: &Map<String, Value>) -> Option<String> {
+///
+/// The file the tool names decides, never the text it writes: a document that
+/// only discusses `core.hooksPath` and `.git/config` is an ordinary edit.
+/// `Write`, `Edit`, `MultiEdit` and `NotebookEdit` name their file in
+/// `file_path`, `path` or `notebook_path`. `apply_patch` names its files in
+/// the `*** Update File:`, `*** Add File:` and `*** Move to:` headers of the
+/// patch, and only the lines under a header that names a git configuration
+/// file are searched.
+pub(crate) fn tool_input_edits_hooks_path(
+    tool: &str,
+    input: &Map<String, Value>,
+) -> Option<String> {
     let mut leaves = Vec::new();
     collect_strings(&Value::Object(input.clone()), &mut leaves);
-    let mut paths = Vec::new();
-    for key in ["file_path", "path", "notebook_path"] {
-        if let Some(path) = input.get(key).and_then(Value::as_str) {
-            paths.push(path.to_owned());
+    let names_config_file = ["file_path", "path", "notebook_path"]
+        .iter()
+        .filter_map(|key| input.get(*key).and_then(Value::as_str))
+        .any(is_git_config_path);
+    let sets_hooks_path = (names_config_file
+        && leaves.iter().any(|leaf| mentions_hooks_path(leaf)))
+        || (tool == "apply_patch" && leaves.iter().any(|leaf| patch_sets_hooks_path(leaf)));
+    sets_hooks_path.then(|| {
+        "this write sets or removes core.hooksPath in a git configuration file, which would route around the repository hooks"
+            .into()
+    })
+}
+
+fn mentions_hooks_path(text: &str) -> bool {
+    text.to_ascii_lowercase().contains("hookspath")
+}
+
+/// Does an `apply_patch` envelope touch `core.hooksPath` inside a section
+/// whose header names a git configuration file?
+fn patch_sets_hooks_path(patch: &str) -> bool {
+    let mut in_config_file = false;
+    for line in patch.lines() {
+        let line = line.trim_end_matches('\r');
+        let header = |prefix: &str| line.strip_prefix(prefix).map(str::trim);
+        if let Some(path) = header("*** Update File:").or_else(|| header("*** Add File:")) {
+            in_config_file = is_git_config_path(path);
+        } else if let Some(path) = header("*** Move to:") {
+            in_config_file = in_config_file || is_git_config_path(path);
+        } else if line.starts_with("*** Delete File:")
+            || line.starts_with("*** Begin Patch")
+            || line.starts_with("*** End Patch")
+        {
+            in_config_file = false;
+        } else if in_config_file && mentions_hooks_path(line) {
+            return true;
         }
     }
-    let names_config_file = paths.iter().any(|path| is_git_config_path(path));
-    for leaf in &leaves {
-        let lowered = leaf.to_ascii_lowercase();
-        if !lowered.contains("hookspath") {
-            continue;
-        }
-        // `apply_patch` carries the path inside the patch text.
-        let patch_names_config = [".git/config", ".gitconfig", "git/config", "config.worktree"]
-            .iter()
-            .any(|marker| lowered.replace('\\', "/").contains(marker));
-        if names_config_file || patch_names_config {
-            return Some(
-                "this write sets or removes core.hooksPath in a git configuration file, which would route around the repository hooks"
-                    .into(),
-            );
-        }
-    }
-    None
+    false
 }
 
 fn collect_strings(value: &Value, out: &mut Vec<String>) {
@@ -880,42 +905,136 @@ mod tests {
         }
     }
 
+    const FILE_TOOLS: [&str; 4] = ["Write", "Edit", "MultiEdit", "NotebookEdit"];
+
+    fn edit(tool: &str, input: Value) -> Option<String> {
+        tool_input_edits_hooks_path(tool, input.as_object().unwrap())
+    }
+
     #[test]
     fn file_tools_cannot_set_hooks_path_in_a_git_config_file() {
-        let edit = |input: Value| tool_input_edits_hooks_path(input.as_object().unwrap());
-        assert!(edit(serde_json::json!({
-            "file_path": "/repo/.git/config",
-            "old_string": "[core]",
-            "new_string": "[core]\n\thooksPath = /dev/null"
-        }))
+        for tool in FILE_TOOLS {
+            assert!(edit(
+                tool,
+                serde_json::json!({
+                    "file_path": "/repo/.git/config",
+                    "old_string": "[core]",
+                    "new_string": "[core]\n\thooksPath = /dev/null"
+                })
+            )
+            .is_some());
+            assert!(edit(
+                tool,
+                serde_json::json!({
+                    "file_path": "C:\\Users\\me\\.gitconfig",
+                    "content": "[core]\nhooksPath = NUL"
+                })
+            )
+            .is_some());
+            // Removing it is an edit too.
+            assert!(edit(
+                tool,
+                serde_json::json!({
+                    "file_path": "/repo/.git/config",
+                    "old_string": "\thooksPath = .githooks\n",
+                    "new_string": ""
+                })
+            )
+            .is_some());
+            // The edits of a MultiEdit are searched as well.
+            assert!(edit(
+                tool,
+                serde_json::json!({
+                    "file_path": "/repo/.git/config",
+                    "edits": [{"old_string": "[core]", "new_string": "[core]\n\thookspath = x"}]
+                })
+            )
+            .is_some());
+            // Other keys in a git config file are untouched.
+            assert!(edit(
+                tool,
+                serde_json::json!({
+                    "file_path": "/repo/.git/config",
+                    "new_string": "[user]\n\tname = x"
+                })
+            )
+            .is_none());
+        }
+    }
+
+    #[test]
+    fn a_document_that_mentions_hooks_path_and_git_config_is_an_ordinary_edit() {
+        let prose =
+            "Never set core.hooksPath by editing .git/config or ~/.gitconfig; the hook denies it.";
+        for tool in FILE_TOOLS {
+            for input in [
+                serde_json::json!({"file_path": "/repo/docs/guard.md", "new_string": prose}),
+                serde_json::json!({"file_path": "/repo/docs/guard.md", "content": prose}),
+                serde_json::json!({"path": "C:\\repo\\docs\\guard.md", "content": prose}),
+                serde_json::json!({
+                    "notebook_path": "/repo/notes.ipynb",
+                    "new_source": "core.hooksPath lives in .git/config"
+                }),
+                serde_json::json!({
+                    "file_path": "/repo/README.md",
+                    "edits": [{"old_string": "a", "new_string": prose}]
+                }),
+            ] {
+                assert_eq!(edit(tool, input.clone()), None, "{tool}: {input}");
+            }
+        }
+    }
+
+    #[test]
+    fn apply_patch_is_judged_by_the_files_its_headers_name() {
+        let patch = |body: &str| serde_json::json!({"input": format!("*** Begin Patch\n{body}\n*** End Patch")});
+        let denied = |body: &str| edit("apply_patch", patch(body)).is_some();
+        assert!(denied("*** Update File: .git/config\n+\thooksPath = x"));
+        assert!(denied(
+            "*** Update File: C:\\repo\\.git\\config\n@@\n-\thookspath = .githooks"
+        ));
+        assert!(denied(
+            "*** Add File: /home/me/.gitconfig\n+[core]\n+\thooksPath = NUL"
+        ));
+        assert!(denied(
+            "*** Update File: notes.txt\n*** Move to: .git/config\n@@\n+\thooksPath = x"
+        ));
+        assert!(denied(
+            "*** Update File: docs/a.md\n+prose\n*** Update File: .git/config\n@@\n+\thooksPath = x"
+        ));
+        // The command-array shape carries the same patch text.
+        assert!(edit(
+            "apply_patch",
+            serde_json::json!({"command": ["apply_patch", "*** Begin Patch\n*** Update File: .git/config\n+\thooksPath = x\n*** End Patch"]})
+        )
         .is_some());
-        assert!(edit(serde_json::json!({
-            "file_path": "C:\\Users\\me\\.gitconfig",
-            "content": "[core]\nhooksPath = NUL"
-        }))
-        .is_some());
-        assert!(edit(serde_json::json!({
-            "input": "*** Begin Patch\n*** Update File: .git/config\n+\thooksPath = x\n*** End Patch"
-        }))
-        .is_some());
-        // Removing it is an edit too.
-        assert!(edit(serde_json::json!({
-            "file_path": "/repo/.git/config",
-            "old_string": "\thooksPath = .githooks\n",
-            "new_string": ""
-        }))
-        .is_some());
-        // Other files and other keys are untouched.
-        assert!(edit(serde_json::json!({
-            "file_path": "/repo/docs/notes.md",
-            "new_string": "set core.hooksPath in the installer"
-        }))
-        .is_none());
-        assert!(edit(serde_json::json!({
-            "file_path": "/repo/.git/config",
-            "new_string": "[user]\n\tname = x"
-        }))
-        .is_none());
+
+        // A document that mentions both strings, with or without the patch
+        // markers quoted in its text, is an ordinary edit.
+        assert!(!denied(
+            "*** Update File: docs/guard.md\n+Do not set core.hooksPath by editing .git/config."
+        ));
+        assert!(!denied(
+            "*** Add File: docs/patch-format.md\n+*** Update File: .git/config\n+\thooksPath = x"
+        ));
+        // Only the section of a git config file is searched.
+        assert!(!denied(
+            "*** Update File: .git/config\n+[user]\n+\tname = x\n*** Update File: docs/guard.md\n+core.hooksPath is guarded"
+        ));
+        assert!(!denied(
+            "*** Update File: .git/config\n+[user]\n+\tname = x\n*** Delete File: old.md\n*** Update File: docs/guard.md\n+core.hooksPath"
+        ));
+        // Another tool does not read patch markers out of its text.
+        assert_eq!(
+            edit(
+                "Write",
+                serde_json::json!({
+                    "file_path": "/repo/docs/patch-format.md",
+                    "content": "*** Update File: .git/config\n+\thooksPath = x"
+                })
+            ),
+            None
+        );
     }
 
     #[test]

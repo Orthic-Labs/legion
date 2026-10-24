@@ -176,11 +176,12 @@ fn guard_launch_and_vcs(request: &HookRequest) -> Option<HookResponse> {
         });
     }
 
-    if matches!(
-        tool_name.as_deref(),
-        Some("Write" | "Edit" | "MultiEdit" | "NotebookEdit" | "apply_patch")
-    ) {
-        if let Some(reason) = tool_input.and_then(vcs_gate::tool_input_edits_hooks_path) {
+    if let Some(tool @ ("Write" | "Edit" | "MultiEdit" | "NotebookEdit" | "apply_patch")) =
+        tool_name.as_deref()
+    {
+        if let Some(reason) =
+            tool_input.and_then(|input| vcs_gate::tool_input_edits_hooks_path(tool, input))
+        {
             return Some(HookResponse::denied(
                 event,
                 vcs_gate::BYPASS_CODE,
