@@ -35,6 +35,49 @@ def digest(data):
     return 'sha256:' + hashlib.sha256(data).hexdigest()
 
 
+def objective_graph_bound(plan):
+    """Independently recompute the schema-2 plan objective-graph binding (legion-audit dag.rs)."""
+    providers = plan["providers"]
+    ids = {provider["id"] for provider in providers}
+    require(len(ids) == len(providers), "duplicate provider id")
+    artifacts = lambda provider, key: provider["configuration"][key] if isinstance(provider["configuration"].get(key), list) else []
+    producers = {}
+    for provider in providers:
+        for kind in artifacts(provider, "produces"):
+            producers.setdefault(kind, set()).add(provider["id"])
+    edges = {}
+    for provider in providers:
+        deps = {}
+        for dependency in provider["dependencies"]:
+            require(dependency in ids, "objective dependency missing")
+            deps[dependency] = "declared"
+        for kind in artifacts(provider, "consumes"):
+            for source in sorted(producers.get(kind, set()) - {provider["id"]}):
+                deps.setdefault(source, {"artifact": kind})
+        edges[provider["id"]] = deps
+    order, done = [], set()
+    while len(order) < len(edges):
+        ready = [key for key in sorted(edges) if key not in done and set(edges[key]) <= done]
+        require(ready, "objective dependency cycle")
+        order.append(ready[0]); done.add(ready[0])
+    by_id = {provider["id"]: provider for provider in providers}
+    proof = lambda p: {"providerVersion": p["version"], "denominatorDigest": p["configuration"].get("denominatorDigest"),
+                       "denominatorCount": p["configuration"].get("denominatorCount"), "cleanClaim": p["cleanClaim"], "required": p["required"]}
+    objective = {}
+    for key in order:
+        seed = {"repositoryId": plan["repositoryId"], "inventoryDigest": plan["inventoryDigest"], "providerId": key,
+                "stage": by_id[key]["phase"], "dependencies": sorted(edges[key]), "proofObligations": proof(by_id[key])}
+        objective[key] = "obj_" + digest(encoded(seed)).removeprefix("sha256:")[:16]
+    objectives = [{"format": "audit-objective/v1", "objectiveId": objective[key], "providerId": key, "stage": by_id[key]["phase"],
+                   "dependencies": sorted(objective[dep] for dep in edges[key]), "consumes": artifacts(by_id[key], "consumes"),
+                   "produces": artifacts(by_id[key], "produces"), "proofObligations": proof(by_id[key])} for key in order]
+    edge_list = sorted(({"fromObjective": objective[dep], "toObjective": objective[key], "kind": kind}
+                        for key in order for dep, kind in sorted(edges[key].items())),
+                       key=lambda edge: (edge["fromObjective"], edge["toObjective"]))
+    graph = {"objectives": objectives, "edges": edge_list}
+    return {"schemaVersion": 1, "digest": digest(encoded(graph)), "objectiveCount": len(objectives)}
+
+
 def same(a, b, message):
     require(encoded(a) == encoded(b), message)
 
@@ -226,6 +269,9 @@ def validate(root, row):
     expected3.update(inventoryDigest=inv3['digest'], inventoryGeneration=inv3['generation'], repositoryId=inv3['repositoryId'])
     for provider3 in expected3['providers']:
         provider3['configuration'].update(denominatorDigest=inv3['digest'], denominatorCount=3)
+    if expected3['schemaVersion'] == 2:
+        same(plan['bounds'].get('objectiveGraph'), objective_graph_bound(plan), 'frozen objective graph changed')
+        expected3['bounds']['objectiveGraph'] = objective_graph_bound(expected3)
     same(plan3, expected3, 'non-two-file provider contract changed')
     observation(extra['observation'], inv3, plan3, root)
     same(result3['coverage'], {'denominator_digest': inv3['digest'], 'expected': 3, 'examined': 3,

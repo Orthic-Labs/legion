@@ -150,6 +150,68 @@ def expected_inventory(case_id, row, files):
             "digest": digest(encoded([1, case_id, generation, entries]))}
 
 
+ENGINE_IDENTITY = None
+
+
+def engine_identity(root):
+    """`legion-audit@<workspace version>`: the in-process native engine stamp."""
+    match = re.search(r'(?ms)^\[workspace\.package\]\s*^version = "([^"]+)"', (Path(root) / "engine/Cargo.toml").read_text())
+    require(match is not None, "engine workspace version unreadable")
+    return "legion-audit@" + match.group(1)
+
+
+def objective_graph_bound(plan):
+    """Independently recompute the schema-2 plan objective-graph binding (legion-audit dag.rs)."""
+    providers = plan["providers"]
+    ids = {provider["id"] for provider in providers}
+    require(len(ids) == len(providers), "duplicate provider id")
+    artifacts = lambda provider, key: provider["configuration"][key] if isinstance(provider["configuration"].get(key), list) else []
+    producers = {}
+    for provider in providers:
+        for kind in artifacts(provider, "produces"):
+            producers.setdefault(kind, set()).add(provider["id"])
+    edges = {}
+    for provider in providers:
+        deps = {}
+        for dependency in provider["dependencies"]:
+            require(dependency in ids, "objective dependency missing")
+            deps[dependency] = "declared"
+        for kind in artifacts(provider, "consumes"):
+            for source in sorted(producers.get(kind, set()) - {provider["id"]}):
+                deps.setdefault(source, {"artifact": kind})
+        edges[provider["id"]] = deps
+    order, done = [], set()
+    while len(order) < len(edges):
+        ready = [key for key in sorted(edges) if key not in done and set(edges[key]) <= done]
+        require(ready, "objective dependency cycle")
+        order.append(ready[0]); done.add(ready[0])
+    by_id = {provider["id"]: provider for provider in providers}
+    proof = lambda p: {"providerVersion": p["version"], "denominatorDigest": p["configuration"].get("denominatorDigest"),
+                       "denominatorCount": p["configuration"].get("denominatorCount"), "cleanClaim": p["cleanClaim"], "required": p["required"]}
+    objective = {}
+    for key in order:
+        seed = {"repositoryId": plan["repositoryId"], "inventoryDigest": plan["inventoryDigest"], "providerId": key,
+                "stage": by_id[key]["phase"], "dependencies": sorted(edges[key]), "proofObligations": proof(by_id[key])}
+        objective[key] = "obj_" + digest(encoded(seed)).removeprefix("sha256:")[:16]
+    objectives = [{"format": "audit-objective/v1", "objectiveId": objective[key], "providerId": key, "stage": by_id[key]["phase"],
+                   "dependencies": sorted(objective[dep] for dep in edges[key]), "consumes": artifacts(by_id[key], "consumes"),
+                   "produces": artifacts(by_id[key], "produces"), "proofObligations": proof(by_id[key])} for key in order]
+    edge_list = sorted(({"fromObjective": objective[dep], "toObjective": objective[key], "kind": kind}
+                        for key in order for dep, kind in sorted(edges[key].items())),
+                       key=lambda edge: (edge["fromObjective"], edge["toObjective"]))
+    graph = {"objectives": objectives, "edges": edge_list}
+    return {"schemaVersion": 1, "digest": digest(encoded(graph)), "objectiveCount": len(objectives)}
+
+
+def native_execution_stamps(provider, toolchain):
+    """Executed identity for a receipt-free in-process native algorithm."""
+    configuration = provider["configuration"]
+    ruleset = configuration.get("rulesetDigest")
+    rule = provider["version"] + ("+" + ruleset if isinstance(ruleset, str) and ruleset.strip() else "")
+    return {"executedToolchain": toolchain, "executedRuleVersion": rule,
+            "executedFeatures": sorted(set(configuration.get("features") or []))}
+
+
 def expected_plan(spec, inventory, benchmark):
     entries = inventory["entries"]
     same(spec["selector"], {"op": "always"}, "original always selector differs")
@@ -166,8 +228,10 @@ def expected_plan(spec, inventory, benchmark):
         "cleanClaim": spec["cleanClaim"], "benchmarkStatus": benchmark["status"],
         "benchmarkRequiredForCleanClaim": benchmark["requiredForCleanClaim"], "qualificationDigest": benchmark["qualificationDigest"], "required": required}
     bounds = {"executionPolicy": POLICY, "executionPolicyIdentity": {"id": "audit-native-owner-admission-v1", "version": 1, "digest": digest(encoded(POLICY))}}
-    return {"schemaVersion": 1, "repositoryId": inventory["repositoryId"], "inventoryGeneration": inventory["generation"],
+    plan = {"schemaVersion": 2, "repositoryId": inventory["repositoryId"], "inventoryGeneration": inventory["generation"],
             "inventoryDigest": inventory["digest"], "providers": [provider], "bounds": bounds, "excludedConditionalProviders": []}
+    bounds["objectiveGraph"] = objective_graph_bound(plan)
+    return plan
 
 
 def expected_result(row, control, plan):
@@ -191,6 +255,7 @@ def expected_result(row, control, plan):
         "protocolValidation": {"scope": "caller-supplied-values-and-reference-metadata", "expected": len(routes), "examined": 0}}
     details = {"nativeInput": {} if missing else {"artifacts": {"backendFrameworks": [{"name": row["framework"], "routes": routes}]},
             "producer": {"kind": "self-sourced", "filesRead": read}}, "nativeAnalysis": analysis, "findingEvidence": {}, "findingLocations": {}}
+    details.update(native_execution_stamps(plan["providers"][0], ENGINE_IDENTITY))
     result_gaps = list(gaps)
     if missing:
         result_gaps.append("unavailable:no-backend-framework-detected")
@@ -349,6 +414,8 @@ def rejection_controls(root, record, raw):
 
 
 def validate(root, receipts):
+    global ENGINE_IDENTITY
+    ENGINE_IDENTITY = engine_identity(root)
     receipts = Path(receipts)
     require(receipts.is_absolute() and not receipts.is_symlink(), "native receipt root unsafe")
     record = parsed(source(receipts, "framework_backend.json").read_bytes())

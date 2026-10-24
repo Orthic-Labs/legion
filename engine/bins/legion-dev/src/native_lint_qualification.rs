@@ -159,7 +159,9 @@ pub fn parse_oxlint_rules(stdout: &[u8]) -> Result<BTreeSet<String>, String> {
         let (Some(scope), Some(rule)) = (row["scope"].as_str(), row["value"].as_str()) else {
             return Err("oxlint rules json: row missing scope/value".into());
         };
-        known.insert(format!("{scope}/{rule}"));
+        // The listing names plugins by module (`jsx_a11y`, `react_perf`);
+        // configuration and rule ids use the hyphenated plugin name.
+        known.insert(format!("{}/{rule}", scope.replace('_', "-")));
     }
     Ok(known)
 }
@@ -546,9 +548,11 @@ mod tests {
     #[test]
     fn oxlint_rules_fixture_parses_and_flags_missing() {
         let fixture = br#"[{"scope":"eslint","value":"no-debugger","category":"suspicious"},
-                          {"scope":"react","value":"rules-of-hooks"}]"#;
+                          {"scope":"react","value":"rules-of-hooks"},
+                          {"scope":"jsx_a11y","value":"alt-text"}]"#;
         let known = parse_oxlint_rules(fixture).unwrap();
         assert!(known.contains("eslint/no-debugger") && known.contains("react/rules-of-hooks"));
+        assert!(known.contains("jsx-a11y/alt-text"));
         assert!(!known.contains("eslint/no-eval"));
         assert!(parse_oxlint_rules(b"{}").is_err());
         assert!(parse_oxlint_rules(br#"[{"scope":"eslint"}]"#).is_err());

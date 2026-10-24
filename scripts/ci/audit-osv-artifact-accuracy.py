@@ -291,7 +291,8 @@ def validate_record(repository_root, record, live=False):
         require(coverage["expected"] == coverage["examined"] == 1 and coverage["denominator_digest"] == denominator and coverage["gaps"] == [], "native complete manifest denominator differs")
         analysis = result["details"]["analysis"]
         wanted_findings = [dict(item, manifest="package-lock.json") for item in normalized]
-        same(analysis, {"status": "pass", "complete": True, "denominator": {"kind": "dependency-manifests", "expected": 1, "examined": 1}, "findings": wanted_findings, "coverageGaps": []}, "native dependency analysis differs from observed raw package findings")
+        same(analysis, {"status": "pass", "complete": True, "denominator": {"kind": "dependency-manifests", "expected": 1, "examined": 1}, "findings": wanted_findings, "coverageGaps": [],
+            "dependencyInventory": {"state": "absent", "claims": {"advisoryCurrent": False}}}, "native dependency analysis differs from observed raw package findings")
         require(len(result["findings"]) == int(positive) and result["details"]["candidates"] == [], "native finding count/stage differs")
         labels = []
         for finding in result["findings"]:

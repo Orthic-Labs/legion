@@ -93,6 +93,8 @@ fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathB
         .join(bytes_digest(repository.to_string_lossy().as_bytes()));
     // The leaf normally does not exist. Resolve its nearest existing ancestor to detect an
     // override alias into the repository without creating that leaf as a side effect.
+    // The resolved form is returned: a configured root under a platform alias
+    // (macOS `/tmp`, `/var`) must not trip the link-refusing state directories.
     let mut ancestor = root.as_path();
     let mut suffix = Vec::new();
     loop {
@@ -107,7 +109,9 @@ fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathB
                         "Audit cache root must be outside audited repository",
                     ));
                 }
-                break;
+                // Windows keeps drive spelling; its pinned state dirs resolve
+                // verbatim paths themselves (`snapshot::directory_location`).
+                return Ok(if cfg!(windows) { root.clone() } else { resolved });
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 suffix.push(
@@ -131,7 +135,6 @@ fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathB
             Err(error) => return Err(error),
         }
     }
-    Ok(root)
 }
 
 pub fn bytes_digest(bytes: &[u8]) -> String {

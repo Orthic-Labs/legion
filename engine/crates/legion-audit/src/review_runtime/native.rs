@@ -320,16 +320,22 @@ pub(super) fn validate_executable(
 /// Runtime symbols that native Python and Node executables embed (the Claude
 /// CLI, a Bun/JSC binary, carries none). Scans at most 1 GiB in 1 MiB chunks
 /// with overlap so markers spanning a chunk boundary are found.
-fn embedded_interpreter_marker(path: &Path) -> Option<&'static str> {
-    const MARKERS: &[&str] = &[
-        "Py_Initialize",
-        "Py_BytesMain",
-        "node::Start",
-        "v8::Isolate",
+fn embedded_interpreter_marker(path: &Path) -> Option<String> {
+    // Stored byte-reversed so no binary linking this crate carries the
+    // forward symbols and so trips its own scan.
+    const REVERSED: &[&str] = &[
+        "ezilaitinI_yP",
+        "niaMsetyB_yP",
+        "tratS::edon",
+        "etalosI::8v",
     ];
+    let markers: Vec<Vec<u8>> = REVERSED
+        .iter()
+        .map(|marker| marker.bytes().rev().collect())
+        .collect();
     const CHUNK: usize = 1 << 20;
     const LIMIT: u64 = 1 << 30;
-    let overlap = MARKERS.iter().map(|m| m.len()).max().unwrap_or(0);
+    let overlap = markers.iter().map(Vec::len).max().unwrap_or(0);
     let mut file = fs::File::open(path).ok()?;
     let mut window: Vec<u8> = Vec::with_capacity(CHUNK + overlap);
     let mut buffer = vec![0u8; CHUNK];
@@ -341,16 +347,16 @@ fn embedded_interpreter_marker(path: &Path) -> Option<&'static str> {
         }
         if read_total >= LIMIT {
             // Too large to scan fully: fail closed rather than pass unscanned.
-            return Some("unscannable-size");
+            return Some("unscannable-size".into());
         }
         read_total += count as u64;
         window.extend_from_slice(&buffer[..count]);
-        if let Some(marker) = MARKERS.iter().find(|marker| {
+        if let Some(marker) = markers.iter().find(|marker| {
             window
                 .windows(marker.len())
-                .any(|candidate| candidate == marker.as_bytes())
+                .any(|candidate| candidate == marker.as_slice())
         }) {
-            return Some(marker);
+            return Some(String::from_utf8_lossy(marker).into_owned());
         }
         let keep = window.len().saturating_sub(overlap);
         window.drain(..keep);
@@ -1926,9 +1932,15 @@ mod interpreter_marker_tests {
         // Marker straddles the 1 MiB chunk boundary.
         python.extend_from_slice(b"Py_Initialize");
         let path = file_with(&python);
-        assert_eq!(embedded_interpreter_marker(&path), Some("Py_Initialize"));
+        assert_eq!(
+            embedded_interpreter_marker(&path).as_deref(),
+            Some("Py_Initialize")
+        );
         let node = file_with(b"\xcf\xfa\xed\xfe....node::Start(int, char**)");
-        assert_eq!(embedded_interpreter_marker(&node), Some("node::Start"));
+        assert_eq!(
+            embedded_interpreter_marker(&node).as_deref(),
+            Some("node::Start")
+        );
         let bun = file_with(b"\xcf\xfa\xed\xfe....JSC::VM bun_main Bun.serve");
         assert_eq!(embedded_interpreter_marker(&bun), None);
         for path in [path, node, bun] {

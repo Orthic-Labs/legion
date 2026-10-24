@@ -4,7 +4,6 @@
 use serde_json::Value;
 use std::{
     fs,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::{Command, Output},
     sync::atomic::{AtomicU64, Ordering},
@@ -115,6 +114,15 @@ impl Drop for Fixture {
     }
 }
 
+#[cfg(unix)]
+fn restrict(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
+}
+
+#[cfg(not(unix))]
+fn restrict(_path: &Path) {}
+
 fn json_of(label: &str, output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
@@ -166,10 +174,14 @@ fn new_run_has_no_epoch_key_and_keeps_its_plan_key_in_host_state() {
         .unwrap()
         .to_string_lossy()
         .starts_with(run_id));
-    assert_eq!(
-        fs::metadata(&keys[0]).unwrap().permissions().mode() & 0o777,
-        0o600
-    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(&keys[0]).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
     // The key material appears nowhere in the run tree; only its id does.
     let key_hex = fs::read_to_string(&keys[0]).unwrap();
     assert!(!tree_contains(&fixture.out, key_hex.trim()));
@@ -210,7 +222,7 @@ fn verify_uses_host_key_and_reports_unverifiable_when_it_is_missing_or_tampered(
     let epoch_path = fixture.out.join("epoch.key");
     let saved_epoch = fs::read(&epoch_path).ok();
     fs::write(&epoch_path, "11".repeat(32)).unwrap();
-    fs::set_permissions(&epoch_path, fs::Permissions::from_mode(0o600)).unwrap();
+    restrict(&epoch_path);
     let tampered = json_of("tampered", &fixture.legion(&["verify", run, "--json"]));
     assert_ne!(tampered["valid"], Value::Bool(true), "{tampered:#}");
     assert_ne!(tampered["complete"], Value::Bool(true));
@@ -218,7 +230,7 @@ fn verify_uses_host_key_and_reports_unverifiable_when_it_is_missing_or_tampered(
     match saved_epoch {
         Some(bytes) => {
             fs::write(&epoch_path, bytes).unwrap();
-            fs::set_permissions(&epoch_path, fs::Permissions::from_mode(0o600)).unwrap();
+            restrict(&epoch_path);
         }
         None => fs::remove_file(&epoch_path).unwrap(),
     }
@@ -246,7 +258,7 @@ fn legacy_run_dir_epoch_key_is_found_as_weak_custody() {
     let path = dir.join("epoch.key");
     let hex: String = key.iter().map(|byte| format!("{byte:02x}")).collect();
     fs::write(&path, hex).unwrap();
-    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+    restrict(&path);
     // Legacy plan: no planKey binding recorded.
     let legacy = serde_json::json!({"seal": {"digest": format!("sha256:{}", "00".repeat(32))}});
     match legion_audit::resolve_plan_key(&dir, &legacy) {

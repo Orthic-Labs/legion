@@ -561,7 +561,13 @@ fn native_audit_without_signing_material_runs_source_scan_as_unsigned_incomplete
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let summary: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let summary: serde_json::Value =
+        serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+            panic!(
+                "summary not JSON ({error}); stderr={}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+        });
     assert_eq!(summary["auditStatus"], "incomplete");
     assert_eq!(summary["qualityGate"], "unproven");
     assert!(summary["gaps"]

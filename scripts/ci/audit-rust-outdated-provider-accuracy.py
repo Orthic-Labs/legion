@@ -38,6 +38,49 @@ def digest(raw):
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
+def objective_graph_bound(plan):
+    """Independently recompute the schema-2 plan objective-graph binding (legion-audit dag.rs)."""
+    providers = plan["providers"]
+    ids = {provider["id"] for provider in providers}
+    require(len(ids) == len(providers), "duplicate provider id")
+    artifacts = lambda provider, key: provider["configuration"][key] if isinstance(provider["configuration"].get(key), list) else []
+    producers = {}
+    for provider in providers:
+        for kind in artifacts(provider, "produces"):
+            producers.setdefault(kind, set()).add(provider["id"])
+    edges = {}
+    for provider in providers:
+        deps = {}
+        for dependency in provider["dependencies"]:
+            require(dependency in ids, "objective dependency missing")
+            deps[dependency] = "declared"
+        for kind in artifacts(provider, "consumes"):
+            for source in sorted(producers.get(kind, set()) - {provider["id"]}):
+                deps.setdefault(source, {"artifact": kind})
+        edges[provider["id"]] = deps
+    order, done = [], set()
+    while len(order) < len(edges):
+        ready = [key for key in sorted(edges) if key not in done and set(edges[key]) <= done]
+        require(ready, "objective dependency cycle")
+        order.append(ready[0]); done.add(ready[0])
+    by_id = {provider["id"]: provider for provider in providers}
+    proof = lambda p: {"providerVersion": p["version"], "denominatorDigest": p["configuration"].get("denominatorDigest"),
+                       "denominatorCount": p["configuration"].get("denominatorCount"), "cleanClaim": p["cleanClaim"], "required": p["required"]}
+    objective = {}
+    for key in order:
+        seed = {"repositoryId": plan["repositoryId"], "inventoryDigest": plan["inventoryDigest"], "providerId": key,
+                "stage": by_id[key]["phase"], "dependencies": sorted(edges[key]), "proofObligations": proof(by_id[key])}
+        objective[key] = "obj_" + digest(canonical(seed)).removeprefix("sha256:")[:16]
+    objectives = [{"format": "audit-objective/v1", "objectiveId": objective[key], "providerId": key, "stage": by_id[key]["phase"],
+                   "dependencies": sorted(objective[dep] for dep in edges[key]), "consumes": artifacts(by_id[key], "consumes"),
+                   "produces": artifacts(by_id[key], "produces"), "proofObligations": proof(by_id[key])} for key in order]
+    edge_list = sorted(({"fromObjective": objective[dep], "toObjective": objective[key], "kind": kind}
+                        for key in order for dep, kind in sorted(edges[key].items())),
+                       key=lambda edge: (edge["fromObjective"], edge["toObjective"]))
+    graph = {"objectives": objectives, "edges": edge_list}
+    return {"schemaVersion": 1, "digest": digest(canonical(graph)), "objectiveCount": len(objectives)}
+
+
 def parsed(raw):
     def pairs(items):
         require(len(dict(items)) == len(items), "duplicate JSON fields")
@@ -125,11 +168,11 @@ def validate_record(repository_root, row, live=False, receipts=None):
                 and planned["configuration"]["denominatorCount"] == len(selected)
                 and planned["configuration"]["denominatorDigest"] == denominator, "shipped selector/denominator differs")
         plan = case["frozenPlan"]
-        require(plan["schemaVersion"] == 1 and plan["repositoryId"] == control and plan["inventoryGeneration"] == inventory["generation"]
+        require(plan["schemaVersion"] == 2 and plan["repositoryId"] == control and plan["inventoryGeneration"] == inventory["generation"]
                 and plan["inventoryDigest"] == inventory["digest"] and plan["providers"] == [planned]
                 and plan["excludedConditionalProviders"] == [] and case["planDigest"] == digest(canonical(plan)), "full frozen plan differs")
         owner_policy = {"externalProcesses": "owner-admission-required", "admissionStatus": "unavailable", "effectiveMode": "deny-external"}
-        require(plan["bounds"] == {"executionPolicy": owner_policy, "executionPolicyIdentity": {"id": "audit-native-owner-admission-v1", "version": 1, "digest": digest(canonical(owner_policy))}}, "production admission boundary changed")
+        require(plan["bounds"] == {"executionPolicy": owner_policy, "executionPolicyIdentity": {"id": "audit-native-owner-admission-v1", "version": 1, "digest": digest(canonical(owner_policy))}, "objectiveGraph": objective_graph_bound(plan)}, "production admission boundary changed")
         require(planned["role"] == spec["role"] and planned["phase"] == spec["phase"] and planned["dependencies"] == spec["dependsOn"]
                 and planned["configuration"]["runner"] == spec["runner"] and planned["cleanClaim"] == spec["cleanClaim"], "shipped provider runner/role differs")
         coverage, receipt = result["coverage"], case["executionReceipt"]

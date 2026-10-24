@@ -613,6 +613,12 @@ impl Fixture {
                 self.base.to_string_lossy().as_ref(),
             )
             .env("LEGION_HARNESS", "claude-code")
+            // The fixture minted its lens epoch key in this process's host
+            // state; the child's simulated HOME must not move that custody.
+            .env(
+                "LEGION_STATE_ROOT",
+                legion_audit::host_plan_key_dir().unwrap().parent().unwrap(),
+            )
             .env_remove("CODEX_THREAD_ID")
             .env_remove("CODEX_SESSION_ID")
             .env_remove("CLAUDE_SESSION_ID")
