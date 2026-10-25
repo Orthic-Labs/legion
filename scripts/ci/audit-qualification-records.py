@@ -602,7 +602,7 @@ def provenance(root, entry, row, validated):
     keys(proof, {"repository", "runId", "runAttempt", "jobId", "jobName", "jobConclusion", "workflow", "commit", "platform", "command", "validator", "log"})
     require(proof["repository"] == "Orthic-Labs/legion" and proof["workflow"] == ".github/workflows/ci.yml"
             and all(type(proof[key]) is int and proof[key] > 0 for key in ("runId", "runAttempt", "jobId"))
-            and re.fullmatch(r"[0-9a-f]{40}", proof["commit"] or "") and proof["platform"] in ("macos-15", "windows-2025"), "CI provenance identity differs")
+            and re.fullmatch(r"[0-9a-f]{40}", proof["commit"] or "") and proof["platform"] in HOST_REQUIREMENTS["ciHosts"], "CI provenance identity differs")
     require(isinstance(proof["jobName"], str) and 0 < len(proof["jobName"]) <= 200, "CI job missing")
     require(proof["jobConclusion"] in ("success", "failure", "cancelled", "skipped", "timed_out", "action_required", "neutral", "startup_failure", "stale"), "CI job conclusion missing")
     family, harness, _, selector = adapter(root, entry)
@@ -660,7 +660,7 @@ def provenance(root, entry, row, validated):
         require(Path(args[3]).is_absolute() and Path(args[5]).is_absolute()
                 and args[5].endswith("/legion-provider-qualification/compatibility-report/controls/compatibility.core.json"),
                 "compatibility report original record path differs")
-        require(row["observation"]["implementation"]["platform"]["os"] == {"macos-15": "macos", "windows-2025": "windows"}[proof["platform"]],
+        require(row["observation"]["implementation"]["platform"]["os"] == HOST_REQUIREMENTS["ciHosts"][proof["platform"]],
                 "compatibility report native platform differs")
     if family == "ownership-native":
         require(Path(args[3]).is_absolute() and Path(args[5]).is_absolute()
@@ -757,11 +757,23 @@ def validate_semgrep_record_digest(raw_record, indexed_digest):
     return actual
 
 
+HOST_REQUIREMENTS = json.loads((Path(__file__).resolve().parent / "host-requirements.json").read_text())
+
+
+def allowed_hosts(family):
+    """CI hosts a family's native evidence may come from: the manifest's entry for it, else every CI host."""
+    return HOST_REQUIREMENTS["families"].get(family, HOST_REQUIREMENTS["default"])["platforms"]
+
+
+def require_host(entry, family, message):
+    require(entry["provenance"]["platform"] in allowed_hosts(family), f"{message}: {entry['provenance']['platform']} is not one of {allowed_hosts(family)}")
+
+
 def record_binding(root, entry, path, row, registry, raw_record=None):
     provider = entry["provider"]
     family, _, _, _ = adapter(root, entry)
     if family == "runtime-app-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "runtime app native platform differs")
+        require_host(entry, "runtime-app-sdk", "runtime app native platform differs")
         retained = path.parent / "evidence" / row["qualificationDigest"].removeprefix("sha256:")
         api = helper("audit-runtime-app-accuracy.py")
         result = api["validate_record"](root, row, live=False, retained=retained)
@@ -769,33 +781,33 @@ def record_binding(root, entry, path, row, registry, raw_record=None):
         require(result["validatorRejectionControls"] == 12, "runtime app semantic rejection controls incomplete")
         return result
     if family == "backend-source-facts":
-        require(entry["provenance"]["platform"] == "macos-15", "backend source native platform differs")
+        require_host(entry, "backend-source-facts", "backend source native platform differs")
         _, raw = backend_source_evidence(root, entry, row)
         api = helper("audit-backend-source-facts.py")
         result = api["validate_record"](root, row, raw, live=False)
         require(api["rejection_controls"](root, row, raw) == 20, "backend semantic mutations incomplete")
         return result
     if family == "supply-chain-native":
-        require(entry["provenance"]["platform"] == "macos-15", "supply-chain native platform differs")
+        require_host(entry, "supply-chain-native", "supply-chain native platform differs")
         api = helper("audit-supply-chain-native-accuracy.py")
         api["validate_record"](root, row, live=False)
         return api["summary"](row, api["tamper_refusals"](root, row))
     if family == "quality-test-native":
-        require(entry["provenance"]["platform"] == "macos-15", "native test platform differs")
+        require_host(entry, "quality-test-native", "native test platform differs")
         api = helper("audit-quality-test-accuracy.py")
         evidence = path.parent / "evidence" / row["qualificationDigest"].removeprefix("sha256:")
         validated = api["validate_record"](root, row, evidence_root=evidence, live=False)
         validated["rejectedResealedAttacks"] = api["mutation_checks"](root, row, evidence)
         return validated
     if family == "dotnet-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", ".NET SDK native platform differs")
+        require_host(entry, "dotnet-sdk", ".NET SDK native platform differs")
         return helper("audit-dotnet-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["dotnetSdkEvidence"]["dotnetEnrollment"]["path"])))
     if family == "code-rust-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "Rust SDK native platform differs")
+        require_host(entry, "code-rust-sdk", "Rust SDK native platform differs")
         retained = relative_file(root, entry["rustSdkEvidence"]["code_rust.json"]["path"]).parent
         return helper("audit-rust-code-sdk-accuracy.py")["validate_retained"](root, row, retained)
     if family == "code-mobile-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "mobile SDK native platform differs")
+        require_host(entry, "code-mobile-sdk", "mobile SDK native platform differs")
         _, evidence = code_mobile_evidence(root, entry, row)
         api = helper("audit-mobile-sdk-accuracy.py")
         result = api["validate_record"](root, row, live=False, evidence=evidence)
@@ -807,25 +819,25 @@ def record_binding(root, entry, path, row, registry, raw_record=None):
         result["rejectionControls"] = api["rejection_controls"](root, row)
         return result
     if family == "ownership-native":
-        require(entry["provenance"]["platform"] == "macos-15", "ownership native platform differs")
+        require_host(entry, "ownership-native", "ownership native platform differs")
         return helper("validate-ownership-native-accuracy.py")["validate_record"](root, row, live=False)
     if family == "javascript-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "javascript SDK native platform differs")
+        require_host(entry, "javascript-sdk", "javascript SDK native platform differs")
         paths = {key: relative_file(root, ref["path"]) for key, ref in entry["javascriptSdkEvidence"].items()}
         return helper("audit-javascript-sdk-accuracy.py")["validate_retained"](root, row, paths, live=False)
     if family == "code-long-tail":
-        require(entry["provenance"]["platform"] == "macos-15", "long-tail native platform differs")
+        require_host(entry, "code-long-tail", "long-tail native platform differs")
         return helper("audit-code-long-tail-accuracy.py")["validate_record"](root, row, live=False)
     if family == "code-jvm-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "JVM SDK native platform differs")
+        require_host(entry, "code-jvm-sdk", "JVM SDK native platform differs")
         retained = relative_file(root, entry["jvmSdkEvidence"]["code_jvm.json"]["path"]).parent
         return helper("audit-jvm-sdk-accuracy.py")["validate_record"](root, row, live=False, retained=retained)
     if family == "code-python-sdk":
-        require(entry["provenance"]["platform"] == "macos-15", "Python SDK native platform differs")
+        require_host(entry, "code-python-sdk", "Python SDK native platform differs")
         return helper("audit-python-code-sdk-accuracy.py")["validate_record"](root, row, live=False, enrollment=load(relative_file(root, entry["pythonSdkEvidence"]["pythonEnrollment"]["path"])))
     if family == "file":
         return helper("audit-provider-accuracy.py")["validate"](root, path.parent, {provider: plan_for(root, provider)})[provider]
-    require(entry["provenance"]["platform"] == "macos-15", "external native platform differs")
+    require_host(entry, family, "external native platform differs")
     if family in PAIRED_HARNESS_FAMILIES:
         return validate_paired_harness_record(root, entry, row, registry, path.read_bytes())
     if family == "shellcheck":

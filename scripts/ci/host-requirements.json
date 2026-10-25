@@ -1,0 +1,40 @@
+{
+  "schema": "legion-host-requirements/1",
+  "ciHosts": {
+    "macos-15": "macos",
+    "windows-2025": "windows",
+    "ubuntu-24.04": "linux"
+  },
+  "default": {
+    "platforms": [
+      "macos-15",
+      "windows-2025",
+      "ubuntu-24.04"
+    ],
+    "reason": "portable: the harness, the validators and the Claude Code runtime run on every CI host"
+  },
+  "families": {
+    "runtime-app-sdk": {
+      "platforms": [
+        "macos-15"
+      ],
+      "reason": "exercises the macOS application runtime (AppKit/Swift) itself"
+    },
+    "code-mobile-sdk": {
+      "platforms": [
+        "macos-15"
+      ],
+      "reason": "iOS toolchain (xcodebuild, simulators) exists only on macOS"
+    }
+  },
+  "runners": {
+    "reasoning-native": {
+      "platforms": [
+        "macos",
+        "windows",
+        "linux"
+      ],
+      "reason": "a Claude Code session with the CI binary; nothing macOS-specific (Adrian, 2026-10-25: there is no need for macOS to test Legion)"
+    }
+  }
+}

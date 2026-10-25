@@ -81,7 +81,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--archive-prefix", required=True)
     args = parser.parse_args()
-    require(platform.system() == "Darwin", "supported native host requires macOS")
+    host_platform = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}.get(platform.system())
+    allowed = json.loads((Path(__file__).resolve().parent / "host-requirements.json").read_text())["runners"]["reasoning-native"]["platforms"]
+    require(host_platform in allowed, f"supported native host is one of {allowed}, not {platform.system()}")
     require(os.environ.get("CLAUDECODE", "").strip()
             and os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip(),
             "genuine Claude marker & current session identity are required")
@@ -127,7 +129,7 @@ def main():
                 "sha256": sha(path.read_bytes())}
 
     capture = {"schema": "legion-reasoning-native-host-capture/2",
-               "host": {"platform": "macos", "runtime": "claude-code",
+               "host": {"platform": host_platform, "runtime": "claude-code",
                         "sessionId": os.environ["CLAUDE_CODE_SESSION_ID"]},
                "binary": identity, "commands": [], "exports": [], "members": [],
                "ledger": {"kind": "runner-owned-cumulative-admissions", "maxPhysicalAdmissions": MAX_CALLS,
