@@ -50,6 +50,9 @@ pub fn normalize_all(results: impl IntoIterator<Item = ProviderResult>) -> Vec<P
 //     hex chars. The segment ends at a path separator, whitespace or quote;
 //     later segments and surrounding prose are kept verbatim, and
 //     non-generated segments (`/tmp/a` vs `/tmp/b`) are never collapsed.
+//   * per-run scratch directories named `legion-audit-<kind>-<pid>-<nanos>[-n]`
+//     keep the kind and lose their digits (`legion-audit-security-N-N-N`),
+//     wherever they sit in a path whose separators are `/` or `\`.
 // Ordering noise: arrays under these keys are order-insensitive and sorted by
 // canonical form: findings, coverageGaps, coverage_gaps, gaps, degradation,
 // providers, providerResults, provider_reconciliation, results, checks,
@@ -298,13 +301,22 @@ fn strip_temp_roots(text: &str) -> String {
     if host_marker.len() > 1 {
         output = rewrite_generated_after(&output, literal_root(host_marker));
     }
-    // Per-run scratch directories named `legion-audit-<kind>-<pid>-<nanos>[-n]`:
-    // keep the kind, drop the process/time digits.
-    let mut rebuilt = String::with_capacity(output.len());
-    for (index, segment) in output.split('/').enumerate() {
-        if index > 0 {
-            rebuilt.push('/');
-        }
+    collapse_scratch_segments(&output)
+}
+
+/// Per-run scratch directories named `legion-audit-<kind>-<pid>-<nanos>[-n]`:
+/// keep the kind, drop the process/time digits. Path segments end at `/` or
+/// `\`, so Windows paths (`<run>\legion-audit-security-7036-...-7\f`) collapse
+/// exactly like Unix ones; separators are kept verbatim.
+fn collapse_scratch_segments(text: &str) -> String {
+    let mut rebuilt = String::with_capacity(text.len());
+    let mut rest = text;
+    loop {
+        let (segment, separator, tail) = match rest.find(['/', '\\']) {
+            // Both separators are single-byte ASCII, so `index + 1` is a char boundary.
+            Some(index) => (&rest[..index], &rest[index..=index], &rest[index + 1..]),
+            None => (rest, "", ""),
+        };
         if segment.starts_with("legion-audit-") && segment.chars().any(|c| c.is_ascii_digit()) {
             let mut previous_digit = false;
             for c in segment.chars() {
@@ -321,8 +333,12 @@ fn strip_temp_roots(text: &str) -> String {
         } else {
             rebuilt.push_str(segment);
         }
+        if separator.is_empty() {
+            return rebuilt;
+        }
+        rebuilt.push_str(separator);
+        rest = tail;
     }
-    rebuilt
 }
 
 /// Normalized replay view of an arbitrary JSON document.
@@ -427,6 +443,74 @@ mod tests {
         assert_ne!(n("/tmp/a/f"), n("/tmp/b/f"));
         assert_ne!(n("/tmp/run12345/a/f"), n("/tmp/run12345/b/f"));
         assert_eq!(n("/tmp/run12345/f"), n("/private/tmp/abc99999/f"));
+    }
+
+    #[test]
+    fn scratch_directories_collapse_under_both_path_separators() {
+        let unix = n("<run>/legion-audit-security-7036-1792898495145995832-7/syft-native.yaml");
+        assert_eq!(unix, "<run>/legion-audit-security-N-N-N/syft-native.yaml");
+        // Windows paths: the same run-specific scratch directory, `\` separated.
+        let windows = n(r"<run>\legion-audit-security-7036-1792898495145995832-7\syft-native.yaml");
+        assert_eq!(
+            windows,
+            r"<run>\legion-audit-security-N-N-N\syft-native.yaml"
+        );
+        assert_eq!(
+            windows,
+            n(r"<run>\legion-audit-security-9912-1792898501294029350-7\syft-native.yaml")
+        );
+        // Mixed separators and a trailing directory name behave the same way.
+        assert_eq!(
+            n(r"C:\x/legion-audit-security-1-2-3\f"),
+            n(r"C:\x/legion-audit-security-9-8-7\f")
+        );
+        assert_eq!(
+            n(r"<run>\legion-audit-security-1-2-3"),
+            r"<run>\legion-audit-security-N-N-N"
+        );
+    }
+
+    #[test]
+    fn scratch_collapse_keeps_distinct_names_and_following_segments() {
+        // Only the digits of the scratch directory name are dropped.
+        assert_ne!(
+            n(r"<run>\legion-audit-security-1-2-3\a"),
+            n(r"<run>\legion-audit-security-1-2-3\b")
+        );
+        assert_ne!(
+            n(r"<run>\legion-audit-security-1-2-3\f"),
+            n(r"<run>\legion-audit-other-1-2-3\f")
+        );
+        assert_ne!(n(r"<run>\run-a\f"), n(r"<run>\run-b\f"));
+        // A segment that merely contains the prefix later in its text stays verbatim.
+        assert_eq!(
+            n(r"<run>\x-legion-audit-security-1-2-3\f"),
+            r"<run>\x-legion-audit-security-1-2-3\f"
+        );
+        assert_eq!(n("plain text 12345"), "plain text 12345");
+        assert_eq!(n(""), "");
+    }
+
+    #[test]
+    fn replay_equivalence_ignores_windows_scratch_directories_in_command_args() {
+        let receipt = |scratch: &str| {
+            json!({"provider": "supply-chain.license-sbom-provenance", "result": {"details": {
+                "executionReceipt": {"command": {"executable": "syft", "args": [
+                    "scan", "dir:.", "--config", format!(r"<run>\{scratch}\syft-native.yaml")
+                ]}}
+            }}})
+        };
+        let a = receipt("legion-audit-security-7036-1792898495145995832-7");
+        let b = receipt("legion-audit-security-9912-1792898501294029350-7");
+        assert!(replay_differences(&a, &b).is_empty());
+        assert_eq!(replay_digest(&a).unwrap(), replay_digest(&b).unwrap());
+        // A different tool argument is still a semantic difference.
+        let mut c = b.clone();
+        c["result"]["details"]["executionReceipt"]["command"]["args"][1] = json!("dir:other");
+        assert_eq!(
+            replay_differences(&a, &c),
+            vec!["/result/details/executionReceipt/command/args/1".to_owned()]
+        );
     }
 
     #[test]
