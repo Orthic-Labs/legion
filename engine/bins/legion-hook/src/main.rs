@@ -1901,16 +1901,40 @@ fn command_segments_with_context(command: &str) -> Vec<CommandSegment> {
 }
 
 /// Shell words of one segment with quotes removed; a quoted phrase is one word.
+///
+/// A backslash escapes the next character, except where it is a Windows path
+/// separator, which no shell on that platform takes as an escape:
+///
+/// * Unquoted, in a word that begins with a drive letter (`C:\Users\me`),
+///   as PowerShell and cmd read it. Every other word keeps the POSIX reading,
+///   so `\rm` is still `rm` and `a\ b` is still `a b`.
+/// * In double quotes, before anything but `"`, `\`, `$` and the backtick, as
+///   bash reads it (`"C:\Program Files\Git"` is one word with its separators).
 fn shell_words(segment: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut current = String::new();
     let mut started = false;
+    let mut drive_path = false;
     let mut quote: Option<char> = None;
     let mut characters = segment.chars();
     while let Some(character) = characters.next() {
         match character {
             '\\' if quote != Some('\'') => {
-                if let Some(next) = characters.next() {
+                let separator = if quote == Some('"') {
+                    !matches!(characters.clone().next(), Some('"' | '\\' | '$' | '`'))
+                } else {
+                    let mut leading = current.chars();
+                    drive_path = drive_path
+                        || matches!(
+                            (leading.next(), leading.next(), leading.next()),
+                            (Some(letter), Some(':'), None) if letter.is_ascii_alphabetic()
+                        );
+                    drive_path
+                };
+                if separator {
+                    current.push(character);
+                    started = true;
+                } else if let Some(next) = characters.next() {
                     current.push(next);
                     started = true;
                 }
@@ -1924,6 +1948,7 @@ fn shell_words(segment: &str) -> Vec<String> {
                 if started {
                     words.push(std::mem::take(&mut current));
                     started = false;
+                    drive_path = false;
                 }
             }
             _ => {
@@ -5612,6 +5637,40 @@ mod tests {
         ] {
             assert!(!destructive(command), "wrongly denied: {command}");
         }
+    }
+
+    #[test]
+    fn windows_paths_keep_their_separators_through_word_splitting() {
+        // Unquoted, a drive-letter path is a PowerShell or cmd word: its
+        // backslashes are separators, and a short 8.3 name (`RUNNER~1`) is
+        // plain text.
+        assert_eq!(
+            shell_words(r"cd C:\Users\RUNNER~1\AppData\Local\Temp\repo"),
+            ["cd", r"C:\Users\RUNNER~1\AppData\Local\Temp\repo"]
+        );
+        assert_eq!(
+            shell_words(r"git -C d:\work\repo push"),
+            ["git", "-C", r"d:\work\repo", "push"]
+        );
+        // Quoted, a backslash escapes only `"`, `\`, `$` and the backtick, as
+        // in bash; before any other character it is a separator.
+        assert_eq!(
+            shell_words(r#"cd "C:\Program Files\Git" && x"#),
+            ["cd", r"C:\Program Files\Git", "&&", "x"]
+        );
+        assert_eq!(
+            shell_words(r#"echo "a\"b" 'c\d'"#),
+            ["echo", r#"a"b"#, r"c\d"]
+        );
+        assert_eq!(shell_words(r#"echo "a\\b""#), ["echo", r"a\b"]);
+        // Everywhere else an unquoted backslash still escapes the next
+        // character, so `\rm` and `a\ b` read as they do in a POSIX shell.
+        assert_eq!(shell_words(r"\rm -rf src"), ["rm", "-rf", "src"]);
+        assert_eq!(shell_words(r"echo a\ b"), ["echo", "a b"]);
+        // The drive-letter exemption ends with the word, and covers a bare
+        // drive root.
+        assert_eq!(shell_words(r"cd C:\a \rm"), ["cd", r"C:\a", "rm"]);
+        assert_eq!(shell_words(r"cd C:\"), ["cd", r"C:\"]);
     }
 
     #[test]

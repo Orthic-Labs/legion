@@ -1143,6 +1143,55 @@ mod tests {
         let _ = fs::remove_dir_all(on_feature);
     }
 
+    fn cd_target(command: &str) -> Option<PathBuf> {
+        let mut simples = Vec::new();
+        collect_simple(command, &[], 0, &mut simples);
+        simples
+            .iter()
+            .find_map(|simple| change_directory(simple, None))
+    }
+
+    #[test]
+    fn cd_to_a_windows_path_moves_to_that_exact_path_on_every_host() {
+        // The temp directory of a hosted Windows runner, 8.3 short name and
+        // all. Every form of `cd` a Windows shell takes must reach the gate
+        // with the separators intact; a stripped backslash names a path that
+        // does not exist, so the push would be judged in no repository at all.
+        let temp = r"C:\Users\RUNNER~1\AppData\Local\Temp\legion-vcs-gate-cd-main-1-2";
+        for command in [
+            format!("cd {temp}"),
+            format!("cd \"{temp}\" && git push"),
+            format!("Set-Location {temp}; git push"),
+            format!("sl -Path {temp}"),
+            format!("pushd '{temp}'"),
+        ] {
+            assert_eq!(
+                cd_target(&command).as_deref(),
+                Some(Path::new(temp)),
+                "{command}"
+            );
+        }
+        let spaced = r"C:\Users\Jane Doe\AppData\Local\Temp";
+        assert_eq!(
+            cd_target(&format!("cd \"{spaced}\"")).as_deref(),
+            Some(Path::new(spaced))
+        );
+    }
+
+    #[test]
+    fn a_quoted_cd_target_moves_the_repository_the_push_is_judged_in() {
+        let on_main = scratch("cd-quoted-main");
+        on_branch(&on_main, "main");
+        let on_feature = scratch("cd-quoted-feature");
+        on_branch(&on_feature, "feature");
+        let command = format!("cd \"{}\" && git push", on_main.display());
+        assert!(ask_in(&command, &on_feature));
+        let command = format!("Set-Location '{}'; git push", on_feature.display());
+        assert!(!ask_in(&command, &on_main));
+        let _ = fs::remove_dir_all(on_main);
+        let _ = fs::remove_dir_all(on_feature);
+    }
+
     #[test]
     fn denials_win_over_confirmations_on_the_same_line() {
         let dir = scratch("order");
