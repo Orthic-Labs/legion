@@ -2264,7 +2264,7 @@ dependencies = [
  "legion-runtime",
  "legion-topology",
  "reqwest",
- "rightkit-child-process 0.4.0",
+ "rightkit-child-process 0.5.6",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2348,7 +2348,7 @@ dependencies = [
  "rightkit-agents",
  "rightkit-browser",
  "rightkit-cache",
- "rightkit-child-process 0.4.0",
+ "rightkit-child-process 0.5.6",
  "rightkit-fs",
  "rightkit-ownership",
  "serde",
@@ -2411,7 +2411,7 @@ dependencies = [
  "legion-audit",
  "legion-contracts",
  "regex",
- "rightkit-child-process 0.4.0",
+ "rightkit-child-process 0.5.6",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -3920,9 +3920,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-child-process"
-version = "0.5.5"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a722f6bfb7c34811c877c2a1abbdccea9ac944b4c16a569b881219e46fdc174"
+checksum = "ed35d3576ea81808f548e345b0cb51a76e9ef0b16bf39b43da1dbf8355aa4193"
 dependencies = [
  "libc 0.2.190",
  "windows",
@@ -3993,7 +3993,7 @@ checksum = "cc88dcb8ce6b88b80a715edc73a889b082b732abccdf419d2e2b76d7bc677976"
 dependencies = [
  "libc 0.2.190",
  "portable-pty",
- "rightkit-child-process 0.5.5",
+ "rightkit-child-process 0.5.6",
  "windows",
 ]
 
