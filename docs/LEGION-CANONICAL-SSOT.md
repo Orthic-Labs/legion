@@ -90,7 +90,7 @@ Primary rules:
 | Semantic concern | Permanent canonical owner | Derived / consumer only |
 |---|---|---|
 | System architecture and ownership boundaries | `docs/LEGION-CANONICAL-SSOT.md` | all architecture summaries/maps |
-| Live Legion constitution | `AGENTS.md` | `docs/agent-rules.md` (the same package-rules text, loaded by Claude Code through `CLAUDE.md`), harness context projections |
+| Live Legion constitution | `AGENTS.md` | `docs/agent-rules.md` (the same package-rules text, kept as a mirror; Claude Code and Codex read `AGENTS.md` directly), harness context projections |
 | Historical capability inventory (frozen 2026-09-02, not authoritative) | `docs/provenance/canon/**`, `docs/provenance/pending/**` | none; current ownership is this table |
 | Legion routing/orchestration reference | `doctrine/legion.md` | generated summaries |
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
