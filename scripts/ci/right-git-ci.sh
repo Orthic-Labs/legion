@@ -82,6 +82,7 @@ python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accur
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_capsule_preflight.py
 python3 -m unittest discover -s scripts/ci/tests -p test_audit_visual_provider_accuracy.py
 python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
+python3 -m unittest discover -s scripts/ci/tests -p test_qualification_build_stage.py
 
 checks=(
   "check-canonical-names"
@@ -197,24 +198,51 @@ audit_native_command() {
 audit_qualification_dispatch() {
   if declare -F "$1" >/dev/null; then
     "$@"
+  elif [[ "$1" == "$audit_cargo_bin" && "${2:-}" == "test" ]]; then
+    qualification_cargo_test "${@:3}"
   else
     audit_native_command "$@"
   fi
 }
+
+# BEGIN qualification build stage.
+# Declared BUILD stage, separate from each case's runtime budget. The
+# ci-qualification-child wrapper bounds a native leaf by its case deadline
+# (300 s default); compiling the test graph is not the case under test. Run
+# 40280723295 (PR #123, docs-only) Windows seq 6: RIGHT_GIT_RUST_CHANGED=false
+# skipped the workspace `cargo test`, so the timed case compiled cold for 184 s
+# of its 300 s. Both stages take the SAME argv ("$@"), cwd & environment; the
+# build adds only `--no-run`, so the timed run reuses identical artifacts. The
+# stage runs on every path, outside the wrapper; a build failure fails its
+# sequence. The timed argv, its deadline & mandatory cleanup are unchanged.
+qualification_cargo_build() {
+  local status=0
+  printf 'AUDIT_QUALIFICATION_BUILD_BEGIN %s %s\n' "${sequence:?qualification span missing}" \
+    "$(printf '%q ' "$audit_cargo_bin" test --no-run "$@")" >&2
+  "$audit_cargo_bin" test --no-run "$@" || status=$?
+  printf 'AUDIT_QUALIFICATION_BUILD_END %s %s\n' "$sequence" "$status" >&2
+  return "$status"
+}
+qualification_cargo_test() {
+  qualification_cargo_build "$@" || return "$?"
+  audit_native_command "$audit_cargo_bin" test "$@"
+}
+# END qualification build stage.
 
 audit_qualification_failures=0
 audit_qualification_sequence=0
 audit_cargo_bin="$(command -v cargo)"
 audit_cargo_test() {
   if [[ -n "${LEGION_DOTNET_CHILD_OUTPUT:-}" ]]; then
-    (cd engine && audit_native_command python3 "$GITHUB_WORKSPACE/scripts/ci/run-dotnet-sdk-qualification-child.py" \
+    (cd engine && qualification_cargo_build --locked -p legion-audit "$@" &&
+      audit_native_command python3 "$GITHUB_WORKSPACE/scripts/ci/run-dotnet-sdk-qualification-child.py" \
       --output-root "$LEGION_DOTNET_CHILD_OUTPUT" -- "$audit_cargo_bin" test --locked -p legion-audit "$@")
   else
-    (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-audit "$@")
+    (cd engine && qualification_cargo_test --locked -p legion-audit "$@")
   fi
 }
 audit_runtime_app_qualification() {
-  audit_native_command "$audit_cargo_bin" test --locked --manifest-path engine/Cargo.toml -p legion \
+  qualification_cargo_test --locked --manifest-path engine/Cargo.toml -p legion \
     --test runtime_app_accuracy real_runtime_app_accuracy -- --ignored --exact --nocapture --test-threads=1
 }
 # Build admission belongs to managed CI. Runner consumes only this exact prebuilt target.
@@ -225,7 +253,7 @@ audit_compatibility_report_qualification() {
     --no-run --message-format=json > "$metadata") &&
     audit_native_command python3 scripts/ci/audit-compatibility-report-accuracy.py --build-messages "$metadata" --output "$output"
 }
-audit_effects_test() { (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
+audit_effects_test() { (cd engine && qualification_cargo_test --locked -p legion-effects "$@"); }
 # Full JVM/v1 proof uses shared owner's native profile & lifecycle controls first.
 # A failed native prerequisite stops JVM commands; no network relaxation occurs.
 audit_jvm_qualification() {
@@ -1190,6 +1218,7 @@ run_audit_qualification audit_cargo_test --test reasoning_runtime_qualification 
   reasoning_runtime_no_call_contract -- --exact --nocapture --test-threads=1
 # The no-call harness atomically moves its actual Cargo CLI to fresh retained
 # storage before executing it. No later build/copy may substitute tested bytes.
+# Dispatch builds this exact argv first (qualification build stage, --no-run).
 export LEGION_REASONING_NATIVE_RUNNER_DIR="${RUNNER_TEMP}/legion-provider-qualification/reasoning-native-runner"
 run_audit_qualification "$audit_cargo_bin" test --locked --manifest-path engine/Cargo.toml -p legion \
   --test reasoning_runtime_qualification reasoning_runtime_production_no_call_contract \
