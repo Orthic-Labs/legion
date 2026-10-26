@@ -1,12 +1,12 @@
 # Audit implementation handoff
 
-Extend existing Legion Audit at `/Volumes/D/claude/legion`. This package maps requested production coverage onto inspected source at commit `3b72295cccbfcb6633a67dc8cd06d419a646b299`.
+Extend existing Legion Audit at `<workspace>/legion`. This package maps requested production coverage onto inspected source at commit `3b72295cccbfcb6633a67dc8cd06d419a646b299`.
 
 Prepared with **legion:architect** & **legion:dispatch**. Architecture: significant / D2 / best_shape; critical rigor for authority & evidence. Eighteen bounded assignments; shared integration stays with root. This is an implementation plan, not completed source work.
 
 ## Give implementation lead this prompt
 
-> Read handoff at `/Users/adrdsouza/Documents/Codex/2026-10-23/https-github-com-cloudflare-security-audit/outputs/audit-change-plan` (HANDOFF). Implement Audit extension described in `HANDOFF/ARCHITECTURE.md`, `HANDOFF/INTEGRATION.md` & `HANDOFF/ACCEPTANCE.md`. Respect current repository AGENTS & preserve existing dirty files, including untracked vendor/. Extend current Rust engine; no Node/Python in Audit-owned execution. Reuse existing provider/results, effect admission, snapshots, review runtime, finding store & reports. Native execution requires actual owner integration, not a trusted-offline bypass.
+> Read handoff at `<handoff-dir>/audit-change-plan` (HANDOFF). Implement Audit extension described in `HANDOFF/ARCHITECTURE.md`, `HANDOFF/INTEGRATION.md` & `HANDOFF/ACCEPTANCE.md`. Respect current repository AGENTS & preserve existing dirty files, including untracked vendor/. Extend current Rust engine; no Node/Python in Audit-owned execution. Reuse existing provider/results, effect admission, snapshots, review runtime, finding store & reports. Native execution requires actual owner integration, not a trusted-offline bypass.
 >
 > Dispatch bounded packets below using legion:dispatch. Each worker receives WORKER-COMMON.md, one packet, needed upstream signatures & bounded source pointers; fresh context, edit-only, exact writable scope. Do not give every worker this entire package. Root integrates shared files, then runs one admitted verification batch after all coding. Do not invent successful receipts or qualification. Deliver integrated changes, observed verification & precise per-target coverage.
 
