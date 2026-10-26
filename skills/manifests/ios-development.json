@@ -226,7 +226,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://ios-development/dependencies.json",
-      "digest": "sha256:a1ea63b63cba1007583a2223ea80b10d800c67f2087f92fb11f67376c9ad4bb3"
+      "digest": "sha256:32f9634fdc867e983dda7f0ece5705a718dee9dc6b19b0f5a8ce845a548a8a25"
     },
     {
       "path": "evals/evals.json",
@@ -666,7 +666,7 @@
     {
       "path": "references/swiftright-portability.md",
       "uri": "legion-skill://ios-development/references/swiftright-portability.md",
-      "digest": "sha256:d3244d7e0d212f2a068e9c31db1b2b39a2ddc236dd1e38b04e9fe069ab644d81"
+      "digest": "sha256:fdea86ed84fb51e31bf9240af6f90403ecef9dd3575ed2d8af316ffed4a7e835"
     },
     {
       "path": "references/swiftui/accessibility-localization.md",

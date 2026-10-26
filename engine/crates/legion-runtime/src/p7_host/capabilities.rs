@@ -414,6 +414,46 @@ mod tests {
         })
     }
 
+    /// The shipped registry's ownership-index probe finds the RustRight
+    /// client, and the retired `rightkit` name no longer satisfies it.
+    #[test]
+    fn rightkit_owns_probe_finds_rustright_and_not_the_retired_name() {
+        let registry: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../src/registry/capabilities.json"
+        )))
+        .expect("shipped registry parses");
+        validate_capability_registry(&registry, "src/registry/capabilities.json")
+            .expect("shipped registry validates");
+        let entry = &registry["capabilities"]["rightkit-owns"];
+        let environment = BTreeMap::new();
+        let on_path = |present: &'static str| move |command: &str| command == present;
+        assert_eq!(
+            detect(
+                entry.get("probe"),
+                &environment,
+                &on_path("rustright"),
+                &|_| false
+            ),
+            Some(true),
+            "a PATH holding only rustright must report the index present"
+        );
+        assert_eq!(
+            detect(
+                entry.get("probe"),
+                &environment,
+                &on_path("rightkit"),
+                &|_| false
+            ),
+            Some(false),
+            "the retired name must not satisfy the probe"
+        );
+        assert!(entry["remedy"]
+            .as_str()
+            .unwrap()
+            .contains("rustright owns --compact"));
+    }
+
     #[test]
     fn validates_a_well_formed_registry() {
         assert!(validate_capability_registry(&sample_registry(), "reg").is_ok());

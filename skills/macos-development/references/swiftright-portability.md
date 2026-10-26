@@ -39,7 +39,7 @@ Mac side.
 A package needs both checks before it enters a shared-SwiftUI target:
 
 - SwiftRight check: pure SwiftUI, and every control it draws is SwiftRight-proven.
-- Ownership check: `rightkit owns <capability>` (project overlay; absent, ask the project
+- Ownership check: `rustright owns <capability>` (project overlay; absent, ask the project
   owner instead of adding the package).
 
 Known rejects:

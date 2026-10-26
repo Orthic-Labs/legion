@@ -24,4 +24,4 @@ zip.workspace = true
 ed25519-dalek = "=2.2.0"
 legion-contracts = { path = "../../crates/legion-contracts" }
 legion-audit = { path = "../../crates/legion-audit" }
-rightkit-child-process = "=0.4.0"
+rightkit-child-process = "=0.5.6"

@@ -18,7 +18,12 @@ use serde_json::{Map, Value};
 
 mod codex;
 mod error;
+mod model_gate;
+mod process;
 mod protocol;
+mod stop_gate;
+mod vcs_gate;
+mod workspace;
 
 use error::HookError;
 use protocol::{HookRequest, HookResponse};
@@ -26,7 +31,7 @@ use protocol::{HookRequest, HookResponse};
 /// Embedded because installed customers may have no copy of the development
 /// workspace (or its Arcane files). This is response policy, not effect policy:
 /// the Guard only transports it on SessionStart; Arcane owns its meaning.
-const SESSION_START_CONTEXT: &str = r#"Complete the requested outcome within explicit constraints; use a skill only when its operation and inputs fit the request, and use generic agents only for read-only lookup. For a known failure, use Debugger to establish root cause before a permanent repair; reversible production containment stops harm but proves nothing about cause. Use Architect when investigation exposes architecture work. Attach Sage only for an explicit request, repeated failed repairs, or unresolved material design, ownership, or acceptance decisions; routine debugging and architecture stay with their capabilities. Inspect the relevant production flow before repairing, choose the smallest complete repair and cheapest decisive checks, and cite fresh evidence for any claim that work is done. Name a role on every delegation (Alchemist for writes, effects, or artifacts; Oracle to review work Legion did not produce; Sage for design or adjudication); contracts apply only to explicit or locked work, and report only states actually reached."#;
+const SESSION_START_CONTEXT: &str = r#"Complete the requested outcome within explicit constraints; name the matching capability from the catalog and load it before editing (engineering work: preflight, release, rightkit-adopt, debugger, architect), and use generic agents only for read-only lookup. For a known failure, use Debugger to establish root cause before a permanent repair; reversible production containment stops harm but proves nothing about cause. Use Architect when investigation exposes architecture work. Attach Sage only for an explicit request, repeated failed repairs, or unresolved material design, ownership, or acceptance decisions; routine debugging and architecture stay with their capabilities. Inspect the relevant production flow before repairing, choose the smallest complete repair and cheapest decisive checks, and run the repository gate (`right-release check`) before any build, push, merge, or done claim: fix every finding and never bypass hooks (--no-verify, core.hooksPath, HUSKY=0). Cite the gate's green line, a CI run URL on the exact head, or a host receipt for any claim that work is done; merging a pull request and pushing the default branch ask the operator. Name a role on every delegation (Alchemist for writes, effects, or artifacts; Oracle to review work Legion did not produce; Sage for design or adjudication); subagents default to the cheapest tier and never exceed the balanced tier unless the operator names a model (an `operator-approved-model: <model>` line in the launch prompt); contracts apply only to explicit or locked work, and report only states actually reached."#;
 const SESSION_START_SYSTEM_MESSAGE: &str = "LEGION:ACTIVE";
 const MAX_TRANSCRIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_STOP_REOPENINGS: u64 = 3;
@@ -56,7 +61,15 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
         if matches!(request.event_type.as_str(), "Stop" | "stop") {
             return stop_response(&request);
         }
-        return HookResponse::allowed(request.event_type, "lifecycle observation accepted");
+        let mut response =
+            HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted");
+        if matches!(
+            request.event_type.as_str(),
+            "SessionStart" | "session-start"
+        ) {
+            response.session_notice = workspace::pre_push_hook_notice(&request.payload);
+        }
+        return response;
     }
     if request.is_post_effect() {
         return HookResponse::allowed(request.event_type, "post-effect observation accepted");
@@ -87,6 +100,10 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
         );
     }
 
+    if let Some(response) = guard_launch_and_vcs(&request) {
+        return response;
+    }
+
     let effect = match effect_request(&request) {
         Ok(Some(effect)) => effect,
         Ok(None) => {
@@ -112,6 +129,83 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
 
     let actor = resolve_hook_actor_context(&request);
     authorize_effect(request.event_type, &effect, actor, &application)
+}
+
+/// Hook v2 gates that run after the destructive and rewrite gates and before
+/// effect classification: the subagent model ceiling, hook-bypass denials, and
+/// the confirmations for merging and for pushing the default branch.
+fn guard_launch_and_vcs(request: &HookRequest) -> Option<HookResponse> {
+    let payload = request.payload.as_object()?;
+    let tool_name = first_string(payload, &["toolName", "tool_name"]);
+    let tool_input = ["tool_input", "toolInput"]
+        .iter()
+        .find_map(|key| payload.get(*key))
+        .and_then(Value::as_object);
+    let event = request.event_type.clone();
+
+    if matches!(tool_name.as_deref(), Some("Agent" | "Task")) {
+        let input = tool_input?;
+        let policy = match model_gate::Policy::embedded() {
+            Ok(policy) => policy,
+            Err(error) => {
+                return Some(HookResponse::denied(
+                    event,
+                    model_gate::CEILING_CODE,
+                    format!("the subagent model policy is unavailable: {error}"),
+                    "unsupported",
+                ))
+            }
+        };
+        return Some(match policy.evaluate(input) {
+            model_gate::Decision::Allow => {
+                HookResponse::allowed(event, "subagent launch is within the model ceiling")
+            }
+            model_gate::Decision::Default {
+                updated_input,
+                model,
+            } => HookResponse::allowed_with_input(
+                event,
+                format!(
+                    "subagent launch named no model; the default tier's model '{model}' applies"
+                ),
+                updated_input,
+            ),
+            model_gate::Decision::Deny { reason } => {
+                HookResponse::denied(event, model_gate::CEILING_CODE, reason, "strong")
+            }
+        });
+    }
+
+    if let Some(tool @ ("Write" | "Edit" | "MultiEdit" | "NotebookEdit" | "apply_patch")) =
+        tool_name.as_deref()
+    {
+        if let Some(reason) =
+            tool_input.and_then(|input| vcs_gate::tool_input_edits_hooks_path(tool, input))
+        {
+            return Some(HookResponse::denied(
+                event,
+                vcs_gate::BYPASS_CODE,
+                reason,
+                "strong",
+            ));
+        }
+        return None;
+    }
+
+    let command = command_value(payload)?;
+    let cwd = first_string(payload, &["cwd", "workspace"])
+        .map(|value| windows_path_from_posix_drive(&value).unwrap_or_else(|| PathBuf::from(value)));
+    match vcs_gate::evaluate_command(&command, cwd.as_deref())? {
+        vcs_gate::Gate::Deny { reason } => Some(HookResponse::denied(
+            event,
+            vcs_gate::BYPASS_CODE,
+            reason,
+            "strong",
+        )),
+        vcs_gate::Gate::Ask { reason } => {
+            Some(HookResponse::ask(event, vcs_gate::CONFIRM_CODE, reason))
+        }
+    }
 }
 
 fn deterministic_arcane_control(request: &HookRequest) -> Option<HookResponse> {
@@ -195,8 +289,13 @@ fn stop_response(request: &HookRequest) -> HookResponse {
         return HookResponse::denied(request.event_type.clone(), code, reason, "strong");
     }
     // Assistant wording is not completion evidence. Optional response policy
-    // cannot reopen a turn; only the explicit verification requirement above
-    // may deny Stop. A later semantic classifier must remain bounded.
+    // cannot reopen a turn. The one other Stop denial reads tool results, not
+    // wording: a turn that changed the repository and claims completion needs
+    // gate output, a CI run on the exact head, or a host receipt after its
+    // last change (see `stop_gate`).
+    if let Some(denied) = stop_gate::completion_evidence_response(request) {
+        return denied;
+    }
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")
 }
 
@@ -1802,16 +1901,40 @@ fn command_segments_with_context(command: &str) -> Vec<CommandSegment> {
 }
 
 /// Shell words of one segment with quotes removed; a quoted phrase is one word.
+///
+/// A backslash escapes the next character, except where it is a Windows path
+/// separator, which no shell on that platform takes as an escape:
+///
+/// * Unquoted, in a word that begins with a drive letter (`C:\Users\me`),
+///   as PowerShell and cmd read it. Every other word keeps the POSIX reading,
+///   so `\rm` is still `rm` and `a\ b` is still `a b`.
+/// * In double quotes, before anything but `"`, `\`, `$` and the backtick, as
+///   bash reads it (`"C:\Program Files\Git"` is one word with its separators).
 fn shell_words(segment: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut current = String::new();
     let mut started = false;
+    let mut drive_path = false;
     let mut quote: Option<char> = None;
     let mut characters = segment.chars();
     while let Some(character) = characters.next() {
         match character {
             '\\' if quote != Some('\'') => {
-                if let Some(next) = characters.next() {
+                let separator = if quote == Some('"') {
+                    !matches!(characters.clone().next(), Some('"' | '\\' | '$' | '`'))
+                } else {
+                    let mut leading = current.chars();
+                    drive_path = drive_path
+                        || matches!(
+                            (leading.next(), leading.next(), leading.next()),
+                            (Some(letter), Some(':'), None) if letter.is_ascii_alphabetic()
+                        );
+                    drive_path
+                };
+                if separator {
+                    current.push(character);
+                    started = true;
+                } else if let Some(next) = characters.next() {
                     current.push(next);
                     started = true;
                 }
@@ -1825,6 +1948,7 @@ fn shell_words(segment: &str) -> Vec<String> {
                 if started {
                     words.push(std::mem::take(&mut current));
                     started = false;
+                    drive_path = false;
                 }
             }
             _ => {
@@ -3659,17 +3783,27 @@ fn response_value(response: &HookResponse) -> Value {
     let mut value = response.to_value();
     if response.allowed && response.event_type == "SessionStart" {
         if let Some(object) = value.as_object_mut() {
+            let (context, message) = match response.session_notice.as_deref() {
+                Some(notice) => (
+                    format!("{SESSION_START_CONTEXT}\n\n{notice}"),
+                    format!(
+                        "{SESSION_START_SYSTEM_MESSAGE} {}",
+                        notice.lines().next().unwrap_or_default()
+                    ),
+                ),
+                None => (
+                    SESSION_START_CONTEXT.to_owned(),
+                    SESSION_START_SYSTEM_MESSAGE.to_owned(),
+                ),
+            };
             object.insert(
                 "hookSpecificOutput".into(),
                 serde_json::json!({
                     "hookEventName": "SessionStart",
-                    "additionalContext": SESSION_START_CONTEXT,
+                    "additionalContext": context,
                 }),
             );
-            object.insert(
-                "systemMessage".into(),
-                Value::String(SESSION_START_SYSTEM_MESSAGE.into()),
-            );
+            object.insert("systemMessage".into(), Value::String(message));
         }
     }
     value
@@ -3811,7 +3945,8 @@ fn message_cites_evidence(message: &str) -> bool {
 }
 
 /// Non-blocking, once per session: files changed but the final message cites
-/// no evidence. Stop is never blocked by this.
+/// no evidence. This reminder never blocks Stop; the evidence gate in
+/// `stop_gate` is the only wording-independent denial and reads tool results.
 fn stop_evidence_reminder(request: &HookRequest, response: &HookResponse) -> Option<String> {
     if !response.allowed || !matches!(request.event_type.as_str(), "Stop" | "stop") {
         return None;
@@ -3907,6 +4042,12 @@ fn main() {
     if let Some(request) = parsed_request.as_ref() {
         if response.allowed {
             observe_session_edit(request);
+            if matches!(
+                request.event_type.as_str(),
+                "UserPromptSubmit" | "user-prompt-submit"
+            ) {
+                stop_gate::record_turn_baseline(request);
+            }
         }
         if let (Some(notice), Some(object)) = (
             stop_evidence_reminder(request, &response),
@@ -4916,9 +5057,9 @@ mod tests {
     #[test]
     fn a_flag_belonging_to_another_command_is_not_a_rewrite() {
         for command in [
-            "git commit -q -F - && git push origin main",
-            "git push origin main 2>&1 | tail -2",
-            "git diff --stat && git push origin main",
+            "git commit -q -F - && git push origin feature",
+            "git push origin feature 2>&1 | tail -2",
+            "git diff --stat && git push origin feature",
             "git push --dry-run origin main",
         ] {
             let response = dispatch(pre_effect(command));
@@ -5021,7 +5162,8 @@ mod tests {
             .expect("SessionStart includes embedded additionalContext");
         for rule in [
             "Complete the requested outcome within explicit constraints",
-            "use a skill only when its operation and inputs fit the request",
+            "name the matching capability from the catalog and load it before editing",
+            "run the repository gate (`right-release check`) before any build, push, merge, or done claim",
             "choose the smallest complete repair and cheapest decisive checks",
             "Name a role on every delegation",
             "contracts apply only to explicit or locked work",
@@ -5495,6 +5637,40 @@ mod tests {
         ] {
             assert!(!destructive(command), "wrongly denied: {command}");
         }
+    }
+
+    #[test]
+    fn windows_paths_keep_their_separators_through_word_splitting() {
+        // Unquoted, a drive-letter path is a PowerShell or cmd word: its
+        // backslashes are separators, and a short 8.3 name (`RUNNER~1`) is
+        // plain text.
+        assert_eq!(
+            shell_words(r"cd C:\Users\RUNNER~1\AppData\Local\Temp\repo"),
+            ["cd", r"C:\Users\RUNNER~1\AppData\Local\Temp\repo"]
+        );
+        assert_eq!(
+            shell_words(r"git -C d:\work\repo push"),
+            ["git", "-C", r"d:\work\repo", "push"]
+        );
+        // Quoted, a backslash escapes only `"`, `\`, `$` and the backtick, as
+        // in bash; before any other character it is a separator.
+        assert_eq!(
+            shell_words(r#"cd "C:\Program Files\Git" && x"#),
+            ["cd", r"C:\Program Files\Git", "&&", "x"]
+        );
+        assert_eq!(
+            shell_words(r#"echo "a\"b" 'c\d'"#),
+            ["echo", r#"a"b"#, r"c\d"]
+        );
+        assert_eq!(shell_words(r#"echo "a\\b""#), ["echo", r"a\b"]);
+        // Everywhere else an unquoted backslash still escapes the next
+        // character, so `\rm` and `a\ b` read as they do in a POSIX shell.
+        assert_eq!(shell_words(r"\rm -rf src"), ["rm", "-rf", "src"]);
+        assert_eq!(shell_words(r"echo a\ b"), ["echo", "a b"]);
+        // The drive-letter exemption ends with the word, and covers a bare
+        // drive root.
+        assert_eq!(shell_words(r"cd C:\a \rm"), ["cd", r"C:\a", "rm"]);
+        assert_eq!(shell_words(r"cd C:\"), ["cd", r"C:\"]);
     }
 
     #[test]

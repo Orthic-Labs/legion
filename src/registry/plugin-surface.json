@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:fef1685678a64e7a0ebc8e8d7cf893d818892c0a35495a94719ae4a99062a56b",
+  "digest": "sha256:51909576f3f3472a49d2c1c23c8d372f2357da6c8aec2629badad772aab8e9bf",
   "counts": {
-    "skills": 31,
+    "skills": 34,
     "agents": 6,
     "mcpServers": 1,
     "hookEvents": 9
@@ -33,8 +33,11 @@
       "macos-development",
       "marketing",
       "oracle",
+      "preflight",
       "qa",
+      "release",
       "research",
+      "rightkit-adopt",
       "seo",
       "session",
       "social",

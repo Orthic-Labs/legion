@@ -48,7 +48,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://alchemist/SKILL.md",
-      "digest": "sha256:c2c93e805b88fd19497240e5a74a0f70e85e3429ac54ea0a073bbd833309fbc3"
+      "digest": "sha256:c3c21fe7079b12b735fda04cf614e1c255221f591241eaed5cd34e97d5da12c0"
     },
     {
       "path": "agents/openai.yaml",

@@ -58,10 +58,14 @@ order is bounded and deterministic:
 1. parse and validate the versioned host frame;
 2. acknowledge lifecycle and post-effect observations;
 3. reject unsupported event shapes;
-4. apply hard gates for destructive commands and rewrite pushes;
-5. construct and validate a typed `EffectRequest`;
-6. load the native application and its policy;
-7. authorize the effect through `NativeApplication::authorize_hook`.
+4. apply hard gates for destructive commands and rewrite pushes (force pushes to
+   the default branch are rewrites and stay denied);
+5. apply the hook-v2 gates (see Hook v2 gates): the `Agent`/`Task` model
+   ceiling, hook-bypass denials, and the confirmations for merging and for
+   pushing the default branch;
+6. construct and validate a typed `EffectRequest`;
+7. load the native application and its policy;
+8. authorize the effect through `NativeApplication::authorize_hook`.
 
 A pre-effect request is never allowed merely because classification or policy
 loading failed. The failure response is a denial.
@@ -85,15 +89,15 @@ mutation interception or publication authorization.
 
 | Event | Current registration | Current Guard treatment |
 | --- | --- | --- |
-| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle, and inject the hand-maintained `SESSION_START_CONTEXT` routing/scope text as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` |
+| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle, and inject the hand-maintained `SESSION_START_CONTEXT` routing/scope/gate text as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` (a test pins the shared gate keywords). Inside a workspace (a `tools/setup-workspace.py` above the session cwd, with `docs/agent-rules/` or `decisions.md` beside `tools/`) it also runs `setup-workspace.py --check`, bounded to seven seconds, and adds its result to the context and the operator message |
 | `SubagentStart` | all | acknowledge as lifecycle |
 | `SubagentStop` | all | acknowledge as lifecycle |
-| `UserPromptSubmit` | all | acknowledge as lifecycle |
+| `UserPromptSubmit` | all | acknowledge as lifecycle; record HEAD and a working-tree digest as the turn baseline, so Stop can tell a shell edit from a conversational turn |
 | `PostCompact` | `manual`, `auto` | acknowledge as lifecycle |
-| `PreToolUse` | shell, command, file-edit, patch, & `mcp__*` tools | classify typed effects & authorize; allow MCP reads as observations |
+| `PreToolUse` | shell, command, file-edit, patch, `Agent`, `Task`, & `mcp__*` tools | classify typed effects & authorize; allow MCP reads as observations; apply the hook-v2 gates |
 | `PostToolUse` | the pre-effect tools plus `WebFetch` & `WebSearch` | acknowledge as post-effect |
 | `PostToolUseFailure` | the same post-effect matcher | acknowledge as post-effect |
-| `Stop` | all | deliver response policy and verify proportionally |
+| `Stop` | all | deliver response policy and verify proportionally; hold a turn that changed the repository and claims completion without objective evidence (Stop evidence gate) |
 
 The binary also accepts the lower-case protocol aliases `session-start`,
 `subagent-start`, `subagent-stop`, `user-prompt-submit`, `post-compact`, `pre-effect`,
@@ -107,14 +111,16 @@ Arcane response policy cannot create Stop re-prompt loops. Stop completion
 verification is proportional: it consults a typed verification requirement and
 checks the `oracle-completion-validation-v1` receipt only when that requirement
 demands one, rather than treating any file write as grounds for mandatory
-assurance. `SubagentStop` is registered as lifecycle observation. `mcp__*`
+assurance. The one other Stop denial is the evidence gate below, which reads
+tool results and never wording as evidence. `SubagentStop` is registered as lifecycle observation. `mcp__*`
 write/send/delete tools map to `EXTERNAL_SIDE_EFFECT`, which asks (see
 Approval boundary); known read-only MCP tools are `MCP_KNOWN_OBSERVATION` and
 other MCP reads remain unclassified observations.
 
 The current hook surface deliberately does not treat `Task` or `Agent`
 dispatch as an effect class. Dispatch is Legion orchestration; the
-subagent's own effects are guarded inside its session.
+subagent's own effects are guarded inside its session. A launch is still
+gated on the one thing it chooses, the model (Subagent model ceiling below).
 
 ## Effect classification
 
@@ -237,8 +243,9 @@ Before policy authorization, the seed denies recognized destructive command
 shapes, including recursive `rm`, recursive `Remove-Item`, `git clean`,
 `dropdb`, Terraform apply/destroy forms, and a curl-to-shell pipeline. A
 `git push` containing rewrite or delete flags (`--force`, `--delete`, `-f`, or
-`-d`) is denied as approval-required. These are deterministic refusals, not
-model judgments and not policy fallbacks.
+`-d`) is denied as approval-required, including a force push to the default
+branch. These are deterministic refusals, not model judgments and not policy
+fallbacks.
 
 ## Approval boundary
 
@@ -254,11 +261,19 @@ The Guard has three pre-effect outcomes: allow, ask, and deny.
   the same response is a denial there (exit 2). An authenticated Sage or Oracle
   actor never receives ask; its external effects stay denied.
 - **Deny** is a hard refusal: destructive command shapes, rewrite pushes,
+  hook bypasses, subagent launches above the model ceiling,
   `CREDENTIAL_ACCESS`, role-restricted effects, and every classification,
   policy, or configuration failure.
 
 Classes that ask:
 
+- Merging and the default branch (hook v2, code `ARC_USER_CONFIRMATION_REQUIRED`):
+  `gh pr merge`, a `gh api` call that PUTs or POSTs a `/merge` or `/merges`
+  endpoint, a GraphQL `mergePullRequest` mutation, and a `git push` whose
+  destination is the repository's default branch (the branch the remote's
+  `HEAD` names, plus `main` and `master`). A bare `git push` asks only while the
+  default branch is the checked-out branch; a dry run never asks. The
+  repository is the one the command runs in, following `cd` and `git -C`.
 - `EXTERNAL_SIDE_EFFECT`: a third-party MCP tool whose name or explicit
   operation identifies a write, send, or delete (leading verbs such as
   `create`, `update`, `delete`, `send`, `post`, `run`, `set`).
@@ -278,6 +293,93 @@ it. A policy rule that requires a non-`None` approval, or a request marked
 `approval_required`, still fails closed in the native policy adapter; the
 `ask` path exists only for `EXTERNAL_SIDE_EFFECT`. A target-bound approval
 store is not implemented.
+
+## Hook v2 gates
+
+These run in `PreToolUse` after the destructive and rewrite gates and before
+effect classification. Each judges the simple command the shell would run, after
+unwrapping `bash -c`, `sudo`, `env`, and `xargs`; a quoted mention (a commit
+message that says `--no-verify`) is one word and never matches.
+
+**Hook bypass (deny, `ARC_HOOK_BYPASS_DENIED`).** The repository hooks are the
+gate, so these are refused on every platform:
+
+- `--no-verify` (or an unambiguous abbreviation of at least `--no-ve`) on
+  `git commit`, `push`, `merge`, `am`, `rebase`, and `pull`, and `git commit -n`,
+  alone or bundled (`-anm`);
+- any `git config` that sets, adds, or unsets `core.hooksPath` (reads are
+  allowed), `git -c core.hooksPath=...`, `git --config-env=core.hooksPath=...`,
+  `GIT_CONFIG_KEY_<n>=core.hooksPath`, and `GIT_CONFIG_PARAMETERS` naming it;
+- a file-tool or shell write to a git configuration file (`.git/config`,
+  `.gitconfig`, `config.worktree`) that mentions `hooksPath`;
+- hook-bypass environment in any shell form (`NAME=value`, `export`, `env`,
+  `set`, `$env:`): `HUSKY=0`, `LEFTHOOK=0`, `SKIP=` on a hooked git command, and
+  any variable whose name says it skips, disables, bypasses, or excludes hooks
+  with a truthy value.
+
+Deleting or rewriting `.githooks` itself is not covered here; the committed
+hook is also run by CI.
+
+**Merge and default branch (ask).** See Approval boundary.
+
+### Subagent model ceiling
+
+`src/config/model-tiers.json` is the only place model names live. Its
+`subagents` block names the host, the tier order, the ceiling tier
+(`balanced-executor`), the default tier (`mechanical-cheap`), and the approval
+marker. The hook resolves those tiers to the host's model ids at run time, so
+the rule cannot drift from the map; `legion-dev check-authority-parity` holds
+each `agents/<role>.md` model equal to its tier's model.
+
+For an `Agent` or `Task` launch the effective model is the `model` the launch
+names, else the model of the packaged agent card its `subagent_type` names, else
+the default tier's model. A model string is read as a list of names (whitespace,
+commas, semicolons, `|`, `+`, `&`, parentheses and quotes divide them). Every
+name must match a tier, so one unrecognised name makes the whole string unknown,
+and a string naming several known models is judged by the strongest.
+
+- At or under the ceiling: allowed as requested.
+- No model and no packaged card: allowed with the default tier's model filled
+  in through `hookSpecificOutput.updatedInput` (the whole input, with
+  `permissionDecision: "allow"`; the host's own deny and ask rules still apply).
+- Above the ceiling, unknown, or `inherit`: denied with
+  `ARC_MODEL_CEILING_EXCEEDED`, unless the launch prompt carries a line
+  `operator-approved-model: <that model>`. The marker is for a model the
+  operator named in the live turn; it binds to the one model it names.
+
+The `frontier-judgment` tier (Sage, Oracle) resolves to the ceiling model on
+Claude Code; the `deliberation` tier (Council seats) ranks above it, so a seat
+launched through `Agent` carries the marker (the Council skill runs its seats
+through the CLI, not `Agent`). The rule is stated for agents in
+`skills/dispatch/references/agent-routing.md`.
+
+### Stop evidence gate
+
+A `Stop` is held, once per reopening and at most three times per turn
+(`MAX_STOP_REOPENINGS`), when all of these hold:
+
+1. the turn changed the repository: its transcript shows an edit tool or a
+   head-moving git command (`commit`, `merge`, `rebase`, `reset`, `checkout`,
+   ...), or the working-tree digest differs from the one recorded at
+   `UserPromptSubmit`;
+2. the final message claims completion (done, fixed, shipped, passed, ...) and
+   is not an honest partial (not done, not verified, blocked, partial, ...);
+3. no objective evidence follows the last change. Evidence is read from the
+   turn's tool results, never from assistant wording:
+   - the gate's own green line (`<label>: <sha> passed <n> rules ...`) printed by
+     a `right-release check` or `rightkit-gate check` command (or, until
+     `rightkit-gate check` ships, `node scripts/preflight.mjs`, which takes no
+     subcommand) that did not error, naming the current HEAD;
+   - a CI run URL (`.../actions/runs/<id>`) in a tool result that also cites the
+     current HEAD and a success marker with no failure marker;
+   - a host receipt block: a JSON object with an id, a verifying command
+     (`check`, `test`, `build`, `clippy`, `nextest`), and exit code 0.
+
+The denial is `ARC_COMPLETION_EVIDENCE_MISSING`. A turn with no repository
+change, an honest "not verified", and a transcript the gate cannot read all
+pass: the gate fails open on missing instrumentation and never invents a
+requirement from wording. The word "passed" in a test run is not evidence, and
+neither is an Oracle verdict.
 
 ## Fail closed and enforcement health
 

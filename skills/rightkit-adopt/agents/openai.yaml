@@ -1,0 +1,6 @@
+interface:
+  display_name: "Rightkit Adopt"
+  short_description: "Adopt or repin a RightKit package in an app, delete the code it replaces, and place new code by class. Use for adopt rightkit-qa, repin a package, does RightKit already own this, where should this code live, or replace our own version with the shared one."
+  default_prompt: "Use $rightkit-adopt when this request matches: Adopt or repin a RightKit package in an app, delete the code it replaces, and place new code by class. Use for adopt rightkit-qa, repin a package, does RightKit already own this, where should this code live, or replace our own version with the shared one."
+policy:
+  allow_implicit_invocation: true

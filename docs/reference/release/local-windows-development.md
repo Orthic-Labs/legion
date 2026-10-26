@@ -1,6 +1,6 @@
 # Windows unsigned installer development
 
-Before any local build/check/test, inspect `rightkit list` once. Another queued or
+Before any local build/check/test, inspect `rustright list` once. Another queued or
 running build, or any build processed within preceding **30 minutes**, forces
 GitHub CI. Include completed, failed & cancelled work; inspect completion/activity
 timestamps rather than current running state alone. Missing inventory/timestamps

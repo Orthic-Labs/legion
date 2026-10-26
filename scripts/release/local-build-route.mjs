@@ -23,7 +23,7 @@ export function buildRoute(inventory, now = Date.now()) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const result = spawnSync('rightkit.cmd', ['list'], { encoding: 'utf8', shell: true, windowsHide: true, timeout: 15_000 });
+  const result = spawnSync('rustright', ['list'], { encoding: 'utf8', shell: true, windowsHide: true, timeout: 15_000 });
   let inventory;
   if (!result.error && result.status === 0) {
     try { inventory = JSON.parse(result.stdout); } catch { /* Fail closed to CI. */ }

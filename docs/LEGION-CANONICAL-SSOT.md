@@ -316,7 +316,11 @@ Cross-boundary invariants:
   receipts, and the Oracle completion-validation receipt.
 - Oracle is not a stop gate (principle 8). The one place a typed `verificationRequirement` may demand an
   Oracle receipt at Stop is a requirement set by a route or completion producer for a concrete
-  outcome or safety risk; absent such a requirement, Stop never demands Oracle.
+  outcome or safety risk; absent such a requirement, Stop never demands Oracle. Separately, Stop
+  holds a turn that changed the repository and claims completion when no objective evidence
+  (the repository gate's green line, a CI run URL on the exact head, or a host receipt) follows
+  its last change. That reads tool results, never wording, and is not an Oracle demand
+  (`doctrine/guard.md`, Stop evidence gate).
 - Brief/Minimize and `BUDGET_STOP` are Arcane policy delivered through Guard's Stop surface. No
   separate enforcer process is part of the package.
 - The Guard may deliver Arcane-owned cognitive policy through a host lifecycle surface such as

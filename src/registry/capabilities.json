@@ -210,18 +210,29 @@
     },
     "rightkit-owns": {
       "kind": "command-line-provider",
-      "summary": "RightKit shared-capability ownership index (`rightkit owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
+      "summary": "RightKit shared-capability ownership index (`rustright owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
       "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
       "probe": {
         "kind": "command-any",
         "commands": [
-          "rightkit"
+          "rustright"
         ]
       },
       "commands": [
-        "rightkit"
+        "rustright"
       ],
-      "remedy": "Install RightKit so `rightkit owns --compact` is on PATH."
+      "remedy": "Install RustRight so `rustright owns --compact` is on PATH."
+    },
+    "repo-gate": {
+      "kind": "command-line-provider",
+      "summary": "The repository's deterministic check (`right-release check`, also shipped as `rightkit-gate check`). It is installed with the repository's own dependencies and run through the package runner, so its availability is a property of the repository, not of PATH.",
+      "degradation": "State that the repository gate is unavailable, run the repository's own documented check if it names one, and report completion as unverified. A missing gate is never a pass.",
+      "probe": null,
+      "commands": [
+        "right-release",
+        "rightkit-gate"
+      ],
+      "remedy": "Install the repository's dependencies so `pnpm exec right-release check` resolves, or adopt @rightkit/release."
     },
     "host-scheduler": {
       "kind": "scheduler",

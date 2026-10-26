@@ -43,6 +43,16 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Absent behavior:** Research skips the notebooklm provider and records it as unrun.
 - **Remedy:** Provide NotebookLM access in the host.
 
+### `repo-gate`
+
+- **Absent behavior:** State that the repository gate is unavailable, run the repository's own documented check if it names one, and report completion as unverified. A missing gate is never a pass.
+- **Remedy:** Install the repository's dependencies so `pnpm exec right-release check` resolves, or adopt @rightkit/release.
+
+### `rightkit-owns`
+
+- **Absent behavior:** Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.
+- **Remedy:** Install RustRight so `rustright owns --compact` is on PATH.
+
 ### `scholarly-search`
 
 - **Absent behavior:** Research returns `UNPROVEN` for scholarly claims.
@@ -205,6 +215,18 @@ Optional tools, accounts, signing, uploads, and publishing retain existing autho
 boundaries. Architect, Debugger, QA, Designer, and the authority roles retain ownership of
 their general methods; platform expertise composes with them rather than replacing them.
 
+### `preflight`
+
+- **Manifest:** [preflight.json](../../skills/manifests/preflight.json)
+- **Kind:** `capability`
+- **Purpose:** Before any build, push, merge, release or done claim, run the repository's deterministic check first, read every finding, and fix it or baseline it with a filed issue. Use for push this, ship it, merge it, is it done, or before building.
+- **Capability class:** `workflow`
+- **Domain:** `engineering`
+- **Operations:** `analyze`, `evaluate`, `execute`
+- **Effects:** `source-read`, `repository-write`, `process-exec`
+- **Host requirements:** `repo-gate`
+- **Discoverability:** `public`
+
 ### `qa`
 
 - **Manifest:** [qa.json](../../skills/manifests/qa.json)
@@ -215,6 +237,30 @@ their general methods; platform expertise composes with them rather than replaci
 - **Operations:** `analyze`, `evaluate`, `execute`, `produce`
 - **Effects:** `source-read`, `artifact-write`, `process-exec`
 - **Host requirements:** None declared.
+- **Discoverability:** `public`
+
+### `release`
+
+- **Manifest:** [release.json](../../skills/manifests/release.json)
+- **Kind:** `capability`
+- **Purpose:** Before building, signing, uploading or publishing an app release, run the deterministic-first pipeline: check, admission, build, QA of the exact commit, upload, with no skipped step and no escape hatch. Use for release, ship a build, cut a patch or update, publish.
+- **Capability class:** `workflow`
+- **Domain:** `engineering`
+- **Operations:** `analyze`, `evaluate`, `execute`
+- **Effects:** `source-read`, `process-exec`, `network-request`
+- **Host requirements:** `repo-gate`
+- **Discoverability:** `public`
+
+### `rightkit-adopt`
+
+- **Manifest:** [rightkit-adopt.json](../../skills/manifests/rightkit-adopt.json)
+- **Kind:** `capability`
+- **Purpose:** Adopt or repin a RightKit package in an app, delete the code it replaces, and place new code by class. Use for adopt rightkit-qa, repin a package, does RightKit already own this, where should this code live, or replace our own version with the shared one.
+- **Capability class:** `workflow`
+- **Domain:** `engineering`
+- **Operations:** `analyze`, `decide`, `execute`
+- **Effects:** `source-read`, `repository-write`, `process-exec`
+- **Host requirements:** `rightkit-owns`, `repo-gate`
 - **Discoverability:** `public`
 
 ## design

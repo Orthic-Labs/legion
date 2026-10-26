@@ -170,6 +170,13 @@ pub struct HookResponse {
     pub code: Option<String>,
     pub reason: String,
     pub enforcement_health: &'static str,
+    /// A PreToolUse allow that also rewrites the tool input (a launch default
+    /// filled in by Guard policy). Never set on a denial or an ask.
+    pub updated_input: Option<Value>,
+    /// SessionStart only: facts the hook observed at session start (for
+    /// example the workspace gate-hook check), appended to the injected
+    /// context and echoed in the user-visible message.
+    pub session_notice: Option<String>,
 }
 
 impl HookResponse {
@@ -183,6 +190,8 @@ impl HookResponse {
             code: Some("ARC_NATIVE_POLICY_UNAVAILABLE".into()),
             reason: "native hook enforcement is unavailable; effect is refused".into(),
             enforcement_health: "unsupported",
+            updated_input: None,
+            session_notice: None,
         }
     }
 
@@ -196,6 +205,22 @@ impl HookResponse {
             code: None,
             reason: reason.into(),
             enforcement_health: "strong",
+            updated_input: None,
+            session_notice: None,
+        }
+    }
+
+    /// An allow that replaces the tool input. Used only to fill a launch
+    /// default (the subagent model); it grants nothing the host's own deny
+    /// and ask rules do not still evaluate.
+    pub fn allowed_with_input(
+        event_type: impl Into<String>,
+        reason: impl Into<String>,
+        updated_input: Value,
+    ) -> Self {
+        Self {
+            updated_input: Some(updated_input),
+            ..Self::allowed(event_type, reason)
         }
     }
 
@@ -214,6 +239,8 @@ impl HookResponse {
             code: Some(code.into()),
             reason: reason.into(),
             enforcement_health: health,
+            updated_input: None,
+            session_notice: None,
         }
     }
 
@@ -264,6 +291,20 @@ impl HookResponse {
             object.insert("hookSpecificOutput".into(), Value::Object(specific));
         } else if !self.allowed && matches!(self.event_type.as_str(), "Stop" | "stop") {
             object.insert("decision".into(), Value::String("block".into()));
+        } else if let (true, Some(updated), "PreToolUse" | "pre-effect") = (
+            self.allowed,
+            self.updated_input.as_ref(),
+            self.event_type.as_str(),
+        ) {
+            let mut specific = Map::new();
+            specific.insert("hookEventName".into(), Value::String("PreToolUse".into()));
+            specific.insert("permissionDecision".into(), Value::String("allow".into()));
+            specific.insert(
+                "permissionDecisionReason".into(),
+                Value::String(self.reason.clone()),
+            );
+            specific.insert("updatedInput".into(), updated.clone());
+            object.insert("hookSpecificOutput".into(), Value::Object(specific));
         }
         Value::Object(object)
     }

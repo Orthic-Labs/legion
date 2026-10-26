@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "rightkit-owns"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "repo-gate"
+    }
+  ]
+}

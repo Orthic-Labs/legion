@@ -435,6 +435,28 @@ mod tests {
     }
 
     #[test]
+    fn an_interpreter_prefixed_path_reads_as_a_script_reference_but_prose_does_not() {
+        let fx = Fixture::new("interp");
+        fx.write(
+            "skills/a/doc.md",
+            "run `python3 tools/setup-workspace.py --check`\nrun the workspace setup script with `--check`\n",
+        );
+        let failures = scan(&fx, "skills/a/doc.md");
+        assert_eq!(failures.len(), 1, "{failures:?}");
+        assert_eq!(failures[0].line, 1);
+        assert!(failures[0].message.contains("tools/setup-workspace.py"));
+    }
+
+    #[test]
+    fn the_shipped_preflight_skill_passes_its_own_reference_check() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        let source = fs::read_to_string(root.join(SCRIPT_DISPATCH_SOURCE)).unwrap();
+        let table = parse_script_table(&source);
+        let failures = check_files(&root, &["skills/preflight/SKILL.md".to_string()], &table);
+        assert!(failures.is_empty(), "{failures:?}");
+    }
+
+    #[test]
     fn manifests_are_excluded() {
         assert!(!is_skill_markdown("skills/manifests/x.md"));
         assert!(is_skill_markdown("skills/a/b.md"));

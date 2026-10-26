@@ -18,7 +18,7 @@
       "class": "PROJECT_OVERLAY",
       "path": "<project-overlay>/rightkit-owns",
       "optional": true,
-      "absent": "Skip the `rightkit owns` check and ask the project owner before adding a third-party package."
+      "absent": "Skip the `rustright owns` check and ask the project owner before adding a third-party package."
     }
   ]
 }
