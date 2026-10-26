@@ -158,7 +158,9 @@ class QualificationBuildStageTests(unittest.TestCase):
     def test_pre_fix_model_reproduces_cold_compile_timeout(self):
         # Control for the model: without the build stage the cold compile lands
         # inside the case budget and sequence 6 times out, as in run 40280723295.
-        log, calls = self.run_gate(emulate_pre_fix=True)
+        # The stub deadline counts 0.1 s sleep ticks, which a loaded runner stretches (macOS run 40285889201
+        # finished a 0.8 s build inside 5 ticks), so the cold build here is far past any plausible 5 ticks.
+        log, calls = self.run_gate(emulate_pre_fix=True, MOCK_BUILD_SECONDS="4.0")
         self.assertEqual(self.ends(log), {"5": "124", "6": "124"}, log)
         self.assertIn("FAILURES=2", log)
         self.assertFalse([call for call in calls if call.get("mode") == "build"])
@@ -222,7 +224,7 @@ class QualificationBuildStageTests(unittest.TestCase):
         self.assertIn("::error::Audit qualification command failed (exit 125)", log)
 
     def test_case_exceeding_deadline_still_times_out(self):
-        log, calls = self.run_gate(MOCK_TEST_SECONDS="1.2")
+        log, calls = self.run_gate(MOCK_TEST_SECONDS="4.0")
         self.assertEqual(self.ends(log), {"5": "124", "6": "124"}, log)
         self.assertIn("FAILURES=2", log)
         self.assertTrue(all(call["warm"] for call in calls if call.get("mode") == "test"))
