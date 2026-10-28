@@ -175,7 +175,9 @@ fn windows_scratch_rewrite_preserves_unrecognized_names_separators_and_prose() {
         assert_eq!(note(text), json!(text), "{text}");
     }
     assert_eq!(
-        note(r"scanned '<run>\legion-audit-security-123-456-7\syft-native.yaml' then kept 42 findings"),
+        note(
+            r"scanned '<run>\legion-audit-security-123-456-7\syft-native.yaml' then kept 42 findings"
+        ),
         r"scanned '<run>\legion-audit-security-N-N-N\syft-native.yaml' then kept 42 findings"
     );
     assert_eq!(
