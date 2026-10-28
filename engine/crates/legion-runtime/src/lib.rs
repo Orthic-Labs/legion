@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod budget;
+pub mod delivery;
 pub mod engine;
 pub mod error;
 pub mod escalation;
@@ -48,4 +49,5 @@ pub use task::{validate_task, ContextRequest};
 // LEG-026 owns validation.rs; this declaration is intentionally reserved.
 pub mod p6_inventory;
 pub mod validation;
+pub mod workplan;
 pub mod wf_port;

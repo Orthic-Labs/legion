@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "subject": {
+    "repository": "example/repository",
+    "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "paths": [
+      "src/lib.rs"
+    ]
+  },
+  "report": {
+    "provider": "example-coverage",
+    "providerVersion": "1.0.0",
+    "reportDigest": "5a99709f450978e7179d43d6e26eef076f589689e81aea4e67b499e485a7cc9b",
+    "evidenceRef": "reports/quality-raw-report.json",
+    "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "executionStatus": "succeeded",
+    "completeness": "complete"
+  },
+  "coverage": {
+    "kind": "measured",
+    "covered": 0,
+    "total": 12,
+    "evidenceRef": "reports/quality-raw-report.json"
+  },
+  "duplicationCandidates": [],
+  "mutation": {
+    "kind": "notRequested"
+  }
+}

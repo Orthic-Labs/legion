@@ -79,3 +79,20 @@ Legion's own; no source text, code, or data was copied. Listed for attribution.
 |---|---|---|
 | [alibaba/open-code-review](https://github.com/alibaba/open-code-review) | Apache-2.0 | Ranked risk-point plan before review; a finding may be dropped only when a cited line disproves it; reviewed inputs treated as untrusted data. |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | MIT | Review on two separate axes, Standards and Spec, never merged into one verdict. |
+
+### Native engineering workflow research
+
+The following pinned sources informed original Legion engineering workflows and independent Rust
+implementations. No upstream code, prompt, persona, prose, scripts, metadata or assets are vendored.
+This ledger records idea provenance, not additional runtime dependencies or permission grants.
+
+| Source and inspected pin | License observation | Idea reconciled with Legion |
+|---|---|---|
+| [unclebob/ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f) — `57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f` | No license observed at inspected pin; no source/text adaptation. | Persistent outcome/safety findings, bounded ordinary review and explicit terminal-state discipline; original Legion wording and authority boundaries. |
+| [t3dotgg/tstack](https://github.com/t3dotgg/tstack/tree/1085050f3baed1ac724caa4a8166145fb2ac88af) — `1085050f3baed1ac724caa4a8166145fb2ac88af` | MIT at inspected pin. | PR delivery above commit/push, explicit handoff versus merge intent, semantic modernization against a new base, and attributed takeover. |
+| [cursor/plugins pstack](https://github.com/cursor/plugins/tree/c742dd61706fbacc1b95f1a20b7b988cf096ce6c/pstack) — `c742dd61706fbacc1b95f1a20b7b988cf096ce6c` | MIT; copyright 2026 Lauren Tan at inspected pin. | Honest coverage/duplication/mutation observations, explicit execution limits and evidence-aware reuse. |
+
+These concepts do not replace Legion's canonical orchestration, Oracle assurance, Council advisory
+challenge, or Guard effect controls. Native observations and imported diagnostic assessments
+remain separate from authorized host mutations. No upstream perpetual execution loop, automatic
+merge permission, hosted service or agent topology is imported.

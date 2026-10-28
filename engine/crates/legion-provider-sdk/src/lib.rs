@@ -5,6 +5,7 @@ pub mod context;
 pub mod coverage;
 pub mod error;
 pub mod external_project_tool;
+pub mod github;
 pub mod http_client;
 pub mod inference;
 pub mod provider;

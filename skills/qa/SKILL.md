@@ -71,3 +71,6 @@ evaluation coverage.
        - artifact-write
 
 Read `references/manual.md` for harness, rendered browser acceptance, native, or Tauri QA.
+For an existing coverage, duplication or mutation report, use `references/quality-observations.md`
+and `legion quality summarize --input normalized.json --report original.json`. This interprets
+imported evidence without executing tools or turning unavailable measurements into passing scores.

@@ -11,6 +11,8 @@ pub mod contract;
 pub mod coverage;
 pub mod decision;
 pub mod doctor;
+pub mod engineering;
+mod github_observer;
 pub mod explain;
 pub mod fix;
 pub mod freeze;

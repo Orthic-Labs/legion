@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod quality_observation;
+
 pub mod amendment;
 pub mod artifact_evidence;
 pub mod assurance;
