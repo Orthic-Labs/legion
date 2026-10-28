@@ -50,6 +50,9 @@ pub fn normalize_all(results: impl IntoIterator<Item = ProviderResult>) -> Vec<P
 //     hex chars. The segment ends at a path separator, whitespace or quote;
 //     later segments and surrounding prose are kept verbatim, and
 //     non-generated segments (`/tmp/a` vs `/tmp/b`) are never collapsed.
+//   * Windows directory segments named exactly
+//     `legion-audit-security-<decimal pid>-<decimal nanos>-<decimal sequence>`
+//     become `legion-audit-security-N-N-N`; surrounding separators and text stay.
 // Ordering noise: arrays under these keys are order-insensitive and sorted by
 // canonical form: findings, coverageGaps, coverage_gaps, gaps, degradation,
 // providers, providerResults, provider_reconciliation, results, checks,
@@ -284,6 +287,32 @@ fn strip_random_suffixes(text: &str) -> String {
     out
 }
 
+/// Security scanner scratch directories also appear below the rewritten
+/// `<run>` root. Match only their exact generated name between Windows path
+/// separators; other scratch kinds, filenames, and surrounding text stay exact.
+fn strip_windows_security_scratch(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for (index, part) in text.split_inclusive('\\').enumerate() {
+        let generated = part
+            .strip_suffix('\\')
+            .and_then(|segment| segment.strip_prefix("legion-audit-security-"))
+            .is_some_and(|suffix| {
+                let mut components = suffix.split('-');
+                (0..3).all(|_| {
+                    components.next().is_some_and(|component| {
+                        !component.is_empty() && component.bytes().all(|byte| byte.is_ascii_digit())
+                    })
+                }) && components.next().is_none()
+            });
+        if index > 0 && generated {
+            output.push_str("legion-audit-security-N-N-N\\");
+        } else {
+            output.push_str(part);
+        }
+    }
+    output
+}
+
 fn strip_temp_roots(text: &str) -> String {
     // `/private/tmp/` is the same directory as `/tmp/` on macOS.
     let mut output = text.replace("/private/tmp/", "/tmp/");
@@ -322,7 +351,7 @@ fn strip_temp_roots(text: &str) -> String {
             rebuilt.push_str(segment);
         }
     }
-    rebuilt
+    strip_windows_security_scratch(&rebuilt)
 }
 
 /// Normalized replay view of an arbitrary JSON document.
