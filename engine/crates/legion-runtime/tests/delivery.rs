@@ -111,21 +111,36 @@ fn neutral_and_skipped_require_explicit_policy() {
 fn merge_requested_is_not_merged_and_merged_identity_must_match() {
     let mut request = ready();
     request.terminal_goal = TerminalGoal::MergeRequested;
-    assert_eq!(assess_delivery(&request).unwrap().status, DeliveryStatus::ReadyForMergeRequest);
+    assert_eq!(
+        assess_delivery(&request).unwrap().status,
+        DeliveryStatus::ReadyForMergeRequest
+    );
     request.snapshot.state = PullRequestState::Merged;
     has(&request, DeliveryReason::MissingMergeCommit);
     request.snapshot.merge_commit = Some("cccccccccccccccccccccccccccccccccccccccc".into());
-    assert_eq!(assess_delivery(&request).unwrap().status, DeliveryStatus::ObservedMerged);
+    assert_eq!(
+        assess_delivery(&request).unwrap().status,
+        DeliveryStatus::ObservedMerged
+    );
     request.snapshot.pull_request += 1;
-    assert_eq!(assess_delivery(&request).unwrap().status, DeliveryStatus::NotReady);
+    assert_eq!(
+        assess_delivery(&request).unwrap().status,
+        DeliveryStatus::NotReady
+    );
     request = ready();
     request.snapshot.state = PullRequestState::Merged;
     request.snapshot.merge_commit = Some("cccccccccccccccccccccccccccccccccccccccc".into());
     request.snapshot.observed_at_unix_seconds = 1;
-    assert_eq!(assess_delivery(&request).unwrap().status, DeliveryStatus::NotReady);
+    assert_eq!(
+        assess_delivery(&request).unwrap().status,
+        DeliveryStatus::NotReady
+    );
     request.snapshot.observed_at_unix_seconds = 990;
     request.snapshot.state = PullRequestState::Closed;
-    assert_eq!(assess_delivery(&request).unwrap().status, DeliveryStatus::ClosedWithoutMerge);
+    assert_eq!(
+        assess_delivery(&request).unwrap().status,
+        DeliveryStatus::ClosedWithoutMerge
+    );
 }
 
 #[test]
@@ -137,6 +152,9 @@ fn strict_version_and_unknown_fields() {
     json["mergeAuthorized"] = serde_json::json!(true);
     assert!(serde_json::from_value::<DeliveryAssessmentRequest>(json).is_err());
     let mut json = serde_json::to_value(ready()).unwrap();
-    json["snapshot"]["branchPolicy"]["requiredChecks"][0].as_object_mut().unwrap().remove("appId");
+    json["snapshot"]["branchPolicy"]["requiredChecks"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("appId");
     assert!(serde_json::from_value::<DeliveryAssessmentRequest>(json).is_err());
 }

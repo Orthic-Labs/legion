@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "delivery",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://delivery/",
+  "provenance": "legion-authored",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "repository-license",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4"
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/delivery",
+      "Carry an engineering change to its requested delivery state: branch pushed, pull request ready for user handoff, or merge when explicitly authorized. Use for end-to-end PR delivery, bounded CI/review follow-through, modernizing a change against a new base, or taking over an existing change with attribution."
+    ],
+    "outputs": [
+      "references/manual.md"
+    ],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://delivery/SKILL.md",
+      "digest": "sha256:1b80814c372ad0bfe3fa24d2642667b799d7576955102593dfa76802a0d08c75"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://delivery/agents/openai.yaml",
+      "digest": "sha256:a840760cd50838585b6df3071807417310c851675c1a5f0d838f84e8e8dcb9f5"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://delivery/dependencies.json",
+      "digest": "sha256:009d89c75b89f30005fdb004714a49345f488e100f029e0f327b7374b394aa95"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://delivery/evals/evals.json",
+      "digest": "sha256:70fd8385e286d182b25fb85a277146ae8f8fa011fd0e773e8cdf2b2a24a0e3ac"
+    },
+    {
+      "path": "references/manual.md",
+      "uri": "legion-skill://delivery/references/manual.md",
+      "digest": "sha256:79729352cf83a2ac57f150a36a5716129a3a04e29a4840ed9f8390fba54a8aed"
+    }
+  ]
+}

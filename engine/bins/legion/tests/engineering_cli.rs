@@ -1,44 +1,77 @@
 //! Exercise shipped command behavior, including honest non-success exit states.
 use serde_json::{json, Value};
-use std::{path::{Path, PathBuf}, process::{Command, Output}, sync::atomic::{AtomicU64, Ordering}};
+use std::{
+    path::{Path, PathBuf},
+    process::{Command, Output},
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 static NEXT_INPUT: AtomicU64 = AtomicU64::new(0);
 struct InputFile(PathBuf);
 impl InputFile {
     fn new(value: &Value) -> Self {
-        let path = std::env::temp_dir().join(format!("legion-engineering-{}-{}.json",
-            std::process::id(), NEXT_INPUT.fetch_add(1, Ordering::Relaxed)));
+        let path = std::env::temp_dir().join(format!(
+            "legion-engineering-{}-{}.json",
+            std::process::id(),
+            NEXT_INPUT.fetch_add(1, Ordering::Relaxed)
+        ));
         std::fs::write(&path, serde_json::to_vec(value).unwrap()).unwrap();
         Self(path)
     }
 }
 impl Drop for InputFile {
-    fn drop(&mut self) { let _ = std::fs::remove_file(&self.0); }
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
 }
 fn fixture(crate_name: &str, path: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates").join(crate_name).join("tests").join(path)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../crates")
+        .join(crate_name)
+        .join("tests")
+        .join(path)
 }
-fn read(path: &Path) -> Value { serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap() }
+fn read(path: &Path) -> Value {
+    serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+}
 fn run(command: &str, subcommand: &str, input: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args([command, subcommand, "--input"]).arg(input).output().unwrap()
+        .args([command, subcommand, "--input"])
+        .arg(input)
+        .output()
+        .unwrap()
 }
 fn json_output(output: &Output) -> Value {
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| panic!("{error}: stdout={} stderr={}",
-        String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)))
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+        panic!(
+            "{error}: stdout={} stderr={}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    })
 }
 
 #[test]
 fn plan_cli_reports_available_work_without_claiming_execution() {
-    let output = run("work-plan", "validate", &fixture("legion-runtime", "workplan-ready.json"));
+    let output = run(
+        "work-plan",
+        "validate",
+        &fixture("legion-runtime", "workplan-ready.json"),
+    );
     assert_eq!(output.status.code(), Some(0));
     let value = json_output(&output);
-    assert_eq!(value["assessment"]["readyUnits"], json!(["documentation", "implementation"]));
+    assert_eq!(
+        value["assessment"]["readyUnits"],
+        json!(["documentation", "implementation"])
+    );
     assert_eq!(value["assessment"]["assertedCompleteUnits"], json!([]));
     assert_eq!(value["provenance"]["origin"], "imported");
     assert_eq!(value["provenance"]["authenticated"], false);
     assert_eq!(value["effectAuthority"], "none");
-    assert_eq!(value["provenance"]["inputDigest"].as_str().unwrap().len(), 64);
+    assert_eq!(
+        value["provenance"]["inputDigest"].as_str().unwrap().len(),
+        64
+    );
 }
 
 #[test]
@@ -83,10 +116,17 @@ fn imported_delivery_cannot_spoof_an_authority_field() {
 #[test]
 fn quality_cli_binds_the_original_report_bytes_and_preserves_measured_zero() {
     let input = fixture("legion-audit", "fixtures/quality-observation/example.json");
-    let report = fixture("legion-audit", "fixtures/quality-observation/quality-raw-report.json");
+    let report = fixture(
+        "legion-audit",
+        "fixtures/quality-observation/quality-raw-report.json",
+    );
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["quality", "summarize", "--input"]).arg(&input).arg("--report").arg(&report)
-        .output().unwrap();
+        .args(["quality", "summarize", "--input"])
+        .arg(&input)
+        .arg("--report")
+        .arg(&report)
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(0));
     let value = json_output(&output);
     assert_eq!(value["provenance"]["reportBytesMatched"], true);
@@ -94,19 +134,35 @@ fn quality_cli_binds_the_original_report_bytes_and_preserves_measured_zero() {
     assert_eq!(value["assessment"]["coverage"]["covered"], 0);
     let changed_report = InputFile::new(&json!({"changed": true}));
     let rejected = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["quality", "summarize", "--input"]).arg(&input).arg("--report").arg(&changed_report.0)
-        .output().unwrap();
+        .args(["quality", "summarize", "--input"])
+        .arg(&input)
+        .arg("--report")
+        .arg(&changed_report.0)
+        .output()
+        .unwrap();
     assert_eq!(rejected.status.code(), Some(5));
 }
 
 #[test]
 fn observation_without_host_credential_scope_stops_before_network_access() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["delivery", "observe", "--repository", "example/repository", "--pr", "1"])
+        .args([
+            "delivery",
+            "observe",
+            "--repository",
+            "example/repository",
+            "--pr",
+            "1",
+        ])
         .env_remove("LEGION_AUTHORIZED_CREDENTIAL_PROVIDER")
         .env_remove("LEGION_GITHUB_TOKEN")
-        .output().unwrap();
+        .output()
+        .unwrap();
     assert_eq!(output.status.code(), Some(2));
-    let combined = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(combined.contains("credential scope unavailable"));
 }

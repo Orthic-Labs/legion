@@ -10,7 +10,11 @@ use legion_runtime::{
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::{fs::File, io::Read, path::{Path, PathBuf}};
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 use tokio_util::sync::CancellationToken;
 
 pub(super) const MAX_INPUT_BYTES: u64 = 2 * 1024 * 1024;
@@ -32,7 +36,9 @@ pub struct WorkPlanArgs {
     pub command: WorkPlanCommand,
 }
 #[derive(Debug, Subcommand)]
-pub enum WorkPlanCommand { Validate(InputArgs) }
+pub enum WorkPlanCommand {
+    Validate(InputArgs),
+}
 
 #[derive(Debug, Args)]
 pub struct ReviewLoopArgs {
@@ -40,7 +46,9 @@ pub struct ReviewLoopArgs {
     pub command: ReviewLoopCommand,
 }
 #[derive(Debug, Subcommand)]
-pub enum ReviewLoopCommand { Assess(InputArgs) }
+pub enum ReviewLoopCommand {
+    Assess(InputArgs),
+}
 
 #[derive(Debug, Args)]
 pub struct DeliveryArgs {
@@ -56,7 +64,10 @@ pub enum DeliveryCommand {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum DeliveryGoal { UserHandoff, MergeRequested }
+pub enum DeliveryGoal {
+    UserHandoff,
+    MergeRequested,
+}
 impl From<DeliveryGoal> for TerminalGoal {
     fn from(value: DeliveryGoal) -> Self {
         match value {
@@ -102,7 +113,9 @@ pub struct QualityArgs {
     pub command: QualityCommand,
 }
 #[derive(Debug, Subcommand)]
-pub enum QualityCommand { Summarize(QualitySummarizeArgs) }
+pub enum QualityCommand {
+    Summarize(QualitySummarizeArgs),
+}
 #[derive(Debug, Args)]
 pub struct QualitySummarizeArgs {
     #[command(flatten)]
@@ -118,7 +131,9 @@ pub(super) fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, CommandEr
         return Err(CommandError::usage("input must be a regular file"));
     }
     let mut bytes = Vec::new();
-    file.take(limit + 1).read_to_end(&mut bytes).map_err(super::io_error)?;
+    file.take(limit + 1)
+        .read_to_end(&mut bytes)
+        .map_err(super::io_error)?;
     if bytes.len() as u64 > limit {
         return Err(CommandError::usage(format!("input exceeds {limit} bytes")));
     }
@@ -126,10 +141,13 @@ pub(super) fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, CommandEr
 }
 
 pub(super) fn parse<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, CommandError> {
-    serde_json::from_slice(bytes).map_err(|error| CommandError::usage(format!("invalid engineering input: {error}")))
+    serde_json::from_slice(bytes)
+        .map_err(|error| CommandError::usage(format!("invalid engineering input: {error}")))
 }
 
-pub(super) fn digest(bytes: &[u8]) -> String { hex::encode(Sha256::digest(bytes)) }
+pub(super) fn digest(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
 
 /// ADAPT can consume this evidence envelope without importing Legion internals.
 /// Hashes bind bytes, not truth; they do not upgrade imported assertions to proof.
@@ -148,9 +166,17 @@ pub fn work_plan(args: WorkPlanArgs) -> CommandResult {
     let bytes = read_bounded(&args.input, MAX_INPUT_BYTES)?;
     let result = parse_work_plan_json(&bytes).and_then(|plan| validate_work_plan(&plan));
     match result {
-        Ok(assessment) => Ok(imported("legion-work-plan-assessment", &bytes, json!(assessment))),
+        Ok(assessment) => Ok(imported(
+            "legion-work-plan-assessment",
+            &bytes,
+            json!(assessment),
+        )),
         Err(error) => {
-            let mut value = imported("legion-work-plan-assessment", &bytes, json!({"error": error}));
+            let mut value = imported(
+                "legion-work-plan-assessment",
+                &bytes,
+                json!({"error": error}),
+            );
             value["valid"] = json!(false);
             Ok(value)
         }
@@ -161,8 +187,13 @@ pub fn review_loop(args: ReviewLoopArgs) -> CommandResult {
     let ReviewLoopCommand::Assess(args) = args.command;
     let bytes = read_bounded(&args.input, MAX_INPUT_BYTES)?;
     let input: ReviewLoopInput = parse(&bytes)?;
-    let assessment = assess_review_loop(&input).map_err(|error| CommandError::usage(error.to_string()))?;
-    Ok(imported("legion-review-loop-assessment", &bytes, json!(assessment)))
+    let assessment =
+        assess_review_loop(&input).map_err(|error| CommandError::usage(error.to_string()))?;
+    Ok(imported(
+        "legion-review-loop-assessment",
+        &bytes,
+        json!(assessment),
+    ))
 }
 
 pub async fn delivery(args: DeliveryArgs, cancellation: CancellationToken) -> CommandResult {
@@ -170,8 +201,13 @@ pub async fn delivery(args: DeliveryArgs, cancellation: CancellationToken) -> Co
         DeliveryCommand::Assess(args) => {
             let bytes = read_bounded(&args.input, MAX_INPUT_BYTES)?;
             let input: DeliveryAssessmentRequest = parse(&bytes)?;
-            let assessment = assess_delivery(&input).map_err(|error| CommandError::usage(error.to_string()))?;
-            Ok(imported("legion-delivery-assessment", &bytes, json!(assessment)))
+            let assessment =
+                assess_delivery(&input).map_err(|error| CommandError::usage(error.to_string()))?;
+            Ok(imported(
+                "legion-delivery-assessment",
+                &bytes,
+                json!(assessment),
+            ))
         }
         DeliveryCommand::Observe(args) => super::github_observer::run(args, cancellation).await,
     }
@@ -183,9 +219,12 @@ pub fn quality(args: QualityArgs) -> CommandResult {
     let input: QualityObservationInput = parse(&bytes)?;
     let report = read_bounded(&args.report, MAX_REPORT_BYTES)?;
     if digest(&report) != input.report.report_digest {
-        return Err(CommandError::integrity("raw report bytes do not match reportDigest"));
+        return Err(CommandError::integrity(
+            "raw report bytes do not match reportDigest",
+        ));
     }
-    let summary = summarize_quality(&input).map_err(|error| CommandError::usage(error.to_string()))?;
+    let summary =
+        summarize_quality(&input).map_err(|error| CommandError::usage(error.to_string()))?;
     let mut value = imported("legion-quality-observation", &bytes, json!(summary));
     value["provenance"]["reportBytesMatched"] = json!(true);
     Ok(value)
@@ -200,11 +239,13 @@ pub fn diagnostic_exit_code(value: &Value) -> Option<i32> {
             "needs_revision" | "exhausted" => 1,
             _ => 2,
         }),
-        "legion-delivery-assessment" | "legion-delivery-observation" => Some(match value["assessment"]["status"].as_str()? {
-            "ready_for_handoff" | "ready_for_merge_request" | "observed_merged" => 0,
-            "closed_without_merge" => 1,
-            _ => 2,
-        }),
+        "legion-delivery-assessment" | "legion-delivery-observation" => {
+            Some(match value["assessment"]["status"].as_str()? {
+                "ready_for_handoff" | "ready_for_merge_request" | "observed_merged" => 0,
+                "closed_without_merge" => 1,
+                _ => 2,
+            })
+        }
         "legion-quality-observation" => Some(match value["assessment"]["state"].as_str()? {
             "measured" => 0,
             "policyAttention" => 1,

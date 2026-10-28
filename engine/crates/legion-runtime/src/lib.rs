@@ -49,5 +49,5 @@ pub use task::{validate_task, ContextRequest};
 // LEG-026 owns validation.rs; this declaration is intentionally reserved.
 pub mod p6_inventory;
 pub mod validation;
-pub mod workplan;
 pub mod wf_port;
+pub mod workplan;

@@ -1,8 +1,8 @@
 use legion_contracts::{AgentId, TaskId};
 use legion_runtime::workplan::{
     parse_work_plan_json, validate_work_plan, CompletionEvidence, EvidenceAssurance,
-    EvidenceOutcome, WorkPlan, WorkPlanReasonCode as Code, WorkUnit, WorkUnitAccess, WorkUnitStatus,
-    WriteScopeKind, MAX_WORK_PLAN_BYTES, MAX_WORK_UNITS,
+    EvidenceOutcome, WorkPlan, WorkPlanReasonCode as Code, WorkUnit, WorkUnitAccess,
+    WorkUnitStatus, WriteScopeKind, MAX_WORK_PLAN_BYTES, MAX_WORK_UNITS,
 };
 
 fn fixture() -> WorkPlan {
@@ -21,7 +21,11 @@ fn complete(unit: &mut WorkUnit) {
         .evidence_requirements
         .iter()
         .map(|requirement| {
-            let predicate = unit.completion.iter().find(|p| p.id == requirement.predicate_id).unwrap();
+            let predicate = unit
+                .completion
+                .iter()
+                .find(|p| p.id == requirement.predicate_id)
+                .unwrap();
             CompletionEvidence {
                 name: requirement.name.clone(),
                 predicate_id: predicate.id.clone(),
@@ -40,10 +44,27 @@ fn complete(unit: &mut WorkUnit) {
 fn ready_fixture_uses_existing_topology_and_never_claims_verified_proof() {
     let plan = fixture();
     let assessment = validate_work_plan(&plan).unwrap();
-    assert_eq!(assessment.ready_units.iter().map(TaskId::as_str).collect::<Vec<_>>(), ["documentation", "implementation"]);
-    assert_eq!(assessment.topological_order.iter().map(TaskId::as_str).collect::<Vec<_>>(), ["documentation", "implementation", "integration"]);
+    assert_eq!(
+        assessment
+            .ready_units
+            .iter()
+            .map(TaskId::as_str)
+            .collect::<Vec<_>>(),
+        ["documentation", "implementation"]
+    );
+    assert_eq!(
+        assessment
+            .topological_order
+            .iter()
+            .map(TaskId::as_str)
+            .collect::<Vec<_>>(),
+        ["documentation", "implementation", "integration"]
+    );
     assert!(assessment.asserted_complete_units.is_empty());
-    assert_eq!(assessment.evidence_assurance, EvidenceAssurance::ImportedAssertionsOnly);
+    assert_eq!(
+        assessment.evidence_assurance,
+        EvidenceAssurance::ImportedAssertionsOnly
+    );
     let mut reversed = plan;
     reversed.units.reverse();
     assert_eq!(assessment, validate_work_plan(&reversed).unwrap());
@@ -57,8 +78,16 @@ fn readonly_units_can_observe_artifacts_without_claiming_write_ownership() {
     readonly.write_scopes.clear();
     // This artifact is owned by the concurrently ready implementation unit.
     readonly.completion[0].artifact.path = "src/feature.rs".into();
-    let assessment = validate_work_plan(&plan).expect("read-only inspection may observe another unit's artifact");
-    assert_eq!(assessment.ready_units.iter().map(TaskId::as_str).collect::<Vec<_>>(), ["documentation", "implementation"]);
+    let assessment = validate_work_plan(&plan)
+        .expect("read-only inspection may observe another unit's artifact");
+    assert_eq!(
+        assessment
+            .ready_units
+            .iter()
+            .map(TaskId::as_str)
+            .collect::<Vec<_>>(),
+        ["documentation", "implementation"]
+    );
 
     complete(&mut plan.units[1]);
     validate_work_plan(&plan).expect("read-only completion evidence binds the observed artifact");
@@ -81,7 +110,12 @@ fn access_mode_requires_matching_write_scope_declaration() {
 fn access_mode_is_required_in_json() {
     let mut json = serde_json::to_value(fixture()).unwrap();
     json["units"][0].as_object_mut().unwrap().remove("access");
-    assert_eq!(parse_work_plan_json(&serde_json::to_vec(&json).unwrap()).unwrap_err().code, Code::InvalidJson);
+    assert_eq!(
+        parse_work_plan_json(&serde_json::to_vec(&json).unwrap())
+            .unwrap_err()
+            .code,
+        Code::InvalidJson
+    );
 }
 
 #[test]
@@ -89,10 +123,24 @@ fn asserted_completion_unlocks_only_actual_dependents() {
     let mut plan = fixture();
     complete(&mut plan.units[0]);
     let assessment = validate_work_plan(&plan).unwrap();
-    assert_eq!(assessment.ready_units.iter().map(TaskId::as_str).collect::<Vec<_>>(), ["documentation"]);
+    assert_eq!(
+        assessment
+            .ready_units
+            .iter()
+            .map(TaskId::as_str)
+            .collect::<Vec<_>>(),
+        ["documentation"]
+    );
     complete(&mut plan.units[1]);
     let assessment = validate_work_plan(&plan).unwrap();
-    assert_eq!(assessment.ready_units.iter().map(TaskId::as_str).collect::<Vec<_>>(), ["integration"]);
+    assert_eq!(
+        assessment
+            .ready_units
+            .iter()
+            .map(TaskId::as_str)
+            .collect::<Vec<_>>(),
+        ["integration"]
+    );
     complete(&mut plan.units[2]);
     let assessment = validate_work_plan(&plan).unwrap();
     assert!(assessment.ready_units.is_empty());
@@ -105,7 +153,9 @@ fn rejects_duplicate_missing_self_and_cyclic_dependencies() {
     plan.units.push(plan.units[0].clone());
     assert_error(&plan, Code::DuplicateUnit);
     let mut plan = fixture();
-    plan.units[0].depends_on.push(TaskId::new("missing").unwrap());
+    plan.units[0]
+        .depends_on
+        .push(TaskId::new("missing").unwrap());
     assert_error(&plan, Code::MissingDependency);
     let mut plan = fixture();
     let dependency = plan.units[0].id.clone();
@@ -163,7 +213,25 @@ fn distinct_path_components_do_not_conflict() {
 
 #[test]
 fn rejects_absolute_traversal_globs_platform_aliases_and_non_normalized_paths() {
-    for bad in ["/tmp/file", "../file", "src/../file", "./src/file", "C:/file", "C:\\file", "\\\\server\\file", "src//file", "src/", ".", "src/**", "src/NUL.txt", "src/com1", "src/file.", "src/file ", "src/%2e%2e/file", "src/é"] {
+    for bad in [
+        "/tmp/file",
+        "../file",
+        "src/../file",
+        "./src/file",
+        "C:/file",
+        "C:\\file",
+        "\\\\server\\file",
+        "src//file",
+        "src/",
+        ".",
+        "src/**",
+        "src/NUL.txt",
+        "src/com1",
+        "src/file.",
+        "src/file ",
+        "src/%2e%2e/file",
+        "src/é",
+    ] {
         let mut plan = fixture();
         plan.units[0].write_scopes[0].path = bad.into();
         assert!(validate_work_plan(&plan).is_err(), "unsafe path {bad}");
@@ -179,7 +247,14 @@ fn artifacts_cannot_escape_declared_ownership() {
 
 #[test]
 fn stale_identity_revision_owner_or_artifact_never_completes() {
-    for changed in ["unit", "revision", "path", "artifact_revision", "digest", "author"] {
+    for changed in [
+        "unit",
+        "revision",
+        "path",
+        "artifact_revision",
+        "digest",
+        "author",
+    ] {
         let mut plan = fixture();
         complete(&mut plan.units[0]);
         let evidence = &mut plan.units[0].evidence[0];
@@ -248,7 +323,10 @@ fn independent_review_requires_a_distinct_named_identity() {
 #[test]
 fn typed_and_json_inputs_have_bounded_dimensions_and_strict_fields() {
     let too_large = vec![b' '; MAX_WORK_PLAN_BYTES + 1];
-    assert_eq!(parse_work_plan_json(&too_large).unwrap_err().code, Code::InputLimit);
+    assert_eq!(
+        parse_work_plan_json(&too_large).unwrap_err().code,
+        Code::InputLimit
+    );
     let mut plan = fixture();
     plan.units = vec![plan.units[0].clone(); MAX_WORK_UNITS + 1];
     assert_error(&plan, Code::InputLimit);
@@ -257,7 +335,12 @@ fn typed_and_json_inputs_have_bounded_dimensions_and_strict_fields() {
     assert_error(&plan, Code::InputLimit);
     let mut json = serde_json::to_value(fixture()).unwrap();
     json["units"][0]["evidence_is_verified"] = true.into();
-    assert_eq!(parse_work_plan_json(&serde_json::to_vec(&json).unwrap()).unwrap_err().code, Code::InvalidJson);
+    assert_eq!(
+        parse_work_plan_json(&serde_json::to_vec(&json).unwrap())
+            .unwrap_err()
+            .code,
+        Code::InvalidJson
+    );
     let mut plan = fixture();
     plan.schema_version = 2;
     assert_error(&plan, Code::UnsupportedVersion);

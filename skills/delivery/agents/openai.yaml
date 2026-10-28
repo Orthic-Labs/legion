@@ -1,0 +1,6 @@
+interface:
+  display_name: "Delivery"
+  short_description: "Carry an engineering change to its requested delivery state: branch pushed, pull request ready for user handoff, or merge when explicitly authorized. Use for end-to-end PR delivery, bounded CI/review follow-through, modernizing a change against a new base, or taking over an existing change with attribution."
+  default_prompt: "Use $delivery when this request matches: Carry an engineering change to its requested delivery state: branch pushed, pull request ready for user handoff, or merge when explicitly authorized. Use for end-to-end PR delivery, bounded CI/review follow-through, modernizing a change against a new base, or taking over an existing change with attribution."
+policy:
+  allow_implicit_invocation: true

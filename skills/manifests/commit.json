@@ -29,7 +29,8 @@
       "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push."
     ],
     "outputs": [
-      "references/manual.md"
+      "references/manual.md",
+      "references/review-loop.md"
     ],
     "scripts": [],
     "templates": [],
@@ -53,7 +54,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://commit/SKILL.md",
-      "digest": "sha256:358e9b0c888b8a86aa924408b70161e5fcc09edaa3930d5c9f537189675c1c75"
+      "digest": "sha256:b2d1c00f436c5a22242519a6b6799cd3d447c2c334bee083e114a030becea1d1"
     },
     {
       "path": "agents/openai.yaml",
@@ -79,6 +80,11 @@
       "path": "references/manual.md",
       "uri": "legion-skill://commit/references/manual.md",
       "digest": "sha256:884feb5665e13b836c96b8ca228ef3b664c3f4463aa7c7714b488a7b8b2984d7"
+    },
+    {
+      "path": "references/review-loop.md",
+      "uri": "legion-skill://commit/references/review-loop.md",
+      "digest": "sha256:11bb15a65661cb884123ef920d035477b9e90bfe023809aa5078090ec950be48"
     }
   ]
 }

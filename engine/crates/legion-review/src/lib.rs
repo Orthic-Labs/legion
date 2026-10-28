@@ -6,8 +6,8 @@ pub mod error;
 pub mod normalize;
 pub mod provider;
 pub mod receipt;
-pub mod rounds;
 pub mod review_port;
+pub mod rounds;
 pub mod wf_port;
 
 pub use adjudication::{adjudicate, AdjudicatedResult, Adjudication, AdjudicationRequest};

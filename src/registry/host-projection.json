@@ -605,6 +605,45 @@
       "source": "skills/debugger/SKILL.md"
     },
     {
+      "id": "delivery",
+      "name": "delivery",
+      "description": "Carry an engineering change to its requested delivery state: branch pushed, pull request ready for user handoff, or merge when explicitly authorized. Use for end-to-end PR delivery, bounded CI/review follow-through, modernizing a change against a new base, or taking over an existing change with attribution.",
+      "kind": "domain-capability",
+      "discoverability": "public",
+      "invocation": {
+        "user": true,
+        "model": true
+      },
+      "domain": null,
+      "hostRequirements": [
+        "legion",
+        "github-read"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        },
+        {
+          "id": "github-read",
+          "kind": "credentialed-network-provider",
+          "summary": "Trusted-host-authorized read-only GitHub API access for one bounded native Delivery observation of explicitly selected repository/PR identity, revisions, checks, reviews, threads and supported branch policy. Network is restricted to api.github.com; credential access uses the provider SDK/Guard boundary, never an implicit login or ambient token scrape.",
+          "degradation": "Without authorized credentials/network, or with incomplete pagination, unsupported policy or insufficient API access, report the affected facts as unobserved and readiness unproven. Imported delivery snapshots may still be assessed as caller assertions; never claim they are live observations. No polling, merge, queue mutation, publishing or fallback service is provided.",
+          "remedy": "Expose authorized GitHub read access through the existing trusted-host credential provider and SDK effect scope. The host may inject LEGION_AUTHORIZED_CREDENTIAL_PROVIDER=github and LEGION_GITHUB_TOKEN; setting these environment variables alone is not Guard admission. Keep tokens secret and scoped to the selected reads.",
+          "probe": null
+        }
+      ],
+      "scopedRequirements": [],
+      "source": "skills/delivery/SKILL.md"
+    },
+    {
       "id": "designer",
       "name": "designer",
       "description": "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity.",
@@ -1586,6 +1625,10 @@
     {
       "id": "firecrawl",
       "degradation": "Fall back to raw HTTP fetch and state that no rendered DOM was available."
+    },
+    {
+      "id": "github-read",
+      "degradation": "Without authorized credentials/network, or with incomplete pagination, unsupported policy or insufficient API access, report the affected facts as unobserved and readiness unproven. Imported delivery snapshots may still be assessed as caller assertions; never claim they are live observations. No polling, merge, queue mutation, publishing or fallback service is provided."
     },
     {
       "id": "host-scheduler",

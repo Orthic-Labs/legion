@@ -213,7 +213,12 @@ fn ordered(plan: &WorkPlan) -> Result<Vec<TaskId>, WorkPlanValidationError> {
         .map(|unit| {
             Ok(PlanNode {
                 id: NodeId::new(unit.id.as_str()).map_err(|_| {
-                    failure(WorkPlanReasonCode::InvalidField, "id", Some(unit), "invalid unit id")
+                    failure(
+                        WorkPlanReasonCode::InvalidField,
+                        "id",
+                        Some(unit),
+                        "invalid unit id",
+                    )
                 })?,
                 kind: PlanNodeKind::External,
                 provider: None,
@@ -222,7 +227,14 @@ fn ordered(plan: &WorkPlan) -> Result<Vec<TaskId>, WorkPlanValidationError> {
                     .iter()
                     .map(|id| NodeId::new(id.as_str()))
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|_| failure(WorkPlanReasonCode::InvalidField, "depends_on", Some(unit), "invalid dependency id"))?,
+                    .map_err(|_| {
+                        failure(
+                            WorkPlanReasonCode::InvalidField,
+                            "depends_on",
+                            Some(unit),
+                            "invalid dependency id",
+                        )
+                    })?,
                 configuration: BTreeMap::new(),
                 executor_requirement: None,
             })
@@ -238,14 +250,34 @@ fn ordered(plan: &WorkPlan) -> Result<Vec<TaskId>, WorkPlanValidationError> {
     };
     graph
         .ordered_nodes()
-        .map_err(|_| failure(WorkPlanReasonCode::DependencyCycle, "units.depends_on", None, "dependency graph contains a cycle"))?
+        .map_err(|_| {
+            failure(
+                WorkPlanReasonCode::DependencyCycle,
+                "units.depends_on",
+                None,
+                "dependency graph contains a cycle",
+            )
+        })?
         .into_iter()
-        .map(|node| TaskId::new(node.id.as_str()).map_err(|_| failure(WorkPlanReasonCode::InvalidField, "id", None, "invalid ordered unit id")))
+        .map(|node| {
+            TaskId::new(node.id.as_str()).map_err(|_| {
+                failure(
+                    WorkPlanReasonCode::InvalidField,
+                    "id",
+                    None,
+                    "invalid ordered unit id",
+                )
+            })
+        })
         .collect()
 }
 
 fn ancestors(plan: &WorkPlan, order: &[TaskId]) -> BTreeMap<TaskId, BTreeSet<TaskId>> {
-    let units: BTreeMap<_, _> = plan.units.iter().map(|unit| (unit.id.clone(), unit)).collect();
+    let units: BTreeMap<_, _> = plan
+        .units
+        .iter()
+        .map(|unit| (unit.id.clone(), unit))
+        .collect();
     let mut result: BTreeMap<TaskId, BTreeSet<TaskId>> = BTreeMap::new();
     for id in order {
         let mut dependencies = BTreeSet::new();

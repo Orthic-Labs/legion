@@ -1671,7 +1671,9 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Review(args) => commands::review::run(args, cancellation.clone()).await,
         Command::WorkPlan(args) => commands::engineering::work_plan(args),
         Command::ReviewLoop(args) => commands::engineering::review_loop(args),
-        Command::Delivery(args) => commands::engineering::delivery(args, cancellation.clone()).await,
+        Command::Delivery(args) => {
+            commands::engineering::delivery(args, cancellation.clone()).await
+        }
         Command::Quality(args) => commands::engineering::quality(args),
         Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await,
         Command::Providers(args) => commands::providers::run(args),

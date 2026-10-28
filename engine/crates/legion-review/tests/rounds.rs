@@ -5,23 +5,36 @@ fn clean() -> ReviewLoopInput {
 }
 fn finding(kind: FindingKind) -> FindingUpdate {
     FindingUpdate {
-        id: "F1".into(), kind, criterion: "Required behavior is preserved".into(),
-        disposition: FindingDisposition::Open, resolution_digest: None, evidence_refs: vec!["source/file.rs:10".into()],
+        id: "F1".into(),
+        kind,
+        criterion: "Required behavior is preserved".into(),
+        disposition: FindingDisposition::Open,
+        resolution_digest: None,
+        evidence_refs: vec!["source/file.rs:10".into()],
     }
 }
 fn delta(input: &ReviewLoopInput) -> ReviewRound {
     let prior = input.rounds.last().unwrap();
     ReviewRound {
-        number: prior.number + 1, digest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into(),
-        base: prior.base.clone(), scope: ReviewScope::Delta, prior_digest: Some(prior.digest.clone()),
-        reviewer: "oracle-agent".into(), status: RoundStatus::Complete, evidence_refs: vec!["review/next".into()], findings: vec![],
+        number: prior.number + 1,
+        digest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into(),
+        base: prior.base.clone(),
+        scope: ReviewScope::Delta,
+        prior_digest: Some(prior.digest.clone()),
+        reviewer: "oracle-agent".into(),
+        status: RoundStatus::Complete,
+        evidence_refs: vec!["review/next".into()],
+        findings: vec![],
     }
 }
 fn has(input: &ReviewLoopInput, reason: ReviewLoopReason) {
     let result = assess_review_loop(input).unwrap();
     assert!(!result.approved, "{result:?}");
     assert!(result.reasons.contains(&reason), "{result:?}");
-    assert_eq!(result.effect_authority, legion_runtime::delivery::EffectAuthority::None);
+    assert_eq!(
+        result.effect_authority,
+        legion_runtime::delivery::EffectAuthority::None
+    );
 }
 
 #[test]
@@ -40,7 +53,8 @@ fn self_review_and_stale_artifact_or_base_never_approve() {
     input.rounds[0].reviewer = "IMPLEMENTER-AGENT".into();
     has(&input, ReviewLoopReason::SelfReview);
     input = clean();
-    input.current_digest = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into();
+    input.current_digest =
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into();
     has(&input, ReviewLoopReason::StaleArtifact);
     input = clean();
     input.current_base = "cccccccccccccccccccccccccccccccccccccccc".into();
@@ -117,7 +131,9 @@ fn resolved_requires_complete_review_and_current_digest_evidence() {
 #[test]
 fn advisory_does_not_block_but_blocking_findings_cannot_be_downgraded() {
     let mut input = clean();
-    input.rounds[0].findings.push(finding(FindingKind::Advisory));
+    input.rounds[0]
+        .findings
+        .push(finding(FindingKind::Advisory));
     assert!(assess_review_loop(&input).unwrap().approved);
     input = clean();
     input.rounds[0].findings.push(finding(FindingKind::Outcome));
@@ -130,7 +146,11 @@ fn advisory_does_not_block_but_blocking_findings_cannot_be_downgraded() {
 
 #[test]
 fn disputed_and_deferred_safety_still_block_and_criterion_is_stable() {
-    for disposition in [FindingDisposition::FixedPending, FindingDisposition::Disputed, FindingDisposition::DeferredOutOfScope] {
+    for disposition in [
+        FindingDisposition::FixedPending,
+        FindingDisposition::Disputed,
+        FindingDisposition::DeferredOutOfScope,
+    ] {
         let mut input = clean();
         let mut update = finding(FindingKind::Safety);
         update.disposition = disposition;
