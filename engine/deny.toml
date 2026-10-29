@@ -25,6 +25,8 @@ allow = [
     "CC0-1.0",
     # webpki-root-certs / webpki-roots (Mozilla root store data).
     "CDLA-Permissive-2.0",
+    # libbz2-rs-sys (bzip2 licence, permissive).
+    "bzip2-1.0.6",
     "ISC",
     "MIT",
     "MPL-2.0",
@@ -37,3 +39,9 @@ allow = [
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+
+# auto_generate_cdp is only a [build-dependencies] code generator of headless_chrome: it runs at
+# build time to emit CDP bindings and is not linked into any Legion binary.
+[[licenses.exceptions]]
+crate = "auto_generate_cdp"
+allow = ["GPL-3.0-or-later"]
