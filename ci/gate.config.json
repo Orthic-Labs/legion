@@ -1,0 +1,6 @@
+{
+  "fixtures": [
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger",
+    "scripts/ci/fixtures/audit-rust-code-sdk"
+  ]
+}
