@@ -22,6 +22,7 @@ fn block_json() -> String {
  {{"path":"src/a.rs","owner":"alchemist-1","state":"partial","reviewed":false}},
  {{"path":"src/b.rs","owner":"legion","state":"complete","reviewed":true}}],
 "ownership_transfer":{{"repository":".","from":"source","to":"target"}},
+"memory":{{"dir":"/home/u/.claude/projects/p/memory"}},
 "in_flight":[
  {{"kind":"subagent","id":"agent-7","state":"stopped","output_path":"/tmp/agent-7.out","owner":"source"}},
  {{"kind":"broker_build","id":"req-9","state":"running","owner":"source"}}]}}"#
@@ -394,4 +395,65 @@ fn default_prompt_without_block_declares_unknown_state_and_stop_guard() {
     assert!(prompt.contains("SOURCE ASSERTIONS: none supplied"));
     assert!(prompt.contains("permanent packet, its receipt, and READBACK all exist"));
     assert!(!prompt.contains("--source-block"));
+}
+
+#[test]
+fn legacy_block_digest_is_unchanged_by_new_optional_fields() {
+    let legacy = SourceBlock::parse(&block_json().replace(
+        "\"memory\":{\"dir\":\"/home/u/.claude/projects/p/memory\"},",
+        "",
+    ))
+    .unwrap();
+    let value = serde_json::to_string(&legacy).unwrap();
+    assert!(
+        !value.contains("changed_since")
+            && !value.contains("memory")
+            && !value.contains("artifact_roots")
+    );
+    assert!(legacy.require_handoff_complete().is_err());
+    let with_memory = SourceBlock::parse(&block_json()).unwrap();
+    assert!(with_memory.require_handoff_complete().is_ok());
+    assert_ne!(legacy.digest().unwrap(), with_memory.digest().unwrap());
+}
+
+#[test]
+fn bootstrap_refuses_a_block_without_memory_record() {
+    let home = tempfile::tempdir().unwrap();
+    let ws = tempfile::tempdir().unwrap();
+    let ws_str = ws.path().to_str().unwrap().to_string();
+    let transcript = home.path().join(".claude/projects/p/session-1.jsonl");
+    fs::create_dir_all(transcript.parent().unwrap()).unwrap();
+    let row = format!(
+        r#"{{"type":"user","sessionId":"session-1","cwd":{},"message":{{"content":"do it"}}}}"#,
+        serde_json::to_string(&ws_str).unwrap()
+    );
+    fs::write(&transcript, format!("{row}\n")).unwrap();
+    let env = RunEnv {
+        home: home.path().to_path_buf(),
+        cwd: ws.path().to_path_buf(),
+        today: "2026-10-30".into(),
+    };
+    let no_memory = ws.path().join("no-memory.json");
+    fs::write(
+        &no_memory,
+        block_json().replace(
+            "\"memory\":{\"dir\":\"/home/u/.claude/projects/p/memory\"},",
+            "",
+        ),
+    )
+    .unwrap();
+    let (code, text) = cli(
+        &[
+            "bootstrap",
+            "--platform",
+            "claude",
+            "--session-id",
+            "session-1",
+            "--live-state",
+            no_memory.to_str().unwrap(),
+        ],
+        &env,
+    );
+    assert_eq!(code, 2, "{text}");
+    assert!(text.contains("must record memory"), "{text}");
 }

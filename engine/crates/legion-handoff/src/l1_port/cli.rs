@@ -15,7 +15,7 @@ use super::live_state::{
     SourceBlock,
 };
 use super::pointer::{
-    build_pointer, handoff_file, paste_prompt_with_live_state, LiveStateRef, Platform,
+    build_pointer, handoff_file_in, paste_prompt_with_options, LiveStateRef, Platform,
 };
 
 fn pointer_to_json(p: &super::pointer::SourcePointer) -> serde_json::Value {
@@ -207,7 +207,7 @@ fn run_continuity(args: &[String], out: &mut dyn std::io::Write) -> i32 {
     0
 }
 
-fn default_receipt_path(output: &std::path::Path) -> PathBuf {
+pub(crate) fn default_receipt_path(output: &std::path::Path) -> PathBuf {
     let stem = output
         .file_stem()
         .map(|value| value.to_string_lossy().into_owned())
@@ -405,7 +405,7 @@ fn write_receipt_file(
     std::fs::write(path, body).map_err(|error| error.to_string())
 }
 
-fn verify_receipt_file(
+pub(crate) fn verify_receipt_file(
     output: &std::path::Path,
     receipt_path: &std::path::Path,
 ) -> Result<ContinuityContext, String> {
@@ -647,6 +647,7 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
     let mut home: PathBuf = env.home.clone();
     let mut live_state: Option<PathBuf> = None;
     let mut live_state_out: Option<PathBuf> = None;
+    let mut artifact_root: Option<PathBuf> = None;
     let mut json = false;
     let mut i = 0;
     while i < args.len() {
@@ -677,6 +678,10 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
                 i += 1;
                 live_state_out = args.get(i).map(PathBuf::from);
             }
+            "--artifact-root" => {
+                i += 1;
+                artifact_root = args.get(i).map(PathBuf::from);
+            }
             "--json" => json = true,
             other => {
                 let _ = writeln!(out, "FAIL: unrecognized argument: {other}");
@@ -685,6 +690,17 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
         }
         i += 1;
     }
+    let artifact_root = match artifact_root
+        .as_deref()
+        .map(|root| crate::l1b_port::validate::resolve_artifact_root(root, cfg!(windows)))
+    {
+        Some(Ok(physical)) => Some(crate::l1b_port::validate::physical_path_string(&physical)),
+        Some(Err(error)) => {
+            let _ = writeln!(out, "FAIL: {error}");
+            return 2;
+        }
+        None => None,
+    };
     let platform = match platform.as_deref().map(Platform::parse) {
         Some(Ok(p)) => p,
         Some(Err(e)) => {
@@ -707,7 +723,14 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
             let live = match prepare_live_state(
                 live_state.as_deref(),
                 live_state_out,
-                &handoff_file(&pointer, &env.cwd, &env.today, ".source-block.json"),
+                &handoff_file_in(
+                    &pointer,
+                    &env.cwd,
+                    &env.today,
+                    ".source-block.json",
+                    artifact_root.as_deref(),
+                ),
+                &pointer,
             ) {
                 Ok(live) => live,
                 Err(error) => {
@@ -730,15 +753,27 @@ fn run_bootstrap(args: &[String], env: &RunEnv, out: &mut dyn std::io::Write) ->
                             "path": live.path,
                             "sha256": live.sha256,
                             "in_flight": live.block.in_flight,
+                            "changed_since": live.block.changed_since,
+                            "memory": live.block.memory,
+                            "artifact_roots": live.block.artifact_roots,
                         }),
                     );
+                }
+                if let (Some(root), Some(object)) = (&artifact_root, v.as_object_mut()) {
+                    object.insert("artifact_root".into(), serde_json::json!(root));
                 }
                 let _ = writeln!(out, "{}", serde_json::to_string_pretty(&v).unwrap());
             } else {
                 let _ = writeln!(
                     out,
                     "{}",
-                    paste_prompt_with_live_state(&pointer, &env.cwd, &env.today, live_ref.as_ref())
+                    paste_prompt_with_options(
+                        &pointer,
+                        &env.cwd,
+                        &env.today,
+                        live_ref.as_ref(),
+                        artifact_root.as_deref()
+                    )
                 );
             }
             0
@@ -756,6 +791,7 @@ fn prepare_live_state(
     input: Option<&std::path::Path>,
     out_path: Option<PathBuf>,
     default_out: &str,
+    pointer: &super::pointer::SourcePointer,
 ) -> Result<Option<(PathBuf, String, SourceBlock)>, String> {
     let Some(input) = input else {
         return Ok(None);
@@ -763,6 +799,8 @@ fn prepare_live_state(
     let text = std::fs::read_to_string(input)
         .map_err(|error| format!("cannot read --live-state: {error}"))?;
     let block = SourceBlock::parse(&text)?;
+    block.require_handoff_complete()?;
+    block.bind_to_prefix(pointer.cutoff_bytes, &pointer.sha256)?;
     let digest = block.digest()?;
     let target = out_path.unwrap_or_else(|| PathBuf::from(default_out));
     if let Some(parent) = target

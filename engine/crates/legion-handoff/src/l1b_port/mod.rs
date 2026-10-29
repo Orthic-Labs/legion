@@ -8,11 +8,13 @@
 //! `validate` and `storage_errors`.
 
 pub mod cli;
+pub mod continuity_gate;
 pub mod validate;
 
 pub use cli::run;
+pub use continuity_gate::{continuity_errors, extract_refs};
 pub use validate::{
-    clean_path_value, concrete, fenced_after, is_absolute_path, label_value, normalized_path,
-    ordered_errors, resume_errors, storage_errors, table_errors, table_rows,
+    artifact_root_errors, clean_path_value, concrete, fenced_after, is_absolute_path, label_value,
+    normalized_path, ordered_errors, resume_errors, storage_errors, table_errors, table_rows,
     validate as validate_handoff, FORBIDDEN_STORAGE_PARTS, HEADINGS, LABELS, STEP_LABELS,
 };

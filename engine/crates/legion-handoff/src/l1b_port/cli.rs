@@ -5,10 +5,12 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
+use super::continuity_gate::continuity_errors;
 use super::validate::{
-    normalized_path, physical_path_string, resolve_physical_existing, resolve_physical_receipt,
-    storage_errors, validate,
+    artifact_root_errors, label_value, normalized_path, physical_path_string,
+    resolve_physical_existing, resolve_physical_receipt, storage_errors, validate,
 };
+use crate::l1_port::cli::{default_receipt_path, verify_receipt_file};
 
 fn is_windows() -> bool {
     cfg!(windows)
@@ -22,10 +24,25 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     let mut template_self_check = false;
     let mut write_receipt: Option<PathBuf> = None;
     let mut verify_receipt: Option<PathBuf> = None;
+    let mut context: Option<PathBuf> = None;
+    let mut context_receipt: Option<PathBuf> = None;
+    let mut artifact_roots: Vec<PathBuf> = Vec::new();
     let mut i = 0;
     while i < argv.len() {
         match argv[i].as_str() {
             "--template-self-check" => template_self_check = true,
+            flag @ ("--context" | "--context-receipt" | "--artifact-root") => {
+                i += 1;
+                let Some(value) = argv.get(i) else {
+                    let _ = writeln!(err, "FAIL: argument {flag}: expected one argument");
+                    return 2;
+                };
+                match flag {
+                    "--context" => context = Some(PathBuf::from(value)),
+                    "--context-receipt" => context_receipt = Some(PathBuf::from(value)),
+                    _ => artifact_roots.push(PathBuf::from(value)),
+                }
+            }
             "--write-receipt" => {
                 if verify_receipt.is_some() {
                     let _ = writeln!(
@@ -85,6 +102,19 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
     // Template self-check skips storage and content-authority gates, so it must
     // never be combined with a receipt mode (it could mint or bless a normal
     // authoritative receipt). Rejected before any artifact I/O.
+    if template_self_check
+        && (context.is_some() || context_receipt.is_some() || !artifact_roots.is_empty())
+    {
+        let _ = writeln!(
+            err,
+            "FAIL: invalid combination: --template-self-check cannot be used with --context, --context-receipt, or --artifact-root"
+        );
+        return 2;
+    }
+    if context_receipt.is_some() && context.is_none() {
+        let _ = writeln!(err, "FAIL: --context-receipt requires --context");
+        return 2;
+    }
     if template_self_check && (write_receipt.is_some() || verify_receipt.is_some()) {
         let _ = writeln!(
             err,
@@ -126,6 +156,46 @@ pub fn run(argv: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             verify_receipt.as_deref(),
             is_windows(),
         ));
+    }
+    if !template_self_check {
+        match &context {
+            Some(context_path) => {
+                if !context_path.is_absolute() {
+                    errors.push("--context must be an absolute path".to_string());
+                }
+                let receipt_path = context_receipt
+                    .clone()
+                    .unwrap_or_else(|| default_receipt_path(context_path));
+                match verify_receipt_file(context_path, &receipt_path) {
+                    Ok(verified) => errors.extend(continuity_errors(
+                        &text,
+                        &verified,
+                        context_path,
+                        is_windows(),
+                    )),
+                    Err(e) => errors.push(format!("continuity context cannot be verified: {e}")),
+                }
+            }
+            None => {
+                let mode = label_value(&text, "**Source evidence mode:**").unwrap_or_default();
+                if mode.trim_matches('`') == "TRANSCRIPT_INGEST" {
+                    errors.push(
+                        "TRANSCRIPT_INGEST packets must be validated with --context <context.json>"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+        if !artifact_roots.is_empty() {
+            if let Some(receipt_arg) = write_receipt.as_deref().or(verify_receipt.as_deref()) {
+                errors.extend(artifact_root_errors(
+                    &handoff,
+                    receipt_arg,
+                    &artifact_roots,
+                    is_windows(),
+                ));
+            }
+        }
     }
     errors.sort();
     errors.dedup();

@@ -507,6 +507,7 @@ pub fn normalize(input: &ContinuityInput) -> Result<ContinuityContext, String> {
     };
     if let Some(block) = &context.source_assertion {
         block.validate()?;
+        block.bind_to_prefix(input.cutoff_bytes, &input.sha256)?;
         context.receipt.source_block_sha256 = Some(block.digest()?);
     }
     context.receipt.event_count = context.events.len();

@@ -134,6 +134,33 @@
       "expected_behavior": "Target verifies the hash-chained notes file via continuity --verify-receipt, treats notes as untrusted source assertions, and folds them into the packet before READBACK; a broken chain stops the handoff.",
       "severity": "error",
       "mode": "static"
+    },
+    {
+      "id": "handoff-changed-since-not-replayed",
+      "prompt": "(target chat) The source block lists a pin as changed from held back to adopted, but the transcript also says held back.",
+      "expected_skill": "handoff",
+      "forbidden_skills": [],
+      "expected_behavior": "Target accounts for the change with a Changed-since accounted line restating the new value and never states the old value as a LOCKED decision; validate-handoff --context rejects a LOCKED row carrying the superseded value and any unaccounted change entry.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "handoff-memory-and-artifact-roots",
+      "prompt": "(target chat) The source ran under a different Claude profile and tracks work in a register outside the workspace.",
+      "expected_skill": "handoff",
+      "forbidden_skills": [],
+      "expected_behavior": "Target reads the recorded source memory directory (or records ABSENT with the reason), lists every source-block artifact root in the artifact table with owner and re-render command, and validates durable roots physically outside temp/cache/scratch storage.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "handoff-identifier-accounting-bounded",
+      "prompt": "(target chat) Packet is drafted; issue and exception ids appear in the last turns.",
+      "expected_skill": "handoff",
+      "forbidden_skills": [],
+      "expected_behavior": "Target declares a last-N-turns window, includes each typed reference (issue, PR, exception id) in the packet or lists it as an Omitted identifier with a reason, and does not claim the check proves semantic completeness.",
+      "severity": "error",
+      "mode": "static"
     }
   ],
   "compatibility": [

@@ -175,11 +175,11 @@ pub fn resolve_physical_receipt(path: &Path) -> Result<PathBuf, String> {
     }
 }
 
-fn physical_norm(path: &Path, windows: bool) -> String {
+pub(crate) fn physical_norm(path: &Path, windows: bool) -> String {
     normalized_path(&physical_path_string(path), windows)
 }
 
-fn has_forbidden_part(normalized_paths: &[&str]) -> bool {
+pub(crate) fn has_forbidden_part(normalized_paths: &[&str]) -> bool {
     normalized_paths.iter().any(|p| {
         p.split('/')
             .any(|part| FORBIDDEN_STORAGE_PARTS.contains(&part) || part.starts_with(".validator-"))
@@ -299,6 +299,80 @@ pub fn storage_errors(
     }
     if has_forbidden_part(&[lexical_receipt.as_str(), physical_receipt_norm.as_str()]) {
         errors.push("handoff receipt cannot use temporary/cache/review-run storage".to_string());
+    }
+    errors
+}
+
+/// Physical identity of an explicit durable artifact root outside the
+/// workspace. The root must be an absolute, already-existing directory whose
+/// resolved path (and lexical spelling) carries no temp/cache/scratch part.
+/// Point-in-time only, like the packet and receipt checks.
+pub fn resolve_artifact_root(root: &Path, windows: bool) -> Result<PathBuf, String> {
+    let spelled = root.to_string_lossy();
+    if !is_absolute_path(&spelled) {
+        return Err(format!(
+            "artifact root must be an absolute path: {}",
+            root.display()
+        ));
+    }
+    let physical = resolve_physical_existing(root)?;
+    if !physical.is_dir() {
+        return Err(format!(
+            "artifact root is not a directory: {}",
+            physical.display()
+        ));
+    }
+    let lexical = normalized_path(&spelled, windows);
+    let physical_norm = physical_norm(&physical, windows);
+    if has_forbidden_part(&[lexical.as_str(), physical_norm.as_str()]) {
+        return Err(format!(
+            "artifact root cannot use temporary/cache/review-run/scratch storage: {}",
+            physical.display()
+        ));
+    }
+    Ok(physical)
+}
+
+/// Packet and receipt must sit inside one of the declared artifact roots, by
+/// physical path. Each root is validated by [`resolve_artifact_root`] first.
+pub fn artifact_root_errors(
+    artifact: &Path,
+    receipt: &Path,
+    roots: &[PathBuf],
+    windows: bool,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut physical_roots = Vec::new();
+    for root in roots {
+        match resolve_artifact_root(root, windows) {
+            Ok(p) => physical_roots.push(physical_norm(&p, windows)),
+            Err(e) => errors.push(e),
+        }
+    }
+    if !errors.is_empty() {
+        return errors;
+    }
+    for (label, path) in [("handoff packet", artifact), ("handoff receipt", receipt)] {
+        let physical = if label == "handoff packet" {
+            resolve_physical_existing(path)
+        } else {
+            resolve_physical_receipt(path)
+        };
+        match physical {
+            Ok(p) => {
+                let norm = physical_norm(&p, windows);
+                let inside = physical_roots
+                    .iter()
+                    .any(|r| norm == *r || norm.starts_with(&format!("{r}/")));
+                if !inside {
+                    errors.push(format!(
+                        "{label} is outside every declared --artifact-root: {}",
+                        p.display()
+                    ));
+                }
+            }
+            Err(e) => errors.push(format!("{label} cannot be resolved: {e}")),
+        }
     }
     errors
 }
@@ -443,7 +517,7 @@ fn banned_patterns() -> &'static [(&'static str, Regex)] {
     &RE
 }
 
-fn secret_patterns() -> &'static [(&'static str, Regex)] {
+pub(crate) fn secret_patterns() -> &'static [(&'static str, Regex)] {
     static RE: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
         vec![
             ("OpenAI-like key", Regex::new(r"\bsk-[A-Za-z0-9_-]{20,}\b").unwrap()),
@@ -643,6 +717,13 @@ fn validator_args(tokens: &[String]) -> Option<&[String]> {
     }
 }
 
+/// True iff the tokenized command carries `flag` as a standalone token.
+pub(crate) fn command_has_flag(command: &str, flag: &str) -> bool {
+    split_command_tokens(command)
+        .map(|tokens| tokens.iter().any(|token| token == flag))
+        .unwrap_or(false)
+}
+
 fn same_bound_path(token: &str, declared: &str) -> bool {
     let token = clean_path_value(token);
     let declared = clean_path_value(declared);
@@ -662,6 +743,24 @@ fn command_binds_validator(command: &str, flag: &str, packet: &str, receipt: &st
     let Some(args) = validator_args(&tokens) else {
         return false;
     };
+    // Continuity and storage inputs are plain `--flag <value>` pairs the
+    // packet records so the receiver can rerun the exact validation.
+    let mut stripped: Vec<&String> = Vec::new();
+    let mut iter = args.iter();
+    while let Some(token) = iter.next() {
+        if matches!(
+            token.as_str(),
+            "--context" | "--context-receipt" | "--artifact-root"
+        ) {
+            if iter.next().is_none() {
+                return false;
+            }
+            continue;
+        }
+        stripped.push(token);
+    }
+    let args: Vec<String> = stripped.into_iter().cloned().collect();
+    let args = args.as_slice();
     match args {
         [p, f, r] if f == flag => same_bound_path(p, packet) && same_bound_path(r, receipt),
         [f, r, p] if f == flag => same_bound_path(p, packet) && same_bound_path(r, receipt),

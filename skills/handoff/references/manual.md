@@ -52,10 +52,23 @@ Source has no prose channel, but may declare verified live facts in one typed JS
 - `kind`: `subagent|broker_build|background_job|other`; `state`: `running|stopped|finished|failed|unknown`.
 - Paths are repository-relative (no leading `/`, drive letter, backslash, or `..`); unknown fields are rejected.
 - Always declare `in_flight`, even as `[]`; a paste block without a block says in-flight work is unknown.
+- `memory`: exactly one of `{"dir":"<absolute path>"}` (the source chat's auto-memory directory; per account/profile, so a
+  target on another profile cannot see it) or `{"absent_reason":"<why>"}`. Bootstrap refuses a block without it.
+- `changed_since`: decisions whose value differs from a prior state, so a superseded fact is never replayed as current:
+  `{"id":"C1","decision":"license pin","old":"held back","new":"adopted","when":"2026-10-22T10:00:00Z","since":{"receipt_sha256":"<64 hex>"|"cutoff_bytes":N},"evidence":"commit <sha> package.json:12"}`.
+  `since` names a prior receipt digest or cutoff; it must be strictly earlier than the frozen cutoff and must not be the
+  current prefix. `old` and `new` must differ; ids are unique; free text is secret-scanned.
+- `artifact_roots`: process artifacts the work updates, including paths outside the workspace:
+  `{"path":"<absolute>","owner":"legion","rerender":"<command or none: reason>","durable":true}`.
 
 ```bash
 legion script handoff/transcript-handoff bootstrap --platform claude --session-id "<ID>" --workspace "<WS>" --live-state "<block.json>"
 ```
+
+Optional `--artifact-root <dir>` (absolute, existing directory) stores this handoff's context, receipt, notes, and saved block under
+`<dir>/handoffs/<date>/` instead of `<workspace>/tasks/handoffs/<date>/`. The root is resolved physically and rejected when it
+(or its link target) sits in a temp/cache/review-run/scratch location. Packet and receipt hashes, receipt adjacency, and the
+secret scan are unchanged; `validate-handoff --artifact-root <dir>` additionally requires packet & receipt to sit inside it.
 
 Bootstrap validates the block, saves its canonical form beside the other handoff evidence (override with
 `--live-state-out`), prints its digest & in-flight list in the paste block (and under `source_assertion` with `--json`),
@@ -118,6 +131,27 @@ legion script handoff/transcript-handoff continuity --output "<session.context.j
 `resolution`: `still_running|stopped|completed|failed|abandoned`. Missing, duplicate, undeclared, or evidence-free
 entries fail. Without `--reconciliation` the command prints `IN_FLIGHT_UNRECONCILED` & exits 1; the packet may not be written until reconciliation passes.
 Keep both files with packet.
+Target packet rules tied to the block (checked by `validate-handoff --context`):
+
+- Source assertion label carries the block's SHA-256; `**Source memory:**` records the memory directory or `ABSENT: <reason>`.
+- One `- **Changed-since accounted:** <id> — <text that restates the new value>` line per `changed_since` entry; unknown,
+  duplicate, or missing ids fail. A `LOCKED` decision row that contains an entry's `old` value without its `new` value fails.
+  This is a text-level match on the decision cell; it detects replay of the superseded wording, not every paraphrase.
+- Every `artifact_roots` path appears in the Artifacts & Evidence table; `durable` roots must resolve physically outside
+  temp/cache/scratch storage on the validating machine.
+- `**Identifier accounting window:** last <N> turns` (1-1000) declares the window: from the Nth-from-last user message of the
+  verified prefix to its end, user and assistant text only (tool output is excluded). Typed references found there are
+  `#123`, `owner/repo#123`, `issue|PR|pull request 123` (all keyed by number; repository prefixes are not distinguished), and
+  `exception M21`. Each must appear in the packet body or in `- **Omitted identifier:** <reference> — <reason>` (reason of 8+
+  characters; the omission line never counts as inclusion; an omission naming a reference outside the window fails).
+- Identifier accounting is mechanical. It detects omitted typed references only; it cannot certify that the packet is
+  semantically complete, that a listed reference is described correctly, or that untyped facts survived.
+- Packet `Validator command` and `Receiver receipt check` must carry `--context <context.json>`; `Transcript evidence path`
+  must equal that context file.
+
+Optional source-side packet review (a read-only pass by the source returning typed corrections) is not part of this
+workflow and is tracked separately; `SOURCE_BOOTSTRAP` stays pointer-only.
+
 Packet's `Source prefix receipt` uses `PLATFORM:`, `SESSION_ID:`, `CUTOFF_BYTES:`, `SHA256:`,
 & `PARSER_VERSION:` labels from context's `source` fields & `parserVersion`.
 Use raw 64-hex `source.sha256` for `SHA256:`.
@@ -197,6 +231,8 @@ Never substitute memory or conversation summary for cheap live verification. Nev
 ## Step 3 — Author from template
 
 Copy [handoff template](../assets/handoff-template.md). Fill every placeholder. `NOT_APPLICABLE` requires reason. `UNKNOWN` requires impact, recovery action, owner, & safe subset.
+
+Delete the `Changed-since accounted` and `Omitted identifier` template lines when the block has no changes or nothing is omitted; repeat them once per entry otherwise. An unfilled placeholder fails validation.
 
 Required transfer layers:
 
@@ -331,9 +367,12 @@ Any missing answer means revise.
 macOS & Windows:
 
 ```bash
-legion script handoff/validate-handoff <handoff.md> --write-receipt <handoff.receipt.json>
-legion script handoff/validate-handoff <handoff.md> --verify-receipt <handoff.receipt.json>
+legion script handoff/validate-handoff <handoff.md> --write-receipt <handoff.receipt.json> --context <context.json>
+legion script handoff/validate-handoff <handoff.md> --verify-receipt <handoff.receipt.json> --context <context.json>
 ```
+
+`--context` is mandatory for `TRANSCRIPT_INGEST` (default context receipt: `<context stem>.receipt.json`; override with
+`--context-receipt`) and invalid for `LIVE_CONTEXT`. Add `--artifact-root <dir>` when evidence lives in a durable root.
 
 Write handoff to durable, named `.md` artifact before validation. Temporary-only & inline-only handoffs are forbidden. File remains canonical audit & resume source. Send packet + receipt together. If cold chat cannot access filesystem, paste exact validated bytes inline while retaining canonical file + receipt. Receiver verifies receipt before readback. Do not paste content different from validated file.
 

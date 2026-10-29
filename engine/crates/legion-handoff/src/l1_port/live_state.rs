@@ -111,6 +111,64 @@ pub struct SourceBlock {
     pub ownership_transfer: Option<OwnershipTransfer>,
     #[serde(default)]
     pub in_flight: Vec<InFlightItem>,
+    /// Decisions that changed after the baseline named by each entry. Empty
+    /// lists are not serialized, so blocks without changes keep their digest.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub changed_since: Vec<ChangedSince>,
+    /// Where the source chat's auto-memory lives, or why it has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<MemoryLocation>,
+    /// Process artifacts the work updates, including paths outside the workspace.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifact_roots: Vec<ArtifactRoot>,
+}
+
+/// Prior state a change is measured against: a previous continuity/packet
+/// receipt digest, a previous transcript cutoff, or both.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChangeBaseline {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cutoff_bytes: Option<u64>,
+}
+
+/// One decision whose value differs from the baseline. `evidence` names the
+/// current proof (commit, path:line, command result) of the new value.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChangedSince {
+    pub id: String,
+    pub decision: String,
+    pub old: String,
+    pub new: String,
+    pub when: String,
+    pub since: ChangeBaseline,
+    pub evidence: String,
+}
+
+/// Exactly one of `dir` (absolute path) or `absent_reason`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryLocation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub absent_reason: Option<String>,
+}
+
+/// A process artifact (register, renderer, form set) the work updates.
+/// `rerender` is the command that regenerates it, or `none: <reason>`.
+/// A `durable` root must resolve physically and may not sit in temp, cache,
+/// or scratch storage when the packet is validated.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArtifactRoot {
+    pub path: String,
+    pub owner: String,
+    pub rerender: String,
+    pub durable: bool,
 }
 
 fn field(name: &str, value: &str) -> Result<(), String> {
@@ -157,7 +215,158 @@ fn full_sha(value: &str) -> bool {
             .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
+/// Absolute path (POSIX root or drive letter) with no `..` or `.` segment.
+fn absolute_path(name: &str, value: &str) -> Result<(), String> {
+    field(name, value)?;
+    let bytes = value.as_bytes();
+    let drive = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'/' || bytes[2] == b'\\');
+    if !(value.starts_with('/') || drive) {
+        return Err(format!("{name} must be an absolute path: {value}"));
+    }
+    if value
+        .replace('\\', "/")
+        .split('/')
+        .any(|segment| segment == ".." || segment == ".")
+    {
+        return Err(format!("{name} has a '.' or '..' segment: {value}"));
+    }
+    Ok(())
+}
+
+/// Free text the block carries into the packet must never hold a secret value.
+fn no_secret(name: &str, value: &str) -> Result<(), String> {
+    for (label, pattern) in crate::l1b_port::validate::secret_patterns() {
+        if pattern.is_match(value) {
+            return Err(format!("{name} contains a possible secret ({label})"));
+        }
+    }
+    Ok(())
+}
+
+/// Lowercase, whitespace-collapsed form used to compare declared values.
+pub fn compare_form(value: &str) -> String {
+    value
+        .replace(['`', '*'], "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+fn dated(value: &str) -> bool {
+    let b = value.as_bytes();
+    b.len() >= 10
+        && b[..4].iter().all(u8::is_ascii_digit)
+        && b[4] == b'-'
+        && b[5..7].iter().all(u8::is_ascii_digit)
+        && b[7] == b'-'
+        && b[8..10].iter().all(u8::is_ascii_digit)
+}
+
+impl ChangedSince {
+    fn validate(&self) -> Result<(), String> {
+        let id_ok = !self.id.is_empty()
+            && self.id.chars().count() <= 32
+            && self
+                .id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'));
+        if !id_ok {
+            return Err(format!(
+                "changed_since[].id must be 1-32 characters of [A-Za-z0-9_.-]: {}",
+                self.id
+            ));
+        }
+        for (name, value) in [
+            ("decision", &self.decision),
+            ("old", &self.old),
+            ("new", &self.new),
+            ("evidence", &self.evidence),
+        ] {
+            let label = format!("changed_since[{}].{name}", self.id);
+            field(&label, value)?;
+            no_secret(&label, value)?;
+        }
+        if !dated(&self.when) || self.when.chars().count() > MAX_FIELD {
+            return Err(format!(
+                "changed_since[{}].when must start with a YYYY-MM-DD date",
+                self.id
+            ));
+        }
+        if compare_form(&self.old) == compare_form(&self.new) {
+            return Err(format!(
+                "changed_since[{}] lists no change: old and new are the same value",
+                self.id
+            ));
+        }
+        let since = &self.since;
+        if since.receipt_sha256.is_none() && since.cutoff_bytes.is_none() {
+            return Err(format!(
+                "changed_since[{}].since must name a prior receipt_sha256 or cutoff_bytes",
+                self.id
+            ));
+        }
+        if let Some(receipt) = &since.receipt_sha256 {
+            let bare = bare_hex(receipt);
+            if bare.len() != 64 || !bare.bytes().all(|b| b.is_ascii_hexdigit()) {
+                return Err(format!(
+                    "changed_since[{}].since.receipt_sha256 must be a 64-hex SHA-256",
+                    self.id
+                ));
+            }
+        }
+        if since.cutoff_bytes == Some(0) {
+            return Err(format!(
+                "changed_since[{}].since.cutoff_bytes must be positive",
+                self.id
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl SourceBlock {
+    /// Bind every changed-since entry to the frozen prefix this block ships
+    /// with: a baseline must be strictly earlier than the current cutoff and
+    /// must not be the current prefix itself. Later deltas belong in notes.
+    pub fn bind_to_prefix(&self, cutoff_bytes: u64, prefix_sha256: &str) -> Result<(), String> {
+        let current = bare_hex(prefix_sha256);
+        for change in &self.changed_since {
+            if let Some(prior) = change.since.cutoff_bytes {
+                if prior >= cutoff_bytes {
+                    return Err(format!(
+                        "changed_since[{}].since.cutoff_bytes {prior} is not earlier than the frozen cutoff {cutoff_bytes}",
+                        change.id
+                    ));
+                }
+            }
+            if let Some(receipt) = &change.since.receipt_sha256 {
+                if bare_hex(receipt) == current {
+                    return Err(format!(
+                        "changed_since[{}].since.receipt_sha256 is the current prefix, not a prior receipt",
+                        change.id
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Extra gate for a block that is about to ship in a handoff: it must
+    /// record the source memory directory or an explicit absence.
+    pub fn require_handoff_complete(&self) -> Result<(), String> {
+        if self.memory.is_none() {
+            return Err(
+                "source block must record memory: {\"dir\": <absolute path>} or {\"absent_reason\": <why>}"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.schema != SOURCE_BLOCK_SCHEMA {
             return Err(format!("source block schema must be {SOURCE_BLOCK_SCHEMA}"));
@@ -170,6 +379,8 @@ impl SourceBlock {
         if self.heads.len() > MAX_ITEMS
             || self.uncommitted.len() > MAX_ITEMS
             || self.in_flight.len() > MAX_ITEMS
+            || self.changed_since.len() > MAX_ITEMS
+            || self.artifact_roots.len() > MAX_ITEMS
         {
             return Err(format!(
                 "source block lists are limited to {MAX_ITEMS} entries"
@@ -209,6 +420,45 @@ impl SourceBlock {
             }
             if !seen.insert((item.kind, item.id.clone())) {
                 return Err(format!("duplicate in-flight item: {}", item.id));
+            }
+        }
+        let mut change_ids = BTreeSet::new();
+        for change in &self.changed_since {
+            change.validate()?;
+            if !change_ids.insert(change.id.clone()) {
+                return Err(format!("duplicate changed_since id: {}", change.id));
+            }
+        }
+        if let Some(memory) = &self.memory {
+            match (&memory.dir, &memory.absent_reason) {
+                (Some(dir), None) => {
+                    absolute_path("memory.dir", dir)?;
+                    no_secret("memory.dir", dir)?;
+                }
+                (None, Some(reason)) => {
+                    field("memory.absent_reason", reason)?;
+                    no_secret("memory.absent_reason", reason)?;
+                }
+                _ => {
+                    return Err(
+                        "memory must declare exactly one of dir or absent_reason".to_string()
+                    )
+                }
+            }
+        }
+        let mut roots = BTreeSet::new();
+        for root in &self.artifact_roots {
+            absolute_path("artifact_roots[].path", &root.path)?;
+            field("artifact_roots[].owner", &root.owner)?;
+            field("artifact_roots[].rerender", &root.rerender)?;
+            for (name, value) in [
+                ("artifact_roots[].path", &root.path),
+                ("artifact_roots[].rerender", &root.rerender),
+            ] {
+                no_secret(name, value)?;
+            }
+            if !roots.insert(root.path.clone()) {
+                return Err(format!("duplicate artifact root: {}", root.path));
             }
         }
         Ok(())

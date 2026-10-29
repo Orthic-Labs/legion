@@ -56,6 +56,10 @@
 - **In-flight reconciliation:** {{EACH_ITEM_ID_STATE_AND_EVIDENCE_OR_RECONCILE_PASS_LINE}}
 - **Partial / unreviewed paths:** {{PATH_OWNER_PARTIAL_OR_UNREVIEWED_FLAG_EACH_OR_NONE}}
 - **Post-cutoff notes:** {{NOTES_PASS_COUNT_AND_HEAD_OR_NONE}}
+- **Source memory:** {{ABSOLUTE_SOURCE_MEMORY_DIR_OR_ABSENT_COLON_REASON}}
+- **Changed-since accounted:** {{CHANGE_ID}} — {{TEXT_RESTATING_THE_NEW_VALUE}}
+- **Identifier accounting window:** {{LAST_N_TURNS_FOR_EXAMPLE_LAST_20_TURNS}}
+- **Omitted identifier:** {{ISSUE_PR_OR_EXCEPTION_REFERENCE}} — {{REASON_IT_IS_OMITTED}}
 
 ## 4. Decisions, Invariants & User Corrections
 
@@ -64,6 +68,8 @@
 | {{DECISION_ID}} | {{EXACT_DECISION}} | {{EVIDENCE_AND_RATIONALE}} | {{LOCKED_ACTIVE_ASSUMPTION_OR_REVISIT_ON}} | {{EXACT_CONDITION}} |
 
 ## 5. Artifacts & Evidence
+
+List every source-block `artifact_roots` path here (including paths outside the workspace) with owner and re-render command in the Role/State cells.
 
 | Artifact | Path / URL | Role | State | Version / hash | Validation + last checked |
 |---|---|---|---|---|---|
