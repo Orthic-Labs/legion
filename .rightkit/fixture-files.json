@@ -1,0 +1,281 @@
+{
+  "schema": 1,
+  "files": {
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/absence.toml": {
+      "sha256": "f20de00742ed59051007ffa2373b147800a5b04d55a467ecdd88f6c31a034ec0",
+      "note": "Deliberately invalid cargo-deny config control."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/positive.toml": {
+      "sha256": "b5eca61ff29c93f0ba478e19f212a8f667004e9b1f787480a02f9fbe3a029f98",
+      "note": "Deliberately invalid cargo-deny config control."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/Cargo.lock": {
+      "sha256": "dbfddd858fcf6a6147e285d11aa4f3f1873b1c3a2e4a4f36d8665ed68504dee0",
+      "note": "Upstream cargo-deny source snapshot used as an Audit known-answer input."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/Cargo.toml": {
+      "sha256": "5dee46123b3e6d325cffe0396330aa106ed328a9e87322135208e81f6030d707",
+      "note": "Upstream cargo-deny source snapshot used as an Audit known-answer input."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/dependency/Cargo.toml": {
+      "sha256": "2432007e24e483b7770dfec175d2b82ad0ba426105ad16c885b76f653fb18a17",
+      "note": "Upstream cargo-deny source snapshot used as an Audit known-answer input."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/dependency/src/lib.rs": {
+      "sha256": "ee54963dd71aa0a4288ecbad2cf17d9aad5fb5401dc75dbba9ca2338a3c778a7",
+      "note": "Upstream cargo-deny source snapshot used as an Audit known-answer input."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-deny/source/src/lib.rs": {
+      "sha256": "05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a",
+      "note": "Upstream cargo-deny source snapshot used as an Audit known-answer input."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/absence/build.rs": {
+      "sha256": "d101bacfb6debb23c3937bb7ec746e441e1cddcdde74afe76ffc51cf437ef930",
+      "note": "cargo-geiger Audit fixture crate build script; formatting is part of the fixture."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/positive/build.rs": {
+      "sha256": "d101bacfb6debb23c3937bb7ec746e441e1cddcdde74afe76ffc51cf437ef930",
+      "note": "cargo-geiger Audit fixture crate build script; formatting is part of the fixture."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/process-error/build.rs": {
+      "sha256": "d101bacfb6debb23c3937bb7ec746e441e1cddcdde74afe76ffc51cf437ef930",
+      "note": "cargo-geiger Audit fixture crate build script; formatting is part of the fixture."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/Cargo.lock": {
+      "sha256": "3f11d51a112555ed76faec9ab9d10cf9ae0f852582e6a3b12773aabf41f583c4",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger-serde/src/lib.rs": {
+      "sha256": "49d9f5328851cdaad49ff0925d94cc2208fb9b211b6639e70957354b9e241692",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger-serde/src/report.rs": {
+      "sha256": "e82612d5d93512af3f9c1598280938a8ee763e063c2ca87f2e4664a0ec64b38b",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/Cargo.toml": {
+      "sha256": "1a203e4526f69275d094d0db76d1d347c146afacd5ab6ff3c76cd3d1f13fe2e3",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/args.rs": {
+      "sha256": "502fb496da4eaf925020046567d8034a4ae87c87bfbb2f2803ac923aa6b1f6ef",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/cli.rs": {
+      "sha256": "25df491b273af281f0a03a6146850abf8b2b56785aa443a5a178605f73bf2836",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/format.rs": {
+      "sha256": "64d8f62e6d24dcfe7c055645d784516030ccaca5148a78eaacf7a14e7d948eab",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/main.rs": {
+      "sha256": "ac93436ee9b194f5813c5ec25d43d5a150874f761e05239413d2693fbcc43772",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/mapping/geiger.rs": {
+      "sha256": "b431c92aff89d3e31ebc67ee547a5ce248c7e5c176fd6a8a6a55e3889781ad9d",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/mapping/metadata.rs": {
+      "sha256": "113849ea3b93073de95efc00704989b9d1c05834495d33f2b2c70adbf9a759c5",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/scan.rs": {
+      "sha256": "0dcc565d833e971f9ca73e5d3c5c43373d287ffdf918956650b2854c43252882",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/scan/default.rs": {
+      "sha256": "7b347e842e96e9c83ca2ef6f608e96c82a282e7bff6df59ed1c011e0889b518e",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/scan/forbid.rs": {
+      "sha256": "736a0873f8d59c25de5e948ab8f1a170c02c62000d0d045b0aa133916c2005b8",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/scan/rs_file.rs": {
+      "sha256": "b8dc416e12ec3c983aac4f5cee3d29ceb9590a70df039aea646c2f5a81233aa7",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/cargo-geiger/src/scan/rs_file/custom_executor.rs": {
+      "sha256": "b99978515ada74e76e624df753a839dad72b6a55c585d700e2ca55644f291b05",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/geiger/src/geiger_syn_visitor.rs": {
+      "sha256": "354d1116702f5f2523839276cc36985edce204bd76041b29baf57075ac8cb4a9",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/geiger/src/lib.rs": {
+      "sha256": "24b6c09dd974d67bf2a1ec605b057e7ae93c6cb4177eaaa91b769a1267054278",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/tag.json": {
+      "sha256": "689e5fdaaf7002cc49ee76ac8eff336691fc5b628c1d8365e68c3f4396d8b97b",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/upstream/tree.json": {
+      "sha256": "f229347007e0a58f74a844b7d761e94306a39fa94838733917354b32e7f35156",
+      "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code."
+    },
+    "engine/crates/legion-audit/tests/fixtures/kotlin-detekt/reports/malformed-truncated.sarif.json": {
+      "sha256": "f5f06b564cd06995500c0e10775116cd83c2c5b5bcd8b53a9cfa12ac5d67939d",
+      "note": "Deliberately truncated SARIF: detekt adapter must report it as malformed, never clean."
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.1/src/tiny-invariant.flow.js": {
+      "sha256": "3ec046c31eaefc126ef48552526ec9ca4efc4a9129eab7e1061867e7ca4e7e3a",
+      "note": "Published tiny-invariant package source (Flow syntax) used verbatim by the node-outdated Audit fixture."
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.3/src/tiny-invariant.flow.js": {
+      "sha256": "3ec046c31eaefc126ef48552526ec9ca4efc4a9129eab7e1061867e7ca4e7e3a",
+      "note": "Published tiny-invariant package source (Flow syntax) used verbatim by the node-outdated Audit fixture."
+    },
+    "engine/crates/legion-audit/tests/fixtures/osv/malformed-lockfile/package-lock.json": {
+      "sha256": "1f0b519c38a645e432073b7b94336ecfbc98ccca51374fa74196755663ed9601",
+      "note": "Deliberately malformed lockfile: OSV adapter must report a parse gap."
+    },
+    "scripts/ci/fixtures/audit-code-python-sdk-accuracy/malformed-config/pyproject.toml": {
+      "sha256": "30c14f2ead49ed651500989098db0956a83871835fb43d75d38e5f2b49800c99",
+      "note": "Deliberately malformed pyproject: Python SDK adapter must report a config gap."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-ai-slop/clean/src/summary.rs": {
+      "sha256": "125ea6cdecca14eb488f57e7cb7d40c958225a4581d97cdd53b53e38dfd1d360",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-ai-slop/planted/src/summary.rs": {
+      "sha256": "957afb4442b63b822fc84d2c13a4ce176edf23d813160b6419d0f9015bbed528",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/clean/cache.rs": {
+      "sha256": "56978429a0b684c908849978dcdd3e5ecd1d6d29b17c8afc9d2eb32ce3dee0a4",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/clean/src/domain/order.rs": {
+      "sha256": "55423d5749885b05503482859842b07c37bb891a08552dc4f77d707c81d74ef9",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/clean/src/domain/repository.rs": {
+      "sha256": "7904195239bdcd52f91d0cffde43471750c9a68c62c74ce3dfc7227cd9b08129",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/clean/src/infra/postgres/repository.rs": {
+      "sha256": "4036dc5c0019ce5f63dfdb4c4f23ad92ab04be9690914244940c67445c4979f9",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/planted/cache.rs": {
+      "sha256": "6c0a925ab326158a9dc16b5d240b91f7d2a43653067df669a009ab1db4b97dbe",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/planted/src/domain/order.rs": {
+      "sha256": "eec74db9ec3a979ebf5b936f2981629ba04175b204866b980f55b71b11b9fa52",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/planted/src/domain/repository.rs": {
+      "sha256": "7904195239bdcd52f91d0cffde43471750c9a68c62c74ce3dfc7227cd9b08129",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-architecture/planted/src/infra/postgres/repository.rs": {
+      "sha256": "7664041a52e11de7eb8118f59b8c2bc5be1f087acac4d1db2ed42dd04b81ffbb",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-correctness/clean/correctness.rs": {
+      "sha256": "f8d530af4a2a778cc7707c9c0e59f441cbcda68cf21cd0717cfdc6f0490c8f7b",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-correctness/planted/correctness.rs": {
+      "sha256": "9921694940454ddeba31b6dcf1d36fa1fd5694d190431376b17a731e39b06c68",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-data-safety/clean/keychain.rs": {
+      "sha256": "82b1cbb0d79f941bdecfe769e49aa2de4cb4a9547740b521555ce24058e63bcf",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-data-safety/planted/keychain.rs": {
+      "sha256": "b372111b7968d8180f1e99110e44731419987cba4b1b3affaa5714cb6e7411bd",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-dead-file/clean/src/main.rs": {
+      "sha256": "69e1411ee0284ee0e5b6429509ddaac42649dc97a093063d6fb351ba135181ee",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-dead-file/clean/src/orphan.rs": {
+      "sha256": "77e5ce0d669838872480fbe04d93729189914f7d49c5dd6287ecc1a22bb7de06",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-dead-file/planted/src/main.rs": {
+      "sha256": "b3cc34cabd74626b980e216b682ae6c21b912f5d6f462ea4afad5845fcb3668f",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-dead-file/planted/src/orphan.rs": {
+      "sha256": "29d0b92438b48397fac59ecdba5c29b2be40b04c7093c92a301138796e5e53fa",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-dead-file/planted/src/records.rs": {
+      "sha256": "77e5ce0d669838872480fbe04d93729189914f7d49c5dd6287ecc1a22bb7de06",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-doc-drift/clean/src/lib.rs": {
+      "sha256": "7268c5ade6b96fe52435f1daddfe3bad20ee8dab09bb791862522ff689fc2fda",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-doc-drift/planted/src/lib.rs": {
+      "sha256": "7268c5ade6b96fe52435f1daddfe3bad20ee8dab09bb791862522ff689fc2fda",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-minimize/clean/format.rs": {
+      "sha256": "bcc2b6b1b8a3b6a8ea91656d9213f3b561cf8b91b52b302533b48a363ff7986b",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-minimize/planted/format.rs": {
+      "sha256": "c549a3c923efa35e9aa9e86b52884c9d48ee3d140e5756050df2ae18de4fab80",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-naming/clean/config.rs": {
+      "sha256": "658146000029b9695271f5092464b934132343b01b7a6932d127283b196197af",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-naming/planted/config.rs": {
+      "sha256": "db81a3d09bf64f0e06f258d4617280f69fccc9240359583df78e8c414329ea65",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-performance/clean/lookup.rs": {
+      "sha256": "f1419262ac98de921eb739730189b69ea1c427b1df67af49a393a2197ed3f766",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-performance/planted/lookup.rs": {
+      "sha256": "dc1e2f7df9953e59cdd2cad50d89375fa16aced5d4c2f8747ac3e06ee4fbf49a",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-platform-parity/clean/src-tauri/path.rs": {
+      "sha256": "ac002ef5e17d5f3718348fd7b8645e96d1c170eaba6b17a2549c607b5bcf654e",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-platform-parity/planted/src-tauri/path.rs": {
+      "sha256": "048958082d1658a0377538c6dfbda85b0a5d95d01a956a0aba8bf742d8b96bea",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-resilience/clean/worker.rs": {
+      "sha256": "1e0df621bb47edc6986f1cc91e3147ab37ab7f182f093cff7b7efa86225a7867",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-resilience/planted/worker.rs": {
+      "sha256": "6697d6a3ae6b7303170122e065c4125faaf6e55984663fd56a0d3264935cde18",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-schema/clean/model.rs": {
+      "sha256": "c86d899134e28094f52521ea2ea5011cb054ab7fa85f0b7af2e619141515746a",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-schema/planted/model.rs": {
+      "sha256": "c86d899134e28094f52521ea2ea5011cb054ab7fa85f0b7af2e619141515746a",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-security/clean/handler.rs": {
+      "sha256": "b0ce4738cbdb6fb4fa0b24082bdbe599f97631e27c4655e0498d51b539505b69",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    },
+    "scripts/ci/fixtures/audit-reasoning-runtime-accuracy/fixtures/reasoning-security/planted/handler.rs": {
+      "sha256": "60f39dda91d329ed13df19bad464143bd42747cb8a7ae89c43601d4a76a2e54d",
+      "note": "Reasoning-runtime planted/clean corpus source; formatting and planted defects are part of the fixture."
+    }
+  }
+}
