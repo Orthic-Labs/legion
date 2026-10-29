@@ -34,6 +34,33 @@ if [[ "$regenerate_workflow" != "true" ]]; then
   fi
 fi
 
+# Dependency-independent deterministic checks run first, before installation,
+# regeneration and compilation, so a defect fails in seconds instead of after the
+# build. They need only Python, rustfmt and the committed tree; each keeps the
+# fail-closed set -e semantics. Later checks run right after their prerequisites.
+export PYTHONDONTWRITEBYTECODE=1
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
+python3 -m unittest discover -s scripts/ci/tests -p test_semgrep_raw_record_digest.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_backend_source_facts.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_code_long_tail_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_extra_provider_receipt_contract.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_opengrep_artifact_contract.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_reasoning_runtime_registration.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_capsule_preflight.py
+python3 -m unittest discover -s scripts/ci/tests -p test_audit_visual_provider_accuracy.py
+python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
+(cd engine && cargo fmt --all -- --check)
+if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
+  python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
+fi
+
 pnpm install --frozen-lockfile
 
 if [[ "$regenerate_workflow" != "true" ]]; then
@@ -64,24 +91,6 @@ fi
 
 # Hosted runners own Cargo directly; local package scripts use the RightKit
 # broker client, which is intentionally absent from hosted CI.
-
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
-python3 -m unittest discover -s scripts/ci/tests -p test_semgrep_raw_record_digest.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_backend_source_facts.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_code_long_tail_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_extra_provider_receipt_contract.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_opengrep_artifact_contract.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_reasoning_runtime_registration.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_capsule_preflight.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_visual_provider_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
 
 checks=(
   "check-canonical-names"
@@ -121,8 +130,6 @@ done
 # request is consistent: derived-artifact checks above plus formatting. Full
 # compile, test and installer validation stays on the Windows and macOS legs.
 if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
-  (cd engine && cargo fmt --all -- --check)
-  python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
   exit 0
 fi
 
@@ -145,9 +152,8 @@ if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
   export RIGHTKIT_CHROME_HEADLESS_SHELL
 fi
 
-# Format and lint gate (formerly the ci.yml lint job): rustfmt drift and
-# clippy::correctness findings fail the build; other warnings are allowed.
-(cd engine && cargo fmt --all -- --check)
+# Lint gate (formerly the ci.yml lint job): clippy::correctness findings fail
+# the build; other warnings are allowed. rustfmt drift is checked at the top.
 
 # Preserve independent qualification evidence after a workspace failure;
 # every command records its own status before the installer delivery barrier.
@@ -1278,7 +1284,7 @@ fi
 # It validates bounded plan/facts artifacts and accepts exit 2 only with a
 # persisted findings/incomplete report matching repository-audit-report output.
 if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  python3 "${GITHUB_WORKSPACE}/scripts/ci/audit-ember-bounded.py" \
+  run_audit_qualification python3 "${GITHUB_WORKSPACE}/scripts/ci/audit-ember-bounded.py" \
     --legion "${RUNNER_TEMP}/legion-install/bin/legion" \
     --provider-registry "${RUNNER_TEMP}/legion-install/share/legion/assets/registry/providers.json" \
     --runner-temp "${RUNNER_TEMP}"
