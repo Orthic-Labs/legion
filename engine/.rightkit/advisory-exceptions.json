@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "_comment": "Single source for every RustSec advisory exception of the engine workspace. deny.toml [advisories].ignore and .cargo/audit.toml must match it exactly (RightKit packages/release/advisory-exceptions.mjs). Renewal needs fresh evidence.",
+  "exceptions": [
+    {
+      "id": "RUSTSEC-2023-0071",
+      "crate": "rsa",
+      "affectedVersions": [
+        "0.9.10"
+      ],
+      "dependents": [
+        "jsonwebtoken 11.1.0",
+        "rightkit-ownership 0.3.1"
+      ],
+      "path": "legion-runtime -> jsonwebtoken -> rsa",
+      "owner": "Legion",
+      "rationale": "rsa 0.9.10 has no patched release (Marvin timing side channel in RSA private-key operations; the advisory itself says local use on a non-compromised computer is fine and the risk is an attacker observing timing over a network). Legion performs one RSA private-key operation: RS256 signing of a Google service-account JWT-bearer assertion in a local process, sent only to the Google token endpoint over TLS, never returned to a remote caller. The other consumer, rightkit-ownership, uses rsa for public-key signature verification only. No decryption oracle and no network-observable timing of a private-key operation exists. Re-review when rsa ships a fixed release.",
+      "evidence": "engine/crates/legion-runtime/src/wf_port/w2_030/google_auth.rs:716-733 (service_account_assertion, sole private-key use); engine/crates/legion-audit/Cargo.toml:32 (rightkit-ownership =0.3.1, keylog.rs public-key verify only); https://rustsec.org/advisories/RUSTSEC-2023-0071.html",
+      "reviewBy": "2026-11-29",
+      "approvedBy": "Lead (Legion) 2026-10-30 for Orthic-Labs/legion#107; Astra/Adrian ratification not yet recorded"
+    },
+    {
+      "id": "RUSTSEC-2026-0387",
+      "crate": "crypto-bigint",
+      "affectedVersions": [
+        "0.5.5"
+      ],
+      "unaffectedVersions": [
+        "0.7.10"
+      ],
+      "dependents": [
+        "elliptic-curve 0.13.8"
+      ],
+      "path": "legion-apple -> jsonwebtoken -> p256 -> elliptic-curve -> crypto-bigint",
+      "owner": "Legion",
+      "rationale": "crypto-bigint 0.5.5 has secret-dependent timing in subtraction, division and Montgomery multiplication (fixed in >=0.7.6; 0.7.10 is locked for the current stack). 0.5.5 stays only through elliptic-curve 0.13.8 (ecdsa/p256/p384 0.13) pulled by jsonwebtoken 11.1.0, which has not moved to elliptic-curve 0.14. Legion uses it for ES256 signing of short-lived App Store Connect tokens in a local process; the token is sent to Apple over TLS and no timing of the signing operation is observable by a remote party. Re-review when jsonwebtoken moves to elliptic-curve 0.14.",
+      "evidence": "engine/crates/legion-apple/src/app_store.rs:543-554 (ES256 sign); engine/crates/legion-runtime/Cargo.toml:18 and legion-apple/Cargo.toml:13 (jsonwebtoken); https://rustsec.org/advisories/RUSTSEC-2026-0387.html",
+      "reviewBy": "2026-11-29",
+      "approvedBy": "Lead (Legion) 2026-10-30 for Orthic-Labs/legion#107; Astra/Adrian ratification not yet recorded"
+    }
+  ]
+}

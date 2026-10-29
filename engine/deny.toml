@@ -1,20 +1,35 @@
 [advisories]
 version = 2
+yanked = "deny"
+unmaintained = "workspace"
+ignore = [
+    { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 has no patched release (Marvin timing side channel in RSA private-key operations; the advisory itself says local use on a non-compromised computer is fine and the risk is an attacker observing timing over a network). Legion performs one RSA private-key operation: RS256 signing of a Google service-account JWT-bearer assertion in a local process, sent only to the Google token endpoint over TLS, never returned to a remote caller. The other consumer, rightkit-ownership, uses rsa for public-key signature verification only. No decryption oracle and no network-observable timing of a private-key operation exists. Re-review when rsa ships a fixed release." },
+    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5.5 has secret-dependent timing in subtraction, division and Montgomery multiplication (fixed in >=0.7.6; 0.7.10 is locked for the current stack). 0.5.5 stays only through elliptic-curve 0.13.8 (ecdsa/p256/p384 0.13) pulled by jsonwebtoken 11.1.0, which has not moved to elliptic-curve 0.14. Legion uses it for ES256 signing of short-lived App Store Connect tokens in a local process; the token is sent to Apple over TLS and no timing of the signing operation is observable by a remote party. Re-review when jsonwebtoken moves to elliptic-curve 0.14." },
+]
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Workspace crates depend on each other by path; cargo-deny counts those as wildcards otherwise.
+allow-wildcard-paths = true
 
 [licenses]
 version = 2
 allow = [
+    # Legion's own workspace crates (workspace.package license). No crate sets publish = false, so
+    # [licenses.private] cannot exempt them; the identifier is Orthic Labs' own license.
+    "LicenseRef-Orthic-Labs-Source-Use-1.0",
     "Apache-2.0",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "CC0-1.0",
+    # webpki-root-certs / webpki-roots (Mozilla root store data).
+    "CDLA-Permissive-2.0",
     "ISC",
     "MIT",
     "MPL-2.0",
+    # Permissive University of Illinois/NCSA license (BSD-style), carried by libfuzzer-sys.
+    "NCSA",
     "Unicode-3.0",
     "Zlib",
 ]
