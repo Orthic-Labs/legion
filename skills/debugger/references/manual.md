@@ -174,6 +174,7 @@ patch*; it is not proof of the stated root cause. Know which level you are at:
 | 5 | systemic: why it was possible, and what class it belongs to |
 
 Level 4 is the bar for "root cause found." Level 2 with a green test is where a wrong fix hides.
+Report every causal claim with its evidence level; below Level 4, label it unproven and name the next discriminating probe.
 
 Then:
 - Make the smallest fix that resolves the root cause (not the symptom). **Choose the fix strength
