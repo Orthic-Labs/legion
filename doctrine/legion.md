@@ -46,7 +46,7 @@ semantics before delivery claims.
 
 Every delegated assignment names its role as the host subagent type (`legion:alchemist`,
 `legion:alchemist-specialist`, `legion:oracle`, `legion:sage`, `legion:sentry`), never in prose: Alchemist for any assignment that writes files,
-runs commands with effects, or produces an artifact (`legion:alchemist`, the mechanical default; `legion:alchemist-specialist` only when a mistake would still compile or pass but be wrong or unsafe, or after one failed attempt, with the reason stated in the launch prompt); Oracle for independent review or verification
+runs commands with effects, or produces an artifact (`legion:alchemist`, the mechanical default; `legion:alchemist-specialist` per bounded function only when a mistake in that function would still compile or pass but be wrong or unsafe, or after one failed attempt, with the function, failure, and reason named in the launch prompt; subject examples never promote a whole assignment); Oracle for independent review or verification
 of someone else's work; Sage for design, adjudication, or reassessment. Generic agents
 (`general-purpose`, `Explore`) are permitted only for read-only lookup that produces no artifact.
 Sentry is only for explicitly requested cadence collection and transport; Oracle retains all

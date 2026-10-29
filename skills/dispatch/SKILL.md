@@ -24,6 +24,9 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: Assignment states scope, exclusions, exact ownership, evidence, expected result, & next integration action.
 
 1. Start bounded subagents with `fork_turns: "none"`. Give each fresh worker current scope, exclusions, exact OWN/READ/FORBIDDEN path scopes & writable allowlists, bounded evidence pointers, & expected result; bound each assignment's scope to the requester's words, and where an inventory term admits a wider set, take the narrower reading and list what it excludes; never copy the full transcript or inherit turns unless explicitly requested. Bound reads & tool output to relevant excerpts. Split work when one assignment would accumulate excessive context. Workers are edit-only; bounded read-only inspection is allowed. Prohibit Cargo, tests, builds, generators, installs, commits, pushes, merges, heavy checks, and post-merge verification. Never create worktrees or branches. The root integration owner is sole checker per repository & host on the primary checkout; defer one verification batch until all coding is complete. Workers report changed paths, source-level result, and blockers without claiming command-based checks.
+Launch prompts for `legion:alchemist-specialist` name the bounded function, the compile-but-wrong failure ordinary checks could miss, and the reason (risk or failed mechanical attempt). Subject examples such as security or concurrency never promote a whole assignment.
+Split disjoint work across tiers; keep inseparable risky changes in one specialist assignment.
+Report the actual model mix (tier per assignment) in the lead's report.
 On Codex hosts, spawn a role with the host's agent-spawn tool (`spawn_agent`), passing the role name
 (`oracle`, `sage`, `alchemist`, `sentry`, `council-seat`) as `agent_type`, then wait for it with
 `wait_agent`. A request for independent or fresh-context review is an explicit spawn request. Claim

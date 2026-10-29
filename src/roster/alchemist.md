@@ -38,9 +38,10 @@ Alchemist is one role with two host cards that differ only in model tier and dis
 - `legion:alchemist`: settled-scope edit work where a later check catches mistakes: file edits,
   captures, mapping or inventory, docs. Workers run no builds, tests, installs, re-pins or
   regeneration; the root integration owner runs those on the primary checkout after coding.
-- `legion:alchemist-specialist`: only when a mistake would still compile or pass but be wrong or
-  unsafe (security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols,
-  concurrency), or after one failed attempt on `legion:alchemist`. The launch prompt states which
-  reason applies.
+- `legion:alchemist-specialist`: per bounded function, only when a mistake in that function would
+  still compile or pass but be wrong or unsafe (for example security, signing, entitlements,
+  privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on
+  `legion:alchemist`. Subject examples never promote a whole repository or assignment. The launch
+  prompt names the function, the failure, and the reason.
 
 Authority remains transformation authority regardless of cost tier.
