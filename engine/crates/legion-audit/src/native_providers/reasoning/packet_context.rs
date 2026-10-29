@@ -7,10 +7,21 @@ use serde_json::{json, Map, Value};
 
 use crate::{
     error::AuditError,
+    inventory::InventoryEnvelope,
     plan::{AuditProvider, FrozenPlan},
 };
 
+use super::excerpts::{redact_text, SourceReader};
+
 const GRAPH_RECORD_BYTES: usize = 2048;
+
+/// Documentation context ceilings: per document, per packet, and document count.
+/// Every packet part of the lens carries the same context, so the budget stays small.
+pub(super) const DOC_CONTEXT_FILE_BYTES: usize = 4096;
+pub(super) const DOC_CONTEXT_TOTAL_BYTES: usize = 12 * 1024;
+pub(super) const DOC_CONTEXT_MAX_DOCS: usize = 6;
+const DOC_CONTEXT_READ_BYTES: usize = 256 * 1024;
+const ARCHITECTURE_PROVIDER_ID: &str = "reasoning.architecture";
 
 fn digest(value: &Value) -> Result<String, AuditError> {
     canonical_digest(value).map_err(|error| AuditError::Invalid(error.to_string()))
@@ -140,4 +151,100 @@ pub(super) fn review_context(
     projection["truncated"] = json!(true);
     context["graphContext"] = projection;
     Ok(context)
+}
+
+/// Rank of a repository documentation path that declares architecture rules
+/// (`ARCHITECTURE.md`, `docs/architecture/**`, ADR directories). `None` for
+/// every other path. Lower ranks are admitted first.
+fn architecture_doc_rank(path: &str) -> Option<u8> {
+    let lower = path.to_ascii_lowercase();
+    let prose = ["md", "markdown", "mdx", "rst", "txt", "adoc"]
+        .iter()
+        .any(|extension| lower.rsplit_once('.').is_some_and(|(_, ext)| ext == *extension));
+    if !prose || lower.starts_with("docs/provenance/") {
+        return None;
+    }
+    if lower == "architecture.md" {
+        return Some(0);
+    }
+    if lower.starts_with("docs/architecture/") {
+        return Some(1);
+    }
+    if lower.starts_with("adr/")
+        || lower.starts_with("docs/adr/")
+        || lower.starts_with("docs/decisions/")
+    {
+        return Some(2);
+    }
+    None
+}
+
+/// Bounded documentation context for `reasoning.architecture`: the repository's
+/// written dependency rules and decisions, read from the frozen source and
+/// redacted. It is context only: these paths are not in the source denominator,
+/// never enter `excerptCoverage`, and never count as reviewed source. `None`
+/// for other providers or when the inventory declares no such document.
+pub(super) fn doc_context(
+    source: &SourceReader<'_>,
+    inventory: &InventoryEnvelope,
+    provider_id: &str,
+) -> Option<Value> {
+    if provider_id != ARCHITECTURE_PROVIDER_ID {
+        return None;
+    }
+    let mut candidates: Vec<(u8, &str)> = inventory
+        .entries
+        .iter()
+        .filter_map(|entry| {
+            architecture_doc_rank(&entry.path).map(|rank| (rank, entry.path.as_str()))
+        })
+        .collect();
+    if candidates.is_empty() {
+        return None;
+    }
+    candidates.sort();
+    candidates.dedup();
+    let available = candidates.len();
+    let mut remaining = DOC_CONTEXT_TOTAL_BYTES;
+    let mut docs = Vec::new();
+    for (_, path) in candidates {
+        if docs.len() >= DOC_CONTEXT_MAX_DOCS || remaining == 0 {
+            break;
+        }
+        let Ok((bytes, _)) = source.read(path, DOC_CONTEXT_READ_BYTES) else {
+            continue;
+        };
+        let Ok(text) = String::from_utf8(bytes) else {
+            continue;
+        };
+        let (redacted, _) = redact_text(&text);
+        let original_bytes = redacted.len();
+        let limit = DOC_CONTEXT_FILE_BYTES.min(remaining);
+        let mut content = String::new();
+        for line in redacted.split_inclusive('\n') {
+            if content.len() + line.len() > limit {
+                break;
+            }
+            content.push_str(line);
+        }
+        if content.is_empty() {
+            continue;
+        }
+        remaining -= content.len();
+        docs.push(json!({
+            "path": path,
+            "truncated": content.len() < original_bytes,
+            "originalBytes": original_bytes,
+            "content": content,
+        }));
+    }
+    Some(json!({
+        "kind": "documentation-context",
+        "countedAsCoverage": false,
+        "note": "Repository architecture documents supplied as bounded context for judging the reviewed source against its declared rules. They are not source under review: never cite them as reviewed source or as coverage; findings still need source evidence.",
+        "available": available,
+        "included": docs.len(),
+        "omitted": available - docs.len(),
+        "documents": docs,
+    }))
 }

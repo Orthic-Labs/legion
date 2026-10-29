@@ -1068,6 +1068,112 @@ fn bounded_refinement_retains_intermediate_fit_when_final_probe_is_oversized() {
 }
 
 #[test]
+fn architecture_docs_are_bounded_context_never_counted_as_coverage() {
+    let mut files = vec![
+        ("src/lib.rs", "pub fn plain() {}\n".to_owned()),
+        (
+            "ARCHITECTURE.md",
+            "# Rules\nui must not import storage.\n".to_owned(),
+        ),
+        (
+            "docs/architecture/layers.md",
+            format!("# Layers\n{}", "core depends on nothing.\n".repeat(600)),
+        ),
+        ("docs/adr/0001-layering.md", "# ADR 1\nAccepted.\n".to_owned()),
+        ("docs/guide.md", "# Unrelated guide\n".to_owned()),
+        ("docs/provenance/old.md", "# Frozen history\n".to_owned()),
+    ];
+    let extra: Vec<String> = (2..10).map(|n| format!("docs/decisions/{n:04}.md")).collect();
+    for path in &extra {
+        files.push((path.as_str(), "# Decision\nbody\n".repeat(300)));
+    }
+    let fixture = Fixture::new(&files);
+    let inventory = fixture.inventory();
+    let plan = AuditPlan::compile_with_root(
+        Some(&fixture.0),
+        &inventory,
+        &[
+            spec("reasoning.architecture", json!({"op":"always"})),
+            spec("reasoning.correctness", json!({"op":"always"})),
+        ],
+    )
+    .unwrap()
+    .freeze(Some(b"architecture-docs-fixture-key"))
+    .unwrap();
+    let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
+    let architecture = work
+        .iter()
+        .find(|item| item.provider_id == "reasoning.architecture")
+        .unwrap();
+    let packet = &architecture.request.packet;
+    let docs = &packet["docContext"];
+    assert_eq!(docs["countedAsCoverage"], false);
+    let documents = docs["documents"].as_array().unwrap();
+    let paths: Vec<&str> = documents
+        .iter()
+        .map(|doc| doc["path"].as_str().unwrap())
+        .collect();
+    // Rank order: ARCHITECTURE.md, docs/architecture/**, then ADR directories.
+    assert_eq!(paths[0], "ARCHITECTURE.md");
+    assert_eq!(paths[1], "docs/architecture/layers.md");
+    assert!(paths.contains(&"docs/adr/0001-layering.md"));
+    assert!(!paths.contains(&"docs/guide.md"));
+    assert!(!paths.iter().any(|path| path.starts_with("docs/provenance/")));
+    assert!(documents[0]["content"]
+        .as_str()
+        .unwrap()
+        .contains("ui must not import storage"));
+    // Bounded: count, per-document and total bytes; omission is declared.
+    assert!(documents.len() <= packet_context::DOC_CONTEXT_MAX_DOCS);
+    let mut total = 0;
+    for doc in documents {
+        let len = doc["content"].as_str().unwrap().len();
+        assert!(len <= packet_context::DOC_CONTEXT_FILE_BYTES);
+        total += len;
+    }
+    assert!(total <= packet_context::DOC_CONTEXT_TOTAL_BYTES);
+    assert_eq!(documents[1]["truncated"], true);
+    assert_eq!(docs["included"], documents.len());
+    assert_eq!(
+        docs["omitted"].as_u64().unwrap() + documents.len() as u64,
+        docs["available"].as_u64().unwrap()
+    );
+    assert!(docs["omitted"].as_u64().unwrap() > 0);
+    // Not source coverage: neither the denominator, excerpts, nor coverage
+    // accounting carry any documentation path.
+    let is_doc = |path: &str| path.ends_with(".md");
+    assert!(packet["excerpts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|excerpt| !is_doc(excerpt["path"].as_str().unwrap())));
+    assert_eq!(packet["binding"]["denominatorCount"], 1);
+    assert!(!packet["excerptCoverage"].to_string().contains(".md"));
+    // Other lenses never receive it.
+    let correctness = work
+        .iter()
+        .find(|item| item.provider_id == "reasoning.correctness")
+        .unwrap();
+    assert!(correctness.request.packet.get("docContext").is_none());
+}
+
+#[test]
+fn architecture_packet_without_docs_omits_doc_context() {
+    let fixture = Fixture::new(&[("src/lib.rs", "pub fn plain() {}\n".to_owned())]);
+    let inventory = fixture.inventory();
+    let plan = AuditPlan::compile_with_root(
+        Some(&fixture.0),
+        &inventory,
+        &[spec("reasoning.architecture", json!({"op":"always"}))],
+    )
+    .unwrap()
+    .freeze(Some(b"architecture-nodocs-fixture-key"))
+    .unwrap();
+    let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
+    assert!(work[0].request.packet.get("docContext").is_none());
+}
+
+#[test]
 fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() {
     let files = (0..23).map(|index| (
         format!("apps/lightcraft-desktop/web/src/components/Control{index:04}.tsx"),

@@ -1636,6 +1636,9 @@ fn build_invocations_with_budget(
         .unwrap_or(Value::Null);
     // Chunks of files continued from an earlier part, per part.
     let mut invocations = Vec::with_capacity(emitted_parts);
+    // Architecture docs are context for the architecture lens only; they are
+    // outside the source denominator & never counted as coverage.
+    let doc_context = packet_context::doc_context(source, inventory, &provider.id);
     let candidate_part_paths = part_slots
         .iter()
         .map(|part| part.map(|part| part.paths.clone()).unwrap_or_default())
@@ -1727,6 +1730,9 @@ fn build_invocations_with_budget(
             "inventoryRef": inventory_ref.clone(),
             "artifactIds": [],
         });
+        if let Some(doc_context) = &doc_context {
+            packet["docContext"] = doc_context.clone();
+        }
         if candidate_routing::accounting_owner(plan) == Some(provider.id.as_str()) {
             packet["candidateRouting"] = all_scanner_candidates
                 .map(|candidates| candidate_routing::packet_accounting(plan, candidates))
