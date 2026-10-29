@@ -40,7 +40,7 @@ agents with host-supported model tiers. This entrypoint needs no external model 
 provider profiles, or package-local worker launcher. See `references/manual.md` for assignment
 & return requirements.
 
-1. Require settled scope, exact OWN/READ/FORBIDDEN paths & writable allowlists, acceptance criteria, and root-owned focused checks; a plan that touches a RightKit capability also carries its `RightKit Capabilities` block from `rightkit owns --compact`.
+1. Require settled scope, exact OWN/READ/FORBIDDEN paths & writable allowlists, acceptance criteria, and root-owned focused checks; a plan that touches a RightKit capability also carries its `RightKit Capabilities` block from `rustright owns --compact`.
    EXECUTOR:
      semantic: required
      capabilities:

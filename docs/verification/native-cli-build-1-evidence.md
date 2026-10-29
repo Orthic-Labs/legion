@@ -16,11 +16,11 @@ Initial Luna returns were not accepted as build-ready. Static review found shall
 - `contract` remains deliberately unwired until reachability, task budgets, host continuity, canonical keyring, executable-contract validation, and authenticated receipts are implemented.
 - `node scripts/native-cli/capture-node-characterization.mjs`: 75/75 Node baseline fixtures pass expectation checks.
 - `node scripts/native-cli/inventory.mjs`: 41/41 union commands characterized, 12 nested subcommands, 0 uncharacterized Node commands. Material mutation/error-path depth remains under lane review before build.
-- `rightkit list`: Legion has no in-flight build, but one Membrane root build is running. Recheck immediately before build so Legion does not enter an expensive competing loop.
+- `rustright list`: Legion has no in-flight build, but one Membrane root build is running. Recheck immediately before build so Legion does not enter an expensive competing loop.
 - No new product-local target exists; `engine/target` predates this work (last write 2026-08-26). Managed release route remains configured by `.rightkit-local-development.json`.
 - Pre-cutover `node scripts/check-native-cli-surface.mjs --phase=enforce` reports exactly 34 expected Node-runtime files. This is deletion inventory, not a build failure; deletion remains gated on first installed parity proof.
 - Audit executor trace found 29 production `runtime-script` providers still mapped to `src/providers/**.mjs`; native package ships none of those modules or Node runtime. Four disjoint Luna lanes now own code-language (10), architecture/framework (8), security/tooling (7), and legacy/governance (4) ports. Build remains blocked until native registry/executor integration covers all 29.
-- `rightkit cargo metadata --locked --offline --format-version 1 --no-deps --manifest-path <repository>\engine\Cargo.toml`: pass via managed broker; this was metadata only, not a build. Build budget remains 0/3.
+- `rustright cargo metadata --locked --offline --format-version 1 --no-deps --manifest-path <repository>\engine\Cargo.toml`: pass via managed broker; this was metadata only, not a build. Build budget remains 0/3.
 
 ## Intended outcome
 

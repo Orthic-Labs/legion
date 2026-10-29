@@ -210,7 +210,7 @@
     },
     "rightkit-owns": {
       "kind": "command-line-provider",
-      "summary": "RightKit shared-capability ownership index (`rightkit owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
+      "summary": "RightKit shared-capability ownership index (`rustright owns --compact`) that Architect starts designs from and Tasklist pastes into its RightKit Capabilities block.",
       "degradation": "Architect states that no ownership index is available and designs without it, recording each build-new decision as unverified against shared owners.",
       "probe": {
         "kind": "command-any",
@@ -221,7 +221,7 @@
       "commands": [
         "rightkit"
       ],
-      "remedy": "Install RightKit so `rightkit owns --compact` is on PATH."
+      "remedy": "Install RightKit so `rustright owns --compact` is on PATH."
     },
     "host-scheduler": {
       "kind": "scheduler",

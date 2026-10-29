@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "known": [
+    { "id": "release-config|right-release.config.mjs|provider:rightkit-worker-r2", "issue": "https://github.com/bogusyogi/rightkit/issues/1290", "added": "2026-10-30", "sunset": "2026-12-15" },
+    { "id": "release-config|right-release.config.mjs|profile:debug", "issue": "https://github.com/bogusyogi/rightkit/issues/1290", "added": "2026-10-30", "sunset": "2026-12-15" }
+  ]
+}

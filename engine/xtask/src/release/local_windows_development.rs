@@ -581,7 +581,7 @@ pub fn run_local_windows_development(
                     "/d".into(),
                     "/s".into(),
                     "/c".into(),
-                    "rightkit.cmd".into(),
+                    "rustright.cmd".into(),
                     "cargo".into(),
                 ]
             };

@@ -187,7 +187,7 @@ mod tests {
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(errors[0].contains("fenced block 1"), "{errors:?}");
         assert!(
-            errors[0].contains("direct cargo invocation must use rightkit cargo"),
+            errors[0].contains("direct cargo invocation must use rustright cargo"),
             "{errors:?}"
         );
     }

@@ -66,7 +66,7 @@ design gate or a requirement to obtain approval before ordinary execution.
 Before proposing new components or dependencies, read the host-declared shared-capability index
 (session-injected ownership index or host-declared lookup command) and the workspace/repository
 agent rules, then decide reuse owner → extend owner → build new. Building new, or adding a
-third-party dependency for a capability the index declares, needs a recorded reason. When the host provides `rightkit owns --compact`, start every design from its full output:
+third-party dependency for a capability the index declares, needs a recorded reason. When the host provides `rustright owns --compact`, start every design from its full output:
 name the owner for each capability, integrate owners, and design only the gaps. Carry that output
 into the tasklist's RightKit Capabilities block. If the host
 declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/01-frame.md`.
@@ -76,7 +76,7 @@ declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/0
 Before a design, bakeoff, export, or runtime change, name the open-source projects that already
 solve or attempt the same problem. For each, state its runtime, format, adoption numbers (dated),
 and licence, then either reuse it or state the reason not to. Record this under a mandatory
-"Prior art" section of the output. Run it as the second question after `rightkit owns`. Research
+"Prior art" section of the output. Run it as the second question after `rustright owns`. Research
 performs the lookup from fetched sources; Architect owns the reuse decision. A design without a
 Prior art record is incomplete; "none found" must name the searches run. Detail:
 `doctrine/architecture/workflow/01-frame.md`.

@@ -5,7 +5,7 @@
 //! not ported (`wf_port::w2_044`'s module doc originally listed
 //! `managed_rust_route_errors` among the unported surface). It scans
 //! Markdown dispatch-document text for direct `cargo`/`rustc`/`rustdoc`
-//! invocations that bypass RightKit (`rightkit build ...`), in fenced code
+//! invocations that bypass RightKit (`rustright build ...`), in fenced code
 //! blocks, inline code spans, Markdown table cells, `- **Label:**` value
 //! lines, and (best-effort) a referenced GoalRoute JSON document's
 //! `state_b.proof[].command` fields.
