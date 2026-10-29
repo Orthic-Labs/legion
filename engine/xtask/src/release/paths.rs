@@ -8,7 +8,9 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::time::Duration;
+
+use rightkit_child_process::OwnedCommand;
 
 use sha2::{Digest, Sha256};
 
@@ -147,38 +149,30 @@ pub struct CommandOptions {
 /// with a stub. Boxed so callers can pass closures or a real-process runner.
 pub type CommandRunner<'a> = &'a dyn Fn(&str, &[String], &CommandOptions) -> CommandResult;
 
-/// The default runner: an actual `std::process::Command` invocation, applying
-/// the same timeout/output-capture bounds `releaseSpawnOptions` documents
-/// (Rust's `Command` has no built-in timeout, so long-running callers should
-/// prefer a purpose-built runner; this default is for short commands).
+/// The default runner: an actual process invocation under
+/// `RELEASE_COMMAND_TIMEOUT_MS` and `RELEASE_CAPTURE_MAX_BYTES`, mirroring
+/// `releaseSpawnOptions`. Deadline expiry terminates and reaps the whole tree
+/// and is reported in `error_message`.
 pub fn spawn_sync(command: &str, args: &[String], options: &CommandOptions) -> CommandResult {
-    let mut cmd = Command::new(command);
-    cmd.args(args);
-    if let Some(cwd) = &options.cwd {
-        cmd.current_dir(cwd);
-    }
-    if let Some(env) = &options.env {
-        cmd.env_clear();
-        for (k, v) in env {
-            cmd.env(k, v);
+    let mut owned = OwnedCommand::new(command);
+    {
+        let cmd = owned.command_mut();
+        cmd.args(args);
+        if let Some(cwd) = &options.cwd {
+            cmd.current_dir(cwd);
+        }
+        if let Some(env) = &options.env {
+            cmd.env_clear();
+            for (k, v) in env {
+                cmd.env(k, v);
+            }
         }
     }
-    match cmd.output() {
-        Ok(output) => CommandResult {
-            error_message: None,
-            status: output.status.code(),
-            signal: None,
-            stdout: Some(String::from_utf8_lossy(&output.stdout).into_owned()),
-            stderr: Some(String::from_utf8_lossy(&output.stderr).into_owned()),
-        },
-        Err(err) => CommandResult {
-            error_message: Some(err.to_string()),
-            status: None,
-            signal: None,
-            stdout: None,
-            stderr: None,
-        },
-    }
+    process_boundary::run_bounded(
+        owned,
+        Duration::from_millis(process_boundary::RELEASE_COMMAND_TIMEOUT_MS),
+        process_boundary::RELEASE_CAPTURE_MAX_BYTES,
+    )
 }
 
 pub fn run_json(

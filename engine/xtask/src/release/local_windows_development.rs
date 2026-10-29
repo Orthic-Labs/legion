@@ -478,8 +478,13 @@ fn run_json_labeled(
 }
 
 /// Emits the same `{"schema":"legion.local-windows-phase.v1", "phase", "elapsedMs"}`
-/// line to stdout the JS `phase()` wrapper wrote, after running `action`.
+/// line to stdout the JS `phase()` wrapper wrote, after running `action`, and
+/// first a `state: "started"` line so long phases show progress while running.
 fn phase<T>(name: &str, action: impl FnOnce() -> ReleaseResult<T>) -> ReleaseResult<T> {
+    println!(
+        "{}",
+        json!({ "schema": "legion.local-windows-phase.v1", "phase": name, "state": "started" })
+    );
     let started = Instant::now();
     let result = action();
     let elapsed_ms = started.elapsed().as_millis();

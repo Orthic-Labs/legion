@@ -16,3 +16,4 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 clap = { workspace = true }
 regex = { workspace = true }
+rightkit-child-process = "=0.5.6"

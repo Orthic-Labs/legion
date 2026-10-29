@@ -120,6 +120,55 @@ pub fn command_evidence(result: &CommandResult) -> CommandEvidence {
     }
 }
 
+#[cfg(unix)]
+fn exit_signal(status: std::process::ExitStatus) -> Option<String> {
+    use std::os::unix::process::ExitStatusExt;
+    status.signal().map(|signal| signal.to_string())
+}
+#[cfg(not(unix))]
+fn exit_signal(_: std::process::ExitStatus) -> Option<String> {
+    None
+}
+
+/// Runs a configured command under a deadline and a per-stream capture cap.
+///
+/// On deadline expiry the whole process tree is terminated and reaped, and the
+/// result carries a `timed out after <ms>ms` diagnostic in `error_message`. A
+/// stream that exceeds `max_bytes` is kept to its first `max_bytes` and the
+/// result carries an `output exceeded` diagnostic (Node's `ENOBUFS` analogue),
+/// so callers fail closed instead of trusting clipped output. A spawn or
+/// capture failure yields `error_message` with no status.
+pub fn run_bounded(command: OwnedCommand, timeout: Duration, max_bytes: usize) -> CommandResult {
+    let options = RunOptions::new(timeout)
+        .stdout_cap(max_bytes)
+        .stderr_cap(max_bytes);
+    match run_command(command, None, &options) {
+        Ok(output) => {
+            let mut notes = Vec::new();
+            if output.timed_out {
+                notes.push(format!(
+                    "timed out after {}ms; process tree terminated",
+                    timeout.as_millis()
+                ));
+            }
+            if output.stdout.truncated || output.stderr.truncated {
+                notes.push(format!("output exceeded {max_bytes} bytes per stream"));
+            }
+            CommandResult {
+                error_message: (!notes.is_empty()).then(|| notes.join("; ")),
+                status: output.status.code(),
+                signal: exit_signal(output.status),
+                stdout: Some(String::from_utf8_lossy(&output.stdout.bytes).into_owned()),
+                stderr: Some(String::from_utf8_lossy(&output.stderr.bytes).into_owned()),
+            }
+        }
+        Err(error) => CommandResult {
+            error_message: Some(error.to_string()),
+            ..Default::default()
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,5 +211,85 @@ mod tests {
             evidence.stdout.sha256,
             "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
         );
+    }
+
+    #[cfg(unix)]
+    fn sh(script: &str) -> OwnedCommand {
+        let mut command = OwnedCommand::new("/bin/sh");
+        command.command_mut().args(["-c", script]);
+        command
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bounded_run_returns_output_within_limits() {
+        let result = run_bounded(sh("printf out; printf err >&2"), Duration::from_secs(20), 1024);
+        assert_eq!(result.error_message, None);
+        assert_eq!(result.status, Some(0));
+        assert_eq!(result.stdout.as_deref(), Some("out"));
+        assert_eq!(result.stderr.as_deref(), Some("err"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bounded_run_times_out_with_diagnostic() {
+        let started = std::time::Instant::now();
+        let result = run_bounded(sh("sleep 60"), Duration::from_millis(300), 1024);
+        assert!(started.elapsed() < Duration::from_secs(30));
+        let message = result.error_message.expect("timeout diagnostic");
+        assert!(message.contains("timed out after 300ms"), "{message}");
+        assert_ne!(result.status, Some(0));
+        assert!(command_diagnostic(&result).contains("timed out"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bounded_run_caps_captured_output() {
+        let result = run_bounded(sh("head -c 100000 /dev/zero"), Duration::from_secs(20), 1000);
+        assert_eq!(result.stdout.as_deref().map(str::len), Some(1000));
+        let message = result.error_message.expect("cap diagnostic");
+        assert!(message.contains("output exceeded 1000 bytes"), "{message}");
+        assert_eq!(result.status, Some(0));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bounded_run_kills_descendants_on_timeout() {
+        // The shell backgrounds a long sleep, prints its pid, then waits.
+        let result = run_bounded(
+            sh("sleep 300 & echo $!; wait"),
+            Duration::from_millis(500),
+            1024,
+        );
+        assert!(result.error_message.is_some());
+        let pid: u32 = result
+            .stdout
+            .as_deref()
+            .and_then(|out| out.trim().parse().ok())
+            .expect("background pid on stdout");
+        let alive = || {
+            std::process::Command::new("kill")
+                .args(["-0", &pid.to_string()])
+                .stderr(std::process::Stdio::null())
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(false)
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while alive() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(!alive(), "descendant {pid} survived the timeout");
+    }
+
+    #[test]
+    fn bounded_run_reports_spawn_failure() {
+        let result = run_bounded(
+            OwnedCommand::new("/nonexistent/legion-xtask-missing-binary"),
+            Duration::from_secs(5),
+            1024,
+        );
+        assert!(result.error_message.is_some());
+        assert_eq!(result.status, None);
     }
 }

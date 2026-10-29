@@ -14,7 +14,12 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-use crate::process_boundary::{command_diagnostic, CommandResult, INSTALLED_COMMAND_TIMEOUT_MS};
+use rightkit_child_process::OwnedCommand;
+
+use crate::process_boundary::{
+    command_diagnostic, run_bounded, CommandResult, INSTALLED_COMMAND_TIMEOUT_MS,
+    RELEASE_CAPTURE_MAX_BYTES,
+};
 
 fn is_within(root: &Path, candidate: &Path) -> bool {
     let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
@@ -53,26 +58,33 @@ fn run(
     args: &[&str],
     env_vars: &[(String, String)],
 ) -> Result<(Option<i32>, String, String), String> {
-    let mut cmd = Command::new(binary);
-    cmd.args(args);
-    cmd.env_clear();
-    for (k, v) in env_vars {
-        cmd.env(k, v);
+    let mut owned = OwnedCommand::new(binary);
+    {
+        let cmd = owned.command_mut();
+        cmd.args(args);
+        cmd.env_clear();
+        for (k, v) in env_vars {
+            cmd.env(k, v);
+        }
     }
-    // Approximate the JS timeout bound; std::process has no native timeout, so
-    // we spawn and wait without enforcing it strictly (matches other xtask
-    // ports' documented approximation of Node's spawnSync timeout).
-    let _timeout = Duration::from_millis(INSTALLED_COMMAND_TIMEOUT_MS);
-    let output = cmd.output().map_err(|e| {
-        format!(
-            "{} {} failed: spawn error: {e}",
+    let result = run_bounded(
+        owned,
+        Duration::from_millis(INSTALLED_COMMAND_TIMEOUT_MS),
+        RELEASE_CAPTURE_MAX_BYTES,
+    );
+    // Timeout, output-cap, and spawn failures are errors, never a clipped success.
+    if let Some(error) = &result.error_message {
+        return Err(format!(
+            "{} {} failed: {error}",
             binary.display(),
             args.join(" ")
-        )
-    })?;
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    Ok((output.status.code(), stdout, stderr))
+        ));
+    }
+    Ok((
+        result.status,
+        result.stdout.unwrap_or_default(),
+        result.stderr.unwrap_or_default(),
+    ))
 }
 
 /// Drop the Windows verbatim prefix canonicalize() adds: the installed
