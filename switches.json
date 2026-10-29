@@ -1,0 +1,1122 @@
+{
+  "schema": 1,
+  "app": "legion",
+  "switches": [
+    {
+      "name": "ALCHEMIST_RUN_DIR",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:326",
+      "note": "Run directory override (script.rs). No cfg gate."
+    },
+    {
+      "name": "API_URL",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/reasoning/pattern_cards.rs:652",
+      "valueType": "enum",
+      "note": "Not a read: text inside a pattern-card string (pattern_cards.rs)."
+    },
+    {
+      "name": "ARCANE_KEY_DIR",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/budget.rs:71",
+      "note": "Directory of the Arcane signing keys; selects the authority key ring. No cfg gate."
+    },
+    {
+      "name": "ASC_ISSUER_ID",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:530",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "ASC_KEY_ID",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:531",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "ASC_PRIVATE_KEY_PATH",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:532",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "ASC_TOKEN",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:516",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "AUDIT_OWNERSHIP_SCAN_CMD",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/legacy/governance_ownership.rs:29",
+      "note": "Command line of the ownership scanner (governance_ownership.rs COMMAND_ENV, read via a non-literal name). No cfg gate."
+    },
+    {
+      "name": "AUDIT_PLAN_SIGNING_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion-mcp/src/tools.rs:266",
+      "note": "Audit plan signing key supplied by environment (integrity.rs PLAN_KEY_ENV). No cfg gate."
+    },
+    {
+      "name": "BANANA_MCP_URL",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "src/registry/capabilities.json:17",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "BING_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:706",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "CARGO_BUILD_TARGET",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/assemble_native_release.rs:423",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "CARGO_HOME",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/tools.rs:961",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "CARGO_MANIFEST_DIR",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/release/admission.rs:66",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "CHROME_PATH",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r54/browser.rs:43",
+      "note": "Browser executable override (r54 browser; audit runtime_capture forwards it). No cfg gate."
+    },
+    {
+      "name": "CI",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/sandbox.rs:231",
+      "valueType": "enum",
+      "note": "CI flag; the only read is test-only."
+    },
+    {
+      "name": "CLAUDECODE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-host/src/detect.rs:35",
+      "valueType": "enum",
+      "note": "Host session or harness attribution id; selects no mode, root or identity of authority."
+    },
+    {
+      "name": "CLAUDE_CODE_SESSION_ID",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/completion.rs:58",
+      "valueType": "enum",
+      "note": "Host session or harness attribution id; selects no mode, root or identity of authority."
+    },
+    {
+      "name": "CLAUDE_CONFIG_DIR",
+      "class": "S5",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/doctor.rs:451",
+      "userGesture": true,
+      "note": "The third-party tool's own documented, user-set variable naming where that tool keeps its data (or, for DOCSET_ROOT, the Apple docset location); the user's own choice. Owner to confirm S5."
+    },
+    {
+      "name": "CLAUDE_SESSION_ID",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/completion.rs:59",
+      "valueType": "enum",
+      "note": "Host session or harness attribution id; selects no mode, root or identity of authority."
+    },
+    {
+      "name": "CODEX_HOME",
+      "class": "S5",
+      "channel": "env",
+      "anchor": "engine/bins/legion-hook/src/codex.rs:96",
+      "userGesture": true,
+      "note": "The third-party tool's own documented, user-set variable naming where that tool keeps its data (or, for DOCSET_ROOT, the Apple docset location); the user's own choice. Owner to confirm S5."
+    },
+    {
+      "name": "CODEX_SESSION_ID",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/completion.rs:60",
+      "valueType": "enum",
+      "note": "Host session or harness attribution id; selects no mode, root or identity of authority."
+    },
+    {
+      "name": "CODEX_THREAD_ID",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/completion.rs:57",
+      "valueType": "enum",
+      "note": "Host session or harness attribution id; selects no mode, root or identity of authority."
+    },
+    {
+      "name": "COMSPEC",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/security/producer.rs:78",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "CORTEX_DECOMPOSITION_REVIEW_LOC",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/legacy_checks/mod.rs:3011",
+      "valueType": "int",
+      "note": "Line-count threshold."
+    },
+    {
+      "name": "DATAFORSEO_LOGIN",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_033/seo_project.rs:163",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "DATAFORSEO_PASSWORD",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_033/seo_project.rs:163",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "DEVELOPER_DIR",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs:36",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "DOCSET_ROOT",
+      "class": "S5",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/docs.rs:156",
+      "userGesture": true,
+      "note": "The third-party tool's own documented, user-set variable naming where that tool keeps its data (or, for DOCSET_ROOT, the Apple docset location); the user's own choice. Owner to confirm S5."
+    },
+    {
+      "name": "FIRECRAWL_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "src/registry/capabilities.json:125",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "GA4_BEARER_TOKEN",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:600",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "GA4_PROPERTY_ID",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:606",
+      "valueType": "enum",
+      "note": "GA4 property identifier; selects the user's own property."
+    },
+    {
+      "name": "GITHUB_ACTIONS",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion-dev/src/ci_qualification_child.rs:281",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "GOOGLE_AI_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r32/edit.rs:437",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm. Also read in a test."
+    },
+    {
+      "name": "GOOGLE_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r32/edit.rs:438",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm. Also read in a test."
+    },
+    {
+      "name": "GOOGLE_APPLICATION_CREDENTIALS",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_030/google_auth.rs:129",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "GOOGLE_INDEXING_BEARER_TOKEN",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:666",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "GSC_PROPERTY",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_030/gsc_query_v2.rs:508",
+      "valueType": "enum",
+      "note": "Search Console property identifier; selects the user's own property."
+    },
+    {
+      "name": "HOME",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/release_binding.rs:781",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "HOMEDRIVE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/setup.rs:5064",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "HOMEPATH",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/setup.rs:5065",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "IMPECCABLE_CONTEXT_DIR",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_010/context.rs:324",
+      "note": "Context directory override. No cfg gate."
+    },
+    {
+      "name": "IMPECCABLE_CRITIQUE_META",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:1152",
+      "valueType": "enum",
+      "note": "Critique metadata JSON object."
+    },
+    {
+      "name": "IMPECCABLE_HOOK_DISABLED",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r12/mod.rs:1708",
+      "valueType": "bool",
+      "note": "Kill switch for the impeccable hook; the other hit is a doc comment."
+    },
+    {
+      "name": "IMPECCABLE_LIVE_CONFIG",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_018/inject.rs:972",
+      "note": "Live-mode config (JSON or path) override. No cfg gate; two further hits are doc comments."
+    },
+    {
+      "name": "IMPECCABLE_LIVE_COPY_AGENT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r24/http_server.rs:1079",
+      "valueType": "enum",
+      "note": "Copy-agent mode word (auto etc.)."
+    },
+    {
+      "name": "IMPECCABLE_LIVE_COPY_AGENT_TIMEOUT_MS",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r24/manual_edit_deps.rs:88",
+      "valueType": "int",
+      "note": "Timeout in milliseconds."
+    },
+    {
+      "name": "IMPECCABLE_PALETTE_SEED",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:1251",
+      "valueType": "enum",
+      "note": "Palette seed string."
+    },
+    {
+      "name": "IMPECCABLE_UPDATE_CACHE",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r04/update_check.rs:38",
+      "note": "Update-check cache path override. No cfg gate."
+    },
+    {
+      "name": "IMPECCABLE_UPDATE_HOST",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r04/update_check.rs:31",
+      "note": "Update-check host override (default https://designer.style). No cfg gate."
+    },
+    {
+      "name": "INDEXNOW_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:614",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "LANG",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/xcode_bridge.rs:185",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "LEGION_AUDIT_GRAPH_ARTIFACT",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/audit.rs:1063",
+      "note": "Path of an audit graph artifact input. No cfg gate."
+    },
+    {
+      "name": "LEGION_AUDIT_JS_OUTPUT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/javascript_sdk.rs:557",
+      "valueType": "enum",
+      "note": "Not a Rust read: set by Legion itself in the sandboxed JavaScript child environment (javascript_sdk.rs:160) and read by generated JS text."
+    },
+    {
+      "name": "LEGION_AUDIT_LEASE_MINUTES",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/audit.rs:1976",
+      "valueType": "int",
+      "note": "Bounded lease duration."
+    },
+    {
+      "name": "LEGION_AUDIT_TRACE_PHASES",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/audit.rs:21",
+      "valueType": "bool",
+      "note": "Diagnostic trace toggle."
+    },
+    {
+      "name": "LEGION_AUTHORIZED_CREDENTIAL_PROVIDER",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/review.rs:13",
+      "note": "Names the authorized credential provider for review (review.rs AUTHORIZED_PROVIDER_ENV, non-literal read). No cfg gate."
+    },
+    {
+      "name": "LEGION_CARGO_AUDIT_BIN",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/rust_dependency.rs:184",
+      "note": "Executable path of the pinned dependency auditor. No cfg gate."
+    },
+    {
+      "name": "LEGION_CI_IPC_STORAGE",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/sandbox.rs:233",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_DOTNET_ACCURACY_OUTPUT",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk_accuracy.rs:1337",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_DOTNET_ENROLLMENT",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk.rs:198",
+      "note": "Enrollment file that admits the .NET SDK provider (dotnet_sdk.rs, non-test). No cfg gate."
+    },
+    {
+      "name": "LEGION_EXE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion-dev/src/generators/native_cli_rust_characterization.rs:88",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_FIXTURE_MISSING_ASSETS_TEST",
+      "class": "S1",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture.rs:3108",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_GITLEAKS_ARCHIVE_NAME",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/security/history_qualification_record.rs:395",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_GITLEAKS_ARCHIVE_SHA256",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/security/history_qualification_record.rs:396",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_GRADLE_NATIVE_MODE",
+      "class": "S1",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/gradle_sandbox.rs:447",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_GRADLE_NATIVE_PROJECT",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/gradle_sandbox.rs:540",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_GRADLE_NATIVE_STATE",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/gradle_sandbox.rs:450",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_HARNESS",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-host/src/detect.rs:55",
+      "valueType": "enum",
+      "note": "Host session or harness attribution id; selects no mode, root or identity of authority."
+    },
+    {
+      "name": "LEGION_HARNESS_DESCRIPTOR",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-harness/src/descriptor.rs:218",
+      "note": "Path of a harness descriptor file. No cfg gate."
+    },
+    {
+      "name": "LEGION_JVM_CONFINEMENT_RECORD",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/gradle_sandbox.rs:554",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_JVM_SDK_ENROLLMENT_JSON",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/jvm_sdk.rs:213",
+      "note": "Enrollment JSON that admits the JVM SDK provider. No cfg gate."
+    },
+    {
+      "name": "LEGION_M1_CONFIG",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/cli.rs:405",
+      "note": "M1 application config path; selects the development runtime origin (RuntimeOriginEvidence::development). No cfg gate."
+    },
+    {
+      "name": "LEGION_M1_CONFIG_PATH",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/apple_mcp.rs:18",
+      "note": "Second accepted name of the M1 config path (apple_mcp.rs CONFIG_ENVS). No cfg gate."
+    },
+    {
+      "name": "LEGION_MACOS_ARCH",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "right-release.config.mjs:103",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_MOBILE_SDK_ENROLLMENT",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/mobile_sdk_enrollment.rs:6",
+      "note": "Enrollment path for the mobile SDK provider (mobile_sdk_enrollment.rs ENV constant, read via a non-literal name). No cfg gate."
+    },
+    {
+      "name": "LEGION_NATIVE_APPLICATION_CONFIG",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion-mcp/src/main.rs:27",
+      "note": "Injects the native application configuration (versioned source) in legion, legion-hook and legion-mcp. No cfg gate."
+    },
+    {
+      "name": "LEGION_NATIVE_BUILD_EVIDENCE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion-dev/src/generators/native_cli_installed_parity.rs:48",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_NATIVE_STREAM_DIR",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/review_runtime/native.rs:775",
+      "note": "Diagnostic dump directory for the raw native stream; a data directory, so classed S4 rather than S6. No cfg gate."
+    },
+    {
+      "name": "LEGION_PARITY_NOW",
+      "class": "S1",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/state.rs:192",
+      "note": "Replaces the clock in iso_now (state.rs) for deterministic parity runs: a test seam in a shipped binary. No cfg gate."
+    },
+    {
+      "name": "LEGION_PARITY_ROOT",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/state.rs:164",
+      "note": "Parity-mode path base for surface keys (state.rs). No cfg gate."
+    },
+    {
+      "name": "LEGION_PROVIDER_REGISTRY",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/audit.rs:5028",
+      "note": "Overrides the native provider registry file. No cfg gate."
+    },
+    {
+      "name": "LEGION_RELEASE_ARCHITECTURE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/prepare_unsigned_candidate.rs:487",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_RELEASE_PLATFORM",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/prepare_unsigned_candidate.rs:482",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_RUST_CODE_ADVISORY_DB",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/rust_dependency.rs:176",
+      "note": "Advisory database path for the Rust dependency provider. No cfg gate."
+    },
+    {
+      "name": "LEGION_SMOKE_ROOT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/native_installed_smoke.rs:249",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_SOURCE_REVISION",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion-hook/src/main.rs:904",
+      "note": "Overrides the source revision identity stamped into records (legion-hook) and the release flow. No cfg gate in legion-hook."
+    },
+    {
+      "name": "LEGION_STATE_ROOT",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-host/src/setup_registry.rs:4560",
+      "note": "Overrides the Legion state root (read in legion, legion-hook, legion-host, legion-audit, legion-contracts and the macOS installer); no cfg gate."
+    },
+    {
+      "name": "LEGION_TEST_SCRATCH",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/bins/legion-dev/src/audit_capsule.rs:1424",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_TEST_TMP",
+      "class": "S4",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/source_cache.rs:501",
+      "compiledOut": "cfg:test",
+      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
+    },
+    {
+      "name": "LEGION_UNSIGNED_CANDIDATE_ROOT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "right-release.config.mjs:79",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LEGION_WINDOWS_ARCH",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "right-release.config.mjs:69",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "LOCALAPPDATA",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/release_binding.rs:777",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "LOGNAME",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/credential.rs:28",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "MINIMIZE_BASE_REF",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-minimize/src/git.rs:12",
+      "valueType": "enum",
+      "note": "Git base ref name for minimize; a ref selects a comparison base only."
+    },
+    {
+      "name": "NIM_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/nim_seat.rs:17",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "NVIDIA_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/nim_seat.rs:167",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/security/producer.rs:150",
+      "valueType": "enum",
+      "note": "Third-party scanner's own documented cache and offline database variables, forwarded to the sandboxed scanner (producer.rs:150). Owner to confirm S6 over S4."
+    },
+    {
+      "name": "OSV_SCANNER_OFFLINE_DB",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/security/producer.rs:151",
+      "valueType": "enum",
+      "note": "Third-party scanner's own documented cache and offline database variables, forwarded to the sandboxed scanner (producer.rs:150). Owner to confirm S6 over S4."
+    },
+    {
+      "name": "PATH",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/trusted_git.rs:56",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables. Executable lookup by fixed name; owner to confirm S6 over S3."
+    },
+    {
+      "name": "PATHEXT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/preflight.rs:229",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "ProgramFiles",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r54/browser.rs:56",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "ProgramFiles(x86)",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r54/browser.rs:59",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "QA_BROWSER",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/r54/browser.rs:43",
+      "note": "QA browser executable override, same read as CHROME_PATH. No cfg gate."
+    },
+    {
+      "name": "RIGHTKIT_BUILD_BROKER_SOCKET",
+      "class": "S3",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/legacy_checks/disposable_copy.rs:531",
+      "note": "Build broker socket the disposable-copy check connects to (disposable_copy.rs BROKER_SOCKET_ENV, non-literal read). No cfg gate."
+    },
+    {
+      "name": "RIGHT_GIT_ARTIFACT_ROOT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/prepare_unsigned_candidate.rs:159",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "RIGHT_GIT_RELEASE_ARCHITECTURE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "right-release.config.mjs:69",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "RIGHT_GIT_RELEASE_PLATFORM",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/prepare_unsigned_candidate.rs:481",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "RUNNER_OS",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion-dev/src/ci_qualification_child.rs:283",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "RUNNER_TEMP",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/prepare_unsigned_candidate.rs:145",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "RUSTUP_HOME",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/tools.rs:961",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "SDKROOT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs:34",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "SOURCE_DATE_EPOCH",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/xtask/src/prepare_unsigned_candidate.rs:265",
+      "valueType": "enum",
+      "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
+      "name": "SystemRoot",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/sandbox_runtime.rs:160",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "TEMP",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/trusted_git.rs:17",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "TMP",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/trusted_git.rs:17",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "TMPDIR",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/review_runtime/native.rs:159",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "USER",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-effects/src/credential.rs:26",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "USERPROFILE",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/wf_port/w2_012/browser_url.rs:187",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "XDG_DATA_HOME",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-runtime/src/release_binding.rs:787",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "XDG_STATE_HOME",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-contracts/src/state_root.rs:61",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "YOUTUBE_API_KEY",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/bins/legion/src/commands/script.rs:567",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "npm_execpath",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/bins/legion-dev/src/checks/packed_import_closure.rs:145",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "rs",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-audit/src/native_providers/reasoning/pattern_cards.rs:1461",
+      "valueType": "enum",
+      "note": "Not a read: the file name `process.env.rs` inside a cfg(test) fixture list."
+    }
+  ],
+  "dynamicReads": [
+    {
+      "file": "engine/bins/legion-dev/src/native_cli_gate.rs",
+      "reason": "Build and qualification tooling that snapshots or forwards the whole process environment; never shipped."
+    },
+    {
+      "file": "engine/bins/legion/src/apple_mcp.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/bins/legion/src/commands/doctor.rs",
+      "reason": "std::env::vars() snapshot passed to a ported routine as a lookup map (or a name parameter such as the Google bearer variable); no single literal name."
+    },
+    {
+      "file": "engine/bins/legion/src/commands/nim_seat.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/bins/legion/src/commands/review.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/bins/legion/src/commands/script.rs",
+      "reason": "std::env::vars() snapshot passed to a ported routine as a lookup map (or a name parameter such as the Google bearer variable); no single literal name."
+    },
+    {
+      "file": "engine/bins/legion/src/commands/setup.rs",
+      "reason": "Environment snapshot for a child process plus a HOME/USERPROFILE selection by platform (both registered); no single literal name."
+    },
+    {
+      "file": "engine/crates/legion-apple/src/app_store.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-application/src/lib.rs",
+      "reason": "Name comes from data: a configured credential variable, a fixed identity list (registered above), harness descriptor detect.env, M1 capability probe env (src/registry/capabilities.json) or a provider hostDeclaration."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/integrity.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/code/dotnet_sdk_accuracy.rs",
+      "reason": "Test-only code: every non-literal read here sits in #[cfg(test)] (or a cfg(test) module); the gradle format!() names LEGION_GRADLE_UDP/ASSIGNED/TCP{family} are test-helper variables."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/code/mobile_sdk_enrollment.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/code/tools.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/code/xcode_bridge.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/legacy/governance_ownership.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/legacy/ownership_sdk.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/legacy_checks/disposable_copy.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/legacy_checks/mod.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/legacy_checks/runtime_capture.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/native_providers/security/producer.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/plan.rs",
+      "reason": "Name comes from data: a configured credential variable, a fixed identity list (registered above), harness descriptor detect.env, M1 capability probe env (src/registry/capabilities.json) or a provider hostDeclaration."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/source_cache.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-audit/src/trusted_git.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
+    },
+    {
+      "file": "engine/crates/legion-contracts/src/state_root.rs",
+      "reason": "The variable name is a named constant (STATE_ROOT_ENV, PLAN_KEY_ENV, COMMAND_ENV, ENV, BROKER_SOCKET_ENV, AUTHORIZED_PROVIDER_ENV); each value is registered above."
+    },
+    {
+      "file": "engine/crates/legion-effects/src/gradle_sandbox.rs",
+      "reason": "Test-only code: every non-literal read here sits in #[cfg(test)] (or a cfg(test) module); the gradle format!() names LEGION_GRADLE_UDP/ASSIGNED/TCP{family} are test-helper variables."
+    },
+    {
+      "file": "engine/crates/legion-harness/src/engine.rs",
+      "reason": "Name comes from data: a configured credential variable, a fixed identity list (registered above), harness descriptor detect.env, M1 capability probe env (src/registry/capabilities.json) or a provider hostDeclaration."
+    },
+    {
+      "file": "engine/crates/legion-host/src/detect.rs",
+      "reason": "Name comes from data: a configured credential variable, a fixed identity list (registered above), harness descriptor detect.env, M1 capability probe env (src/registry/capabilities.json) or a provider hostDeclaration."
+    },
+    {
+      "file": "engine/crates/legion-provider-sdk/src/auth.rs",
+      "reason": "Name comes from data: a configured credential variable, a fixed identity list (registered above), harness descriptor detect.env, M1 capability probe env (src/registry/capabilities.json) or a provider hostDeclaration."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/r05/real_detectors.rs",
+      "reason": "Name is a parameter or constant list (PROVIDER_ENV, google_auth key list, EnvLookup::get(key)); names in constant lists are registered above, provider-registry env names come from registry data."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/r07/browser.rs",
+      "reason": "Name is a parameter or constant list (PROVIDER_ENV, google_auth key list, EnvLookup::get(key)); names in constant lists are registered above, provider-registry env names come from registry data."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/r22/live_insert.rs",
+      "reason": "std::env::vars() snapshot passed to a ported routine as a lookup map (or a name parameter such as the Google bearer variable); no single literal name."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/r24/manual_edit_deps.rs",
+      "reason": "std::env::vars() snapshot passed to a ported routine as a lookup map (or a name parameter such as the Google bearer variable); no single literal name."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/r54/run.rs",
+      "reason": "Name is a parameter or constant list (PROVIDER_ENV, google_auth key list, EnvLookup::get(key)); names in constant lists are registered above, provider-registry env names come from registry data."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/w2_007/fetch_images.rs",
+      "reason": "Test-only code: every non-literal read here sits in #[cfg(test)] (or a cfg(test) module); the gradle format!() names LEGION_GRADLE_UDP/ASSIGNED/TCP{family} are test-helper variables."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/w2_030/google_auth.rs",
+      "reason": "Name is a parameter or constant list (PROVIDER_ENV, google_auth key list, EnvLookup::get(key)); names in constant lists are registered above, provider-registry env names come from registry data."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/w2_032/provider_registry.rs",
+      "reason": "Name is a parameter or constant list (PROVIDER_ENV, google_auth key list, EnvLookup::get(key)); names in constant lists are registered above, provider-registry env names come from registry data."
+    },
+    {
+      "file": "engine/crates/legion-runtime/src/wf_port/w2_033/seo_project.rs",
+      "reason": "Name is a parameter or constant list (PROVIDER_ENV, google_auth key list, EnvLookup::get(key)); names in constant lists are registered above, provider-registry env names come from registry data."
+    },
+    {
+      "file": "engine/xtask/src/main.rs",
+      "reason": "Build and qualification tooling that snapshots or forwards the whole process environment; never shipped."
+    },
+    {
+      "file": "engine/xtask/src/native_installed_smoke.rs",
+      "reason": "Build and qualification tooling that snapshots or forwards the whole process environment; never shipped."
+    },
+    {
+      "file": "engine/xtask/src/qualify_windows/proofs.rs",
+      "reason": "Build and qualification tooling that snapshots or forwards the whole process environment; never shipped."
+    },
+    {
+      "file": "engine/xtask/src/qualify_windows/tree.rs",
+      "reason": "Build and qualification tooling that snapshots or forwards the whole process environment; never shipped."
+    },
+    {
+      "file": "engine/xtask/src/release/windows_qualify_installed.rs",
+      "reason": "Build and qualification tooling that snapshots or forwards the whole process environment; never shipped."
+    }
+  ]
+}
