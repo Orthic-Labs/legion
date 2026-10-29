@@ -29,10 +29,9 @@ fn cwd() -> Result<PathBuf, CommandError> {
     std::env::current_dir().map_err(super::io_error)
 }
 fn ring() -> Result<KeyRing, CommandError> {
-    let p = std::env::var_os("ARCANE_KEY_DIR").ok_or_else(|| {
-        CommandError::integrity("ARC_AUTH_KEY_UNAVAILABLE: ARCANE_KEY_DIR is required")
-    })?;
-    KeyRing::load_dir(Path::new(&p)).map_err(|e| CommandError::integrity(e.to_string()))
+    let (dir, _) = legion_arcane::key_ring::resolve_key_dir(None)
+        .map_err(|e| CommandError::integrity(e.to_string()))?;
+    KeyRing::load_dir(&dir).map_err(|e| CommandError::integrity(e.to_string()))
 }
 fn git(root: &Path, a: &[&str]) -> Result<String, CommandError> {
     let o = Command::new("git")
@@ -353,13 +352,13 @@ fn open(a: &[String]) -> CommandResult {
     let task = t.as_deref().ok_or_else(|| {
         CommandError::incomplete("ARC_BINDING_MISMATCH: contracted run requires a task budget")
     })?;
-    let key_dir = std::env::var_os("ARCANE_KEY_DIR").ok_or_else(|| {
-        CommandError::incomplete(
-            "ARC_AUTH_KEY_UNAVAILABLE: run budget verification requires ARCANE_KEY_DIR",
-        )
-    })?;
-    let budget_ring = KeyRing::load_dir(Path::new(&key_dir))
+    let (key_dir, _) = legion_arcane::key_ring::resolve_key_dir(None)
         .map_err(|e| CommandError::incomplete(e.to_string()))?;
+    let budget_ring = KeyRing::load_dir(&key_dir).map_err(|e| {
+        CommandError::incomplete(format!(
+            "ARC_AUTH_KEY_UNAVAILABLE: run budget verification needs the host key ring: {e}"
+        ))
+    })?;
     let budget = BudgetGovernanceStore::new(
         root.join(".audit/arcane/budget-governance"),
         budget_ring.clone(),

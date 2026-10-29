@@ -1022,17 +1022,15 @@ pub fn run(args: CommonArgs) -> CommandResult {
         None
     };
     let cwd = std::env::current_dir().map_err(super::io_error)?;
-    let kd = option(tail, "--key-dir")?.or_else(|| std::env::var("ARCANE_KEY_DIR").ok());
-    let ring = match kd {
-        Some(p) => KeyRing::load_dir(Path::new(&p)),
-        None => KeyRing::load_canonical(),
-    }
-    .map_err(|e| {
-        issue(
-            e.code(),
-            "canonical host keyring unavailable — a seal cannot be minted without one",
-        )
-    })?;
+    let kd = option(tail, "--key-dir")?;
+    let ring = legion_arcane::key_ring::resolve_key_dir(kd.as_deref().map(Path::new))
+        .and_then(|(dir, _)| KeyRing::load_dir(&dir))
+        .map_err(|e| {
+            issue(
+                e.code(),
+                format!("host keyring unavailable — a seal cannot be minted without one: {e}"),
+            )
+        })?;
     let b = binding(&cwd, &adapter, &session, agent.as_deref())?;
     verify_codex(&cwd, &ring, &adapter, &session, &b)?;
     let auth = b["authority"].as_str().unwrap_or_default();

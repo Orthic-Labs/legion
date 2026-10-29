@@ -1293,7 +1293,23 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     .iter()
     .map(|dir| json!({"dir":dir,"present":dir.is_dir()}))
     .collect::<Vec<_>>();
-    let canonical_key_dir = codex_home_dir(&home).join("arcane-keys");
+    // One resolution (--key-dir is not applicable here): ARCANE_KEY_DIR, else
+    // the canonical `$HOME/.codex/arcane-keys`; shared with keys init, seal and run open.
+    let (canonical_key_dir, key_dir_source) = legion_arcane::key_ring::resolve_key_dir(None)
+        .unwrap_or_else(|_| {
+            (
+                codex_home_dir(&home).join("arcane-keys"),
+                legion_arcane::key_ring::KeyDirSource::Canonical,
+            )
+        });
+    let key_ring_state = match legion_arcane::KeyRing::load_dir(&canonical_key_dir) {
+        Ok(_) => json!({"loadable":true,"missing":Value::Null,"remediation":Value::Null}),
+        Err(error) => json!({
+            "loadable":false,
+            "missing":error.to_string(),
+            "remediation":legion_arcane::key_ring::KEYS_INIT_COMMAND,
+        }),
+    };
     let key_ids = std::fs::read_dir(&canonical_key_dir)
         .ok()
         .into_iter()
@@ -1325,7 +1341,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
             .join("outbox.json"),
     )
     .unwrap_or_else(|| json!({"pending":[],"delivered":[],"deadLetter":[]}));
-    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations,"codex":codex_installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexCache":codex_plugin_cache_lookup_json(&codex_cache_lookup),"codexHookTrust":codex_hook_trust(&home,codex_cache_state,codex_install,codex_hooks_file.as_deref())}})
+    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations,"codex":codex_installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids,"source":format!("{key_dir_source:?}"),"state":key_ring_state},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexCache":codex_plugin_cache_lookup_json(&codex_cache_lookup),"codexHookTrust":codex_hook_trust(&home,codex_cache_state,codex_install,codex_hooks_file.as_deref())}})
 }
 
 pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
@@ -1355,6 +1371,15 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
         gaps.push(json!({"kind":"arcane-semantic-health-unhealthy","detail":semantic["probes"].as_array().into_iter().flatten().filter(|p| p["status"] == "failed").map(|p| json!({"id":p["id"],"error":p["error"]})).collect::<Vec<_>>() }));
     } else if semantic["healthy"].is_null() {
         gaps.push(json!({"kind":"arcane-semantic-health-not-run","detail":"no Arcane semantic probe was executed; health is unknown"}));
+    }
+    if host.pointer("/guard/canonicalVerificationKeyring/state/loadable")
+        == Some(&Value::Bool(false))
+    {
+        gaps.push(json!({
+            "kind":"host-key-ring-unavailable",
+            "detail":host.pointer("/guard/canonicalVerificationKeyring/state/missing").cloned().unwrap_or(Value::Null),
+            "remediation":format!("run `{}`", legion_arcane::key_ring::KEYS_INIT_COMMAND),
+        }));
     }
     if naming["status"] == "fail" {
         gaps.push(json!({"kind":"naming-contract-failed","detail":naming["unclassified"]}));

@@ -26,6 +26,7 @@ pub mod hooks;
 pub mod host;
 pub mod host_runtime;
 pub mod init;
+pub mod keys;
 pub mod languages;
 pub mod mcp_config;
 pub mod minimize;

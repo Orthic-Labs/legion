@@ -109,6 +109,19 @@ enum Command {
     ///
     /// Usage: legion budget inspect --contract <id> --version <n> --task <id> [--run <id>]
     Budget(CommonArgs),
+    /// Provision the host key ring that signs and verifies Arcane evidence.
+    ///
+    /// Usage: legion keys init [--key-dir <dir>]
+    ///
+    /// Creates 32 bytes of OS-random key material in the key directory
+    /// (--key-dir, else ARCANE_KEY_DIR, else $HOME/.codex/arcane-keys) with
+    /// exclusive creation: an existing ring or key is never overwritten, and
+    /// symlinked paths are refused. Unix: directory 0700, files 0600; other
+    /// platforms refuse until owner-only ACLs are implemented. Loading refuses
+    /// group/world-readable keys. Trust boundary: this protects evidence
+    /// integrity against other users and processes on the host, not against
+    /// the same user, who can read the key and forge evidence.
+    Keys(CommonArgs),
     /// Seal an executable contract.
     ///
     /// Usage: legion contract seal --file <executable-contract.json> [--session <id>]
@@ -1686,6 +1699,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Mcp(args) => commands::mcp_config::run(args, cancellation.clone()).await,
         Command::Run(args) => commands::run::run(args, cancellation.clone()).await,
         Command::Budget(args) => commands::budget::run(args),
+        Command::Keys(args) => commands::keys::run(args),
         Command::Contract(args) => commands::contract::run(args),
         Command::Governance(args) => commands::governance::run(args),
         Command::Skills(args) => commands::skills::run(args),

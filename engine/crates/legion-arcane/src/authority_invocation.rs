@@ -419,6 +419,15 @@ mod tests {
 
     fn key_ring_with_root(dir: &Path, key_id: &str, material: &[u8]) -> KeyRing {
         fs::write(dir.join(format!("{key_id}.key")), hex::encode(material)).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(
+                dir.join(format!("{key_id}.key")),
+                fs::Permissions::from_mode(0o600),
+            )
+            .unwrap();
+        }
         KeyRing::load_dir(dir).unwrap()
     }
 

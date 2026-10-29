@@ -248,3 +248,21 @@ narrowing.
 
 Superseded paths are retired as their native equivalents land, not kept in parallel
 (canonical retirement test and non-goals).
+
+## Host key ring: provisioning and trust boundary
+
+Arcane receipts and contract seals are authenticated with a host-custody key ring (symmetric
+secrets; HMAC keys are derived per role and purpose, so the wire format is unchanged). Provision it
+once with `legion keys init [--key-dir <dir>]`. The directory is resolved in one place for `keys
+init`, `doctor`, `contract seal` and `run open`: `--key-dir`, else `ARCANE_KEY_DIR`, else
+`$HOME/.codex/arcane-keys`. Init draws 32 bytes from the OS RNG, creates files exclusively (an
+existing ring or key is never overwritten), refuses symlinked directories and key files, and sets
+mode 0700 on the directory and 0600 on files. The loader refuses group- or world-readable key
+files and prints the `chmod` remediation. On Windows `keys init` fails closed (owner-only ACL
+provisioning is not implemented) instead of writing a readable key. Revoke a key by setting
+`"status":"revoked"` in its `<id>.json`; revoked keys and keys derived from them stop verifying.
+
+Trust boundary: owner-only files give same-user host integrity, that is, protection against other
+users and unrelated processes. They do not protect against the owning user, who can read the key
+and forge evidence. Frozen-scope broker protection is separate and remains mandatory wherever a
+scope is enrolled.

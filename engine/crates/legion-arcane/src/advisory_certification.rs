@@ -1018,6 +1018,12 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("k1.key"), hex::encode([7u8; 32])).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(dir.join("k1.key"), std::fs::Permissions::from_mode(0o600))
+                .unwrap();
+        }
         KeyRing::load_dir(&dir).unwrap()
     }
 
