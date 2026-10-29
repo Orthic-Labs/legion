@@ -120,7 +120,7 @@ enum Command {
     /// platforms refuse until owner-only ACLs are implemented. Loading refuses
     /// group/world-readable keys. Trust boundary: this protects evidence
     /// integrity against other users and processes on the host, not against
-    /// the same user, who can read the key and forge evidence.
+    /// the same user, who can read the key and fabricate evidence.
     Keys(CommonArgs),
     /// Seal an executable contract.
     ///

@@ -264,5 +264,5 @@ provisioning is not implemented) instead of writing a readable key. Revoke a key
 
 Trust boundary: owner-only files give same-user host integrity, that is, protection against other
 users and unrelated processes. They do not protect against the owning user, who can read the key
-and forge evidence. Frozen-scope broker protection is separate and remains mandatory wherever a
+and fabricate evidence. Frozen-scope broker protection is separate and remains mandatory wherever a
 scope is enrolled.

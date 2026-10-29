@@ -4110,19 +4110,19 @@ mod tests {
         assert!(measured > 0);
         // An authenticated entry with a distinguishable size proves load()
         // consumes the cache instead of re-sizing the packets.
-        let sentinel = measured + 4_000;
+        let marked_size = measured + 4_000;
         write_sizing_cache(
             &run,
             &context,
             &first.dispatch_digest,
-            &BTreeMap::from([("seat-001".to_owned(), (digest, sentinel))]),
+            &BTreeMap::from([("seat-001".to_owned(), (digest, marked_size))]),
         )
         .unwrap();
         let reused = load(&run).unwrap();
         assert_eq!(
             reused.snapshot.seats[0].estimated_tokens,
             estimated_request_tokens(
-                sentinel,
+                marked_size,
                 reused.snapshot.seats[0].output_token_limit.unwrap()
             )
         );
@@ -4166,13 +4166,13 @@ mod tests {
         let (run, context) = sizing_cache_run("sizing-cache-stale");
         let first = load(&run).unwrap();
         let (digest, measured) = cached_entry(&run);
-        let sentinel = measured + 4_000;
+        let marked_size = measured + 4_000;
         let plant = |dispatch: &str, context: &SizingCacheContext| {
             write_sizing_cache(
                 &run,
                 context,
                 dispatch,
-                &BTreeMap::from([("seat-001".to_owned(), (digest.clone(), sentinel))]),
+                &BTreeMap::from([("seat-001".to_owned(), (digest.clone(), marked_size))]),
             )
             .unwrap();
         };
@@ -4204,7 +4204,7 @@ mod tests {
         let regrown = load(&run).unwrap();
         assert_ne!(
             regrown.snapshot.seats[0].estimated_tokens,
-            estimated_request_tokens(sentinel, 2500)
+            estimated_request_tokens(marked_size, 2500)
         );
         assert!(
             regrown.snapshot.seats[0].estimated_tokens > first.snapshot.seats[0].estimated_tokens
