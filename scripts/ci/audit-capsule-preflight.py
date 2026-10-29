@@ -131,8 +131,49 @@ def load_corpus(root):
     return cases, bindings, security_included
 
 
-def projection(files, expected, evidence, excerpts):
+def strings_in(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from strings_in(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings_in(item)
+
+
+def contract_text_proven(row, files, context):
+    """A contract window is proven only by exact text the packet carries as bounded context.
+
+    docContext documents are path-bound and positional: the window must equal the same
+    lines of the shipped document (redaction or truncation that alters it fails). A bound
+    domainContract proves text only by verbatim substring. Source excerpts never come here."""
+    if row.get("role") != "contract" or not context:
+        return False
+    path, (lo, hi) = row["path"], row["lineRange"]
+    wanted = files[path].splitlines()[lo - 1:hi]
+    for doc in context.get("docs", []):
+        if isinstance(doc, dict) and doc.get("path") == path and isinstance(doc.get("content"), str):
+            if doc["content"].splitlines()[lo - 1:hi] == wanted:
+                return True
+    contract = context.get("domainContract")
+    if isinstance(contract, dict) and contract.get("status") == "bound" and wanted:
+        needle = "\n".join(wanted)
+        return any(needle in text for text in strings_in(contract))
+    return False
+
+
+def projection(files, expected, evidence, excerpts, contract_context=None):
     gaps, rows, windows = [], [], []
+    contract_proven = {id(row) for row in evidence if contract_text_proven(row, files, contract_context)}
+    roles = {}
+    for row in evidence:
+        roles.setdefault(row["path"], []).append(row)
+    expected_paths = {row["path"] for row in expected}
+    # A file reaches the model as contract context only when every required window on it
+    # is a contract window proven by exact context text and no finding is expected there.
+    context_only = {path for path, rows_ in roles.items() if path not in expected_paths
+                    and all(id(r) in contract_proven for r in rows_)}
     by_path = {path: [] for path in files}
     for excerpt in excerpts:
         require(isinstance(excerpt, dict) and excerpt.get("path") in files, "unexpected excerpt source")
@@ -155,7 +196,7 @@ def projection(files, expected, evidence, excerpts):
         by_path[path].append((excerpt, retained, full))
     for path, text in sorted(files.items()):
         parts = by_path[path]
-        if not parts:
+        if not parts and path not in context_only:
             gaps.append({"kind": "source-not-in-excerpts", "path": path})
         retained = set().union(*(part[1] for part in parts)) if parts else set()
         rows.append({"path": path, "sourceDigest": sha(text.encode()), "sourceLines": len(text.splitlines()),
@@ -171,6 +212,10 @@ def projection(files, expected, evidence, excerpts):
         path, (lo, hi) = row["path"], row["lineRange"]
         source_lines = files[path].splitlines()
         wanted = source_lines[lo - 1:hi]
+        if id(row) in contract_proven:
+            windows.append({"role": row["role"], "path": path, "lineRange": [lo, hi], "textRetained": True,
+                            "retainedVia": "context", "sourceTextDigest": sha("\n".join(wanted).encode())})
+            continue
         proven = set()
         for excerpt, retained, full in by_path[path]:
             proven.update(retained if full else ())
@@ -216,6 +261,7 @@ def inspect_plan(plan, run, item, return_code):
             and dispatch["followupReserveTokens"] == dispatch["followupReserveCalls"] * SEAT_ALLOWANCE,
             "serialized reservation mismatch")
     excerpts, packets, packet_gaps = [], [], []
+    context = {"docs": [], "domainContract": None}
     for part in work[0].get("parts", [work[0]]):
         path = Path(part["packet"])
         require(not path.is_symlink() and path.resolve().is_relative_to(run), "packet outside run")
@@ -235,11 +281,17 @@ def inspect_plan(plan, run, item, return_code):
             packet_gaps.extend({"kind": kind, "source": value, "packet": str(path.relative_to(run))}
                                for value in coverage[field])
         excerpts.extend(packet["excerpts"])
+        # Bounded, non-coverage context the lens packet carries beside source excerpts.
+        documents = (packet.get("docContext") or {}).get("documents") or []
+        context["docs"].extend(doc for doc in documents if isinstance(doc, dict))
+        bound = packet["lensPlan"].get("domainContract")
+        if isinstance(bound, dict) and bound.get("status") == "bound":
+            context["domainContract"] = bound
         packets.append({"file": str(path.relative_to(run)), "digest": sha(raw), "packetDigest": part["packetDigest"],
                         "contract": packet["contract"], "lens": packet["lensPlan"]["lens"]})
     keys = (*RESERVATIONS, "limits", "seats", "packetBytes", "modelVisibleInputBytes", "seatReadBytes",
             "unsharedRequestBytes", "physicalRequestBytesSaved", "withinLimits")
-    return {key: dispatch[key] for key in keys}, excerpts, packets, packet_gaps
+    return {key: dispatch[key] for key in keys}, excerpts, packets, packet_gaps, context
 
 
 def write_fixture_sources(source, files):
@@ -298,9 +350,9 @@ def run_case(root, legion, out, number, item):
         stdout, stderr, code = completed.stdout, completed.stderr, completed.returncode
         plan_path = run / "plan.json"
         require(not plan_path.is_symlink(), "plan artifact symlink")
-        dispatch, excerpts, packets, packet_gaps = inspect_plan(json.loads(plan_path.read_bytes()), run, item, code)
+        dispatch, excerpts, packets, packet_gaps, context = inspect_plan(json.loads(plan_path.read_bytes()), run, item, code)
         gaps.extend(packet_gaps)
-        projected, windows, projection_gaps = projection(case["files"], case["expected"], case.get("requiredEvidence", []), excerpts)
+        projected, windows, projection_gaps = projection(case["files"], case["expected"], case.get("requiredEvidence", []), excerpts, context)
         gaps.extend(projection_gaps)
     except subprocess.TimeoutExpired as error:
         stdout, stderr, code = error.stdout or b"", error.stderr or b"", None

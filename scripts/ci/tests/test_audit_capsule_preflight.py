@@ -129,5 +129,59 @@ class CapsulePlanResultTests(unittest.TestCase):
         self.assertEqual(case["expected"], [])
 
 
+class CapsuleContractContextProjectionTests(unittest.TestCase):
+    DOC = "docs/adr/0012-layer-boundaries.md"
+    FILES = {DOC: "# ADR\nui must not import storage\nrationale\n",
+             "src/ui.ts": "import { db } from './db';\nexport const view = db;\n"}
+    EXCERPT = {"path": "src/ui.ts", "startLine": 1, "endLine": 2, "mode": "raw",
+               "content": "import { db } from './db';\nexport const view = db;\n"}
+    EVIDENCE = [{"path": DOC, "lineRange": [1, 2], "role": "contract"},
+                {"path": "src/ui.ts", "lineRange": [1, 1], "role": "caller"},
+                {"path": "src/ui.ts", "lineRange": [2, 2], "role": "behavior"}]
+
+    def project(self, context, evidence=None, excerpts=None):
+        _, windows, gaps = API["projection"](self.FILES, [], evidence or self.EVIDENCE,
+                                             [self.EXCERPT] if excerpts is None else excerpts, context)
+        return windows, [gap["kind"] for gap in gaps]
+
+    def doc(self, content):
+        return {"docs": [{"path": self.DOC, "content": content}], "domainContract": None}
+
+    def test_doc_context_text_proves_contract_window_without_source_excerpt(self):
+        windows, gaps = self.project(self.doc(self.FILES[self.DOC]))
+        self.assertEqual(gaps, [])
+        self.assertTrue(all(window["textRetained"] for window in windows))
+
+    def test_without_context_the_contract_is_still_unproven(self):
+        _, gaps = self.project(None)
+        self.assertEqual(sorted(gaps), ["required-evidence-text-not-projected", "source-not-in-excerpts"])
+
+    def test_truncated_or_altered_doc_context_does_not_prove_the_window(self):
+        for content in ("# ADR\n", "# ADR\nui may import [REDACTED]\n"):
+            with self.subTest(content=content):
+                _, gaps = self.project(self.doc(content))
+                self.assertIn("required-evidence-text-not-projected", gaps)
+
+    def test_doc_context_never_proves_source_roles(self):
+        text = self.FILES[self.DOC]
+        # A non-contract role on a document needs source excerpts; context text does not count.
+        evidence = [dict(row, role="behavior") if row["path"] == self.DOC else row for row in self.EVIDENCE]
+        _, gaps = self.project(self.doc(text), evidence=evidence)
+        self.assertIn("required-evidence-text-not-projected", gaps)
+        self.assertIn("source-not-in-excerpts", gaps)
+        # Source files still have to come from excerpts.
+        _, gaps = self.project(self.doc(text), excerpts=[])
+        self.assertIn("source-not-in-excerpts", gaps)
+        self.assertIn("required-evidence-text-not-projected", gaps)
+
+    def test_bound_domain_contract_text_proves_contract_but_absent_does_not(self):
+        bound = {"docs": [], "domainContract": {"status": "bound", "evaluation": {"note": "# ADR\nui must not import storage"}}}
+        _, gaps = self.project(bound)
+        self.assertEqual(gaps, [])
+        bound["domainContract"]["status"] = "absent"
+        _, gaps = self.project(bound)
+        self.assertIn("required-evidence-text-not-projected", gaps)
+
+
 if __name__ == "__main__":
     unittest.main()

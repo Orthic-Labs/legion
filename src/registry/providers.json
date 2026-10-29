@@ -5209,7 +5209,8 @@
           "**/*.swift",
           "**/*.kt",
           "**/Cargo.toml",
-          "**/pubspec.yaml"
+          "**/pubspec.yaml",
+          ".github/workflows/**"
         ]
       },
       "denominatorKind": "first-party-source-files",
@@ -5301,7 +5302,11 @@
           "package.json",
           "**/Cargo.toml",
           ".github/workflows/**",
-          "release/**"
+          "release/**",
+          "scripts/**/*release*",
+          "scripts/**/*sign*",
+          "scripts/**/*verify*",
+          "scripts/**/*upload*"
         ]
       },
       "denominatorKind": "first-party-source-files",

@@ -243,8 +243,8 @@
       "providerId": "reasoning.platform-parity",
       "contract": {
         "invariant": "ensureWorkspace creates the configured directory idempotently on Windows, macOS, and Linux before callers write files into it.",
-        "supportingFiles": ["Cargo.toml", ".github/workflows/platforms.yml", "contracts/workspace.md", "src/commands.rs", "src/lib.rs", "src/platform.rs"],
-        "reachableCallers": ["src/commands.rs::prepare_workspace"]
+        "supportingFiles": ["Cargo.toml", ".github/workflows/platforms.yml", "contracts/workspace.md", "src/platform.rs"],
+        "reachableCallers": ["src/platform.rs::prepare_workspace"]
       },
       "cases": [
         {
@@ -254,9 +254,7 @@
             "Cargo.toml": "[package]\nname = \"workspace-paths\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
             ".github/workflows/platforms.yml": "name: platform checks\non: [push, pull_request]\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: dtolnay/rust-toolchain@stable\n      - run: cargo test --manifest-path Cargo.toml\n",
             "contracts/workspace.md": "# Workspace contract\n`ensure_workspace` creates its path idempotently on Windows, macOS, and Linux. `prepare_workspace` calls it before writing workspace files.\n",
-            "src/commands.rs": "use crate::platform::ensure_workspace;\nuse std::path::Path;\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n",
-            "src/lib.rs": "pub mod commands;\npub mod platform;\n",
-            "src/platform.rs": "use std::path::Path;\n\n#[cfg(target_os = \"windows\")]\npub fn ensure_workspace(_path: &Path) -> std::io::Result<()> {\n    Ok(())\n}\n\n#[cfg(any(target_os = \"macos\", target_os = \"linux\"))]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n"
+            "src/platform.rs": "use std::path::Path;\n\n#[cfg(target_os = \"windows\")]\npub fn ensure_workspace(_path: &Path) -> std::io::Result<()> {\n    Ok(())\n}\n\n#[cfg(any(target_os = \"macos\", target_os = \"linux\"))]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n"
           },
           "expected": [
             {"path": "src/platform.rs", "lineRange": [4, 6], "claim": "The Windows implementation reports success without creating the directory that the reachable caller immediately writes into.", "severity": "high"}
@@ -264,8 +262,7 @@
           "requiredEvidence": [
             {"path": "contracts/workspace.md", "lineRange": [2, 2], "role": "contract"},
             {"path": ".github/workflows/platforms.yml", "lineRange": [1, 12], "role": "contract"},
-            {"path": "src/lib.rs", "lineRange": [1, 2], "role": "caller"},
-            {"path": "src/commands.rs", "lineRange": [4, 6], "role": "caller"},
+            {"path": "src/platform.rs", "lineRange": [13, 16], "role": "caller"},
             {"path": "src/platform.rs", "lineRange": [3, 11], "role": "behavior"}
           ],
           "forbiddenClaims": ["The code has been executed on Windows.", "macOS or Linux implementation fails the stated creation contract.", "Windows filesystem permissions or path normalization have been tested."]
@@ -277,16 +274,13 @@
             "Cargo.toml": "[package]\nname = \"workspace-paths\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
             ".github/workflows/platforms.yml": "name: platform checks\non: [push, pull_request]\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: dtolnay/rust-toolchain@stable\n      - run: cargo test --manifest-path Cargo.toml\n",
             "contracts/workspace.md": "# Workspace contract\n`ensure_workspace` creates its path idempotently on Windows, macOS, and Linux. `prepare_workspace` calls it before writing workspace files.\n",
-            "src/commands.rs": "use crate::platform::ensure_workspace;\nuse std::path::Path;\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n",
-            "src/lib.rs": "pub mod commands;\npub mod platform;\n",
-            "src/platform.rs": "use std::path::Path;\n\n#[cfg(target_os = \"windows\")]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n\n#[cfg(not(target_os = \"windows\"))]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n"
+            "src/platform.rs": "use std::path::Path;\n\n#[cfg(target_os = \"windows\")]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n\n#[cfg(not(target_os = \"windows\"))]\npub fn ensure_workspace(path: &Path) -> std::io::Result<()> {\n    std::fs::create_dir_all(path)\n}\n\npub fn prepare_workspace(path: &Path) -> std::io::Result<()> {\n    ensure_workspace(path)?;\n    std::fs::write(path.join(\"state.json\"), b\"{}\")\n}\n"
           },
           "expected": [],
           "requiredEvidence": [
             {"path": "contracts/workspace.md", "lineRange": [2, 2], "role": "contract"},
             {"path": ".github/workflows/platforms.yml", "lineRange": [1, 12], "role": "contract"},
-            {"path": "src/lib.rs", "lineRange": [1, 2], "role": "caller"},
-            {"path": "src/commands.rs", "lineRange": [4, 6], "role": "caller"},
+            {"path": "src/platform.rs", "lineRange": [13, 16], "role": "caller"},
             {"path": "src/platform.rs", "lineRange": [3, 11], "role": "behavior"}
           ],
           "forbiddenClaims": ["The clean control has been executed on all three operating systems.", "Directory creation changes files outside the requested path."]
