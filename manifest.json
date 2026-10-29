@@ -1833,6 +1833,21 @@
       "may_close_own_candidates": false
     },
     {
+      "id": "security.scanner-sqlfluff",
+      "role": "candidate-generator",
+      "phase": "facts",
+      "runner": {
+        "kind": "runtime-script",
+        "module": "security.scanner-sqlfluff"
+      },
+      "benchmark_status": "unproven",
+      "required_for_clean_claim": true,
+      "allow_without_blueprint": false,
+      "produces_security_candidates": true,
+      "fresh_context_required": false,
+      "may_close_own_candidates": false
+    },
+    {
       "id": "security.scanner-shellcheck",
       "role": "candidate-generator",
       "phase": "facts",

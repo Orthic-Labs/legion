@@ -1457,7 +1457,7 @@
   "roles": [
     {
       "id": "alchemist-specialist",
-      "description": "Bounded implementation authority, specialist tier (selective). Dispatch only when a mistake would still compile or pass but be wrong or unsafe (security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on legion:alchemist; the launch prompt states which reason applies. Same authority and contract rules as Alchemist: escalate changed requirements, public boundaries, or material tradeoffs. Not for routine mechanical work.",
+      "description": "Bounded implementation authority, specialist tier (selective). Dispatch per bounded function only when a mistake in that function would still compile or pass but be wrong or unsafe (for example security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on legion:alchemist; the launch prompt names the function, the failure, and the reason. Subject examples never promote a whole repository or assignment. Same authority and contract rules as Alchemist: escalate changed requirements, public boundaries, or material tradeoffs. Not for routine mechanical work.",
       "modelTier": "balanced-executor",
       "source": "src/roster/alchemist-specialist.md"
     },

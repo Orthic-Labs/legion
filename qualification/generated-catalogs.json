@@ -2321,6 +2321,18 @@
       "selectable": true
     },
     {
+      "id": "security.scanner-sqlfluff",
+      "providerVersion": "1.0.0",
+      "role": "candidate-generator",
+      "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": false,
+        "qualificationDigest": null
+      },
+      "selectable": true
+    },
+    {
       "id": "security.scanner-shellcheck",
       "providerVersion": "1.0.0",
       "role": "candidate-generator",
