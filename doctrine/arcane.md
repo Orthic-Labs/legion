@@ -62,6 +62,10 @@ WebSearch, Context7, or the `groundwork` MCP when the host provides them; when n
 mark the claim unverified instead of asserting it. Targeted and pull-based still applies: ground
 the claim, not the whole answer.
 
+## Status and why answers
+
+Answer a status, progress, or "why" request only from records read in this turn: launch records, result rows, and the code path for any mechanism named. Mark unread items "not read", correct a wrong disputed fact first, and never present a file mtime as a time, a subset as "all green", or an untraced cause. Pointer: `AGENTS.md` item 6 and `doctrine/oracle.md` review discipline.
+
 ## Anti-ceremony invariants
 
 > **Arcane may improve cognition, grounding, cognitive routing, context, cost, or answer quality. It may

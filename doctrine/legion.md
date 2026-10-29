@@ -32,7 +32,7 @@ acceptance, & completion semantics remain owned by canonical sources above.
 
 At each lead turn, compare ready open issues with active assignments & dispatch missing work
 within those limits. Name concrete dependencies or capacity limits for any ready work left idle;
-refill available assignments when workers return. Derive dependencies from consumed artifacts,
+refill available assignments when workers return. A lock, pending publish or pending prerequisite never idles a lane: draft in scratch or a disjoint path and apply after. Derive dependencies from consumed artifacts,
 shared write ownership, or required effect order, never from assistant-authored step numbers.
 Plans describe execution; they do not add permission gates.
 
