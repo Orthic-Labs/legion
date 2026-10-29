@@ -385,14 +385,23 @@ pub fn ingest_files(packet_path: &Path, results_path: &Path, as_json: bool) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
     fn fixture() -> (PathBuf, PathBuf, Value) {
+        // Parallel tests can read the clock in the same tick (macOS reports
+        // microseconds), so the pid and a counter keep each root distinct.
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let root = std::env::temp_dir().join(format!("legion-skill-eval-judge-{nonce}"));
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let root = std::env::temp_dir().join(format!(
+            "legion-skill-eval-judge-{}-{nonce}-{n}",
+            std::process::id()
+        ));
         let eval_path = root.join("skills/qa/evals/evals.json");
         fs::create_dir_all(eval_path.parent().unwrap()).unwrap();
         fs::write(
