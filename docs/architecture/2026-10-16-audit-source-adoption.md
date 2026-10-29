@@ -181,3 +181,20 @@ source only. Prior two-platform CI failed only on real graph coverage and passed
 [38893510643](https://github.com/Orthic-Labs/legion/actions/runs/38893510643) was launched at this source revision. Installation and
 live execution remain pending. Historical donor pins, inventory, and five unexecuted held-out cases remain
 unchanged.
+
+## Donor adapter disposition (issue #39, decision D1, 2026-10-30)
+
+Astra adjudicated the remaining optional adapter proposals. Decisions used supplied issue summaries and
+local source.
+
+| Donor | Disposition | Reason (no equivalent coverage claimed) |
+| --- | --- | --- |
+| SQLFluff | Implemented, `security.scanner-sqlfluff`, benchmark `unproven` | Addresses retained SQL work beyond Squawk's migration checks. Explicit `postgres` dialect, owned non-executing configuration (raw templater, explicit rule allowlist, repository config and `noqa` ignored, in-file `sqlfluff:` directives refused), strict JSON envelope, every frozen `.sql` file accounted for, parse/lex/template errors become named gaps (Partial, never clean), exit status must agree with the report. Real-tool controls run only when `sqlfluff` is installed. |
+| Sqllint | Retired | Superseded by SQLFluff; one SQL integration is preferred to two. |
+| RuboCop | Retired | Ruby removed from retained workloads 2026-10-23. |
+| Checkov | Retired | No demonstrated incremental coverage for retained workloads. |
+| Bandit | Retired | No demonstrated gap beyond configured Python scanners; reopen against concrete uncovered fixtures. |
+
+The SQLFluff rule allowlist (ambiguity and structure rules only) deliberately excludes layout,
+capitalisation and aliasing style; Squawk's migration-safety coverage is unchanged. Qualification,
+installed-tool provisioning and any population-accuracy claim remain open.

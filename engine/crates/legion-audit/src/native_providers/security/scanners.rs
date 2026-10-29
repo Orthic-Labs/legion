@@ -1,12 +1,13 @@
 //! Named, offline scanner contracts. Registry selectors select the denominator;
 //! producers execute exactly that frozen selection, never a second path filter.
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};
 
 use serde_json::{json, Value};
 
 use super::common::{digest_json, exact_binding, valid_digest};
 
-pub const TOOLS: &[&str] = &["squawk", "zizmor", "shellcheck"];
+pub const TOOLS: &[&str] = &["squawk", "zizmor", "shellcheck", "sqlfluff"];
 
 pub fn tool_for(id: &str) -> Option<&'static str> {
     let tool = id.strip_prefix("security.scanner-")?;
@@ -16,13 +17,156 @@ pub fn tool_for(id: &str) -> Option<&'static str> {
 /// Deferred tools are deliberately not advertised as equivalent coverage.
 pub fn deferred_tools() -> Value {
     json!({
-        "sqllint":"deferred: dialect/connection scope not established; squawk covers migration safety, not SQL semantic validity",
-        "sqlfluff":"deferred: project dialect & policy required; formatting is not migration safety",
-        "rubocop":"deferred: project Ruby policy & safe configuration required; Brakeman covers Rails security, not Ruby lint",
-        "checkov":"deferred: demonstrate distinct rules beyond Trivy before adding overlapping IaC scan",
-        "bandit":"deferred: demonstrate Python rule gaps beyond configured Semgrep before adding overlapping SAST",
         "oxlint":"deferred: demonstrate distinct rules/performance beyond configured JS lint before adding overlapping lint"
     })
+}
+
+/// Retired donor proposals (issue #39, decision D1). Retirement is not a
+/// coverage claim: nothing here is implemented, and no retired tool's rules are
+/// represented as covered by another provider.
+pub fn retired_tools() -> Value {
+    json!({
+        "sqllint":"retired: superseded by sqlfluff (Postgres dialect); no Sqllint-equivalent coverage claimed",
+        "rubocop":"retired: Ruby removed from retained workloads 2026-10-23; no Ruby lint coverage claimed",
+        "checkov":"retired: no demonstrated incremental coverage over retained IaC scanners for retained workloads; no Checkov-equivalent coverage claimed",
+        "bandit":"retired: no demonstrated gap beyond configured Python scanners; reopen against concrete uncovered fixtures; no Bandit-equivalent coverage claimed"
+    })
+}
+
+/// Owned, non-executing SQLFluff configuration. `raw` templater never runs
+/// Jinja/dbt/Python templating; `rules` is an explicit allowlist of structural
+/// and ambiguity rules, so layout/capitalisation/aliasing style never becomes a
+/// candidate. Repository configuration is never loaded (`--ignore-local-config`).
+pub const SQLFLUFF_CONFIG: &str = "[sqlfluff]\ndialect = postgres\ntemplater = raw\nencoding = utf-8\ndisable_noqa = True\nprocesses = 1\nrules = AM01, AM02, AM03, AM04, AM06, AM07, RF01, ST03\n";
+
+/// Rule codes (and always-on parse/lex/template violations) SQLFluff may emit
+/// under the owned configuration.
+const SQLFLUFF_RULES: &[&str] = &[
+    "AM01", "AM02", "AM03", "AM04", "AM06", "AM07", "RF01", "ST03",
+];
+/// Violations meaning the file was not (fully) analyzed, not a lint finding.
+const SQLFLUFF_FAILURES: &[&str] = &["PRS", "LXR", "TMP"];
+
+pub fn sqlfluff_args(config: &str, file_args: &[String]) -> Vec<String> {
+    [
+        "lint",
+        "--format",
+        "json",
+        "--dialect",
+        "postgres",
+        "--templater",
+        "raw",
+        "--encoding",
+        "utf-8",
+        "--config",
+        config,
+        "--ignore-local-config",
+        "--disable-noqa",
+        "--disregard-sqlfluffignore",
+        "--processes",
+        "1",
+        "--disable-progress-bar",
+        "--",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .chain(file_args.iter().cloned())
+    .collect()
+}
+
+/// Inline `-- sqlfluff:` directives can rewrite configuration from inside the
+/// audited file, so such a file is refused rather than linted.
+pub fn sqlfluff_inline_directive(text: &str) -> bool {
+    text.lines().any(|line| {
+        let lower = line.to_ascii_lowercase();
+        lower
+            .match_indices("--")
+            .chain(lower.match_indices("/*"))
+            .any(|(at, _)| lower[at + 2..].trim_start().starts_with("sqlfluff:"))
+    })
+}
+
+/// Exact SQLFluff `--format json` envelope: an array of file records, each an
+/// object with a string `filepath` and an array of violation objects.
+fn sqlfluff_records(output: &Value) -> Option<Vec<(String, &Vec<Value>)>> {
+    output
+        .as_array()?
+        .iter()
+        .map(|record| {
+            let path = safe_relative(record.get("filepath")?.as_str()?)?;
+            let violations = record.get("violations")?.as_array()?;
+            violations
+                .iter()
+                .all(Value::is_object)
+                .then_some((path, violations))
+        })
+        .collect()
+}
+
+fn sqlfluff_code(violation: &Value) -> Option<&str> {
+    violation
+        .get("code")
+        .and_then(Value::as_str)
+        .filter(|code| !code.is_empty())
+}
+
+/// Violations SQLFluff counts toward a non-zero exit (anything not `warning`).
+fn sqlfluff_failing(output: &Value) -> usize {
+    sqlfluff_records(output).map_or(0, |records| {
+        records
+            .iter()
+            .flat_map(|(_, violations)| violations.iter())
+            .filter(|v| v.get("warning").and_then(Value::as_bool) != Some(true))
+            .count()
+    })
+}
+
+/// Exit status must agree with the report: 0 with failing violations, or 1
+/// with none, means the report and process disagree, so neither is trusted.
+pub fn sqlfluff_exit_mismatch(output: &Value, exit_code: i64) -> bool {
+    let failing = sqlfluff_failing(output);
+    (exit_code == 0 && failing > 0) || (exit_code == 1 && failing == 0)
+}
+
+/// Per-file accountability for one SQLFluff run. A file is examined only when
+/// it has exactly one record and no parse/lex/template violation; every other
+/// selected file is a named gap, never clean.
+pub fn sqlfluff_examined(output: &Value, selected: &[String]) -> (BTreeSet<String>, Vec<Value>) {
+    let mut gaps = Vec::new();
+    // Schema failure is reported by `normalize`; nothing is examined.
+    let Some(records) = sqlfluff_records(output) else {
+        return (BTreeSet::new(), gaps);
+    };
+    let mut seen: BTreeMap<String, bool> = BTreeMap::new();
+    for (path, violations) in records {
+        if !selected.contains(&path) {
+            gaps.push(
+                json!({"kind":"scanner-unexpected-file-record","tool":"sqlfluff","path":path}),
+            );
+            continue;
+        }
+        let analyzed = violations
+            .iter()
+            .all(|v| sqlfluff_code(v).is_some_and(|code| !SQLFLUFF_FAILURES.contains(&code)));
+        if seen.insert(path.clone(), analyzed).is_some() {
+            gaps.push(
+                json!({"kind":"scanner-duplicate-file-record","tool":"sqlfluff","path":path}),
+            );
+            seen.insert(path, false);
+        }
+    }
+    let mut examined = BTreeSet::new();
+    for path in selected {
+        match seen.get(path) {
+            Some(true) => {
+                examined.insert(path.clone());
+            }
+            Some(false) => {}
+            None => gaps
+                .push(json!({"kind":"scanner-file-record-missing","tool":"sqlfluff","path":path})),
+        }
+    }
+    (examined, gaps)
 }
 
 /// Canonical defaults, mirrored in provider registry & checked below. A plan may
@@ -31,6 +175,7 @@ pub fn selector(tool: &str) -> Value {
     match tool {
         "squawk" => json!({"op":"anyExtension","extensions":["sql"]}),
         "shellcheck" => json!({"op":"anyExtension","extensions":["sh","bash","ksh","dash"]}),
+        "sqlfluff" => json!({"op":"anyExtension","extensions":["sql"]}),
         "zizmor" => {
             json!({"op":"anyPath","patterns":[".github/workflows/*.yml",".github/workflows/*.yaml","**/.github/workflows/*.yml","**/.github/workflows/*.yaml","action.yml","action.yaml","**/action.yml","**/action.yaml",".github/dependabot.yml",".github/dependabot.yaml"]})
         }
@@ -96,6 +241,9 @@ pub fn candidate_domain(tool: &str, rule: &str) -> &'static str {
             "data"
         }
         "squawk" if rule == "syntax-error" => "reliability",
+        "sqlfluff" if SQLFLUFF_RULES.contains(&rule) || SQLFLUFF_FAILURES.contains(&rule) => {
+            "reliability"
+        }
         "shellcheck"
             if rule.strip_prefix("SC").is_some_and(|code| {
                 !code.is_empty() && code.chars().all(|c| c.is_ascii_digit())
@@ -138,14 +286,35 @@ pub fn candidate_domain(tool: &str, rule: &str) -> &'static str {
 /// candidates with unknown anchors, so normalization cannot erase scanner recall.
 pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normalized {
     let mut report = Normalized::default();
-    if !matches!(tool, "squawk" | "zizmor" | "shellcheck") {
+    if !matches!(tool, "squawk" | "zizmor" | "shellcheck" | "sqlfluff") {
         report
             .gaps
             .push(json!({"kind":"scanner-unsupported","tool":tool}));
         return report;
     }
+    // SQLFluff nests violations under per-file records; flatten each violation
+    // with its file so one raw record yields exactly one candidate.
+    let flattened: Option<Vec<Value>> = (tool == "sqlfluff").then(|| {
+        sqlfluff_records(output)
+            .map(|records| {
+                records
+                    .into_iter()
+                    .flat_map(|(path, violations)| {
+                        violations.iter().map(move |v| {
+                            let mut raw = v.clone();
+                            raw["filepath"] = json!(path);
+                            raw
+                        })
+                    })
+                    .collect::<Vec<Value>>()
+            })
+            .unwrap_or_default()
+    });
     let values = match output {
-        Value::Array(values) => values,
+        Value::Array(values) if tool != "sqlfluff" => values,
+        Value::Array(_) if sqlfluff_records(output).is_some() => {
+            flattened.as_ref().expect("sqlfluff flattened")
+        }
         _ => {
             let raw_digest = digest_json(output);
             let id = digest_json(&json!([tool, base, "invalid-schema", raw_digest]));
@@ -185,6 +354,17 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
                 text_at(raw, "/ident"),
                 text_at(raw, "/desc"),
                 text_at(raw, "/determinations/severity"),
+            ),
+            "sqlfluff" => (
+                text_at(raw, "/filepath"),
+                raw["start_line_no"].as_u64(),
+                text_at(raw, "/code"),
+                text_at(raw, "/description"),
+                Some(if raw["warning"] == true {
+                    "low"
+                } else {
+                    "medium"
+                }),
             ),
             "shellcheck" => (
                 text_at(raw, "/file"),
@@ -238,7 +418,9 @@ pub fn normalize(tool: &str, output: &Value, root: &Path, base: &str) -> Normali
         if unresolved {
             report.gaps.push(json!({"kind":"scanner-candidate-anchor-unresolved","tool":tool,"rawFindingDigest":raw_digest}));
         }
-        if tool == "squawk" && rule == "syntax-error" {
+        if (tool == "squawk" && rule == "syntax-error")
+            || (tool == "sqlfluff" && SQLFLUFF_FAILURES.contains(&rule.as_str()))
+        {
             report.gaps.push(
                 json!({"kind":"scanner-parser-failed","tool":tool,"rawFindingDigest":raw_digest}),
             );
@@ -324,7 +506,7 @@ pub fn analyze(input: &Value) -> Value {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    json!({"status":if !candidates.is_empty(){"candidates"}else if classified_only && gaps.is_empty(){"classified"}else if gaps.is_empty(){"pass"}else{"unproven"},"applicable":!files.is_empty(),"complete":valid && gaps.is_empty() && !files.is_empty(),"denominator":{"kind":"scanner-files","expected":files.len(),"examined":examined.len()},"candidates":candidates,"findings":[],"coverageGaps":gaps,"lossLedger":evidence.and_then(|e|e.get("lossLedger")).cloned().unwrap_or_else(||json!([])),"selectionLedger":evidence.and_then(|e|e.get("selectionLedger")).cloned().unwrap_or_else(||json!([])),"classificationOnly":classified_only,"executionMode":if classified_only{"native-classification"}else{"scanner-required"},"deferredTools":deferred_tools()})
+    json!({"status":if !candidates.is_empty(){"candidates"}else if classified_only && gaps.is_empty(){"classified"}else if gaps.is_empty(){"pass"}else{"unproven"},"applicable":!files.is_empty(),"complete":valid && gaps.is_empty() && !files.is_empty(),"denominator":{"kind":"scanner-files","expected":files.len(),"examined":examined.len()},"candidates":candidates,"findings":[],"coverageGaps":gaps,"lossLedger":evidence.and_then(|e|e.get("lossLedger")).cloned().unwrap_or_else(||json!([])),"selectionLedger":evidence.and_then(|e|e.get("selectionLedger")).cloned().unwrap_or_else(||json!([])),"classificationOnly":classified_only,"executionMode":if classified_only{"native-classification"}else{"scanner-required"},"deferredTools":deferred_tools(),"retiredTools":retired_tools()})
 }
 
 #[cfg(test)]
@@ -439,5 +621,173 @@ mod tests {
         assert_eq!(candidate_domain("shellcheck", "SC2086"), "reliability");
         assert_eq!(candidate_domain("shellcheck", "not-a-code"), "unknown");
         assert_eq!(candidate_domain("squawk", "new-rule"), "unknown");
+    }
+    fn sql_record(path: &str, violations: Value) -> Value {
+        json!({"filepath":path,"violations":violations,"statistics":{}})
+    }
+    fn sql_violation(code: &str, line: u64) -> Value {
+        json!({"code":code,"description":"finding","start_line_no":line,"start_line_pos":1,"warning":false,"name":"x","fixes":[]})
+    }
+    fn selected(paths: &[&str]) -> Vec<String> {
+        paths.iter().map(|p| (*p).to_owned()).collect()
+    }
+
+    #[test]
+    fn sqlfluff_clean_report_proves_every_selected_file() {
+        let report = json!([
+            sql_record("./a.sql", json!([])),
+            sql_record("b.sql", json!([]))
+        ]);
+        let (examined, gaps) = sqlfluff_examined(&report, &selected(&["a.sql", "b.sql"]));
+        assert_eq!(examined.len(), 2);
+        assert!(gaps.is_empty());
+        assert!(!sqlfluff_exit_mismatch(&report, 0));
+        assert!(normalize("sqlfluff", &report, Path::new("/repo"), "")
+            .candidates
+            .is_empty());
+    }
+
+    #[test]
+    fn sqlfluff_parse_lex_and_template_errors_are_gaps_never_clean() {
+        for code in ["PRS", "LXR", "TMP"] {
+            let report = json!([sql_record("a.sql", json!([sql_violation(code, 3)]))]);
+            let (examined, _) = sqlfluff_examined(&report, &selected(&["a.sql"]));
+            assert!(examined.is_empty(), "{code}");
+            let normalized = normalize("sqlfluff", &report, Path::new("/repo"), "");
+            assert!(
+                normalized
+                    .gaps
+                    .iter()
+                    .any(|gap| gap["kind"] == "scanner-parser-failed"),
+                "{code}"
+            );
+            assert_eq!(normalized.candidates.len(), 1);
+            assert_eq!(normalized.candidates[0]["domain"], "reliability");
+        }
+    }
+
+    #[test]
+    fn sqlfluff_missing_duplicate_and_unexpected_records_are_named_gaps() {
+        let report = json!([
+            sql_record("a.sql", json!([])),
+            sql_record("a.sql", json!([])),
+            sql_record("other.sql", json!([]))
+        ]);
+        let (examined, gaps) = sqlfluff_examined(&report, &selected(&["a.sql", "b.sql"]));
+        assert!(examined.is_empty());
+        for kind in [
+            "scanner-duplicate-file-record",
+            "scanner-unexpected-file-record",
+            "scanner-file-record-missing",
+        ] {
+            assert!(gaps.iter().any(|gap| gap["kind"] == kind), "{kind}");
+        }
+    }
+
+    #[test]
+    fn sqlfluff_invalid_envelopes_prove_nothing() {
+        for bad in [
+            json!({}),
+            json!(null),
+            json!([{"filepath":"a.sql"}]),
+            json!([{"violations":[]}]),
+            json!([{"filepath":"../a.sql","violations":[]}]),
+            json!([{"filepath":"a.sql","violations":[1]}]),
+            json!(["a.sql"]),
+        ] {
+            let (examined, _) = sqlfluff_examined(&bad, &selected(&["a.sql"]));
+            assert!(examined.is_empty(), "{bad}");
+            let normalized = normalize("sqlfluff", &bad, Path::new("/repo"), "");
+            assert!(
+                normalized
+                    .gaps
+                    .iter()
+                    .any(|gap| gap["kind"] == "scanner-output-schema-invalid"),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn sqlfluff_violation_without_code_is_not_examined_and_unresolved() {
+        let report = json!([sql_record(
+            "a.sql",
+            json!([{"description":"x","start_line_no":1,"warning":false}])
+        )]);
+        let (examined, _) = sqlfluff_examined(&report, &selected(&["a.sql"]));
+        assert!(examined.is_empty());
+        let normalized = normalize("sqlfluff", &report, Path::new("/repo"), "");
+        assert_eq!(normalized.candidates[0]["anchorStatus"], "unresolved");
+    }
+
+    #[test]
+    fn sqlfluff_exit_status_must_agree_with_report() {
+        let finding = json!([sql_record("a.sql", json!([sql_violation("AM04", 2)]))]);
+        let clean = json!([sql_record("a.sql", json!([]))]);
+        assert!(sqlfluff_exit_mismatch(&finding, 0));
+        assert!(!sqlfluff_exit_mismatch(&finding, 1));
+        assert!(sqlfluff_exit_mismatch(&clean, 1));
+        assert!(!sqlfluff_exit_mismatch(&clean, 0));
+    }
+
+    #[test]
+    fn sqlfluff_findings_keep_one_based_lines_and_known_rule_domains() {
+        let report = json!([sql_record("m.sql", json!([sql_violation("AM04", 7)]))]);
+        let normalized = normalize("sqlfluff", &report, Path::new("/repo"), "");
+        assert_eq!(normalized.candidates[0]["line"], 7);
+        assert_eq!(normalized.candidates[0]["path"], "m.sql");
+        assert_eq!(normalized.candidates[0]["ruleId"], "AM04");
+        assert_eq!(normalized.candidates[0]["domain"], "reliability");
+        assert!(normalized.gaps.is_empty());
+        assert_eq!(candidate_domain("sqlfluff", "LT01"), "unknown");
+    }
+
+    #[test]
+    fn sqlfluff_command_pins_postgres_owned_config_and_never_nofail() {
+        let args = sqlfluff_args("/scratch/cfg", &["./a.sql".into()]);
+        let joined = args.join(" ");
+        for required in [
+            "lint",
+            "--dialect postgres",
+            "--templater raw",
+            "--config /scratch/cfg",
+            "--ignore-local-config",
+            "--disable-noqa",
+            "--disregard-sqlfluffignore",
+            "--format json",
+        ] {
+            assert!(joined.contains(required), "{required}");
+        }
+        assert!(!joined.contains("--nofail"));
+        assert_eq!(&args[args.len() - 2..], ["--", "./a.sql"]);
+        assert!(SQLFLUFF_CONFIG.contains("dialect = postgres"));
+        assert!(SQLFLUFF_CONFIG.contains("templater = raw"));
+    }
+
+    #[test]
+    fn sqlfluff_inline_config_directives_are_detected() {
+        assert!(sqlfluff_inline_directive(
+            "select 1;\n-- sqlfluff:dialect:mysql\n"
+        ));
+        assert!(sqlfluff_inline_directive(
+            "/* SQLFluff: rules:all */ select 1;"
+        ));
+        assert!(!sqlfluff_inline_directive(
+            "-- plain comment about sqlfluff\nselect 1;"
+        ));
+    }
+
+    #[test]
+    fn retired_donors_state_reasons_without_claiming_equivalent_coverage() {
+        let retired = retired_tools();
+        for tool in ["sqllint", "rubocop", "checkov", "bandit"] {
+            let reason = retired[tool].as_str().unwrap();
+            assert!(reason.starts_with("retired:"), "{tool}");
+            assert!(
+                reason.contains("no ") && reason.contains("claimed"),
+                "{tool}"
+            );
+        }
+        assert!(deferred_tools().get("sqlfluff").is_none());
     }
 }

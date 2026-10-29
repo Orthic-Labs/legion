@@ -1,0 +1,4 @@
+-- Positive control: bare UNION is ambiguous (AM02); the finding is on the UNION statement.
+SELECT id FROM accounts
+UNION
+SELECT id FROM archived_accounts;

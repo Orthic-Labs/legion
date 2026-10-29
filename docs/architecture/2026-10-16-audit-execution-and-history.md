@@ -74,8 +74,12 @@ The legacy projection has **33 checks**: `apple_platform`, `decomposition`, `rep
 
 Optional executables, project applicability, pinned local rule/schema inputs, online authorization &
 host network containment determine which checks can run. A registered scanner is not evidence it ran
-on Ember. Sqllint, SQLFluff, RuboCop, Checkov, Bandit & Oxlint are explicitly deferred integrations,
-not current executable scanner coverage.
+on Ember. SQLFluff (PostgreSQL dialect) is implemented as `security.scanner-sqlfluff` with an unproven
+benchmark until qualified; it is not evidence it ran on Ember. Sqllint (superseded by SQLFluff), RuboCop
+(Ruby removed 2026-10-23), Checkov (no demonstrated incremental coverage for retained workloads) &
+Bandit (no demonstrated gap beyond configured Python scanners; reopen against concrete uncovered
+fixtures) are retired per issue #39 decision D1; none implies equivalent coverage. Oxlint is outside
+that decision and is not current executable scanner coverage here.
 
 ## Current AI lanes
 

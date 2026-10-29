@@ -85,6 +85,14 @@ impl<'a> Run<'a> {
                 );
                 continue;
             }
+            // In-file `-- sqlfluff:` directives rewrite configuration from the
+            // audited source, so the file is refused, never linted unowned.
+            if tool == "sqlfluff" && scanners::sqlfluff_inline_directive(&text) {
+                gaps.push(
+                    json!({"kind":"scanner-inline-config-directive","tool":tool,"path":entry.path}),
+                );
+                continue;
+            }
             source_digests.insert(entry.path.clone(), actual);
             selected.push(entry.path.clone());
         }
@@ -93,8 +101,13 @@ impl<'a> Run<'a> {
             groups.insert(String::new(), selected.clone());
         }
         let config = self.scratch.path.join(format!("{tool}-owned-config"));
-        // Owned scanner config is empty: repository configuration never loads.
-        let body = String::new();
+        // Owned scanner config is empty except SQLFluff's non-executing Postgres
+        // profile: repository configuration never loads.
+        let body = if tool == "sqlfluff" {
+            scanners::SQLFLUFF_CONFIG.to_owned()
+        } else {
+            String::new()
+        };
         if fs::write(&config, body.as_bytes()).is_err() {
             return unavailable("scanner-config-unwritable");
         }
@@ -142,6 +155,7 @@ impl<'a> Run<'a> {
                 .map(str::to_owned)
                 .chain(file_args.clone())
                 .collect(),
+                "sqlfluff" => scanners::sqlfluff_args(&config, &file_args),
                 "shellcheck" => ["--norc", "-f", "json", "--severity=style", "--"]
                     .into_iter()
                     .map(str::to_owned)
@@ -184,7 +198,7 @@ impl<'a> Run<'a> {
                         .into_owned(),
                 ),
             ];
-            let accepted: &[i32] = if matches!(tool, "squawk" | "shellcheck") {
+            let accepted: &[i32] = if matches!(tool, "squawk" | "shellcheck" | "sqlfluff") {
                 &[0, 1]
             } else {
                 &[0]
@@ -227,7 +241,20 @@ impl<'a> Run<'a> {
                 .gaps
                 .iter()
                 .any(|gap| gap["kind"] == "scanner-output-schema-invalid");
-            if schema_valid {
+            if tool == "sqlfluff" {
+                // Per-file proof: missing, duplicated, unexpected or unparsable
+                // (parse/lex/template) files are named gaps, never examined.
+                let (proven, file_gaps) = scanners::sqlfluff_examined(&output, &paths);
+                examined.extend(proven);
+                gaps.extend(file_gaps);
+                let exit = run.receipt["exitCode"].as_i64().unwrap_or(-1);
+                if schema_valid && scanners::sqlfluff_exit_mismatch(&output, exit) {
+                    gaps.push(json!({"kind":"scanner-exit-report-mismatch","tool":tool,"exitCode":exit,"stdoutDigest":digest(&run.stdout)}));
+                    for path in &paths {
+                        examined.remove(path);
+                    }
+                }
+            } else if schema_valid {
                 for path in &paths {
                     examined.insert(path.clone());
                 }

@@ -1,0 +1,3 @@
+-- Inline directive control: would rewrite the dialect from inside the audited file.
+-- sqlfluff:dialect:mysql
+SELECT 1;

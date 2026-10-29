@@ -1,0 +1,11 @@
+-- Negative control: valid PostgreSQL (jsonb cast and operators); no finding expected.
+SELECT
+    e.id,
+    (e.payload::jsonb ->> 'kind') AS kind
+FROM events AS e
+WHERE e.created_at > now() - interval '1 day'
+UNION ALL
+SELECT
+    a.id,
+    a.kind
+FROM archived_events AS a;

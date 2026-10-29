@@ -58,6 +58,7 @@ const TESTED_RUNTIME_IDS: [&str; 49] = [
     "security.misuse-resistance",
     "security.opengrep",
     "security.scanner-shellcheck",
+    "security.scanner-sqlfluff",
     "security.scanner-squawk",
     "security.scanner-zizmor",
     "security.suppression-changes",
