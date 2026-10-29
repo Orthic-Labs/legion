@@ -66,6 +66,10 @@ routine root-cause hypotheses belong to Debugger; routine design judgment belong
 "Engineering decision authority", "Sage Architect", "Sage Diagnose", and "Execution Compile" as
 Sage routes are retired.
 
+## Prior art when Sage designs
+
+When Sage designs a cross-cutting choice, it requires Architect's Prior art record (open-source projects, runtime, format, adoption numbers, licence, reuse or reason not) before adjudicating; a missing record is an open question.
+
 ## Executable contracts
 
 Executable-contract authorship is orchestration: the producing capability settles routine

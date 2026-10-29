@@ -102,6 +102,7 @@ BLOCK
 - **Risk plan first.** Before reviewing, rank the risk points (most likely and costliest first), review in that order, and lead the result with the weakest claims.
 - **Two axes.** Judge Standards (repository rules and quality bars) and Spec (the raw request and acceptance) separately; report each verdict on its own and never merge them. Only Spec, outcome, and safety defects can block.
 - **Withdrawal.** Withdraw a finding only by citing the line that disproves it; doubt alone never withdraws one.
+- **Status numbers.** Each number in a status claim must name its record (commit, run id, log path, or row count); a number without a named record is a finding.
 
 Block only incorrect requested behavior, regression, data loss, or a concrete safety failure.
 Style preference, architecture taste, adjacent concerns, missing ceremony, absent receipts, and

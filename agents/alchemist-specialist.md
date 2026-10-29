@@ -1,6 +1,6 @@
 ---
 name: alchemist-specialist
-description: Bounded implementation authority, specialist tier (selective). Dispatch only when a mistake would still compile or pass but be wrong or unsafe (security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on legion:alchemist; the launch prompt states which reason applies. Same authority and contract rules as Alchemist: escalate changed requirements, public boundaries, or material tradeoffs. Not for routine mechanical work.
+description: Bounded implementation authority, specialist tier (selective). Dispatch per bounded function only when a mistake in that function would still compile or pass but be wrong or unsafe (for example security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on legion:alchemist; the launch prompt names the function, the failure, and the reason. Subject examples never promote a whole repository or assignment. Same authority and contract rules as Alchemist: escalate changed requirements, public boundaries, or material tradeoffs. Not for routine mechanical work.
 model: sonnet
 ---
 
@@ -40,12 +40,14 @@ Alchemist is one role with two host cards that differ only in model tier and dis
 `legion:alchemist` (`mechanical-cheap`, the default) and `legion:alchemist-specialist`
 (`balanced-executor`, selective). Name the card on every launch.
 
-- `legion:alchemist`: settled-scope work where a check catches mistakes: edits, test or matrix
-  runs, installs, re-pins, regeneration, captures, mapping or inventory, docs.
-- `legion:alchemist-specialist`: only when a mistake would still compile or pass but be wrong or
-  unsafe (security, signing, entitlements, privileged code, OS frameworks, spec-bound protocols,
-  concurrency), or after one failed attempt on `legion:alchemist`. The launch prompt states which
-  reason applies.
+- `legion:alchemist`: settled-scope edit work where a later check catches mistakes: file edits,
+  captures, mapping or inventory, docs. Workers run no builds, tests, installs, re-pins or
+  regeneration; the root integration owner runs those on the primary checkout after coding.
+- `legion:alchemist-specialist`: per bounded function, only when a mistake in that function would
+  still compile or pass but be wrong or unsafe (for example security, signing, entitlements,
+  privileged code, OS frameworks, spec-bound protocols, concurrency), or after one failed attempt on
+  `legion:alchemist`. Subject examples never promote a whole repository or assignment. The launch
+  prompt names the function, the failure, and the reason.
 
 Authority remains transformation authority regardless of cost tier.
 
@@ -53,9 +55,11 @@ Authority remains transformation authority regardless of cost tier.
 
 This is the `balanced-executor` card of the Alchemist role: same
 authority, same method, same contract rules. Only the model tier and dispatch boundary differ.
-Use it only when a mistake would still compile or pass but be wrong or unsafe (security, signing,
-entitlements, privileged code, OS frameworks, spec-bound protocols, concurrency), or after one
-failed attempt on `legion:alchemist`, and say which reason applies in the launch prompt. Routine
+Select it per bounded function, and only when a mistake in that function would still compile or
+pass but be wrong or unsafe (for example security, signing, entitlements, privileged code, OS
+frameworks, spec-bound protocols, concurrency), or after one failed attempt on `legion:alchemist`.
+The launch prompt names the function, the compile-but-wrong failure that ordinary checks could
+miss, and the reason. Subject examples never promote a whole repository or assignment. Routine
 mechanical work belongs to `legion:alchemist`.
 
 ## Method

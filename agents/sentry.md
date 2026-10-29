@@ -45,7 +45,8 @@ a chat. A schedule is independent only when its existing scheduler can fire outs
 executor chat even if that executor stalls; a separate chat alone is not scheduling. An explicitly
 invoked subagent may execute one checkpoint, but recurring supervision requires an independent scheduler. If no
 such scheduler is available, report the watchdog as unscheduled; do not emulate it with sleep,
-polling, or executor self-reminders.
+polling, or executor self-reminders. Run a due checkpoint only on a scheduler-fired wake; a host goal or
+auto-continuation turn is not a wake.
 
 At setup, record target identity, requested cadence (`wake 15` means fifteen minutes), requested
 Oracle CLI/provider/model, feedback authorization, baseline/approval evidence, and exclusions. Check
