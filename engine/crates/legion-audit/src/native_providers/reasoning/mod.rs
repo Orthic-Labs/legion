@@ -1111,7 +1111,14 @@ fn build_invocations(
                 refresh_request_identity(request, invocation_epoch)?;
             }
         }
-        let largest = measure_invocations(&built.0, provider, sizer)?;
+        let (largest, fits) = measure_invocations_required(&built.0, provider, sizer)?;
+        // A non-fit reports its real byte requirement, floored just above the
+        // target so every `<= target` comparison still reads it as a non-fit.
+        let largest = if fits {
+            largest
+        } else {
+            largest.max(target.saturating_add(1))
+        };
         Ok((built, largest))
     };
     // Lenses of one bundle must derive the same excerpt parts so they keep
@@ -1124,7 +1131,9 @@ fn build_invocations(
     if first.1 <= target {
         return Ok(first.0);
     }
-    let card_reserve = pattern_cards::max_card_bytes_bound();
+    let card_reserve = pattern_cards::max_card_bytes_bound(Some(
+        pattern_cards::packet_card_budget_bytes(target),
+    ));
     let (normalized_built, normalized_largest) =
         refine_packet_materialization(budget, target, |budget| {
             let (built, largest) = build(Some(budget), false)?;
@@ -1203,6 +1212,18 @@ fn measure_invocations(
     provider: &AuditProvider,
     sizer: &mut crate::review_runtime::InitialRequestSizer,
 ) -> Result<u64, AuditError> {
+    let (largest, fits) = measure_invocations_required(requests, provider, sizer)?;
+    Ok(if fits { largest } else { u64::MAX })
+}
+
+/// Largest measured byte requirement across `requests` and whether every
+/// request fits the physical bounds. A non-fit reports the real requirement
+/// (host envelope bytes when that bound is the one exceeded, else model input).
+fn measure_invocations_required(
+    requests: &[ReasoningInvocation],
+    provider: &AuditProvider,
+    sizer: &mut crate::review_runtime::InitialRequestSizer,
+) -> Result<(u64, bool), AuditError> {
     let per_call = provider
         .configuration
         .get("coverage")
@@ -1211,11 +1232,13 @@ fn measure_invocations(
         .unwrap_or(u64::MAX);
     let ceiling = ingest::dispatch_output_tokens(per_call);
     let mut largest = 0;
+    let mut all_fit = true;
     for request in requests {
         let sizes = sizer.request_sizes(&[invocation_work(request, provider)])?;
         let minimum = ingest::minimum_output_tokens(ceiling, 1)
             .max(candidate_routing::disposition_output_tokens(request));
-        if sizes.host_envelope_bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64
+        let envelope_over = sizes.host_envelope_bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64;
+        if envelope_over
             || ingest::fitting_output_tokens(
                 per_call,
                 ceiling,
@@ -1224,11 +1247,15 @@ fn measure_invocations(
             )
             .is_none()
         {
-            return Ok(u64::MAX);
+            all_fit = false;
         }
-        largest = largest.max(sizes.model_visible_input_bytes);
+        largest = largest.max(if envelope_over {
+            sizes.host_envelope_bytes.max(sizes.model_visible_input_bytes)
+        } else {
+            sizes.model_visible_input_bytes
+        });
     }
-    Ok(largest)
+    Ok((largest, all_fit))
 }
 
 fn refresh_request_identity(
@@ -1298,9 +1325,10 @@ fn append_candidate_parts(
         })?;
     let domain_contract = template.packet.pointer("/lensPlan/domainContract").cloned();
     template.packet["excerpts"] = json!([]);
-    template.packet["lensPlan"] = lens_plan_for_part(
+    template.packet["lensPlan"] = lens_plan_for_part_budgeted(
         lens_plan::lens_plan_packet_value(&provider.id).as_ref(),
         &[],
+        provider_card_budget(provider),
     )
     .unwrap_or(Value::Null);
     if let (Some(domain_contract), Some(plan)) =
@@ -1476,11 +1504,34 @@ fn domain_contract_set(
 }
 
 fn lens_plan_for_part(lens_plan: Option<&Value>, source_paths: &[String]) -> Option<Value> {
+    lens_plan_for_part_budgeted(lens_plan, source_paths, None)
+}
+
+/// As `lens_plan_for_part`, spending at most `card_budget` bytes on pattern
+/// cards when the provider's seat is frozen (see `provider_card_budget`).
+fn lens_plan_for_part_budgeted(
+    lens_plan: Option<&Value>,
+    source_paths: &[String],
+    card_budget: Option<u64>,
+) -> Option<Value> {
     lens_plan.map(|lens_plan| {
         let mut bound = lens_plan.clone();
-        pattern_cards::bind_packet_cards_to_paths(&mut bound, source_paths);
+        pattern_cards::bind_packet_cards_to_paths_budgeted(&mut bound, source_paths, card_budget);
         bound
     })
+}
+
+/// Per-packet pattern-card byte budget derived from the provider's frozen seat
+/// input target; `None` when the provider freezes no seat budget.
+fn provider_card_budget(provider: &AuditProvider) -> Option<u64> {
+    provider
+        .configuration
+        .get("coverage")
+        .and_then(|coverage| coverage.get("seatTokenBudget"))
+        .and_then(Value::as_u64)
+        .map(|seat| {
+            pattern_cards::packet_card_budget_bytes(ingest::physical_planning_input_bytes(seat))
+        })
 }
 
 fn build_invocations_with_budget(
@@ -1648,7 +1699,11 @@ fn build_invocations_with_budget(
         // Continued chunks still need their selected file's graph hints even
         // though denominator ownership remains with the file's first part.
         let context_paths = selected_part_source_paths(part);
-        let mut part_lens_plan = lens_plan_for_part(lens_plan.as_ref(), &context_paths);
+        let mut part_lens_plan = lens_plan_for_part_budgeted(
+            lens_plan.as_ref(),
+            &context_paths,
+            provider_card_budget(provider),
+        );
         // A12: repository-declared domain contracts reach every lens packet;
         // none declared is an explicit `absent`, never silence.
         if let Some(bound) = part_lens_plan.as_mut() {
@@ -3022,6 +3077,29 @@ mod tests {
             .unwrap()
             .remove("patternCardApplicability");
         assert_eq!(bound, expected_scope);
+    }
+
+    #[test]
+    fn seat_card_budget_makes_security_lens_fit_with_deferred_rows() {
+        let base = lens_plan::lens_plan_packet_value("reasoning.security").unwrap();
+        let seat = ingest::physical_planning_input_bytes(10_000);
+        assert_eq!(seat, 15_000);
+        let budget = pattern_cards::packet_card_budget_bytes(seat);
+        let paths = ["run.sh".to_string(), "README.md".to_string()];
+        let bound = lens_plan_for_part_budgeted(Some(&base), &paths, Some(budget)).unwrap();
+        let rows = bound["patternCardApplicability"]["cards"].as_array().unwrap();
+        assert!(rows
+            .iter()
+            .any(|row| row["state"] == pattern_cards::DEFERRED_CARD_STATE));
+        // The normalized shared-seat reserve is the capped budget, so it is a
+        // real bound below the seat target instead of the 24 KB uncapped sum.
+        let reserve = pattern_cards::max_card_bytes_bound(Some(budget));
+        assert!(pattern_cards::bound_card_bytes(&bound) <= reserve);
+        assert!(reserve <= seat);
+        assert!(reserve < pattern_cards::max_card_bytes_bound(None));
+        // Unbudgeted binding is unchanged: all 18 cards keep bodies.
+        let plain = lens_plan_for_part(Some(&base), &paths).unwrap();
+        assert_eq!(plain["patternCards"].as_array().unwrap().len(), 18);
     }
 
     #[test]

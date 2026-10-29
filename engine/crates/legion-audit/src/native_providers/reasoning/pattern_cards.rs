@@ -1274,11 +1274,45 @@ pub fn bound_card_bytes(lens_plan: &Value) -> u64 {
     (cards + rows) as u64
 }
 
-/// Upper bound of `bound_card_bytes` for any lens: every owned card retained
-/// plus a generous per-card accounting row. Used to normalize packet sizing so
-/// lenses of one bundle keep deriving the same excerpt parts (and keep sharing
-/// seats) however many cards each lens owns.
-pub fn max_card_bytes_bound() -> u64 {
+/// Share of the seat's model-input byte target one packet may spend on pattern
+/// cards (bodies plus every applicability row). The remainder stays for the
+/// base packet, raw excerpts and review context. Cards beyond the share become
+/// compact `deferred-card-budget` rows rather than evicting source excerpts.
+pub const CARD_BUDGET_PERCENT: u64 = 35;
+
+/// State recorded for an applicable card whose body was left out of the packet
+/// to fit the card budget. It is an unknown, never a clean claim.
+pub const DEFERRED_CARD_STATE: &str = "deferred-card-budget";
+
+/// Longest trigger text copied into a compact deferred row.
+const DEFERRED_TRIGGER_CHARS: usize = 64;
+
+/// Card byte budget for a seat whose model-input byte target is `seat_input_bytes`.
+pub fn packet_card_budget_bytes(seat_input_bytes: u64) -> u64 {
+    seat_input_bytes.saturating_mul(CARD_BUDGET_PERCENT) / 100
+}
+
+fn deferred_row(card: &PatternCard, prior_state: &str) -> Value {
+    let trigger = card
+        .trigger_evidence
+        .chars()
+        .take(DEFERRED_TRIGGER_CHARS)
+        .collect::<String>();
+    json!({
+        "id": card.id,
+        "state": DEFERRED_CARD_STATE,
+        "reason": "card-body-omitted-for-packet-budget-unknown-never-clean",
+        "priorState": prior_state,
+        "trigger": trigger,
+    })
+}
+
+/// Upper bound of `bound_card_bytes` for any lens. Uncapped (`None`): every
+/// owned card retained plus a generous per-card accounting row. Capped: the
+/// card budget, or the unavoidable compact rows when those alone exceed it.
+/// Used to normalize packet sizing so lenses of one bundle keep deriving the
+/// same excerpt parts (and keep sharing seats) however many cards each lens owns.
+pub fn max_card_bytes_bound(card_budget: Option<u64>) -> u64 {
     let mut lenses = PATTERN_CARDS
         .iter()
         .map(|card| card.owner_lens)
@@ -1288,9 +1322,19 @@ pub fn max_card_bytes_bound() -> u64 {
     lenses
         .into_iter()
         .map(|lens| {
-            cards_for_lens(lens)
+            let uncapped = cards_for_lens(lens)
                 .map(|card| card.to_packet_value().to_string().len() + card.id.len() + 120)
-                .sum::<usize>() as u64
+                .sum::<usize>() as u64;
+            match card_budget {
+                None => uncapped,
+                Some(budget) => {
+                    let rows = cards_for_lens(lens)
+                        .map(|card| deferred_row(card, "unknown").to_string().len() + 1)
+                        .sum::<usize>() as u64
+                        + 4;
+                    uncapped.min(budget.max(rows))
+                }
+            }
         })
         .max()
         .unwrap_or(0)
@@ -1299,6 +1343,21 @@ pub fn max_card_bytes_bound() -> u64 {
 /// Bind cards after source selection/partitioning, never from repository-wide
 /// language guesses. Unknown language, framework, or trigger fit retains work.
 pub fn bind_packet_cards_to_paths(lens_plan: &mut Value, selected_paths: &[String]) {
+    bind_packet_cards_to_paths_budgeted(lens_plan, selected_paths, None);
+}
+
+/// As `bind_packet_cards_to_paths`, with an optional per-packet card byte
+/// budget covering card bodies plus all applicability rows. Full bodies go
+/// first to positively evidenced cards, then to always-on core cards, then to
+/// cards whose fit is only unknown (including unrecognized source extensions),
+/// each in catalogue order, while they fit. Every other applicable card keeps a
+/// compact `deferred-card-budget` row: unknown, never clean. Excluded cards are
+/// unaffected. Rows that cannot be omitted may exceed the budget.
+pub fn bind_packet_cards_to_paths_budgeted(
+    lens_plan: &mut Value,
+    selected_paths: &[String],
+    card_budget: Option<u64>,
+) {
     let Some(lens) = lens_plan.get("lens").and_then(Value::as_str) else {
         return;
     };
@@ -1308,18 +1367,72 @@ pub fn bind_packet_cards_to_paths(lens_plan: &mut Value, selected_paths: &[Strin
         .collect::<Vec<_>>();
     source_paths.sort_unstable();
     source_paths.dedup();
+    let fits = cards_for_lens(lens)
+        .map(|card| {
+            let (state, reason) = match (card.domain_evidence, card.language_applicability) {
+                (Some(domain), _) => domain.fit(&source_paths),
+                (None, None) => ("retained", "no-language-restriction"),
+                (None, Some(language)) => language_fit(language, &source_paths),
+            };
+            (card, state, reason)
+        })
+        .collect::<Vec<_>>();
+    let row = |card: &PatternCard, state: &str, reason: &str| json!({"id": card.id, "state": state, "reason": reason});
+    let mut keep = fits
+        .iter()
+        .map(|(_, state, _)| *state != "excluded")
+        .collect::<Vec<_>>();
+    let mut deferred_any = false;
+    if let Some(budget) = card_budget {
+        // Start with every applicable card deferred, then spend the remaining
+        // budget on full bodies in priority order.
+        // Brackets of the body array and the row array.
+        let mut spent = 4usize;
+        for (card, state, reason) in &fits {
+            spent += if *state == "excluded" {
+                row(card, state, reason)
+            } else {
+                deferred_row(card, state)
+            }
+            .to_string()
+            .len()
+                + 1;
+        }
+        let tier = |state: &str, reason: &str| match (state, reason) {
+            ("retained", "no-language-restriction") => 1,
+            ("retained", _) => 0,
+            _ => 2,
+        };
+        let mut order = (0..fits.len())
+            .filter(|&index| keep[index])
+            .collect::<Vec<_>>();
+        order.sort_by_key(|&index| (tier(fits[index].1, fits[index].2), index));
+        keep.iter_mut().for_each(|kept| *kept = false);
+        for index in order {
+            let (card, state, reason) = fits[index];
+            let delta = (card.to_packet_value().to_string().len()
+                + 1
+                + row(card, state, reason).to_string().len())
+            .saturating_sub(deferred_row(card, state).to_string().len());
+            if (spent + delta) as u64 <= budget {
+                spent += delta;
+                keep[index] = true;
+            } else {
+                deferred_any = true;
+            }
+        }
+    }
     let mut retained = Vec::new();
     let mut accounting = Vec::new();
-    for card in cards_for_lens(lens) {
-        let (state, reason) = match (card.domain_evidence, card.language_applicability) {
-            (Some(domain), _) => domain.fit(&source_paths),
-            (None, None) => ("retained", "no-language-restriction"),
-            (None, Some(language)) => language_fit(language, &source_paths),
-        };
-        if state != "excluded" {
+    for (index, (card, state, reason)) in fits.iter().enumerate() {
+        if *state == "excluded" {
+            accounting.push(row(card, state, reason));
+        } else if keep[index] {
             retained.push(card.to_packet_value());
+            accounting.push(row(card, state, reason));
+        } else {
+            accounting.push(deferred_row(card, state));
         }
-        accounting.push(json!({"id": card.id, "state": state, "reason": reason}));
     }
     lens_plan["patternCards"] = json!(retained);
     // One shared exact path identity binds every candidate's decision without
@@ -1328,6 +1441,11 @@ pub fn bind_packet_cards_to_paths(lens_plan: &mut Value, selected_paths: &[Strin
         "sourcePaths": source_paths,
         "cards": accounting,
     });
+    if deferred_any {
+        lens_plan["patternCardApplicability"]["deferredCardPolicy"] = json!(
+            "cards in state deferred-card-budget were not applied to this packet's source; their families are unknown, never clean"
+        );
+    }
 }
 
 /// Attach the A12 domain-contract evaluation to one lens packet. Missing
@@ -2033,5 +2151,107 @@ mod tests {
             .find(|card| card["id"] == "tenant-authorization-scope")
             .unwrap();
         assert!(core.get("domainApplicability").is_none());
+    }
+
+    fn budgeted_security(paths: &[&str], budget: u64) -> Value {
+        let mut packet = json!({"lens": "security"});
+        bind_packet_cards_to_paths_budgeted(
+            &mut packet,
+            &paths
+                .iter()
+                .map(|path| path.to_string())
+                .collect::<Vec<_>>(),
+            Some(budget),
+        );
+        packet
+    }
+
+    #[test]
+    fn card_budget_defers_unknown_cards_to_compact_rows_within_the_cap() {
+        let budget = packet_card_budget_bytes(15_000);
+        assert_eq!(budget, 15_000 * CARD_BUDGET_PERCENT / 100);
+        // Unrecognized extensions leave every language-gated and common-domain
+        // card unknown; none of them may force a full body.
+        let packet = budgeted_security(
+            &["scripts/run.sh", "docs/README.md", "db/schema.sql"],
+            budget,
+        );
+        let bodies = packet["patternCards"].as_array().unwrap();
+        let rows = packet["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap();
+        assert_eq!(rows.len(), 18);
+        let deferred = rows
+            .iter()
+            .filter(|row| row["state"] == DEFERRED_CARD_STATE)
+            .collect::<Vec<_>>();
+        assert!(!deferred.is_empty());
+        assert!(bodies.len() < 18);
+        assert!(bound_card_bytes(&packet) <= max_card_bytes_bound(Some(budget)));
+        assert!(max_card_bytes_bound(Some(budget)) < max_card_bytes_bound(None));
+        let body_ids = bodies
+            .iter()
+            .map(|card| card["id"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        for row in &deferred {
+            // Unknown, never clean: no body, no clean state, trigger kept, and
+            // the packet states the policy.
+            assert!(!body_ids.contains(&row["id"].as_str().unwrap()));
+            assert_ne!(row["priorState"], "excluded");
+            assert!(row["reason"]
+                .as_str()
+                .unwrap()
+                .contains("unknown-never-clean"));
+            assert!(!row["trigger"].as_str().unwrap().is_empty());
+            assert!(row["trigger"].as_str().unwrap().chars().count() <= 64);
+        }
+        assert!(packet["patternCardApplicability"]["deferredCardPolicy"]
+            .as_str()
+            .unwrap()
+            .contains("never clean"));
+        // Every body in the packet has a non-deferred row.
+        for id in body_ids {
+            let row = rows.iter().find(|row| row["id"] == id).unwrap();
+            assert_ne!(row["state"], DEFERRED_CARD_STATE);
+        }
+    }
+
+    #[test]
+    fn card_budget_prefers_positively_evidenced_then_core_cards() {
+        // A Rust path positively evidences the Rust-gated card; with a budget
+        // that fits few bodies, evidenced cards precede always-on core, which
+        // precede merely unknown ones.
+        let mut packet = json!({"lens": "correctness"});
+        bind_packet_cards_to_paths_budgeted(
+            &mut packet,
+            &["src/lib.rs".to_string(), "tool.sh".to_string()],
+            Some(packet_card_budget_bytes(15_000)),
+        );
+        let rows = packet["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap();
+        let first_unknown_kept = rows.iter().any(|row| {
+            row["state"] == "unknown"
+                && packet["patternCards"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|card| card["id"] == row["id"])
+        });
+        let evidenced_deferred = rows
+            .iter()
+            .any(|row| row["state"] == DEFERRED_CARD_STATE && row["priorState"] == "retained");
+        // An unknown card never holds a body while an evidenced/core card is deferred.
+        assert!(!(first_unknown_kept && evidenced_deferred));
+    }
+
+    #[test]
+    fn card_budget_none_keeps_every_applicable_card() {
+        let mut unbudgeted = json!({"lens": "security"});
+        bind_packet_cards_to_paths(&mut unbudgeted, &["tool.sh".to_string()]);
+        assert_eq!(unbudgeted["patternCards"].as_array().unwrap().len(), 18);
+        assert!(unbudgeted["patternCardApplicability"]
+            .get("deferredCardPolicy")
+            .is_none());
     }
 }
