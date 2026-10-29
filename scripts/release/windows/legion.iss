@@ -181,6 +181,50 @@ begin
   end;
 end;
 
+{ Deregister native client marketplaces/plugins while the payload that knows
+  how to remove them still exists.  Runs before any file deletion; returning
+  False aborts the uninstall and leaves the payload in place (fail closed).  A
+  missing executable means a broken install with nothing to deregister, so it
+  is skipped.  The wait is bounded and the result must be status=complete, the
+  same contract activate.ps1 enforces during rollback. }
+function EscapePowerShellSingleQuoted(const Value: String): String;
+begin
+  Result := Value;
+  StringChangeEx(Result, '''', '''''', True);
+end;
+
+function InitializeUninstall: Boolean;
+var
+  Legion, Script, Params, Detail: String;
+  ResultCode: Integer;
+begin
+  Result := True;
+  Legion := ExpandConstant('{app}\current\bin\legion.exe');
+  if not FileExists(Legion) then begin
+    Log('Legion uninstall: ' + Legion + ' absent; skipping native client deregistration');
+    Exit;
+  end;
+  Script := '$o = Join-Path $env:TEMP ''legion-uninstall-setup-remove.json''; ' +
+    '$p = Start-Process -FilePath ''' + EscapePowerShellSingleQuoted(Legion) + ''' ' +
+    '-ArgumentList ''--json'',''setup'',''remove'',''--confirm'' -PassThru -WindowStyle Hidden ' +
+    '-RedirectStandardOutput $o; $null = $p.Handle; ' +
+    'if (-not $p.WaitForExit(120000)) { try { $p.Kill() } catch {}; exit 124 }; ' +
+    '$code = $p.ExitCode; if ($null -eq $code -or $code -ne 0) { exit 127 }; ' +
+    'try { $r = Get-Content -Raw -LiteralPath $o | ConvertFrom-Json -ErrorAction Stop } catch { exit 125 }; ' +
+    'if ($r.status -ne ''complete'') { exit 126 }; exit 0';
+  Params := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + Script + '"';
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    ResultCode := -1;
+  Log('Legion uninstall: setup remove exit=' + IntToStr(ResultCode));
+  if ResultCode <> 0 then begin
+    Detail := 'Legion could not remove its native client registrations (exit ' + IntToStr(ResultCode) +
+      '). Nothing was uninstalled; the installed payload was kept so the removal can be retried.';
+    Log(Detail);
+    SuppressibleMsgBox(Detail, mbError, MB_OK, IDOK);
+    Result := False;
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then begin

@@ -575,6 +575,25 @@ mod tests {
     }
 
     #[test]
+    fn windows_installer_template_deregisters_native_clients_before_uninstall_deletes_payload() {
+        let template = include_str!("../../../../scripts/release/windows/legion.iss");
+        let hook = template
+            .find("function InitializeUninstall: Boolean;")
+            .expect("uninstall hook present");
+        let body = &template[hook..];
+        assert!(body.contains(r"{app}\current\bin\legion.exe"));
+        assert!(body.contains("''--json'',''setup'',''remove'',''--confirm''"));
+        assert!(body.contains("WaitForExit(120000)"));
+        assert!(body.contains("$r.status -ne ''complete''"));
+        // Fail closed: a failed or timed-out removal aborts the uninstall.
+        assert!(body.contains("Result := False;"));
+        // The hook runs before the step that removes PATH and the current directory.
+        let delete_step = template.find("procedure CurUninstallStepChanged").unwrap();
+        assert!(hook < delete_step);
+        assert!(template.contains("[UninstallDelete]\nType: filesandordirs; Name: \"{app}\""));
+    }
+
+    #[test]
     fn unsigned_installer_bakes_development_activation_mode() {
         let template = include_str!("../../../../scripts/release/windows/legion.iss");
         let root = std::env::temp_dir();

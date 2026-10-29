@@ -585,6 +585,53 @@ fn native_clients_unobserved(
     Ok(json!({ "status": "not-provisioned", "clients": clients }))
 }
 
+const UNRELATED_CLAUDE_SETTINGS: &str =
+    "{\n  \"theme\": \"qualification-unrelated\",\n  \"enabledPlugins\": {\n    \"unrelated-plugin@unrelated-marketplace\": true\n  }\n}\n";
+const UNRELATED_CODEX_CONFIG: &str =
+    "model = \"qualification-unrelated\"\n\n[marketplaces.unrelated-marketplace]\nsource = \"unrelated\"\n";
+
+/// Seeds client config that Legion does not own, so the uninstall can prove it
+/// removes only Legion's own native registrations.
+fn seed_unrelated_client_config(profile: &Path) -> ReleaseResult<Vec<(PathBuf, String)>> {
+    let seeds = [
+        (profile.join(".claude").join("settings.json"), UNRELATED_CLAUDE_SETTINGS),
+        (profile.join(".codex").join("config.toml"), UNRELATED_CODEX_CONFIG),
+    ];
+    let mut out = vec![];
+    for (path, body) in seeds {
+        let parent = path.parent().expect("seeded config has a parent");
+        fs::create_dir_all(parent).map_err(|e| fail(e.to_string()))?;
+        fs::write(&path, body).map_err(|e| fail(e.to_string()))?;
+        out.push((path, body.to_string()));
+    }
+    Ok(out)
+}
+
+fn assert_unrelated_client_config_preserved(seeded: &[(PathBuf, String)]) -> ReleaseResult<()> {
+    for (path, expected) in seeded {
+        let actual = fs::read_to_string(path).map_err(|e| {
+            fail(format!(
+                "uninstall removed or corrupted unrelated client config {}: {e}",
+                path.display()
+            ))
+        })?;
+        if &actual != expected {
+            return Err(fail(format!(
+                "uninstall modified unrelated client config {}",
+                path.display()
+            )));
+        }
+        let lowered = actual.to_ascii_lowercase();
+        if lowered.contains("legion") {
+            return Err(fail(format!(
+                "client config {} still references legion after uninstall",
+                path.display()
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Mirrors `disappears`: polls until `path` no longer exists or `timeout` elapses.
 fn disappears(path: &Path, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
@@ -634,9 +681,27 @@ fn inventory(root: &Path, depth: u32) -> Value {
 
 #[cfg(test)]
 mod native_client_qualification_tests {
-    use super::native_clients_unobserved;
+    use super::{
+        assert_unrelated_client_config_preserved, native_clients_unobserved,
+        seed_unrelated_client_config,
+    };
     use serde_json::json;
     use std::fs;
+
+    #[test]
+    fn unrelated_client_config_check_detects_removal_edit_and_legion_residue() {
+        let profile = isolated_profile();
+        let seeded = seed_unrelated_client_config(&profile).unwrap();
+        assert_unrelated_client_config_preserved(&seeded).unwrap();
+
+        let (path, body) = &seeded[0];
+        fs::write(path, format!("{body}\"legion\": true\n")).unwrap();
+        assert!(assert_unrelated_client_config_preserved(&seeded).is_err());
+
+        fs::remove_file(path).unwrap();
+        assert!(assert_unrelated_client_config_preserved(&seeded).is_err());
+        fs::remove_dir_all(profile).unwrap();
+    }
 
     fn isolated_profile() -> std::path::PathBuf {
         let profile = std::env::temp_dir().join(format!(
@@ -2158,6 +2223,11 @@ throw 'Receipt fault did not interrupt activation'
         let payload_identity =
             installed_payload_identity(workspace, &install_root.join("current"))?;
 
+        // Observe the unprovisioned clients before seeding the unrelated client
+        // config below; the seed would otherwise defeat the unobserved check.
+        let native_clients = native_clients_unobserved(&profile, &repair, &status)?;
+        let unrelated_client_config = seed_unrelated_client_config(&profile)?;
+
         let uninstaller = install_root.join("unins000.exe");
         if !uninstaller.is_file() {
             return Err(fail(format!(
@@ -2181,6 +2251,9 @@ throw 'Receipt fault did not interrupt activation'
         if !disappears(&install_root, Duration::from_millis(3000)) {
             return Err(fail("silent uninstall left installed product behind"));
         }
+        // Uninstall deregisters Legion's native client entries while leaving
+        // every unrelated client entry byte-for-byte intact.
+        assert_unrelated_client_config_preserved(&unrelated_client_config)?;
 
         let evidence_path = output.join("qualification.json");
         let commands_stage = |name: &str| -> Value {
@@ -2195,7 +2268,6 @@ throw 'Receipt fault did not interrupt activation'
             "repair": repair.get("nativeMarketplaces"),
             "status": status.get("nativeMarketplaces"),
         });
-        let native_clients = native_clients_unobserved(&profile, &repair, &status)?;
         let evidence = json!({
             "schemaVersion": 1, "kind": "legion-windows-installed-installer-qualification", "status": "qualified",
             "product": "legion", "version": version, "sourceRevision": revision,
