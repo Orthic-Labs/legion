@@ -420,7 +420,11 @@ fn replayed_observation_is_rejected_by_evidence_set_and_ledger() {
     reuse.evidence_id = "ev-2".into();
     reuse.sequence = 2;
     let verdict = run(&reuse, &verifier, &trust, &ledger, NOW);
-    assert!(has(&verdict, "observation-replayed"), "{:?}", verdict.reasons);
+    assert!(
+        has(&verdict, "observation-replayed"),
+        "{:?}",
+        verdict.reasons
+    );
     // New nonce but non-monotonic sequence: rejected.
     let mut old = case.clone();
     old.evidence_id = "ev-3".into();

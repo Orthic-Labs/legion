@@ -1094,7 +1094,10 @@ impl ObservationLedger {
     }
 
     fn admit(&self, issuer: &str, observation_id: &str, sequence: u64) -> Result<(), &'static str> {
-        let mut state = self.state.lock().map_err(|_| "observation-ledger-poisoned")?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "observation-ledger-poisoned")?;
         let id_key = format!("{issuer}\n{observation_id}");
         if state.seen_ids.contains(&id_key) {
             return Err("observation-replayed");
@@ -1268,8 +1271,15 @@ pub fn verify_runtime_observation(
         fail("observation-envelope-kind-not-runtime");
     }
     if expected.required_probes.is_empty()
-        || expected.required_probes.iter().any(|probe| !non_empty(probe))
-        || expected.required_probes.iter().collect::<BTreeSet<_>>().len()
+        || expected
+            .required_probes
+            .iter()
+            .any(|probe| !non_empty(probe))
+        || expected
+            .required_probes
+            .iter()
+            .collect::<BTreeSet<_>>()
+            .len()
             != expected.required_probes.len()
     {
         fail("required-probes-malformed");
@@ -1357,14 +1367,19 @@ pub fn verify_runtime_observation(
             (Some(issued), Some(now)) => {
                 if issued > now {
                     fail("observation-from-future");
-                } else if (now - issued) as u64 > payload.max_age_seconds.min(expected.max_age_seconds)
+                } else if (now - issued) as u64
+                    > payload.max_age_seconds.min(expected.max_age_seconds)
                 {
                     fail("observation-stale");
                 }
             }
             _ => fail("observation-timestamp-malformed"),
         }
-        match (&expected.compatibility, &payload.compatibility, expected.kind) {
+        match (
+            &expected.compatibility,
+            &payload.compatibility,
+            expected.kind,
+        ) {
             (Some(want), Some(got), ObservationKind::CompatibilityRun) => {
                 if want != got
                     || [
