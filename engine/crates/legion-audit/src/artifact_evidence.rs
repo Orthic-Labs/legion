@@ -1306,7 +1306,7 @@ pub fn verify_runtime_observation(
         _ => fail("observation-payload-ambiguous"),
     }
 
-    let mut probe_results: BTreeMap<&str, ProbeOutcome> = BTreeMap::new();
+    let mut probe_results: BTreeMap<String, ProbeOutcome> = BTreeMap::new();
     if let Some(payload) = &payload {
         if payload.schema_version != OBSERVATION_SCHEMA_VERSION {
             fail("observation-schema-unsupported");
@@ -1336,7 +1336,7 @@ pub fn verify_runtime_observation(
         for probe in &payload.probes {
             if !non_empty(&probe.probe_id)
                 || probe_results
-                    .insert(probe.probe_id.as_str(), probe.outcome)
+                    .insert(probe.probe_id.clone(), probe.outcome)
                     .is_some()
             {
                 fail("observation-probe-malformed-or-duplicate");
@@ -1352,7 +1352,7 @@ pub fn verify_runtime_observation(
             }
         }
         let claimed: BTreeSet<&str> = envelope.scope.examined.iter().map(String::as_str).collect();
-        let carried: BTreeSet<&str> = probe_results.keys().copied().collect();
+        let carried: BTreeSet<&str> = probe_results.keys().map(String::as_str).collect();
         if claimed != carried {
             fail("envelope-scope-differs-from-payload-probes");
         }
@@ -1428,8 +1428,8 @@ pub fn verify_runtime_observation(
     }
     let unrequested = probe_results
         .keys()
-        .filter(|probe| !expected.required_probes.iter().any(|req| req == **probe))
-        .map(|probe| probe.to_string())
+        .filter(|probe| !expected.required_probes.iter().any(|req| req == *probe))
+        .cloned()
         .collect();
     ObservationVerdict {
         kind: expected.kind,
