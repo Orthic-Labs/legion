@@ -616,6 +616,42 @@
       "effects": ["source-read", "repository-write", "process-exec"],
       "attachedAuthorities": [],
       "forbiddenSelections": ["audit"]
+    },
+    {
+      "id": "direct-software-design-architect",
+      "concerns": ["single-capability", "minimal-pair-architect-polysemy"],
+      "prompt": "Design the service boundaries and data ownership for a new billing system.",
+      "source": "semantic",
+      "expectedCapabilities": ["architect"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "decide", "produce"],
+      "effects": ["source-read", "artifact-write"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["designer", "sage"]
+    },
+    {
+      "id": "ui-design-designer-not-architect",
+      "concerns": ["single-capability", "minimal-pair-designer-visual"],
+      "prompt": "Design a clean settings screen for the mobile app with better spacing and typography.",
+      "source": "semantic",
+      "expectedCapabilities": ["designer"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "produce"],
+      "effects": ["source-read", "artifact-write"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["architect"]
+    },
+    {
+      "id": "incidental-design-keyword-debugger-not-architect",
+      "concerns": ["minimal-pair-architect-polysemy", "diagnosis-first"],
+      "prompt": "The design doc link in this error message is broken; reproduce the 404 and find why the redirect fails.",
+      "source": "semantic",
+      "expectedCapabilities": ["debugger"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "diagnose", "decide", "produce"],
+      "effects": ["source-read", "process-exec"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["architect", "designer"]
     }
   ]
 }

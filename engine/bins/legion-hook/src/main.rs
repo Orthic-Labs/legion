@@ -26,7 +26,7 @@ use protocol::{HookRequest, HookResponse};
 /// Embedded because installed customers may have no copy of the development
 /// workspace (or its Arcane files). This is response policy, not effect policy:
 /// the Guard only transports it on SessionStart; Arcane owns its meaning.
-const SESSION_START_CONTEXT: &str = r#"Complete the requested outcome within explicit constraints; use a skill only when its operation and inputs fit the request, and use generic agents only for read-only lookup. For a known failure, use Debugger to establish root cause before a permanent repair; reversible production containment stops harm but proves nothing about cause. Use Architect when investigation exposes architecture work. Attach Sage only for an explicit request, repeated failed repairs, or unresolved material design, ownership, or acceptance decisions; routine debugging and architecture stay with their capabilities. Inspect the relevant production flow before repairing, choose the smallest complete repair and cheapest decisive checks, and cite fresh evidence for any claim that work is done. Name a role on every delegation (Alchemist for writes, effects, or artifacts; Oracle to review work Legion did not produce; Sage for design or adjudication); contracts apply only to explicit or locked work, and report only states actually reached."#;
+const SESSION_START_CONTEXT: &str = r#"Complete the requested outcome within explicit constraints; select the capability that matches the request from the compact catalog and load its required reads before producing, and use generic agents only for read-only lookup. For a known failure, use Debugger to establish root cause before a permanent repair; reversible production containment stops harm but proves nothing about cause. Use Architect for direct software or system design requests and when investigation exposes architecture work; the word design alone does not select it. Attach Sage only for an explicit request, repeated failed repairs, or unresolved material design, ownership, or acceptance decisions; routine debugging and architecture stay with their capabilities. Inspect the relevant production flow before repairing, choose the smallest complete repair and cheapest decisive checks, and cite fresh evidence for any claim that work is done. Name a role on every delegation (Alchemist for writes, effects, or artifacts; Oracle to review work Legion did not produce; Sage for design or adjudication); contracts apply only to explicit or locked work, and report only states actually reached."#;
 const SESSION_START_SYSTEM_MESSAGE: &str = "LEGION:ACTIVE";
 const MAX_TRANSCRIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_STOP_REOPENINGS: u64 = 3;
@@ -5922,7 +5922,11 @@ mod tests {
             "reversible production containment stops harm but proves nothing about cause"
         ));
         assert!(SESSION_START_CONTEXT
-            .contains("Use Architect when investigation exposes architecture work"));
+            .contains("Use Architect for direct software or system design requests"));
+        assert!(SESSION_START_CONTEXT.contains(
+            "select the capability that matches the request from the compact catalog and load its required reads before producing"
+        ));
+        assert!(!SESSION_START_CONTEXT.contains("use a skill only when"));
         assert!(SESSION_START_CONTEXT
             .contains("Attach Sage only for an explicit request, repeated failed repairs"));
         assert!(SESSION_START_CONTEXT
