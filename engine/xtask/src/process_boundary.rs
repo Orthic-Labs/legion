@@ -243,7 +243,7 @@ mod tests {
         let started = std::time::Instant::now();
         let result = run_bounded(sh("sleep 60"), Duration::from_millis(300), 1024);
         assert!(started.elapsed() < Duration::from_secs(30));
-        let message = result.error_message.expect("timeout diagnostic");
+        let message = result.error_message.clone().expect("timeout diagnostic");
         assert!(message.contains("timed out after 300ms"), "{message}");
         assert_ne!(result.status, Some(0));
         assert!(command_diagnostic(&result).contains("timed out"));

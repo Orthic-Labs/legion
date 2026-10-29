@@ -1098,8 +1098,14 @@ fn architecture_docs_are_bounded_context_never_counted_as_coverage() {
         Some(&fixture.0),
         &inventory,
         &[
-            spec("reasoning.architecture", json!({"op":"always"})),
-            spec("reasoning.correctness", json!({"op":"always"})),
+            spec(
+                "reasoning.architecture",
+                json!({"op":"anyPath","patterns":["src/**"]}),
+            ),
+            spec(
+                "reasoning.correctness",
+                json!({"op":"anyPath","patterns":["src/**"]}),
+            ),
         ],
     )
     .unwrap()
@@ -1216,7 +1222,10 @@ fn lens_doc_work(provider: &str, with_docs: bool) -> Vec<PendingLensWork> {
     let plan = AuditPlan::compile_with_root(
         Some(&fixture.0),
         &inventory,
-        &[spec(provider, json!({"op":"always"}))],
+        &[spec(
+            provider,
+            json!({"op":"anyPath","patterns":["src/**"]}),
+        )],
     )
     .unwrap()
     .freeze(Some(b"lens-docs-fixture-key"))
@@ -1300,7 +1309,10 @@ fn lens_doc_budget_shrinks_then_omits_with_recorded_status_leaving_source_unchan
     let plan = AuditPlan::compile_with_root(
         Some(&fixture.0),
         &inventory,
-        &[spec("reasoning.naming", json!({"op":"always"}))],
+        &[spec(
+            "reasoning.naming",
+            json!({"op":"anyPath","patterns":["src/**"]}),
+        )],
     )
     .unwrap()
     .freeze(Some(b"lens-docs-budget-key"))

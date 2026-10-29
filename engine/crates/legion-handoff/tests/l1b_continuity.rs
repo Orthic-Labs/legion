@@ -602,7 +602,13 @@ fn bootstrap_artifact_root_is_validated_and_reported() {
     let (code, text) = cli(&["--artifact-root", root]);
     assert_eq!(code, 0, "{text}");
     assert!(
-        text.contains("/handoffs/2026-10-30/session-1.context.json"),
+        text.contains(
+            &std::path::Path::new("handoffs")
+                .join("2026-10-30")
+                .join("session-1.context.json")
+                .display()
+                .to_string()
+        ),
         "{text}"
     );
     assert!(text.contains("--artifact-root"), "{text}");

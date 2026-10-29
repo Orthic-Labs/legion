@@ -38,9 +38,11 @@ fn rust_tool_plain_re() -> &'static Regex {
 
 fn rightkit_prefix_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    // Port of `(?:^|[\s;&|])rightkit\s+(?:build\s+)?$` (case-insensitive),
+    // Port of `(?:^|[\s;&|])(?:rustright|rightkit)\s+(?:build\s+)?$` (case-insensitive),
     // tested against the text preceding a matched tool token.
-    RE.get_or_init(|| Regex::new(r"(?i)(?:^|[\s;&|])rightkit\s+(?:build\s+)?$").unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)(?:^|[\s;&|])(?:rustright|rightkit)\s+(?:build\s+)?$").unwrap()
+    })
 }
 
 fn is_word_char(c: char) -> bool {
@@ -105,7 +107,7 @@ pub fn managed_rust_route_errors(
             let key = (source.to_string(), tool.clone());
             if seen.insert(key) {
                 errors.push(format!(
-                    "managed Rust route violation in {source}: direct {tool} invocation must use rightkit {tool}"
+                    "managed Rust route violation in {source}: direct {tool} invocation must use rustright {tool}"
                 ));
             }
         }

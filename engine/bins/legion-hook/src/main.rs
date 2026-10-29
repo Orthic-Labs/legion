@@ -5021,7 +5021,7 @@ mod tests {
             .expect("SessionStart includes embedded additionalContext");
         for rule in [
             "Complete the requested outcome within explicit constraints",
-            "use a skill only when its operation and inputs fit the request",
+            "select the capability that matches the request from the compact catalog",
             "choose the smallest complete repair and cheapest decisive checks",
             "Name a role on every delegation",
             "contracts apply only to explicit or locked work",
