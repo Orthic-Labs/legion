@@ -47,6 +47,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -1137,6 +1138,125 @@ fn frozen_gather_calls(seats: &[LensSeat]) -> Result<u64, AuditError> {
     Ok(calls)
 }
 
+const SIZING_CACHE_FILE: &str = "next-sizing-cache.json";
+const SIZING_CACHE_KIND: &str = "legion-audit-next-sizing-cache";
+const SIZING_CACHE_DOMAIN: &str = "legion-audit-next-sizing-cache-v1";
+
+struct SizingCacheContext {
+    key: Vec<u8>,
+    epoch: String,
+    plan_digest: String,
+}
+
+/// Run custody needed to authenticate the cache: the sealed plan digest and
+/// the epoch key that already MACs runtime-call evidence. Absent material
+/// disables the cache entirely (sizes are recomputed, never trusted).
+fn sizing_cache_context(run_dir: &Path) -> Option<SizingCacheContext> {
+    let plan: Value = serde_json::from_slice(&fs::read(run_dir.join("plan.json")).ok()?).ok()?;
+    let plan_digest = plan.pointer("/seal/digest")?.as_str()?.to_owned();
+    let (key, epoch) = crate::native_providers::reasoning::ingest::load_epoch(run_dir).ok()?;
+    Some(SizingCacheContext {
+        key,
+        epoch,
+        plan_digest,
+    })
+}
+
+fn sizing_input_digest(contents: &[(String, Vec<u8>)]) -> String {
+    let mut hasher = Sha256::new();
+    for (name, content) in contents {
+        hasher.update((name.len() as u64).to_le_bytes());
+        hasher.update(name.as_bytes());
+        hasher.update((content.len() as u64).to_le_bytes());
+        hasher.update(content);
+    }
+    format!("sha256:{}", hex::encode(hasher.finalize()))
+}
+
+fn sizing_cache_mac(key: &[u8], body: &Value) -> Result<Hmac<Sha256>, AuditError> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(key)
+        .map_err(|error| invalid(format!("sizing cache key unusable: {error}")))?;
+    mac.update(SIZING_CACHE_DOMAIN.as_bytes());
+    mac.update(&[0]);
+    mac.update(&crate::integrity::canonical_bytes(body)?);
+    Ok(mac)
+}
+
+fn write_sizing_cache(
+    run_dir: &Path,
+    context: &SizingCacheContext,
+    dispatch_digest: &str,
+    sizes: &BTreeMap<String, (String, u64)>,
+) -> Result<(), AuditError> {
+    let seats: serde_json::Map<String, Value> = sizes
+        .iter()
+        .map(|(id, (digest, bytes))| {
+            (
+                id.clone(),
+                json!({"inputDigest":digest,"modelVisibleInputBytes":bytes}),
+            )
+        })
+        .collect();
+    let mut envelope = json!({"schemaVersion":1,"kind":SIZING_CACHE_KIND,"dispatchDigest":dispatch_digest,"planDigest":context.plan_digest,"epochDigest":context.epoch,"seats":seats});
+    let mac = sizing_cache_mac(&context.key, &envelope)?;
+    envelope["authentication"] = json!({"alg":"HMAC-SHA256","macDomain":SIZING_CACHE_DOMAIN,"mac":hex::encode(mac.finalize().into_bytes())});
+    let bytes = serde_json::to_vec_pretty(&envelope).map_err(|error| invalid(error.to_string()))?;
+    write_file(run_dir, SIZING_CACHE_FILE, &bytes)?;
+    Ok(())
+}
+
+/// Returns authenticated per-seat `(input digest, model-visible bytes)`.
+/// A cache for another dispatch, plan or epoch is stale and ignored (the
+/// caller recomputes & republishes). A cache for THIS key that is malformed or
+/// fails its MAC was altered, so the run fails closed.
+fn read_sizing_cache(
+    run_dir: &Path,
+    context: &SizingCacheContext,
+    dispatch_digest: &str,
+) -> Result<BTreeMap<String, (String, u64)>, AuditError> {
+    let path = run_dir.join(SIZING_CACHE_FILE);
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
+        Err(error) => {
+            return Err(invalid(format!(
+                "could not read {SIZING_CACHE_FILE}: {error}"
+            )))
+        }
+    };
+    let tampered = || invalid(format!("{SIZING_CACHE_FILE} failed authentication; remove it to recompute sizing"));
+    let mut envelope: Value = serde_json::from_slice(&bytes).map_err(|_| tampered())?;
+    let stale = envelope["schemaVersion"] != 1
+        || envelope["kind"] != SIZING_CACHE_KIND
+        || envelope["dispatchDigest"] != dispatch_digest
+        || envelope["planDigest"] != context.plan_digest
+        || envelope["epochDigest"] != context.epoch;
+    if stale {
+        return Ok(BTreeMap::new());
+    }
+    let authentication = envelope
+        .as_object_mut()
+        .and_then(|object| object.remove("authentication"))
+        .ok_or_else(tampered)?;
+    let claimed = authentication["mac"]
+        .as_str()
+        .and_then(|mac| hex::decode(mac).ok())
+        .filter(|_| {
+            authentication["alg"] == "HMAC-SHA256" && authentication["macDomain"] == SIZING_CACHE_DOMAIN
+        })
+        .ok_or_else(tampered)?;
+    sizing_cache_mac(&context.key, &envelope)?
+        .verify_slice(&claimed)
+        .map_err(|_| tampered())?;
+    let mut sizes = BTreeMap::new();
+    for (id, entry) in envelope["seats"].as_object().ok_or_else(tampered)? {
+        let digest = entry["inputDigest"].as_str().ok_or_else(tampered)?;
+        let bytes = entry["modelVisibleInputBytes"].as_u64().ok_or_else(tampered)?;
+        sizes.insert(id.clone(), (digest.to_owned(), bytes));
+    }
+    Ok(sizes)
+}
+
 fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
     let dispatch_path = run_dir.join(DISPATCH_FILE);
     let bytes = fs::read(&dispatch_path).map_err(|error| {
@@ -1214,10 +1334,27 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
         }
     }
 
+    let dispatch_digest = digest_hex(&bytes);
+    // Sizing every packet re-opens the frozen snapshot, so its result is kept
+    // in a MAC-bound cache keyed by dispatch + plan digest. Packet bytes are
+    // still read & hashed on every load: a changed packet is never served a
+    // cached size. Without custody key material nothing is cached or trusted.
+    let cache_context = if runtime_encoding {
+        sizing_cache_context(run_dir)
+    } else {
+        None
+    };
+    let cached_sizes = match &cache_context {
+        Some(context) => read_sizing_cache(run_dir, context, &dispatch_digest)?,
+        None => BTreeMap::new(),
+    };
+    let mut measured_sizes: BTreeMap<String, (String, u64)> = BTreeMap::new();
+    let mut all_cached = true;
     let mut sizer = crate::review_runtime::InitialRequestSizer::default();
     for seat in &mut seats {
         let mut bytes = 0u64;
         let mut work = Vec::new();
+        let mut contents = Vec::new();
         for packet in &seat.packets {
             if Path::new(packet).file_name().and_then(|name| name.to_str()) != Some(packet.as_str())
             {
@@ -1232,19 +1369,32 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
                     ))
                 })?;
             bytes = bytes.saturating_add(content.len() as u64);
-            if runtime_encoding {
-                work.push(
-                    serde_json::from_slice::<crate::native_providers::reasoning::PendingLensWork>(
-                        &content,
-                    )
-                    .map_err(|error| {
-                        invalid(format!("budget packet {packet} is malformed: {error}"))
-                    })?,
-                );
-            }
+            contents.push((packet.clone(), content));
         }
+        let input_digest = sizing_input_digest(&contents);
         if runtime_encoding {
-            bytes = sizer.model_visible_input_bytes(&work)?;
+            let cached = cached_sizes
+                .get(&seat.id)
+                .filter(|(digest, _)| *digest == input_digest)
+                .map(|(_, sized)| *sized);
+            bytes = match cached {
+                Some(sized) => sized,
+                None => {
+                    all_cached = false;
+                    for (packet, content) in &contents {
+                        work.push(
+                            serde_json::from_slice::<
+                                crate::native_providers::reasoning::PendingLensWork,
+                            >(content)
+                            .map_err(|error| {
+                                invalid(format!("budget packet {packet} is malformed: {error}"))
+                            })?,
+                        );
+                    }
+                    sizer.model_visible_input_bytes(&work)?
+                }
+            };
+            measured_sizes.insert(seat.id.clone(), (input_digest, bytes));
         }
         let output = seat.output_token_limit.unwrap_or(budget.output);
         if output == 0 || output > budget.output {
@@ -1254,12 +1404,18 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
             seat.minimum_output_tokens = Some(
                 crate::native_providers::reasoning::ingest::minimum_output_tokens(
                     budget.output,
-                    work.len(),
+                    seat.packets.len(),
                 ),
             );
         }
         seat.output_token_limit = Some(output);
         seat.estimated_tokens = estimated_request_tokens(bytes, output);
+    }
+    if let Some(context) = &cache_context {
+        // Cache only; a failed write never blocks the budget transaction.
+        if !all_cached || cached_sizes.len() != measured_sizes.len() {
+            let _ = write_sizing_cache(run_dir, context, &dispatch_digest, &measured_sizes);
+        }
     }
     if let (Some(snapshot), Some(context)) = (&mut adjudication, &context) {
         for item in &mut snapshot.required {
@@ -1279,7 +1435,7 @@ fn load(run_dir: &Path) -> Result<Loaded, AuditError> {
             wave_width: width,
             budget: Some(budget),
         },
-        dispatch_digest: digest_hex(&bytes),
+        dispatch_digest,
         adjudication: context,
     })
 }
@@ -1692,6 +1848,15 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
             (id, 0, true)
         }
     };
+    // The physical envelope is a property of this one call, never of the
+    // cumulative ledger: report it as such and leave the ledger untouched so
+    // the run is not terminalized as budget-exhausted.
+    if tokens > crate::native_providers::reasoning::ingest::physical_planning_limit(budget.per_call)
+    {
+        return Ok(
+            json!({"authorized":false,"status":"incomplete:context-call-limit","reason":"physical-envelope-exhausted","complete":false,"callId":call.call_id,"budget":budget_summary(&state)}),
+        );
+    }
     let reserved = previous.max(budget.per_call);
     let additional = reserved.saturating_sub(previous);
     if (new_call && !state.budget_blocked.is_empty())
@@ -1705,12 +1870,6 @@ pub fn reserve_call(run_dir: &Path, call: &BudgetCall) -> Result<Value, AuditErr
         save_state(run_dir, &state)?;
         return Ok(
             json!({"authorized": false, "status": "budget-exhausted", "complete": false, "callId": call.call_id, "budget": budget_summary(&state)}),
-        );
-    }
-    if tokens > crate::native_providers::reasoning::ingest::physical_planning_limit(budget.per_call)
-    {
-        return Ok(
-            json!({"authorized":false,"status":"incomplete:context-call-limit","complete":false,"callId":call.call_id,"budget":budget_summary(&state)}),
         );
     }
     // Physical calls already obey maxSeats & full per-call token admission.
@@ -3188,6 +3347,7 @@ mod tests {
         overflow.model_input_bytes = 4000;
         let refused = reserve_call(&run, &overflow).unwrap();
         assert_eq!(refused["status"], "incomplete:context-call-limit");
+        assert_eq!(refused["reason"], "physical-envelope-exhausted");
         assert_eq!(fs::read(run.join(STATE_FILE)).unwrap(), before);
         stop_context_seat(&run, "seat-001").unwrap();
         let second = next_author_phase(&run, &options(1), &BTreeSet::new()).unwrap();
@@ -3874,6 +4034,170 @@ mod tests {
             .unwrap()
             .iter()
             .any(|gap| gap.as_str().unwrap().contains("budget-overrun")));
+        let _ = fs::remove_dir_all(run);
+    }
+
+    // Frozen native run with real custody (epoch key + sealed plan digest) so
+    // the sizing cache can be authenticated.
+    fn sizing_cache_run(name: &str) -> (PathBuf, SizingCacheContext) {
+        use crate::native_providers::reasoning::{PendingLensWork, ReasoningInvocation};
+        let run = temp_run(name);
+        let epoch = crate::native_providers::reasoning::ingest::create_epoch(&run).unwrap();
+        write_value(
+            &run.join("plan.json"),
+            &json!({"epoch":{"digest":epoch},"seal":{"digest":"sha256:plan-a"}}),
+        );
+        let work = PendingLensWork {
+            provider_id: "reasoning.correctness".into(),
+            lens_ids: vec![],
+            status: "pending-host".into(),
+            promotion: None,
+            request: ReasoningInvocation {
+                schema_version: 1,
+                kind: "legion-reasoning-invocation".into(),
+                request_id: "sized".into(),
+                provider_id: "reasoning.correctness".into(),
+                contract: "estimate-fixture".into(),
+                plan_digest: "plan".into(),
+                plan_signature: "signature".into(),
+                repository_id: "repo".into(),
+                inventory_generation: "generation".into(),
+                inventory_digest: "inventory".into(),
+                denominator_digest: "denominator".into(),
+                denominator_count: 1,
+                denominator_paths: vec!["a.rs".into()],
+                packet: json!({"reviewContext":{"snapshotKey":"sha256:fixture"},"excerpts":[{"path":"a.rs","content":"fn sized() {}"}]}),
+            },
+        };
+        write_value(
+            &run.join(LENS_PACKET_DIR).join("reasoning.correctness.json"),
+            &serde_json::to_value(work).unwrap(),
+        );
+        write_value(
+            &run.join(DISPATCH_FILE),
+            &json!({
+            "requestEncoding":"runtime-initial-v1","reasoningBudget":{"schemaVersion":2,"totalTokens":50000,"perCallTokens":10000,"outputTokens":2500,"maxSeats":5},"limits":{"waveWidth":1},
+            "seats":[{"seat":1,"tier":"judgment","providers":["reasoning.correctness"],"packets":["reasoning.correctness.json"],"gatherPolicy":"deterministic"}]}),
+        );
+        let context = sizing_cache_context(&run).expect("custody available");
+        (run, context)
+    }
+
+    fn cached_entry(run: &Path) -> (String, u64) {
+        read_sizing_cache(
+            run,
+            &sizing_cache_context(run).unwrap(),
+            &load(run).unwrap().dispatch_digest,
+        )
+        .unwrap()
+        .into_values()
+        .next()
+        .expect("cache holds the seat")
+    }
+
+    #[test]
+    fn sizing_cache_is_published_once_and_reused_after_authentication() {
+        let (run, context) = sizing_cache_run("sizing-cache-reuse");
+        let first = load(&run).unwrap();
+        let (digest, measured) = cached_entry(&run);
+        assert!(measured > 0);
+        // An authenticated entry with a distinguishable size proves load()
+        // consumes the cache instead of re-sizing the packets.
+        let sentinel = measured + 4_000;
+        write_sizing_cache(
+            &run,
+            &context,
+            &first.dispatch_digest,
+            &BTreeMap::from([("seat-001".to_owned(), (digest, sentinel))]),
+        )
+        .unwrap();
+        let reused = load(&run).unwrap();
+        assert_eq!(
+            reused.snapshot.seats[0].estimated_tokens,
+            estimated_request_tokens(sentinel, reused.snapshot.seats[0].output_token_limit.unwrap())
+        );
+        assert_ne!(
+            reused.snapshot.seats[0].estimated_tokens,
+            first.snapshot.seats[0].estimated_tokens
+        );
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn tampered_sizing_cache_fails_closed() {
+        let (run, _) = sizing_cache_run("sizing-cache-tamper");
+        load(&run).unwrap();
+        let path = run.join(SIZING_CACHE_FILE);
+        let mut envelope = read_json(&path).unwrap();
+        let seat = envelope["seats"].as_object_mut().unwrap().values_mut().next().unwrap();
+        // Shrinking the recorded size would silently under-reserve budget.
+        seat["modelVisibleInputBytes"] = json!(1);
+        write_value(&path, &envelope);
+        assert!(load(&run)
+            .unwrap_err()
+            .to_string()
+            .contains("failed authentication"));
+        let mut forged = read_json(&path).unwrap();
+        forged["authentication"]["mac"] = json!("00".repeat(32));
+        write_value(&path, &forged);
+        assert!(load(&run).is_err());
+        fs::write(&path, b"{not json").unwrap();
+        assert!(load(&run).is_err());
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn stale_sizing_cache_key_is_recomputed_not_trusted() {
+        let (run, context) = sizing_cache_run("sizing-cache-stale");
+        let first = load(&run).unwrap();
+        let (digest, measured) = cached_entry(&run);
+        let sentinel = measured + 4_000;
+        let plant = |dispatch: &str, context: &SizingCacheContext| {
+            write_sizing_cache(
+                &run,
+                context,
+                dispatch,
+                &BTreeMap::from([("seat-001".to_owned(), (digest.clone(), sentinel))]),
+            )
+            .unwrap();
+        };
+        // Authenticated entries bound to another dispatch digest are ignored.
+        plant("0".repeat(64).as_str(), &context);
+        assert_eq!(
+            load(&run).unwrap().snapshot.seats[0].estimated_tokens,
+            first.snapshot.seats[0].estimated_tokens
+        );
+        // ...as are entries bound to another sealed plan digest.
+        let other_plan = SizingCacheContext {
+            key: context.key.clone(),
+            epoch: context.epoch.clone(),
+            plan_digest: "sha256:plan-b".into(),
+        };
+        plant(&first.dispatch_digest, &other_plan);
+        assert_eq!(
+            load(&run).unwrap().snapshot.seats[0].estimated_tokens,
+            first.snapshot.seats[0].estimated_tokens
+        );
+        // The recomputed result replaced the stale file under the live key.
+        assert_eq!(cached_entry(&run).1, measured);
+        // A changed packet never receives its predecessor's cached size.
+        plant(&first.dispatch_digest, &context);
+        let packet = run.join(LENS_PACKET_DIR).join("reasoning.correctness.json");
+        let mut work = read_json(&packet).unwrap();
+        work["request"]["packet"]["excerpts"][0]["content"] = json!("fn sized() { /* grown */ }");
+        write_value(&packet, &work);
+        let regrown = load(&run).unwrap();
+        assert_ne!(regrown.snapshot.seats[0].estimated_tokens, estimated_request_tokens(sentinel, 2500));
+        assert!(regrown.snapshot.seats[0].estimated_tokens > first.snapshot.seats[0].estimated_tokens);
+        let _ = fs::remove_dir_all(run);
+    }
+
+    #[test]
+    fn sizing_cache_is_disabled_without_custody_material() {
+        let (run, _) = sizing_cache_run("sizing-cache-no-custody");
+        fs::remove_file(run.join("plan.json")).unwrap();
+        load(&run).unwrap();
+        assert!(!run.join(SIZING_CACHE_FILE).exists());
         let _ = fs::remove_dir_all(run);
     }
 }

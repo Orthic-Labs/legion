@@ -1176,7 +1176,10 @@ impl Controller<'_> {
                 .unwrap_or("budget-exhausted");
             return Err(AuditError::BoundExceeded(
                 if status == "incomplete:context-call-limit" {
-                    format!("{status}:{seat_id}")
+                    match authorization["reason"].as_str() {
+                        Some(reason) => format!("{status}:{reason}:{seat_id}"),
+                        None => format!("{status}:{seat_id}"),
+                    }
                 } else {
                     status.to_owned()
                 },
@@ -1320,11 +1323,15 @@ impl Controller<'_> {
                     ..
                 } => {
                     require_context_continuation(self.options)?;
-                    let response = self.tools.call(tool);
-                    prompt["conversation"]
-                        .as_array_mut()
-                        .ok_or_else(|| invalid("conversation missing"))?
-                        .push(json!({"modelAction":reply,"hostToolReply":response}));
+                    let tools = &self.tools;
+                    extend_conversation(
+                        &mut prompt,
+                        author_system(&execution),
+                        &schema,
+                        seat,
+                        &reply,
+                        |max_bytes| tools.call_within(tool, max_bytes),
+                    )?;
                 }
                 _ => return Err(invalid("malformed action")),
             }
@@ -1333,6 +1340,77 @@ impl Controller<'_> {
             "incomplete:context-call-limit".into(),
         ))
     }
+}
+
+/// Largest model-visible input the seat's frozen per-call allowance can carry:
+/// the same physical planning limit `reserve_call` enforces, less the output
+/// cap. `None` when the seat records no allowance (admission still checks).
+fn physical_input_limit(seat: &Value) -> Option<u64> {
+    let allowance = seat["perCallTokenAllowance"].as_u64()?;
+    let output = seat["outputTokenLimit"].as_u64()?;
+    Some(
+        ingest::physical_planning_limit(allowance)
+            .saturating_sub(output)
+            .saturating_mul(next::MODEL_INPUT_BYTES_PER_TOKEN)
+            .min(MAX_REQUEST_BYTES as u64),
+    )
+}
+
+/// Fixed serialization cost of one conversation row around its two payloads.
+const CONVERSATION_ROW_OVERHEAD: u64 = 64;
+
+/// Append one model action & host tool reply to the conversation without
+/// exceeding the remaining physical envelope (planning limit - initial prompt -
+/// accumulated conversation). The tool is asked for at most the bytes still
+/// available, so source paging shrinks as the conversation grows; whatever it
+/// drops stays marked truncated. With no room left the seat stops with the
+/// per-call reason `physical-envelope-exhausted`, never a cumulative budget
+/// stop, and no ledger state is touched.
+fn extend_conversation(
+    prompt: &mut Value,
+    system: &str,
+    schema: &Value,
+    seat: &Value,
+    model_action: &Value,
+    tool: impl FnOnce(usize) -> Value,
+) -> Result<(), AuditError> {
+    let exhausted = || {
+        AuditError::BoundExceeded(format!(
+            "incomplete:context-call-limit:physical-envelope-exhausted:{}",
+            seat["seatId"].as_str().unwrap_or("seat")
+        ))
+    };
+    let limit = physical_input_limit(seat);
+    let max_bytes = match limit {
+        Some(limit) => {
+            let action_bytes = legion_contracts::canonical_json_bytes(model_action)
+                .map_err(|error| invalid(error.to_string()))?
+                .len() as u64;
+            let available = limit
+                .saturating_sub(model_visible_input_bytes(prompt, system, schema)?)
+                .saturating_sub(action_bytes)
+                .saturating_sub(CONVERSATION_ROW_OVERHEAD);
+            if available < tools::MIN_CLAMPED_REPLY_BYTES as u64 {
+                return Err(exhausted());
+            }
+            usize::try_from(available).unwrap_or(usize::MAX)
+        }
+        None => usize::MAX,
+    };
+    let response = tool(max_bytes);
+    let conversation = prompt["conversation"]
+        .as_array_mut()
+        .ok_or_else(|| invalid("conversation missing"))?;
+    conversation.push(json!({"modelAction":model_action,"hostToolReply":response}));
+    if let Some(limit) = limit {
+        if model_visible_input_bytes(prompt, system, schema)? > limit {
+            if let Some(conversation) = prompt["conversation"].as_array_mut() {
+                conversation.pop();
+            }
+            return Err(exhausted());
+        }
+    }
+    Ok(())
 }
 
 fn prepared_snapshot(run: &Path, plan: &Value) -> Result<FrozenSnapshot, AuditError> {
@@ -2891,6 +2969,97 @@ mod tests {
         assert!(frame.contains("hostToolReply"));
         assert!(frame.contains("audit.read_file"));
     }
+    #[test]
+    fn multi_round_context_clamps_to_remaining_physical_envelope() {
+        // limit = ((20000 - 1500) - 1000) * 2 = 35000 model-visible bytes.
+        let seat = json!({"seatId":"seat-envelope","perCallTokenAllowance":20000,"outputTokenLimit":1000});
+        let limit = physical_input_limit(&seat).unwrap();
+        assert_eq!(limit, 35_000);
+        let schema = action_schema();
+        let mut prompt = json!({"task":"initial packet","initialPacket":"p".repeat(2000),"conversation":[]});
+        // Deterministic mock transport: the model asks for another source page
+        // every round and the mock host answers with 20 x 300-byte rows.
+        let request = json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"a.rs"}}});
+        let mut round = 0u64;
+        let mut clamped = Vec::new();
+        let error = loop {
+            let before = prompt.clone();
+            let result = extend_conversation(&mut prompt, SYSTEM, &schema, &seat, &request, |max| {
+                let rows: Vec<Value> = (0..20)
+                    .map(|line| {
+                        let line = round * 20 + line + 1;
+                        json!({"path":"a.rs","side":"selected","source":{"startLine":line,"endLine":line,"text":"x".repeat(300)}})
+                    })
+                    .collect();
+                tools::bounded_reply_within(
+                    json!({"snapshotKey":"s","tool":"audit.read_file","rows":rows,"truncated":false,"nextOffset":null,"gaps":[],"semanticCallGraph":false}),
+                    max,
+                )
+            });
+            match result {
+                Ok(()) => {
+                    assert!(model_visible_input_bytes(&prompt, SYSTEM, &schema).unwrap() <= limit);
+                    let reply = prompt["conversation"].as_array().unwrap().last().unwrap()["hostToolReply"].clone();
+                    if reply["envelopeTruncated"] == true {
+                        clamped.push(reply);
+                    }
+                    round += 1;
+                    assert!(round < 20, "conversation must stop growing");
+                }
+                Err(error) => {
+                    assert_eq!(prompt, before, "a refused round leaves the conversation intact");
+                    break error;
+                }
+            }
+        };
+        assert!(round >= 3, "several full rounds fit before the boundary: {round}");
+        assert!(!clamped.is_empty(), "the boundary round is clamped, not dropped");
+        for reply in &clamped {
+            assert_eq!(reply["truncated"], true, "clamped coverage stays a visible gap");
+            assert!(reply["resumeStartLine"].as_u64().unwrap() > 1);
+            assert!(reply["replyDigest"].is_string());
+        }
+        let message = error.to_string();
+        assert!(message.contains("incomplete:context-call-limit"));
+        assert!(message.contains("physical-envelope-exhausted"));
+        assert!(!message.contains("budget-exhausted"));
+        assert!(message.ends_with(":seat-envelope"));
+    }
+
+    #[test]
+    fn exhausted_envelope_refuses_before_any_tool_work() {
+        let seat = json!({"seatId":"seat-full","perCallTokenAllowance":4000,"outputTokenLimit":1000});
+        let schema = action_schema();
+        // 4000-600=3400 planning tokens; minus 1000 output = 2400 tokens = 4800 bytes.
+        assert_eq!(physical_input_limit(&seat), Some(4800));
+        let mut prompt = json!({"initial":"i".repeat(4500),"conversation":[]});
+        let request = json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"a.rs"}}});
+        let mut called = false;
+        let error = extend_conversation(&mut prompt, SYSTEM, &schema, &seat, &request, |_| {
+            called = true;
+            json!({})
+        })
+        .unwrap_err();
+        assert!(!called);
+        assert!(error.to_string().contains("physical-envelope-exhausted"));
+        assert_eq!(prompt["conversation"], json!([]));
+    }
+
+    #[test]
+    fn seat_without_frozen_allowance_is_not_clamped_here() {
+        let seat = json!({"seatId":"seat-open"});
+        assert_eq!(physical_input_limit(&seat), None);
+        let mut prompt = json!({"conversation":[]});
+        let mut asked = 0;
+        extend_conversation(&mut prompt, SYSTEM, &action_schema(), &seat, &json!({}), |max| {
+            asked = max;
+            json!({"rows":[]})
+        })
+        .unwrap();
+        assert_eq!(asked, usize::MAX);
+        assert_eq!(prompt["conversation"].as_array().unwrap().len(), 1);
+    }
+
     #[test]
     fn resumed_child_attempt_keeps_retry_when_parent_issues_new_reservation() {
         let child_seat = json!({"attempt":2,"reservationId":"child-ledger-reservation"});

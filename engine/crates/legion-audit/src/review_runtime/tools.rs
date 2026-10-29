@@ -102,7 +102,15 @@ impl ContextTools {
         Ok(Self { toolbox })
     }
     pub fn call(&self, request: ContextRequest) -> Value {
-        bounded_reply(
+        self.call_within(request, MAX_REPLY_BYTES)
+    }
+
+    /// Like `call`, but the whole serialized reply is also held to `max_bytes`
+    /// (the caller's remaining physical request envelope). Whole records are
+    /// dropped and the reply is marked truncated, so the shortfall stays a
+    /// visible coverage gap; `resumeStartLine` says where paging can continue.
+    pub fn call_within(&self, request: ContextRequest, max_bytes: usize) -> Value {
+        bounded_reply_within(
             match self
                 .toolbox
                 .call(&Caller::new(CALLER), &request.tool, request.arguments)
@@ -110,6 +118,7 @@ impl ContextTools {
                 Ok(value) => value,
                 Err(error) => json!({"denied":true,"error":error.to_value(),"truncated":false}),
             },
+            max_bytes,
         )
     }
 
@@ -197,11 +206,16 @@ fn append_bounded(rows: &mut Vec<Value>, row: Value, used: &mut usize) -> bool {
 }
 // Bound the complete serialized envelope, including metadata & unavailable-path
 // diagnostics. Whole records are removed; no source line is silently sliced.
-fn bounded_reply(mut reply: Value) -> Value {
+/// Smallest reply cap the physical-envelope clamp will request; below it the
+/// caller must stop instead of receiving a metadata-only reply.
+pub(super) const MIN_CLAMPED_REPLY_BYTES: usize = 1024;
+pub(super) fn bounded_reply_within(mut reply: Value, max_bytes: usize) -> Value {
+    let cap = max_bytes.min(MAX_REPLY_BYTES);
     reply
         .as_object_mut()
         .map(|object| object.remove("replyDigest"));
-    while reply.to_string().len() + 100 > MAX_REPLY_BYTES {
+    // 100 bytes: digest; 48 more: resume hint added after trimming.
+    while reply.to_string().len() + 148 > cap {
         reply["truncated"] = json!(true);
         reply["envelopeTruncated"] = json!(true);
         let removed = reply
@@ -217,6 +231,22 @@ fn bounded_reply(mut reply: Value) -> Value {
         if !removed {
             reply = json!({"denied":true,"truncated":true,"envelopeTruncated":true,"gaps":["context reply metadata exceeds byte cap"]});
             break;
+        }
+    }
+    if reply["envelopeTruncated"] == true {
+        let resume = reply["rows"]
+            .as_array()
+            .and_then(|rows| rows.last())
+            .and_then(|row| row.pointer("/source/endLine"))
+            .and_then(Value::as_u64)
+            .filter(|_| {
+                matches!(
+                    reply["tool"].as_str(),
+                    Some("audit.read_file" | "audit.read_diff")
+                )
+            });
+        if let Some(line) = resume {
+            reply["resumeStartLine"] = json!(line + 1);
         }
     }
     if let Ok(digest) = legion_contracts::canonical_digest(&reply) {
@@ -428,15 +458,16 @@ mod tests {
     }
     #[test]
     fn reply_bound_includes_long_unavailable_paths_and_metadata() {
-        let reply = bounded_reply(
+        let reply = bounded_reply_within(
             json!({"rows":[],"gaps":(0..128).map(|index| format!("unavailable:{index}:{}", "x".repeat(1024))).collect::<Vec<_>>(),"snapshotKey":"s","truncated":false}),
+            MAX_REPLY_BYTES,
         );
         assert!(reply.to_string().len() <= MAX_REPLY_BYTES);
         assert_eq!(reply["truncated"], true);
         assert_eq!(reply["envelopeTruncated"], true);
         assert!(reply["replyDigest"].is_string());
         let metadata =
-            bounded_reply(json!({"snapshotKey":"x".repeat(MAX_REPLY_BYTES),"rows":[],"gaps":[]}));
+            bounded_reply_within(json!({"snapshotKey":"x".repeat(MAX_REPLY_BYTES),"rows":[],"gaps":[]}), MAX_REPLY_BYTES);
         assert!(metadata.to_string().len() <= MAX_REPLY_BYTES);
     }
 }
