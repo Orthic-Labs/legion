@@ -1356,32 +1356,3 @@ pub fn merge_security_candidate_reports(reports: &[Value]) -> Value {
         "candidates": candidates, "coverageGaps": coverage_gaps,
     })
 }
-
-pub fn derive_variant_queries(confirmed_finding: &Value) -> Result<Value, String> {
-    let rule_id = confirmed_finding
-        .get("ruleId")
-        .and_then(Value::as_str)
-        .ok_or("confirmed finding requires ruleId and evidence")?;
-    let evidence = confirmed_finding
-        .get("evidence")
-        .and_then(Value::as_array)
-        .filter(|e| !e.is_empty())
-        .ok_or("confirmed finding requires ruleId and evidence")?;
-    let first = &evidence[0];
-    let file = first
-        .get("file")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let line = first.get("line").cloned().unwrap_or(Value::Null);
-    let same_sink_class = rule_id.split('.').take(2).collect::<Vec<_>>().join(".");
-    Ok(json!({
-        "schemaVersion": 1, "kind": "security-variant-plan",
-        "findingId": confirmed_finding.get("id").cloned().unwrap_or(Value::Null),
-        "ruleId": rule_id,
-        "queries": [
-            { "level": "exact", "key": format!("{rule_id}:{file}:{line}") },
-            { "level": "same-rule", "key": rule_id },
-            { "level": "same-sink-class", "key": same_sink_class },
-        ],
-    }))
-}

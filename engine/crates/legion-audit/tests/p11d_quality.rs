@@ -135,17 +135,3 @@ fn security_suite_merge_dedupes_candidates_by_id() {
     let merged = security_suite::merge_security_candidate_reports(&[report.clone(), report]);
     assert_eq!(merged["candidates"].as_array().unwrap().len(), 1);
 }
-
-#[test]
-fn security_suite_derive_variant_queries_requires_evidence() {
-    let finding = json!({ "id": "f1", "ruleId": "security.command-injection" });
-    assert!(security_suite::derive_variant_queries(&finding).is_err());
-
-    let finding = json!({
-        "id": "f1", "ruleId": "security.command-injection",
-        "evidence": [{ "file": "a.js", "line": 3 }],
-    });
-    let plan = security_suite::derive_variant_queries(&finding).unwrap();
-    assert_eq!(plan["queries"].as_array().unwrap().len(), 3);
-    assert_eq!(plan["queries"][2]["key"], "security.command-injection");
-}
