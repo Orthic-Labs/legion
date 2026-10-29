@@ -5,6 +5,9 @@
 //! `spawnSync` options); callers should apply the same `RELEASE_COMMAND_TIMEOUT_MS`
 //! / `RELEASE_CAPTURE_MAX_BYTES` bounds to `std::process::Command`.
 
+use std::time::Duration;
+
+use rightkit_child_process::{run_command, OwnedCommand, RunOptions};
 use sha2::{Digest, Sha256};
 
 pub const RELEASE_CAPTURE_MAX_BYTES: usize = 64 * 1024 * 1024;

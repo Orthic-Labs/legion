@@ -4149,7 +4149,8 @@ mod tests {
         seat["modelVisibleInputBytes"] = json!(1);
         write_value(&path, &envelope);
         assert!(load(&run)
-            .unwrap_err()
+            .err()
+            .expect("tampered sizing cache must fail")
             .to_string()
             .contains("failed authentication"));
         let mut forged = read_json(&path).unwrap();

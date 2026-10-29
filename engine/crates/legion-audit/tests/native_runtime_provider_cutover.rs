@@ -15,7 +15,7 @@ use std::{
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
-const TESTED_RUNTIME_IDS: [&str; 49] = [
+const TESTED_RUNTIME_IDS: [&str; 50] = [
     "architecture.core",
     "architecture.structure",
     "code.android.lint",
