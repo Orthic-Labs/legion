@@ -36,6 +36,7 @@ pub struct ProviderExecutorAdapter {
     now: Option<String>,
     producer: producer::ProducerCache,
     report_observation: Option<Arc<report_compatibility::NativeReportObservation>>,
+    observation_verdicts: Vec<crate::artifact_evidence::ObservationVerdict>,
 }
 
 pub type NativeAuditProviderExecutor = ProviderExecutorAdapter;
@@ -67,6 +68,16 @@ impl ProviderExecutorAdapter {
         observation: report_compatibility::NativeReportObservation,
     ) -> Self {
         self.report_observation = Some(Arc::new(observation));
+        self
+    }
+
+    /// Verdicts from `verify_runtime_observation`. Only a verified observation
+    /// can satisfy a named probe; rejected ones keep the obligation unknown.
+    pub fn with_observation_verdicts(
+        mut self,
+        verdicts: Vec<crate::artifact_evidence::ObservationVerdict>,
+    ) -> Self {
+        self.observation_verdicts = verdicts;
         self
     }
 
@@ -234,6 +245,18 @@ impl ProviderExecutorAdapter {
             if let Some(facts) = &facts {
                 producer::reconcile(facts, &provider.id, &mut analysis);
             }
+        }
+        // Runs even when the source-only input is unavailable: compatibility
+        // runtime evidence never comes from source, only from a verified
+        // observation, which then replaces the not-derivable refusal.
+        producer::apply_observations(&provider.id, &mut analysis, &self.observation_verdicts);
+        if provider.id == "compatibility.core"
+            && self.observation_verdicts.iter().any(|verdict| {
+                verdict.kind == crate::artifact_evidence::ObservationKind::CompatibilityRun
+                    && verdict.satisfies_obligation()
+            })
+        {
+            unavailable = None;
         }
         // PostgreSQL migration/config facts ride on the data provider: only a
         // self-sourced run reads them, and only a detected PostgreSQL project

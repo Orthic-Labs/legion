@@ -2026,6 +2026,25 @@ pub fn produce(facts: &Facts, provider: &str) -> Production {
     }
 }
 
+/// Folds signed, verified runtime observations (issue #63) into the analysis
+/// of `provider`. This is the only path by which `compatibility.core` and
+/// `framework.backend` can learn of runtime probe results; `produce` keeps its
+/// default (observations unavailable) when none were verified. Satisfies only
+/// the plan-named probes against the bound subject and never claims general
+/// authentication or compatibility correctness. Call regardless of whether
+/// the input was self-sourced.
+pub fn apply_observations(
+    provider: &str,
+    analysis: &mut Analysis,
+    verdicts: &[crate::artifact_evidence::ObservationVerdict],
+) {
+    match provider {
+        "compatibility.core" => super::compatibility::apply_observations(analysis, verdicts),
+        "framework.backend" => super::framework::apply_backend_observations(analysis, verdicts),
+        _ => {}
+    }
+}
+
 /// Adjusts an analyzer result produced from self-sourced input: attaches the
 /// producer's locations to findings, folds in producer coverage gaps, and
 /// reports `examined` as files actually read.

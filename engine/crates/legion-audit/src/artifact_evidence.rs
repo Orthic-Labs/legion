@@ -979,6 +979,466 @@ pub fn authenticate_sarif(sarif: ImportedSarif, verdict: &ImportVerdict) -> Impo
     })
 }
 
+// ---------------------------------------------------------------------------
+// Runtime observations (issue #63): signed backend authentication probe and
+// compatibility producer/consumer run results.
+//
+// RightKit owns execution and capture; Legion only interprets. An observation
+// is a typed JSON payload retained as one artifact of an ordinary Runtime
+// envelope, so enrollment, signature, payload-digest, replay, target-binding
+// and freshness checks all reuse [`verify_artifact_evidence`] and the
+// host-enrolled Ed25519 issuers. A [`VerifiedObservation`] satisfies exactly
+// the plan-named probes against the bound subject; it never proves general
+// authentication or compatibility correctness.
+// ---------------------------------------------------------------------------
+
+pub const OBSERVATION_SCHEMA_VERSION: u32 = 1;
+/// Artifact role of the typed observation payload inside the envelope.
+pub const OBSERVATION_ARTIFACT_ROLE: &str = "runtime-observation";
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ObservationKind {
+    BackendAuthProbe,
+    CompatibilityRun,
+}
+
+impl ObservationKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::BackendAuthProbe => "backend-auth-probe",
+            Self::CompatibilityRun => "compatibility-run",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProbeOutcome {
+    Passed,
+    Failed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProbeResult {
+    pub probe_id: String,
+    pub outcome: ProbeOutcome,
+}
+
+/// Producer/consumer identity of a compatibility run.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CompatibilityRun {
+    pub producer_version: String,
+    pub consumer_version: String,
+    pub platform: String,
+    pub contract: String,
+}
+
+/// Typed observation payload; its bytes are the retained artifact whose
+/// digest the signed envelope binds.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RuntimeObservationPayload {
+    pub schema_version: u32,
+    pub observation_kind: ObservationKind,
+    /// Per-issuer nonce; a repeat is replay.
+    pub observation_id: String,
+    /// Per-issuer monotonic counter; must exceed every accepted one.
+    pub sequence: u64,
+    pub deployed_artifact_digest: String,
+    pub configuration_digest: String,
+    pub environment: String,
+    pub probes: Vec<ProbeResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatibility: Option<CompatibilityRun>,
+    pub issued_at: String,
+    pub max_age_seconds: u64,
+}
+
+/// Frozen-plan expectations for one observation. The embedded
+/// [`ExpectedEvidence`] must be `ImportKind::Runtime`; its `config_digest` is
+/// the bound configuration digest and its `required_scope` should list the
+/// required probe ids.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExpectedObservation {
+    pub evidence: ExpectedEvidence,
+    pub kind: ObservationKind,
+    pub deployed_artifact_digest: String,
+    pub environment: String,
+    /// The exact probes the plan names; nothing else can be satisfied.
+    pub required_probes: Vec<String>,
+    /// Upper bound on the payload's own `max_age_seconds`.
+    pub max_age_seconds: u64,
+    /// Required (and compared exactly) for `CompatibilityRun`.
+    pub compatibility: Option<CompatibilityRun>,
+}
+
+/// Per-issuer replay ledger: observation nonces already accepted and the
+/// highest accepted sequence. Only fully verified observations are recorded.
+#[derive(Debug, Default)]
+pub struct ObservationLedger {
+    state: std::sync::Mutex<LedgerState>,
+}
+
+#[derive(Debug, Default)]
+struct LedgerState {
+    last_sequence: BTreeMap<String, u64>,
+    seen_ids: BTreeSet<String>,
+}
+
+impl ObservationLedger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn admit(&self, issuer: &str, observation_id: &str, sequence: u64) -> Result<(), &'static str> {
+        let mut state = self.state.lock().map_err(|_| "observation-ledger-poisoned")?;
+        let id_key = format!("{issuer}\n{observation_id}");
+        if state.seen_ids.contains(&id_key) {
+            return Err("observation-replayed");
+        }
+        if state
+            .last_sequence
+            .get(issuer)
+            .is_some_and(|last| sequence <= *last)
+        {
+            return Err("observation-sequence-not-monotonic");
+        }
+        state.seen_ids.insert(id_key);
+        state.last_sequence.insert(issuer.to_string(), sequence);
+        Ok(())
+    }
+}
+
+/// A fully verified observation. Fields are private and the only constructor
+/// is [`verify_runtime_observation`], so a JSON input can never mint one.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedObservation {
+    kind: ObservationKind,
+    issuer_id: String,
+    claims_digest: String,
+    observation_id: String,
+    sequence: u64,
+    target: String,
+    deployed_artifact_digest: String,
+    configuration_digest: String,
+    environment: String,
+    satisfied_probes: Vec<String>,
+    failed_probes: Vec<String>,
+    unrequested_probes: Vec<String>,
+    compatibility: Option<CompatibilityRun>,
+    issued_at: String,
+    max_age_seconds: u64,
+}
+
+impl VerifiedObservation {
+    pub fn kind(&self) -> ObservationKind {
+        self.kind
+    }
+    pub fn issuer_id(&self) -> &str {
+        &self.issuer_id
+    }
+    pub fn claims_digest(&self) -> &str {
+        &self.claims_digest
+    }
+    pub fn target(&self) -> &str {
+        &self.target
+    }
+    pub fn deployed_artifact_digest(&self) -> &str {
+        &self.deployed_artifact_digest
+    }
+    pub fn configuration_digest(&self) -> &str {
+        &self.configuration_digest
+    }
+    pub fn environment(&self) -> &str {
+        &self.environment
+    }
+    /// Required probes that passed: the only probes this observation proves.
+    pub fn satisfied_probes(&self) -> &[String] {
+        &self.satisfied_probes
+    }
+    /// Required probes that ran and failed.
+    pub fn failed_probes(&self) -> &[String] {
+        &self.failed_probes
+    }
+    pub fn compatibility(&self) -> Option<&CompatibilityRun> {
+        self.compatibility.as_ref()
+    }
+
+    /// JSON projection for reports; never a trust input.
+    pub fn to_value(&self) -> Value {
+        json!({
+            "kind": self.kind.label(),
+            "issuer": self.issuer_id,
+            "claimsDigest": self.claims_digest,
+            "observationId": self.observation_id,
+            "sequence": self.sequence,
+            "target": self.target,
+            "deployedArtifactDigest": self.deployed_artifact_digest,
+            "configurationDigest": self.configuration_digest,
+            "environment": self.environment,
+            "satisfiedProbes": self.satisfied_probes,
+            "failedProbes": self.failed_probes,
+            "unrequestedProbes": self.unrequested_probes,
+            "compatibility": self.compatibility,
+            "issuedAt": self.issued_at,
+            "maxAgeSeconds": self.max_age_seconds,
+            "scope": "named-probes-only",
+            "generalCorrectnessClaim": false,
+        })
+    }
+}
+
+/// Outcome of verifying one observation. `observation()` is `Some` only when
+/// every check held; otherwise `reasons` names each failed check and the
+/// consumer keeps the obligation unknown with a named gap.
+#[derive(Clone, Debug)]
+pub struct ObservationVerdict {
+    pub kind: ObservationKind,
+    pub reasons: Vec<String>,
+    observation: Option<VerifiedObservation>,
+}
+
+impl ObservationVerdict {
+    pub fn observation(&self) -> Option<&VerifiedObservation> {
+        self.observation.as_ref()
+    }
+    pub fn satisfies_obligation(&self) -> bool {
+        self.observation.is_some()
+    }
+}
+
+/// Seconds since the Unix epoch for a strict `YYYY-MM-DDTHH:MM:SSZ` value.
+fn utc_epoch_seconds(value: &str) -> Option<i64> {
+    if !is_rfc3339_utc_second(value) {
+        return None;
+    }
+    let field = |range: std::ops::Range<usize>| value[range].parse::<i64>().ok();
+    let (y, m, d) = (field(0..4)?, field(5..7)?, field(8..10)?);
+    let (h, mi, s) = (field(11..13)?, field(14..16)?, field(17..19)?);
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) || h > 23 || mi > 59 || s > 60 {
+        return None;
+    }
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * ((m + 9) % 12) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some((era * 146_097 + doe - 719_468) * 86_400 + h * 3600 + mi * 60 + s)
+}
+
+/// Verify one signed runtime observation. Enrollment, Ed25519 signature,
+/// attestation and payload digests, evidence replay, frozen-subject binding
+/// and envelope freshness come from [`verify_artifact_evidence`]; this adds
+/// payload binding (deployed artifact, configuration, environment, probes),
+/// payload freshness (`issuedAt` + `maxAgeSeconds`), partial-scope detection
+/// and the per-issuer nonce/monotonic replay ledger. Every mismatch is a named
+/// reason; nothing is satisfied unless all checks pass.
+#[allow(clippy::too_many_arguments)]
+pub fn verify_runtime_observation(
+    envelope: &ArtifactEvidenceEnvelope,
+    raw_artifacts: &BTreeMap<String, Vec<u8>>,
+    attestation: &[u8],
+    expected: &ExpectedObservation,
+    trust: &TrustEnrollment,
+    verifier: &dyn ProvenanceVerifier,
+    ledger: &ObservationLedger,
+    now_rfc3339_utc: &str,
+) -> ObservationVerdict {
+    let base = verify_artifact_evidence(
+        envelope,
+        raw_artifacts,
+        attestation,
+        &expected.evidence,
+        trust,
+        verifier,
+        now_rfc3339_utc,
+    );
+    let mut reasons = base.reasons.clone();
+    let mut fail = |code: &str| reasons.push(code.to_string());
+    let rejected = |reasons: Vec<String>| ObservationVerdict {
+        kind: expected.kind,
+        reasons,
+        observation: None,
+    };
+
+    if expected.evidence.kind != ImportKind::Runtime {
+        fail("observation-envelope-kind-not-runtime");
+    }
+    if expected.required_probes.is_empty()
+        || expected.required_probes.iter().any(|probe| !non_empty(probe))
+        || expected.required_probes.iter().collect::<BTreeSet<_>>().len()
+            != expected.required_probes.len()
+    {
+        fail("required-probes-malformed");
+    }
+    // The payload is the retained observation artifact; its digest is bound
+    // by the signed claims, and re-hashed here against the raw bytes.
+    let mut payload: Option<RuntimeObservationPayload> = None;
+    let candidates: Vec<&ArtifactBinding> = envelope
+        .artifacts
+        .iter()
+        .filter(|artifact| artifact.role == OBSERVATION_ARTIFACT_ROLE)
+        .collect();
+    match candidates.as_slice() {
+        [artifact] => match raw_artifacts.get(&artifact.path) {
+            Some(bytes) if sha256_digest(bytes) == artifact.digest => {
+                match serde_json::from_slice::<RuntimeObservationPayload>(bytes) {
+                    Ok(parsed) => payload = Some(parsed),
+                    Err(_) => fail("observation-payload-malformed"),
+                }
+            }
+            _ => fail("observation-payload-digest-mismatch"),
+        },
+        [] => fail("observation-payload-missing"),
+        _ => fail("observation-payload-ambiguous"),
+    }
+
+    let mut probe_results: BTreeMap<&str, ProbeOutcome> = BTreeMap::new();
+    if let Some(payload) = &payload {
+        if payload.schema_version != OBSERVATION_SCHEMA_VERSION {
+            fail("observation-schema-unsupported");
+        }
+        if payload.observation_kind != expected.kind {
+            fail("observation-kind-mismatch");
+        }
+        if !non_empty(&payload.observation_id) {
+            fail("observation-id-empty");
+        }
+        if !is_sha256_digest(&payload.deployed_artifact_digest)
+            || payload.deployed_artifact_digest != expected.deployed_artifact_digest
+        {
+            fail("deployed-artifact-digest-mismatch");
+        }
+        if !is_sha256_digest(&payload.configuration_digest)
+            || payload.configuration_digest != expected.evidence.config_digest
+        {
+            fail("observation-configuration-digest-mismatch");
+        }
+        if !non_empty(&payload.environment) || payload.environment != expected.environment {
+            fail("observation-environment-mismatch");
+        }
+        if payload.issued_at != envelope.issued_at {
+            fail("observation-issued-at-mismatch");
+        }
+        for probe in &payload.probes {
+            if !non_empty(&probe.probe_id)
+                || probe_results
+                    .insert(probe.probe_id.as_str(), probe.outcome)
+                    .is_some()
+            {
+                fail("observation-probe-malformed-or-duplicate");
+                break;
+            }
+        }
+        // Partial scope: the payload must cover every required probe, and the
+        // signed envelope may not claim probes the payload does not carry.
+        for required in &expected.required_probes {
+            if !probe_results.contains_key(required.as_str()) {
+                fail("probe-coverage-partial");
+                break;
+            }
+        }
+        let claimed: BTreeSet<&str> = envelope.scope.examined.iter().map(String::as_str).collect();
+        let carried: BTreeSet<&str> = probe_results.keys().copied().collect();
+        if claimed != carried {
+            fail("envelope-scope-differs-from-payload-probes");
+        }
+        // Payload freshness, independent of the envelope window.
+        if payload.max_age_seconds == 0 || payload.max_age_seconds > expected.max_age_seconds {
+            fail("observation-max-age-invalid");
+        }
+        match (
+            utc_epoch_seconds(&payload.issued_at),
+            utc_epoch_seconds(now_rfc3339_utc),
+        ) {
+            (Some(issued), Some(now)) => {
+                if issued > now {
+                    fail("observation-from-future");
+                } else if (now - issued) as u64 > payload.max_age_seconds.min(expected.max_age_seconds)
+                {
+                    fail("observation-stale");
+                }
+            }
+            _ => fail("observation-timestamp-malformed"),
+        }
+        match (&expected.compatibility, &payload.compatibility, expected.kind) {
+            (Some(want), Some(got), ObservationKind::CompatibilityRun) => {
+                if want != got
+                    || [
+                        &got.producer_version,
+                        &got.consumer_version,
+                        &got.platform,
+                        &got.contract,
+                    ]
+                    .iter()
+                    .any(|value| !non_empty(value))
+                {
+                    fail("compatibility-binding-mismatch");
+                }
+            }
+            (_, _, ObservationKind::CompatibilityRun) => fail("compatibility-binding-missing"),
+            (_, Some(_), ObservationKind::BackendAuthProbe) => {
+                fail("compatibility-binding-on-auth-probe")
+            }
+            _ => {}
+        }
+    }
+
+    if !reasons.is_empty() || !base.satisfies_obligation {
+        return rejected(reasons);
+    }
+    let (Some(payload), Some(record)) = (payload, base.record.as_ref()) else {
+        reasons.push("observation-unavailable".into());
+        return rejected(reasons);
+    };
+    // Admit last, so a rejected observation never burns its nonce.
+    if let Err(reason) = ledger.admit(
+        &envelope.issuer.issuer_id,
+        &payload.observation_id,
+        payload.sequence,
+    ) {
+        reasons.push(reason.to_string());
+        return rejected(reasons);
+    }
+    let mut satisfied = Vec::new();
+    let mut failed = Vec::new();
+    for required in &expected.required_probes {
+        match probe_results.get(required.as_str()) {
+            Some(ProbeOutcome::Passed) => satisfied.push(required.clone()),
+            _ => failed.push(required.clone()),
+        }
+    }
+    let unrequested = probe_results
+        .keys()
+        .filter(|probe| !expected.required_probes.iter().any(|req| req == **probe))
+        .map(|probe| probe.to_string())
+        .collect();
+    ObservationVerdict {
+        kind: expected.kind,
+        reasons,
+        observation: Some(VerifiedObservation {
+            kind: expected.kind,
+            issuer_id: record.attestor.clone(),
+            claims_digest: record.claims_digest.clone(),
+            observation_id: payload.observation_id,
+            sequence: payload.sequence,
+            target: envelope.subject.target.clone(),
+            deployed_artifact_digest: payload.deployed_artifact_digest,
+            configuration_digest: payload.configuration_digest,
+            environment: payload.environment,
+            satisfied_probes: satisfied,
+            failed_probes: failed,
+            unrequested_probes: unrequested,
+            compatibility: payload.compatibility,
+            issued_at: payload.issued_at,
+            max_age_seconds: payload.max_age_seconds,
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

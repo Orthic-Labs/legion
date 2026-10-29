@@ -2,6 +2,7 @@ use super::{
     common::{gap, object_input, Analysis},
     evidence::{limit_runtime_evidence, validate_refs},
 };
+use crate::artifact_evidence::{ObservationKind, ObservationVerdict};
 use serde_json::Value;
 
 const BACKEND: &[&str] = &[
@@ -254,4 +255,40 @@ pub(super) fn analyze_frontend_with_source(
     );
     output.coverage_gaps = gaps;
     Ok(output)
+}
+
+/// Fold verified backend authentication probe observations into the
+/// source-fact analysis. Satisfies exactly the plan-named probes against the
+/// bound deployed artifact and configuration; the analysis stays unproven
+/// (`certificationClaim:false`), because source facts plus named probes are
+/// never general authentication correctness. A rejected observation or an
+/// unsatisfied probe adds a named gap/finding. No verdict: unchanged.
+pub fn apply_backend_observations(analysis: &mut Analysis, verdicts: &[ObservationVerdict]) {
+    let summary = super::compatibility::summarize_observations(
+        ObservationKind::BackendAuthProbe,
+        "backend-auth-probe-failed",
+        verdicts,
+    );
+    if !summary.any {
+        return;
+    }
+    analysis.findings.extend(summary.findings);
+    for gap in summary.gaps {
+        if !analysis.coverage_gaps.contains(&gap) {
+            analysis.coverage_gaps.push(gap);
+        }
+    }
+    analysis.extras.insert(
+        "authProbeObservations".into(),
+        Value::Array(summary.verified),
+    );
+    analysis.extras.insert(
+        "runtimeObservationScope".into(),
+        Value::String("named-probes-only".into()),
+    );
+    analysis
+        .extras
+        .insert("certificationClaim".into(), Value::Bool(false));
+    analysis.status = "unproven".into();
+    analysis.complete = false;
 }
