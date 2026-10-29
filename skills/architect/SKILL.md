@@ -71,6 +71,16 @@ name the owner for each capability, integrate owners, and design only the gaps. 
 into the tasklist's RightKit Capabilities block. If the host
 declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/01-frame.md`.
 
+## Prior art
+
+Before a design, bakeoff, export, or runtime change, name the open-source projects that already
+solve or attempt the same problem. For each, state its runtime, format, adoption numbers (dated),
+and licence, then either reuse it or state the reason not to. Record this under a mandatory
+"Prior art" section of the output. Run it as the second question after `rightkit owns`. Research
+performs the lookup from fetched sources; Architect owns the reuse decision. A design without a
+Prior art record is incomplete; "none found" must name the searches run. Detail:
+`doctrine/architecture/workflow/01-frame.md`.
+
 ## Current-state entrypoint
 
 Blueprint is public current-reality owner, not Audit-only plumbing. For existing-repository

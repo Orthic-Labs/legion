@@ -10,3 +10,10 @@ Objective lineage / intent epoch / acceptance fingerprint:
 Pass, review, revision, wall-clock, active-time budgets:
 Integration owner / shared-state writers:
 Representative workload / acceptance surface:
+
+## Prior art (mandatory)
+
+Open-source projects solving or attempting the same problem (name, URL, dated source):
+Per project: runtime / format / adoption numbers / licence:
+Reuse or NOT_REUSE, with the reason:
+Searches run (or "none found" with the searches named):
