@@ -1463,7 +1463,7 @@
     },
     {
       "id": "alchemist",
-      "description": "Bounded implementation authority, mechanical tier (default). Dispatch for delegated settled-scope work where a check catches mistakes: edits, test or matrix runs, installs, re-pins, regeneration, captures, mapping or inventory, docs. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning, independent assurance, or risk a passing check would miss (use legion:alchemist-specialist).",
+      "description": "Bounded implementation authority, mechanical tier (default). Dispatch for delegated settled-scope edits where a later check catches mistakes: file edits, captures, mapping or inventory, docs. Workers run no builds, tests, installs or regeneration; the owner chat runs those after coding. Contracts apply only to locked or explicitly contracted work; attaching Alchemist opens none. Escalate changed requirements, public boundaries, or material tradeoffs. Not for undecided meaning, independent assurance, or risk a passing check would miss (use legion:alchemist-specialist).",
       "modelTier": "mechanical-cheap",
       "source": "src/roster/alchemist.md"
     },

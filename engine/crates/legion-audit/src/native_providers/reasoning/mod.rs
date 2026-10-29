@@ -1131,9 +1131,8 @@ fn build_invocations(
     if first.1 <= target {
         return Ok(first.0);
     }
-    let card_reserve = pattern_cards::max_card_bytes_bound(Some(
-        pattern_cards::packet_card_budget_bytes(target),
-    ));
+    let card_reserve =
+        pattern_cards::max_card_bytes_bound(Some(pattern_cards::packet_card_budget_bytes(target)));
     let (normalized_built, normalized_largest) =
         refine_packet_materialization(budget, target, |budget| {
             let (built, largest) = build(Some(budget), false)?;
@@ -1237,7 +1236,8 @@ fn measure_invocations_required(
         let sizes = sizer.request_sizes(&[invocation_work(request, provider)])?;
         let minimum = ingest::minimum_output_tokens(ceiling, 1)
             .max(candidate_routing::disposition_output_tokens(request));
-        let envelope_over = sizes.host_envelope_bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64;
+        let envelope_over =
+            sizes.host_envelope_bytes > crate::review_runtime::MAX_REQUEST_BYTES as u64;
         if envelope_over
             || ingest::fitting_output_tokens(
                 per_call,
@@ -1250,7 +1250,9 @@ fn measure_invocations_required(
             all_fit = false;
         }
         largest = largest.max(if envelope_over {
-            sizes.host_envelope_bytes.max(sizes.model_visible_input_bytes)
+            sizes
+                .host_envelope_bytes
+                .max(sizes.model_visible_input_bytes)
         } else {
             sizes.model_visible_input_bytes
         });
@@ -3087,7 +3089,9 @@ mod tests {
         let budget = pattern_cards::packet_card_budget_bytes(seat);
         let paths = ["run.sh".to_string(), "README.md".to_string()];
         let bound = lens_plan_for_part_budgeted(Some(&base), &paths, Some(budget)).unwrap();
-        let rows = bound["patternCardApplicability"]["cards"].as_array().unwrap();
+        let rows = bound["patternCardApplicability"]["cards"]
+            .as_array()
+            .unwrap();
         assert!(rows
             .iter()
             .any(|row| row["state"] == pattern_cards::DEFERRED_CARD_STATE));

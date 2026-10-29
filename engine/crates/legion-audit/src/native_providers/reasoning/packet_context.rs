@@ -160,7 +160,11 @@ fn architecture_doc_rank(path: &str) -> Option<u8> {
     let lower = path.to_ascii_lowercase();
     let prose = ["md", "markdown", "mdx", "rst", "txt", "adoc"]
         .iter()
-        .any(|extension| lower.rsplit_once('.').is_some_and(|(_, ext)| ext == *extension));
+        .any(|extension| {
+            lower
+                .rsplit_once('.')
+                .is_some_and(|(_, ext)| ext == *extension)
+        });
     if !prose || lower.starts_with("docs/provenance/") {
         return None;
     }

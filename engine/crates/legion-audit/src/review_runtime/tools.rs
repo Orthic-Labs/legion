@@ -466,8 +466,10 @@ mod tests {
         assert_eq!(reply["truncated"], true);
         assert_eq!(reply["envelopeTruncated"], true);
         assert!(reply["replyDigest"].is_string());
-        let metadata =
-            bounded_reply_within(json!({"snapshotKey":"x".repeat(MAX_REPLY_BYTES),"rows":[],"gaps":[]}), MAX_REPLY_BYTES);
+        let metadata = bounded_reply_within(
+            json!({"snapshotKey":"x".repeat(MAX_REPLY_BYTES),"rows":[],"gaps":[]}),
+            MAX_REPLY_BYTES,
+        );
         assert!(metadata.to_string().len() <= MAX_REPLY_BYTES);
     }
 }

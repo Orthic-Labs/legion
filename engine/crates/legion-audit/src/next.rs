@@ -1224,7 +1224,11 @@ fn read_sizing_cache(
             )))
         }
     };
-    let tampered = || invalid(format!("{SIZING_CACHE_FILE} failed authentication; remove it to recompute sizing"));
+    let tampered = || {
+        invalid(format!(
+            "{SIZING_CACHE_FILE} failed authentication; remove it to recompute sizing"
+        ))
+    };
     let mut envelope: Value = serde_json::from_slice(&bytes).map_err(|_| tampered())?;
     let stale = envelope["schemaVersion"] != 1
         || envelope["kind"] != SIZING_CACHE_KIND
@@ -1242,7 +1246,8 @@ fn read_sizing_cache(
         .as_str()
         .and_then(|mac| hex::decode(mac).ok())
         .filter(|_| {
-            authentication["alg"] == "HMAC-SHA256" && authentication["macDomain"] == SIZING_CACHE_DOMAIN
+            authentication["alg"] == "HMAC-SHA256"
+                && authentication["macDomain"] == SIZING_CACHE_DOMAIN
         })
         .ok_or_else(tampered)?;
     sizing_cache_mac(&context.key, &envelope)?
@@ -1251,7 +1256,9 @@ fn read_sizing_cache(
     let mut sizes = BTreeMap::new();
     for (id, entry) in envelope["seats"].as_object().ok_or_else(tampered)? {
         let digest = entry["inputDigest"].as_str().ok_or_else(tampered)?;
-        let bytes = entry["modelVisibleInputBytes"].as_u64().ok_or_else(tampered)?;
+        let bytes = entry["modelVisibleInputBytes"]
+            .as_u64()
+            .ok_or_else(tampered)?;
         sizes.insert(id.clone(), (digest.to_owned(), bytes));
     }
     Ok(sizes)
@@ -4114,7 +4121,10 @@ mod tests {
         let reused = load(&run).unwrap();
         assert_eq!(
             reused.snapshot.seats[0].estimated_tokens,
-            estimated_request_tokens(sentinel, reused.snapshot.seats[0].output_token_limit.unwrap())
+            estimated_request_tokens(
+                sentinel,
+                reused.snapshot.seats[0].output_token_limit.unwrap()
+            )
         );
         assert_ne!(
             reused.snapshot.seats[0].estimated_tokens,
@@ -4129,7 +4139,12 @@ mod tests {
         load(&run).unwrap();
         let path = run.join(SIZING_CACHE_FILE);
         let mut envelope = read_json(&path).unwrap();
-        let seat = envelope["seats"].as_object_mut().unwrap().values_mut().next().unwrap();
+        let seat = envelope["seats"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .next()
+            .unwrap();
         // Shrinking the recorded size would silently under-reserve budget.
         seat["modelVisibleInputBytes"] = json!(1);
         write_value(&path, &envelope);
@@ -4187,8 +4202,13 @@ mod tests {
         work["request"]["packet"]["excerpts"][0]["content"] = json!("fn sized() { /* grown */ }");
         write_value(&packet, &work);
         let regrown = load(&run).unwrap();
-        assert_ne!(regrown.snapshot.seats[0].estimated_tokens, estimated_request_tokens(sentinel, 2500));
-        assert!(regrown.snapshot.seats[0].estimated_tokens > first.snapshot.seats[0].estimated_tokens);
+        assert_ne!(
+            regrown.snapshot.seats[0].estimated_tokens,
+            estimated_request_tokens(sentinel, 2500)
+        );
+        assert!(
+            regrown.snapshot.seats[0].estimated_tokens > first.snapshot.seats[0].estimated_tokens
+        );
         let _ = fs::remove_dir_all(run);
     }
 

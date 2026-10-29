@@ -2972,11 +2972,13 @@ mod tests {
     #[test]
     fn multi_round_context_clamps_to_remaining_physical_envelope() {
         // limit = ((20000 - 1500) - 1000) * 2 = 35000 model-visible bytes.
-        let seat = json!({"seatId":"seat-envelope","perCallTokenAllowance":20000,"outputTokenLimit":1000});
+        let seat =
+            json!({"seatId":"seat-envelope","perCallTokenAllowance":20000,"outputTokenLimit":1000});
         let limit = physical_input_limit(&seat).unwrap();
         assert_eq!(limit, 35_000);
         let schema = action_schema();
-        let mut prompt = json!({"task":"initial packet","initialPacket":"p".repeat(2000),"conversation":[]});
+        let mut prompt =
+            json!({"task":"initial packet","initialPacket":"p".repeat(2000),"conversation":[]});
         // Deterministic mock transport: the model asks for another source page
         // every round and the mock host answers with 20 x 300-byte rows.
         let request = json!({"toolRequest":{"tool":"audit.read_file","arguments":{"path":"a.rs"}}});
@@ -2984,22 +2986,31 @@ mod tests {
         let mut clamped = Vec::new();
         let error = loop {
             let before = prompt.clone();
-            let result = extend_conversation(&mut prompt, SYSTEM, &schema, &seat, &request, |max| {
-                let rows: Vec<Value> = (0..20)
+            let result = extend_conversation(
+                &mut prompt,
+                SYSTEM,
+                &schema,
+                &seat,
+                &request,
+                |max| {
+                    let rows: Vec<Value> = (0..20)
                     .map(|line| {
                         let line = round * 20 + line + 1;
                         json!({"path":"a.rs","side":"selected","source":{"startLine":line,"endLine":line,"text":"x".repeat(300)}})
                     })
                     .collect();
-                tools::bounded_reply_within(
-                    json!({"snapshotKey":"s","tool":"audit.read_file","rows":rows,"truncated":false,"nextOffset":null,"gaps":[],"semanticCallGraph":false}),
-                    max,
-                )
-            });
+                    tools::bounded_reply_within(
+                        json!({"snapshotKey":"s","tool":"audit.read_file","rows":rows,"truncated":false,"nextOffset":null,"gaps":[],"semanticCallGraph":false}),
+                        max,
+                    )
+                },
+            );
             match result {
                 Ok(()) => {
                     assert!(model_visible_input_bytes(&prompt, SYSTEM, &schema).unwrap() <= limit);
-                    let reply = prompt["conversation"].as_array().unwrap().last().unwrap()["hostToolReply"].clone();
+                    let reply = prompt["conversation"].as_array().unwrap().last().unwrap()
+                        ["hostToolReply"]
+                        .clone();
                     if reply["envelopeTruncated"] == true {
                         clamped.push(reply);
                     }
@@ -3007,15 +3018,27 @@ mod tests {
                     assert!(round < 20, "conversation must stop growing");
                 }
                 Err(error) => {
-                    assert_eq!(prompt, before, "a refused round leaves the conversation intact");
+                    assert_eq!(
+                        prompt, before,
+                        "a refused round leaves the conversation intact"
+                    );
                     break error;
                 }
             }
         };
-        assert!(round >= 3, "several full rounds fit before the boundary: {round}");
-        assert!(!clamped.is_empty(), "the boundary round is clamped, not dropped");
+        assert!(
+            round >= 3,
+            "several full rounds fit before the boundary: {round}"
+        );
+        assert!(
+            !clamped.is_empty(),
+            "the boundary round is clamped, not dropped"
+        );
         for reply in &clamped {
-            assert_eq!(reply["truncated"], true, "clamped coverage stays a visible gap");
+            assert_eq!(
+                reply["truncated"], true,
+                "clamped coverage stays a visible gap"
+            );
             assert!(reply["resumeStartLine"].as_u64().unwrap() > 1);
             assert!(reply["replyDigest"].is_string());
         }
@@ -3028,7 +3051,8 @@ mod tests {
 
     #[test]
     fn exhausted_envelope_refuses_before_any_tool_work() {
-        let seat = json!({"seatId":"seat-full","perCallTokenAllowance":4000,"outputTokenLimit":1000});
+        let seat =
+            json!({"seatId":"seat-full","perCallTokenAllowance":4000,"outputTokenLimit":1000});
         let schema = action_schema();
         // 4000-600=3400 planning tokens; minus 1000 output = 2400 tokens = 4800 bytes.
         assert_eq!(physical_input_limit(&seat), Some(4800));
@@ -3051,10 +3075,17 @@ mod tests {
         assert_eq!(physical_input_limit(&seat), None);
         let mut prompt = json!({"conversation":[]});
         let mut asked = 0;
-        extend_conversation(&mut prompt, SYSTEM, &action_schema(), &seat, &json!({}), |max| {
-            asked = max;
-            json!({"rows":[]})
-        })
+        extend_conversation(
+            &mut prompt,
+            SYSTEM,
+            &action_schema(),
+            &seat,
+            &json!({}),
+            |max| {
+                asked = max;
+                json!({"rows":[]})
+            },
+        )
         .unwrap();
         assert_eq!(asked, usize::MAX);
         assert_eq!(prompt["conversation"].as_array().unwrap().len(), 1);

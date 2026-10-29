@@ -223,7 +223,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn bounded_run_returns_output_within_limits() {
-        let result = run_bounded(sh("printf out; printf err >&2"), Duration::from_secs(20), 1024);
+        let result = run_bounded(
+            sh("printf out; printf err >&2"),
+            Duration::from_secs(20),
+            1024,
+        );
         assert_eq!(result.error_message, None);
         assert_eq!(result.status, Some(0));
         assert_eq!(result.stdout.as_deref(), Some("out"));
@@ -245,7 +249,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn bounded_run_caps_captured_output() {
-        let result = run_bounded(sh("head -c 100000 /dev/zero"), Duration::from_secs(20), 1000);
+        let result = run_bounded(
+            sh("head -c 100000 /dev/zero"),
+            Duration::from_secs(20),
+            1000,
+        );
         assert_eq!(result.stdout.as_deref().map(str::len), Some(1000));
         let message = result.error_message.expect("cap diagnostic");
         assert!(message.contains("output exceeded 1000 bytes"), "{message}");

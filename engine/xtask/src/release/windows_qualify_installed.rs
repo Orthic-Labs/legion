@@ -594,8 +594,14 @@ const UNRELATED_CODEX_CONFIG: &str =
 /// removes only Legion's own native registrations.
 fn seed_unrelated_client_config(profile: &Path) -> ReleaseResult<Vec<(PathBuf, String)>> {
     let seeds = [
-        (profile.join(".claude").join("settings.json"), UNRELATED_CLAUDE_SETTINGS),
-        (profile.join(".codex").join("config.toml"), UNRELATED_CODEX_CONFIG),
+        (
+            profile.join(".claude").join("settings.json"),
+            UNRELATED_CLAUDE_SETTINGS,
+        ),
+        (
+            profile.join(".codex").join("config.toml"),
+            UNRELATED_CODEX_CONFIG,
+        ),
     ];
     let mut out = vec![];
     for (path, body) in seeds {

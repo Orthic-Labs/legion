@@ -1079,11 +1079,16 @@ fn architecture_docs_are_bounded_context_never_counted_as_coverage() {
             "docs/architecture/layers.md",
             format!("# Layers\n{}", "core depends on nothing.\n".repeat(600)),
         ),
-        ("docs/adr/0001-layering.md", "# ADR 1\nAccepted.\n".to_owned()),
+        (
+            "docs/adr/0001-layering.md",
+            "# ADR 1\nAccepted.\n".to_owned(),
+        ),
         ("docs/guide.md", "# Unrelated guide\n".to_owned()),
         ("docs/provenance/old.md", "# Frozen history\n".to_owned()),
     ];
-    let extra: Vec<String> = (2..10).map(|n| format!("docs/decisions/{n:04}.md")).collect();
+    let extra: Vec<String> = (2..10)
+        .map(|n| format!("docs/decisions/{n:04}.md"))
+        .collect();
     for path in &extra {
         files.push((path.as_str(), "# Decision\nbody\n".repeat(300)));
     }
@@ -1118,7 +1123,9 @@ fn architecture_docs_are_bounded_context_never_counted_as_coverage() {
     assert_eq!(paths[1], "docs/architecture/layers.md");
     assert!(paths.contains(&"docs/adr/0001-layering.md"));
     assert!(!paths.contains(&"docs/guide.md"));
-    assert!(!paths.iter().any(|path| path.starts_with("docs/provenance/")));
+    assert!(!paths
+        .iter()
+        .any(|path| path.starts_with("docs/provenance/")));
     assert!(documents[0]["content"]
         .as_str()
         .unwrap()

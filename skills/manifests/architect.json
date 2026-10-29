@@ -93,7 +93,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://architect/SKILL.md",
-      "digest": "sha256:41ee1b4b5d42d783232a95714fd4f87e1ac701280edebee0734a0ea4dd6118de"
+      "digest": "sha256:4120d73f4a1eaec4efa283657169beec2432897cfc7481e0dfe805b2b5a51b87"
     },
     {
       "path": "agents/openai.yaml",
@@ -428,7 +428,7 @@
     {
       "path": "doctrine/architecture/templates/architecture-brief.md",
       "uri": "legion-skill://architect/doctrine/architecture/templates/architecture-brief.md",
-      "digest": "sha256:b8e2adb0805ac9f094fc4b330bfcda2c9a3b894d77ae0f1fc211f2dfe89458aa"
+      "digest": "sha256:8061fab0fc0b9c6f47b59639a3ba7c42d08ec3a0ba53d96b4f96863ec8f7db44"
     },
     {
       "path": "doctrine/architecture/templates/architecture-convergence-receipt.md",
@@ -488,7 +488,7 @@
     {
       "path": "doctrine/architecture/templates/option-evaluation.md",
       "uri": "legion-skill://architect/doctrine/architecture/templates/option-evaluation.md",
-      "digest": "sha256:9888fcdf8b64540f141b479fe4eafcf4fda363b0383231f847fc64ede65723b3"
+      "digest": "sha256:c435fc13c8ac89b42c200fa55147494b7adbc15fdc749a2dd1a04c8b52a76e2d"
     },
     {
       "path": "doctrine/architecture/templates/ownership-disposition.md",
@@ -513,7 +513,7 @@
     {
       "path": "doctrine/architecture/workflow/01-frame.md",
       "uri": "legion-skill://architect/doctrine/architecture/workflow/01-frame.md",
-      "digest": "sha256:b3ff531ff2f02b003f1d68c69c1e214422c12c61c033aa5a600d61dd736cf403"
+      "digest": "sha256:db09b974e192858774dc3fe92ba6d51753225661021bb65b0770bb43aa6445b1"
     },
     {
       "path": "doctrine/architecture/workflow/02-context-stakeholders.md",
@@ -568,7 +568,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://architect/evals/evals.json",
-      "digest": "sha256:e296fa20515fa07d4e2af94ef017e8025ba1603846e0600e4a16679c04b7a358"
+      "digest": "sha256:1c3b166f41eadc2a2a722586ad04c756f5fa881b47cbd8b2f82280a6f1965223"
     },
     {
       "path": "references/manual.md",
