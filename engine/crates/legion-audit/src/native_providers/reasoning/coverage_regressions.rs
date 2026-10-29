@@ -1180,6 +1180,191 @@ fn architecture_packet_without_docs_omits_doc_context() {
     assert!(work[0].request.packet.get("docContext").is_none());
 }
 
+const LENS_DOC_PAIRS: [(&str, &str); 7] = [
+    ("reasoning.minimize", "contracts/pricing.md"),
+    ("reasoning.performance", "contracts/order-database.md"),
+    ("reasoning.a11y", "contracts/checkout-accessibility.md"),
+    ("reasoning.ai-slop", "docs/comment-style.md"),
+    ("reasoning.naming", "docs/naming.md"),
+    ("reasoning.dead-file", "docs/module-discovery.md"),
+    ("reasoning.platform-parity", "contracts/workspace.md"),
+];
+
+fn lens_doc_files(with_docs: bool) -> Vec<(&'static str, String)> {
+    let mut files = vec![(
+        "src/lib.rs",
+        "pub fn plain() {}\n// rules: docs/referenced-rules.md\n".to_owned(),
+    )];
+    if with_docs {
+        for (_, path) in LENS_DOC_PAIRS {
+            files.push((path, format!("# {path}\n{}", "rule line.\n".repeat(600))));
+        }
+        files.push(("docs/unrelated-guide.md", "# Unrelated\n".to_owned()));
+        files.push((
+            "docs/referenced-rules.md",
+            "# Referenced\nrule.\n".to_owned(),
+        ));
+        files.push(("docs/provenance/naming.md", "# Frozen naming\n".to_owned()));
+        files.push(("docs/history/naming-old.md", "# Old naming\n".to_owned()));
+    }
+    files
+}
+
+fn lens_doc_work(provider: &str, with_docs: bool) -> Vec<PendingLensWork> {
+    let fixture = Fixture::new(&lens_doc_files(with_docs));
+    let inventory = fixture.inventory();
+    let plan = AuditPlan::compile_with_root(
+        Some(&fixture.0),
+        &inventory,
+        &[spec(provider, json!({"op":"always"}))],
+    )
+    .unwrap()
+    .freeze(Some(b"lens-docs-fixture-key"))
+    .unwrap();
+    pending_lens_work(&fixture.0, &plan, &inventory).unwrap()
+}
+
+fn doc_paths(packet: &Value) -> Vec<String> {
+    packet["docContext"]["documents"]
+        .as_array()
+        .map(|docs| {
+            docs.iter()
+                .map(|doc| doc["path"].as_str().unwrap().to_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn each_lens_selects_its_relevant_document_and_never_an_unrelated_one() {
+    for (provider, expected) in LENS_DOC_PAIRS {
+        let work = lens_doc_work(provider, true);
+        let packet = &work[0].request.packet;
+        // The explicitly referenced doc ranks first; the lens's own keyword
+        // doc follows; unrelated, provenance and history docs never appear.
+        assert_eq!(
+            doc_paths(packet),
+            vec!["docs/referenced-rules.md".to_owned(), expected.to_owned()],
+            "{provider}"
+        );
+        let docs = &packet["docContext"];
+        assert_eq!(docs["countedAsCoverage"], false, "{provider}");
+        assert_eq!(docs["untrusted"], true, "{provider}");
+        assert_eq!(docs["documents"][0]["selection"], "explicit-reference");
+        assert_eq!(docs["documents"][1]["selection"], "path-keyword");
+        assert!(docs["documents"][1]["digest"].as_str().unwrap().len() > 8);
+        let total: usize = docs["documents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|doc| doc["content"].as_str().unwrap().len())
+            .sum();
+        assert!(total <= packet_context::LENS_DOC_TOTAL_BYTES, "{provider}");
+        assert_eq!(docs["documents"][1]["truncated"], true, "{provider}");
+        // Docs are never source coverage.
+        assert!(!packet["excerptCoverage"].to_string().contains(".md"));
+        assert_eq!(packet["binding"]["denominatorCount"], 1);
+        assert!(packet["excerpts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|excerpt| !excerpt["path"].as_str().unwrap().ends_with(".md")));
+    }
+}
+
+#[test]
+fn lens_without_reference_or_keyword_match_gets_no_document_filler() {
+    // correctness has no keyword row and nothing references a doc: no filler.
+    let fixture = Fixture::new(&[
+        ("src/lib.rs", "pub fn plain() {}\n".to_owned()),
+        ("docs/naming.md", "# Naming\n".to_owned()),
+        ("contracts/pricing.md", "# Pricing\n".to_owned()),
+    ]);
+    let inventory = fixture.inventory();
+    let plan = AuditPlan::compile_with_root(
+        Some(&fixture.0),
+        &inventory,
+        &[spec("reasoning.correctness", json!({"op":"always"}))],
+    )
+    .unwrap()
+    .freeze(Some(b"lens-docs-nofiller-key"))
+    .unwrap();
+    let work = pending_lens_work(&fixture.0, &plan, &inventory).unwrap();
+    assert!(work[0].request.packet.get("docContext").is_none());
+}
+
+#[test]
+fn lens_doc_budget_shrinks_then_omits_with_recorded_status_leaving_source_unchanged() {
+    let fixture = Fixture::new(&lens_doc_files(true));
+    let inventory = fixture.inventory();
+    let plan = AuditPlan::compile_with_root(
+        Some(&fixture.0),
+        &inventory,
+        &[spec("reasoning.naming", json!({"op":"always"}))],
+    )
+    .unwrap()
+    .freeze(Some(b"lens-docs-budget-key"))
+    .unwrap();
+    let provider = &plan.providers()[0];
+    let denominator = reasoning_denominator(&plan, provider, &inventory).unwrap();
+    let source = excerpts::SourceReader::new(&fixture.0).unwrap();
+    let build = |level| {
+        build_invocations_with_docs(
+            &plan,
+            provider,
+            &inventory,
+            &denominator,
+            "pending-host",
+            &source,
+            None,
+            seat_part_budget(provider),
+            level,
+        )
+        .unwrap()
+        .0
+    };
+    let full = build(packet_context::DocBudget::Full);
+    let half = build(packet_context::DocBudget::Half);
+    let omitted = build(packet_context::DocBudget::Omitted);
+    let doc_bytes = |packet: &Value| -> usize {
+        packet["docContext"]["documents"]
+            .as_array()
+            .map(|docs| {
+                docs.iter()
+                    .map(|doc| doc["content"].as_str().unwrap().len())
+                    .sum()
+            })
+            .unwrap_or(0)
+    };
+    assert!(doc_bytes(&full[0].packet) > doc_bytes(&half[0].packet));
+    assert!(doc_bytes(&half[0].packet) <= packet_context::LENS_DOC_TOTAL_BYTES / 2);
+    assert!(doc_bytes(&half[0].packet) > 0);
+    // Omission is recorded, not silent, and carries no document body.
+    let status = &omitted[0].packet["docContext"];
+    assert_eq!(status["status"], "omitted-seat-budget");
+    assert_eq!(status["included"], 0);
+    assert_eq!(status["countedAsCoverage"], false);
+    assert!(status["omitted"].as_u64().unwrap() >= 2);
+    assert_eq!(
+        status["omittedPaths"][0], "docs/referenced-rules.md",
+        "ranked order is frozen in the omission record"
+    );
+    // Source excerpts are identical at every documentation budget, and equal
+    // to a repository with no documentation at all.
+    let without_docs = lens_doc_work("reasoning.naming", false);
+    for requests in [&full, &half, &omitted] {
+        assert_eq!(requests[0].packet["excerpts"], full[0].packet["excerpts"]);
+        assert_eq!(
+            requests[0].packet["excerptCoverage"],
+            full[0].packet["excerptCoverage"]
+        );
+    }
+    assert_eq!(
+        omitted[0].packet["excerpts"],
+        without_docs[0].request.packet["excerpts"]
+    );
+}
+
 #[test]
 fn real_repository_graph_context_stays_frozen_without_crowding_out_raw_lenses() {
     let files = (0..23).map(|index| (

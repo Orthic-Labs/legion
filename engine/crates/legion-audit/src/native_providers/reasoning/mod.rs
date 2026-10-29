@@ -1093,8 +1093,8 @@ fn build_invocations(
             budget,
         );
     };
-    let mut build = |budget, source_only| {
-        let mut built = build_invocations_with_budget(
+    let mut build = |budget, source_only, docs| {
+        let mut built = build_invocations_with_docs(
             plan,
             provider,
             inventory,
@@ -1103,6 +1103,7 @@ fn build_invocations(
             source,
             scanner_candidates,
             budget,
+            docs,
         )?;
         if source_only {
             for (index, request) in built.0.iter_mut().enumerate() {
@@ -1127,15 +1128,37 @@ fn build_invocations(
     // overhead (only when the exact original packet does not already fit).
     // That measure never underestimates the real request, so any fit
     // it finds is a real fit; when it cannot fit, fall back to exact sizing.
-    let first = build(Some(budget), false)?;
+    let first = build(Some(budget), false, packet_context::DocBudget::Full)?;
     if first.1 <= target {
         return Ok(first.0);
+    }
+    // Lens documentation is the first thing to give: shrink, then omit it
+    // (with a recorded status) before any source excerpt budget is reduced.
+    // Architecture keeps its own unchanged documentation set.
+    let mut docs = packet_context::DocBudget::Full;
+    if provider.id != "reasoning.architecture"
+        && first
+            .0
+             .0
+            .iter()
+            .any(|request| request.packet.get("docContext").is_some())
+    {
+        for level in [
+            packet_context::DocBudget::Half,
+            packet_context::DocBudget::Omitted,
+        ] {
+            let attempt = build(Some(budget), false, level)?;
+            if attempt.1 <= target {
+                return Ok(attempt.0);
+            }
+            docs = level;
+        }
     }
     let card_reserve =
         pattern_cards::max_card_bytes_bound(Some(pattern_cards::packet_card_budget_bytes(target)));
     let (normalized_built, normalized_largest) =
         refine_packet_materialization(budget, target, |budget| {
-            let (built, largest) = build(Some(budget), false)?;
+            let (built, largest) = build(Some(budget), false, docs)?;
             let own_cards = built
                 .0
                 .iter()
@@ -1151,7 +1174,7 @@ fn build_invocations(
     let mut full_attempts = 0;
     let (built, largest) = refine_packet_materialization(budget, target, |budget| {
         full_attempts += 1;
-        build(Some(budget), false)
+        build(Some(budget), false, docs)
     })?;
     if largest <= target {
         return Ok(built);
@@ -1169,7 +1192,7 @@ fn build_invocations(
             budget,
             target,
             8usize.saturating_sub(full_attempts),
-            |budget| build(Some(budget), true),
+            |budget| build(Some(budget), true, docs),
         )?
     } else {
         (built, largest)
@@ -1546,6 +1569,32 @@ fn build_invocations_with_budget(
     scanner_candidates: Option<&[ScannerCandidate]>,
     part_budget: Option<excerpts::PartBudget>,
 ) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
+    build_invocations_with_docs(
+        plan,
+        provider,
+        inventory,
+        denominator,
+        invocation_epoch,
+        source,
+        scanner_candidates,
+        part_budget,
+        packet_context::DocBudget::Full,
+    )
+}
+
+/// Same as `build_invocations_with_budget`, with the lens documentation budget
+/// chosen by the caller so documentation shrinks before source excerpts do.
+fn build_invocations_with_docs(
+    plan: &FrozenPlan,
+    provider: &AuditProvider,
+    inventory: &InventoryEnvelope,
+    denominator: &InventoryDenominator,
+    invocation_epoch: &str,
+    source: &excerpts::SourceReader<'_>,
+    scanner_candidates: Option<&[ScannerCandidate]>,
+    part_budget: Option<excerpts::PartBudget>,
+    doc_budget: packet_context::DocBudget,
+) -> Result<(Vec<ReasoningInvocation>, Option<Value>), AuditError> {
     if let Some(candidates) = scanner_candidates {
         candidate_routing::validate_identities(candidates).map_err(AuditError::Invalid)?;
     }
@@ -1689,9 +1738,23 @@ fn build_invocations_with_budget(
         .unwrap_or(Value::Null);
     // Chunks of files continued from an earlier part, per part.
     let mut invocations = Vec::with_capacity(emitted_parts);
-    // Architecture docs are context for the architecture lens only; they are
-    // outside the source denominator & never counted as coverage.
-    let doc_context = packet_context::doc_context(source, inventory, &provider.id);
+    // Documentation is bounded untrusted context for every reasoning lens
+    // (architecture keeps its own set); it is outside the source denominator
+    // & never counted as coverage.
+    let mut selected_source_paths: Vec<String> = part_slots
+        .iter()
+        .flatten()
+        .flat_map(|part| part.paths.iter().cloned())
+        .collect();
+    selected_source_paths.sort_unstable();
+    selected_source_paths.dedup();
+    let doc_context = packet_context::doc_context(
+        source,
+        inventory,
+        &provider.id,
+        &selected_source_paths,
+        doc_budget,
+    );
     let candidate_part_paths = part_slots
         .iter()
         .map(|part| part.map(|part| part.paths.clone()).unwrap_or_default())
