@@ -1093,7 +1093,7 @@ fn build_invocations(
             budget,
         );
     };
-    let mut build = |budget, source_only, docs| {
+    let mut build_uncached = |budget, source_only, docs| {
         let mut built = build_invocations_with_docs(
             plan,
             provider,
@@ -1121,6 +1121,16 @@ fn build_invocations(
             largest.max(target.saturating_add(1))
         };
         Ok((built, largest))
+    };
+    // Sizing probes repeat identical (budget, source_only, docs) materializations
+    // across the normalized and exact searches; build each distinct one once.
+    let mut memo = Vec::new();
+    let mut build = |budget: Option<excerpts::PartBudget>,
+                     source_only: bool,
+                     docs: packet_context::DocBudget| {
+        memoized(&mut memo, (budget, source_only, docs), || {
+            build_uncached(budget, source_only, docs)
+        })
     };
     // Lenses of one bundle must derive the same excerpt parts so they keep
     // sharing seats. Their own pattern-card overhead differs by lens, so first
@@ -1428,6 +1438,21 @@ fn append_candidate_parts(
         }
     }
     Ok(built)
+}
+
+/// Return the cached value for `key`, computing & storing it on first use.
+/// Errors are never cached. Lookup is by `PartialEq`, so keys need no `Hash`.
+fn memoized<K: PartialEq, V: Clone>(
+    cache: &mut Vec<(K, V)>,
+    key: K,
+    compute: impl FnOnce() -> Result<V, AuditError>,
+) -> Result<V, AuditError> {
+    if let Some((_, value)) = cache.iter().find(|(cached, _)| *cached == key) {
+        return Ok(value.clone());
+    }
+    let value = compute()?;
+    cache.push((key, value.clone()));
+    Ok(value)
 }
 
 /// At most eight measured materializations: original, minimum, then six
@@ -3041,6 +3066,32 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn memoized_sizing_probes_materialize_each_distinct_budget_once() {
+        let budget = excerpts::PartBudget {
+            cap_bytes: 64,
+            listing_copies: 1,
+        };
+        let mut builds = 0usize;
+        let mut cache = Vec::new();
+        let mut run = |builds: &mut usize| {
+            refine_packet_materialization(budget, 10, |probe| {
+                memoized(&mut cache, probe.cap_bytes, || {
+                    *builds += 1;
+                    Ok((probe.cap_bytes, probe.cap_bytes as u64))
+                })
+            })
+            .unwrap()
+        };
+        let first = run(&mut builds);
+        let after_first = builds;
+        let second = run(&mut builds);
+        assert_eq!(first, second);
+        assert_eq!(first, (10, 10));
+        assert_eq!(builds, after_first);
+        assert!(after_first <= 8);
     }
 
     #[test]
