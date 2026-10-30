@@ -1020,10 +1020,36 @@ PY_PIN
   mkdir -p "$LEGION_SQLFLUFF_SCRATCH"
   # The accuracy test resolves sqlfluff by directory: pass the launcher's.
   sqlfluff_dir="$(dirname "${LEGION_SQLFLUFF_BIN:-/missing/sqlfluff}")"
+  # The real controls are ordinary tests (not #[ignore]): select them by name
+  # and require the exact three-test count so a stale filter cannot pass
+  # without executing the hash-locked binary.
+  sqlfluff_log="${RUNNER_TEMP}/legion-sqlfluff-accuracy.log"
   LEGION_SQLFLUFF_BIN="$sqlfluff_dir" PATH="$sqlfluff_dir:$PATH" \
-    run_audit_qualification audit_cargo_test --test sqlfluff_accuracy \
-    -- --ignored --nocapture --test-threads=1
-  unset LEGION_SQLFLUFF_BIN LEGION_SQLFLUFF_SCRATCH LEGION_REQUIRE_SQLFLUFF sqlfluff_dir
+    run_audit_qualification audit_cargo_test --test sqlfluff_accuracy real_sqlfluff_ \
+    -- --nocapture --test-threads=1 > "$sqlfluff_log" 2>&1
+  cat "$sqlfluff_log"
+  if ! python3 - "$sqlfluff_log" <<'SQLFLUFF_COUNT'
+import pathlib
+import re
+import sys
+
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+results = re.findall(r"^test result: (\w+)\. (\d+) passed; (\d+) failed; (\d+) ignored;", text, re.MULTILINE)
+assert results and results[-1] == ("ok", "3", "0", "0"), results
+names = (
+    "real_sqlfluff_negative_control_with_hostile_repository_config_is_clean",
+    "real_sqlfluff_positive_control_reports_planted_ambiguity",
+    "real_sqlfluff_parse_failure_is_a_named_gap_never_clean",
+)
+for name in names:
+    assert re.search(r"^test " + re.escape(name) + r" \.\.\. ok$", text, re.MULTILINE), name
+print("SQLFluff real accuracy controls: all three named controls passed")
+SQLFLUFF_COUNT
+  then
+    audit_qualification_failures=$((audit_qualification_failures + 1))
+    printf '::error::SQLFluff real accuracy controls did not pass exactly three tests.\n' >&2
+  fi
+  unset LEGION_SQLFLUFF_BIN LEGION_SQLFLUFF_SCRATCH LEGION_REQUIRE_SQLFLUFF sqlfluff_dir sqlfluff_log
   export LEGION_PYTHON_TOOL_ENROLLMENT="$semgrep_enrollment"
   unset semgrep_enrollment
 
