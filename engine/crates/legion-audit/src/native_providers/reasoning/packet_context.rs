@@ -276,17 +276,19 @@ fn ranked_lens_docs<'a>(
         let Ok((bytes, _)) = source.read(path, REFERENCE_SCAN_BYTES) else {
             continue;
         };
+        // Match the lossy text, as `contains` did, so a candidate path that
+        // itself carries U+FFFD (a non-UTF-8 file name) still matches.
+        let text = String::from_utf8_lossy(&bytes);
         match &matcher {
             Ok(matcher) => {
                 referenced.extend(
                     matcher
-                        .matches(&bytes)
+                        .matches(text.as_bytes())
                         .iter()
                         .map(|index| candidates[index]),
                 );
             }
             Err(_) => {
-                let text = String::from_utf8_lossy(&bytes);
                 referenced.extend(candidates.iter().copied().filter(|doc| text.contains(doc)));
             }
         }
