@@ -1198,8 +1198,11 @@ const LENS_DOC_PAIRS: [(&str, &str); 7] = [
 
 fn lens_doc_files(with_docs: bool) -> Vec<(&'static str, String)> {
     let mut files = vec![(
-        "src/lib.rs",
-        "pub fn plain() {}\n// rules: docs/referenced-rules.md\n".to_owned(),
+        // One UI source that also carries the platform signature, so the
+        // trigger-gated a11y and platform-parity lenses are planned while the
+        // denominator stays a single file.
+        "src/view.tsx",
+        "export const view = usePlatform();\n// rules: docs/referenced-rules.md\n".to_owned(),
     )];
     if with_docs {
         for (_, path) in LENS_DOC_PAIRS {
