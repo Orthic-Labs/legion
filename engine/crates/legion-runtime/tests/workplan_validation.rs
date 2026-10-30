@@ -318,7 +318,8 @@ fn independent_review_requires_a_distinct_named_identity() {
     assert_error(&plan, Code::IndependentReviewRequired);
     plan.units[1].evidence[0].reviewer = Some(plan.units[1].owner.clone());
     assert_error(&plan, Code::IndependentReviewRequired);
-    plan.units[1].evidence[0].reviewer = Some(format!(" {} ", plan.units[1].owner.to_ascii_uppercase()));
+    plan.units[1].evidence[0].reviewer =
+        Some(format!(" {} ", plan.units[1].owner.to_ascii_uppercase()));
     assert_error(&plan, Code::IndependentReviewRequired);
 }
 
