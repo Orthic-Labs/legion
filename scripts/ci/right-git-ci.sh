@@ -1013,15 +1013,19 @@ PY_PIN
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
 
   # Real SQLFluff accuracy controls use the same hash-locked Python enrollment.
-  local semgrep_enrollment="$LEGION_PYTHON_TOOL_ENROLLMENT"
+  semgrep_enrollment="${LEGION_PYTHON_TOOL_ENROLLMENT:-}"
   run_audit_qualification provision_python_qualification_tool sqlfluff
   export LEGION_SQLFLUFF_SCRATCH="${RUNNER_TEMP}/legion-sqlfluff-fixtures"
   export LEGION_REQUIRE_SQLFLUFF=1
   mkdir -p "$LEGION_SQLFLUFF_SCRATCH"
-  run_audit_qualification audit_cargo_test --test sqlfluff_accuracy \
+  # The accuracy test resolves sqlfluff by directory: pass the launcher's.
+  sqlfluff_dir="$(dirname "${LEGION_SQLFLUFF_BIN:-/missing/sqlfluff}")"
+  LEGION_SQLFLUFF_BIN="$sqlfluff_dir" PATH="$sqlfluff_dir:$PATH" \
+    run_audit_qualification audit_cargo_test --test sqlfluff_accuracy \
     -- --ignored --nocapture --test-threads=1
-  unset LEGION_SQLFLUFF_BIN LEGION_SQLFLUFF_SCRATCH LEGION_REQUIRE_SQLFLUFF
+  unset LEGION_SQLFLUFF_BIN LEGION_SQLFLUFF_SCRATCH LEGION_REQUIRE_SQLFLUFF sqlfluff_dir
   export LEGION_PYTHON_TOOL_ENROLLMENT="$semgrep_enrollment"
+  unset semgrep_enrollment
 
   # Fixed official OpenGrep binary; constructed SDK/artifact cases only.
   audit_provision_opengrep() {
