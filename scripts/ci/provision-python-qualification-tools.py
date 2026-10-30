@@ -22,7 +22,7 @@ import urllib.request
 import zipfile
 
 SCHEMA = "legion-python-tool-enrollment/1"
-VERSIONS = {"pip-audit": "2.10.0", "semgrep": "1.141.0"}
+VERSIONS = {"pip-audit": "2.10.0", "semgrep": "1.141.0", "sqlfluff": "4.4.0"}
 LOCK_HEADER = "# Official PyPI binary wheels only. No index, source distribution, or dependency build.\n"
 
 

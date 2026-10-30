@@ -331,7 +331,7 @@ provision_python_qualification_tool() {
   export PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1
   unset PYTHONPATH PYTHONHOME
   local tool="$1"
-  case "$tool" in pip-audit|semgrep) ;; *) return 2 ;; esac
+  case "$tool" in pip-audit|semgrep|sqlfluff) ;; *) return 2 ;; esac
   local output="${RUNNER_TEMP}/legion-python-tools/${tool}"
   audit_native_command python3 -I -S -B scripts/ci/provision-python-qualification-tools.py \
     --tool "$tool" --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
@@ -344,11 +344,11 @@ from pathlib import Path
 print(json.loads(Path(sys.argv[1]).read_text())["launcher"]["path"])
 PYTHON_LAUNCHER
 )" || return "$?"
-  if [[ "$tool" == "pip-audit" ]]; then
-    export LEGION_PIP_AUDIT_BIN="$launcher"
-  else
-    export LEGION_SEMGREP_BIN="$launcher"
-  fi
+  case "$tool" in
+    pip-audit) export LEGION_PIP_AUDIT_BIN="$launcher" ;;
+    semgrep) export LEGION_SEMGREP_BIN="$launcher" ;;
+    sqlfluff) export LEGION_SQLFLUFF_BIN="$launcher" ;;
+  esac
 }
 provision_dotnet_code_sdk() {
   audit_native_command python3 scripts/ci/provision-dotnet-qualification-tools.py \
@@ -1011,6 +1011,17 @@ PY_PIN
     -- --ignored --exact --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-semgrep-provider-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_PROVIDER_BENCHMARK_DIR"
+
+  # Real SQLFluff accuracy controls use the same hash-locked Python enrollment.
+  local semgrep_enrollment="$LEGION_PYTHON_TOOL_ENROLLMENT"
+  run_audit_qualification provision_python_qualification_tool sqlfluff
+  export LEGION_SQLFLUFF_SCRATCH="${RUNNER_TEMP}/legion-sqlfluff-fixtures"
+  export LEGION_REQUIRE_SQLFLUFF=1
+  mkdir -p "$LEGION_SQLFLUFF_SCRATCH"
+  run_audit_qualification audit_cargo_test --test sqlfluff_accuracy \
+    -- --ignored --nocapture --test-threads=1
+  unset LEGION_SQLFLUFF_BIN LEGION_SQLFLUFF_SCRATCH LEGION_REQUIRE_SQLFLUFF
+  export LEGION_PYTHON_TOOL_ENROLLMENT="$semgrep_enrollment"
 
   # Fixed official OpenGrep binary; constructed SDK/artifact cases only.
   audit_provision_opengrep() {

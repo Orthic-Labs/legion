@@ -1,0 +1,317 @@
+{
+  "resolutionConstraints": [
+    "pip==26.2.1"
+  ],
+  "resolver": {
+    "basis": "official PyPI JSON metadata; binary wheel tag + Requires-Python + complete active Requires-Dist closure",
+    "environment": {
+      "implementation_name": "cpython",
+      "implementation_version": "3.14.7",
+      "os_name": "posix",
+      "platform_machine": "arm64",
+      "platform_python_implementation": "CPython",
+      "platform_release": "24.0.0",
+      "platform_system": "Darwin",
+      "platform_version": "",
+      "python_full_version": "3.14.7",
+      "python_version": "3.14",
+      "sys_platform": "darwin"
+    }
+  },
+  "schema": "legion-python-tool-lock/1",
+  "target": {
+    "implementation": "cpython",
+    "machine": "arm64",
+    "minimumMacOS": "15.0",
+    "platform": "darwin",
+    "python": "3.14"
+  },
+  "tool": {
+    "name": "sqlfluff",
+    "version": "4.4.0"
+  },
+  "wheels": [
+    {
+      "constraints": [
+        "",
+        ">=3.0.0"
+      ],
+      "filename": "chardet-7.7.0-cp314-cp314-macosx_11_0_arm64.whl",
+      "metadataUrl": "https://pypi.org/pypi/chardet/7.7.0/json",
+      "name": "chardet",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.10",
+      "sha256": "4f67f20c9ad3f3024bf71d4aae1d25722b12da921ca9586f3cce7a4639695aa0",
+      "size": 1173087,
+      "url": "https://files.pythonhosted.org/packages/fb/92/3c6ce24dd68c626cc6aa0b5953c2aebb1d853c7b07d3535f0300b7428288/chardet-7.7.0-cp314-cp314-macosx_11_0_arm64.whl",
+      "version": "7.7.0"
+    },
+    {
+      "constraints": [
+        "<8.5.0"
+      ],
+      "filename": "click-8.4.2-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/click/8.4.2/json",
+      "name": "click",
+      "requestedExtras": [],
+      "requiresDist": [
+        "colorama; platform_system == \"Windows\""
+      ],
+      "requiresPython": ">=3.10",
+      "sha256": "e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76",
+      "size": 119243,
+      "url": "https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl",
+      "version": "8.4.2"
+    },
+    {
+      "constraints": [
+        ">=0.3"
+      ],
+      "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/colorama/0.4.6/json",
+      "name": "colorama",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7",
+      "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+      "size": 25335,
+      "url": "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl",
+      "version": "0.4.6"
+    },
+    {
+      "constraints": [
+        ">=2.5.0"
+      ],
+      "filename": "diff_cover-11.0.0-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/diff-cover/11.0.0/json",
+      "name": "diff-cover",
+      "requestedExtras": [],
+      "requiresDist": [
+        "chardet>=3.0.0",
+        "jinja2>=2.7.1",
+        "pluggy<2,>=0.13.1",
+        "pygments<3,>=2.19.1"
+      ],
+      "requiresPython": ">=3.11",
+      "sha256": "8b0a5b356d525718ee18c14b163ce179c75ccdc5b8d5474ef22ade6a0e1fa65d",
+      "size": 63614,
+      "url": "https://files.pythonhosted.org/packages/b0/10/97d05eef3876cffab13c3ce3cfd6e51bdd9d0cfb017b46622a9bbfbd91e4/diff_cover-11.0.0-py3-none-any.whl",
+      "version": "11.0.0"
+    },
+    {
+      "constraints": [
+        "",
+        ">=2.7.1"
+      ],
+      "filename": "jinja2-3.1.6-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/jinja2/3.1.6/json",
+      "name": "jinja2",
+      "requestedExtras": [],
+      "requiresDist": [
+        "MarkupSafe>=2.0",
+        "Babel>=2.7; extra == \"i18n\""
+      ],
+      "requiresPython": ">=3.7",
+      "sha256": "85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67",
+      "size": 134899,
+      "url": "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl",
+      "version": "3.1.6"
+    },
+    {
+      "constraints": [
+        ">=2.0"
+      ],
+      "filename": "markupsafe-3.0.4-cp314-cp314-macosx_11_0_arm64.whl",
+      "metadataUrl": "https://pypi.org/pypi/markupsafe/3.0.4/json",
+      "name": "markupsafe",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.9",
+      "sha256": "52704c5d36eb6dda8866493decd61111fff86244c9b1ad225ca01b9e91e5970f",
+      "size": 12061,
+      "url": "https://files.pythonhosted.org/packages/ad/40/e2d117b048d47282ade906fbfd92814cbee5647afc13fda88a3406039372/markupsafe-3.0.4-cp314-cp314-macosx_11_0_arm64.whl",
+      "version": "3.0.4"
+    },
+    {
+      "constraints": [
+        ""
+      ],
+      "filename": "pathspec-1.1.1-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/pathspec/1.1.1/json",
+      "name": "pathspec",
+      "requestedExtras": [],
+      "requiresDist": [
+        "hyperscan>=0.7; extra == \"hyperscan\"",
+        "typing-extensions>=4; extra == \"optional\"",
+        "google-re2>=1.1; extra == \"re2\""
+      ],
+      "requiresPython": ">=3.9",
+      "sha256": "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189",
+      "size": 57328,
+      "url": "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl",
+      "version": "1.1.1"
+    },
+    {
+      "constraints": [
+        "==26.2.1"
+      ],
+      "filename": "pip-26.2.1-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/pip/26.2.1/json",
+      "name": "pip",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.10",
+      "sha256": "71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e",
+      "size": 1816632,
+      "url": "https://files.pythonhosted.org/packages/f3/6e/1736e5b4ae2b778ef2f81c47d797de9f891d4d8acb047a24ca37a60294dd/pip-26.2.1-py3-none-any.whl",
+      "version": "26.2.1"
+    },
+    {
+      "constraints": [
+        ""
+      ],
+      "filename": "platformdirs-4.14.0-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/platformdirs/4.14.0/json",
+      "name": "platformdirs",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.11",
+      "sha256": "1dadfc59a8a5d7565b3d9270ae8fa71c065595352c4277b41c11ee6c222c4b91",
+      "size": 35259,
+      "url": "https://files.pythonhosted.org/packages/69/2b/887969ef4bb53e0cb271dc7c3f4a73d50c5d58bb88aeaae311e3340cd57e/platformdirs-4.14.0-py3-none-any.whl",
+      "version": "4.14.0"
+    },
+    {
+      "constraints": [
+        "<2,>=0.13.1"
+      ],
+      "filename": "pluggy-1.7.0-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/pluggy/1.7.0/json",
+      "name": "pluggy",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.10",
+      "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec",
+      "size": 27082,
+      "url": "https://files.pythonhosted.org/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl",
+      "version": "1.7.0"
+    },
+    {
+      "constraints": [
+        "<3,>=2.19.1"
+      ],
+      "filename": "pygments-2.21.0-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/pygments/2.21.0/json",
+      "name": "pygments",
+      "requestedExtras": [],
+      "requiresDist": [
+        "colorama>=0.4.6; extra == \"windows-terminal\""
+      ],
+      "requiresPython": ">=3.9",
+      "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+      "size": 1250147,
+      "url": "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl",
+      "version": "2.21.0"
+    },
+    {
+      "constraints": [
+        ">=5.1"
+      ],
+      "filename": "pyyaml-6.0.3-cp314-cp314-macosx_11_0_arm64.whl",
+      "metadataUrl": "https://pypi.org/pypi/pyyaml/6.0.3/json",
+      "name": "pyyaml",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.8",
+      "sha256": "34d5fcd24b8445fadc33f9cf348c1047101756fd760b4dacb5c3e99755703310",
+      "size": 173809,
+      "url": "https://files.pythonhosted.org/packages/bd/9c/4d95bb87eb2063d20db7b60faa3840c1b18025517ae857371c4dd55a6b3a/pyyaml-6.0.3-cp314-cp314-macosx_11_0_arm64.whl",
+      "version": "6.0.3"
+    },
+    {
+      "constraints": [
+        ""
+      ],
+      "filename": "regex-2026.9.29-cp314-cp314-macosx_10_15_universal2.whl",
+      "metadataUrl": "https://pypi.org/pypi/regex/2026.9.29/json",
+      "name": "regex",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.10",
+      "sha256": "957bb708e8057ab1649ba566456429d691ec9b90d1c9ad1af1ba7ffbbeaf05f2",
+      "size": 497598,
+      "url": "https://files.pythonhosted.org/packages/93/1f/d9dc6f02f569625faf67a4daec926cd5023472dcd69bb44286dccd5a5ab3/regex-2026.9.29-cp314-cp314-macosx_10_15_universal2.whl",
+      "version": "2026.9.29"
+    },
+    {
+      "constraints": [
+        "==4.4.0"
+      ],
+      "filename": "sqlfluff-4.4.0-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/sqlfluff/4.4.0/json",
+      "name": "sqlfluff",
+      "requestedExtras": [],
+      "requiresDist": [
+        "platformdirs",
+        "chardet",
+        "click<8.5.0",
+        "colorama>=0.3",
+        "diff-cover>=2.5.0",
+        "Jinja2",
+        "pathspec",
+        "pyyaml>=5.1",
+        "regex",
+        "tblib",
+        "tomli; python_version < \"3.11\"",
+        "tqdm",
+        "sqlfluffrs==4.4.0; extra == \"rs\"",
+        "pytest; extra == \"testutils\""
+      ],
+      "requiresPython": ">=3.10",
+      "sha256": "65b1f139534ae1f18ca6e9ec1b24b09598d0b95d1336f927bf39d399ecb39109",
+      "size": 1092244,
+      "url": "https://files.pythonhosted.org/packages/24/41/436e2d0f2beed494a92f6f9bc1bd87b1a7dbd6bf37038093aa7d353e5153/sqlfluff-4.4.0-py3-none-any.whl",
+      "version": "4.4.0"
+    },
+    {
+      "constraints": [
+        ""
+      ],
+      "filename": "tblib-3.2.2-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/tblib/3.2.2/json",
+      "name": "tblib",
+      "requestedExtras": [],
+      "requiresDist": [],
+      "requiresPython": ">=3.9",
+      "sha256": "26bdccf339bcce6a88b2b5432c988b266ebbe63a4e593f6b578b1d2e723d2b76",
+      "size": 12893,
+      "url": "https://files.pythonhosted.org/packages/02/be/5d2d47b1fb58943194fb59dcf222f7c4e35122ec0ffe8c36e18b5d728f0b/tblib-3.2.2-py3-none-any.whl",
+      "version": "3.2.2"
+    },
+    {
+      "constraints": [
+        ""
+      ],
+      "filename": "tqdm-4.70.1-py3-none-any.whl",
+      "metadataUrl": "https://pypi.org/pypi/tqdm/4.70.1/json",
+      "name": "tqdm",
+      "requestedExtras": [],
+      "requiresDist": [
+        "colorama; platform_system == \"Windows\"",
+        "requests; extra == \"discord\"",
+        "envwrap; extra == \"discord\"",
+        "slack-sdk; extra == \"slack\"",
+        "envwrap; extra == \"slack\"",
+        "requests; extra == \"telegram\"",
+        "envwrap; extra == \"telegram\"",
+        "ipywidgets>=6; extra == \"notebook\""
+      ],
+      "requiresPython": ">=3.8",
+      "sha256": "c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73",
+      "size": 80199,
+      "url": "https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl",
+      "version": "4.70.1"
+    }
+  ]
+}
