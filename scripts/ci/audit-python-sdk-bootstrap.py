@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Managed-CI Python SDK tools: official wheels, observed managed runtime.
+"""Managed-CI Python SDK tools: official wheels, digest-pinned CPython archive.
 
 No project is installed or executed. Only provisioning uses network; every tool
-wheel is pinned. Runtime provenance is authenticated managed-runner observation,
-not authentication against an official CPython binary archive. Importable
+wheel is pinned. The interpreter is the python-build-standalone archive pinned
+below, size and sha256 verified by right-git-ci.sh before extraction (never the
+runner's ambient python3). This script does not re-download or re-hash that
+archive; it binds the running interpreter to the pinned extraction root. Importable
 verify_enrollment() only replays retained source/input bindings & filesystem bytes.
 """
 import argparse
@@ -30,7 +32,12 @@ REQUIREMENTS = LOCK.removesuffix(".json") + ".txt"
 ROOTS = {"pip": "26.2.1", "ruff": "0.17.1", "mypy": "2.4.0", "pytest": "9.1.1", "build": "1.6.1", "hatchling": "1.32.4"}
 TARGET = {"implementation": "cpython", "pythonFullVersion": "3.14.7", "abi": "cp314", "platform": "darwin", "machine": "arm64", "minimumMacOS": "15.0"}
 HEADER = "# Official PyPI binary wheels only. No index, source distribution, or dependency build.\n"
-PROVENANCE = "observed authenticated managed macOS CI CPython runtime; no official interpreter archive authentication"
+CPYTHON_LOCK = "scripts/ci/python-tool-locks/cpython-3.14.7-macos-arm64.json"
+CPYTHON_ARCHIVE = {"asset": "cpython-3.14.7+20260929-aarch64-apple-darwin-install_only.tar.gz", "sha256": "0211ccf04c5e0a0feb0b9bf1148030e1f6a31b8eae624f13919a7752a4e3dc79", "size": 26775255,
+                   "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260929/cpython-3.14.7%2B20260929-aarch64-apple-darwin-install_only.tar.gz"}
+CPYTHON_ROOT = "legion-cpython-3.14.7"
+PROVENANCE = ("python-build-standalone release 20260929 archive " + CPYTHON_ARCHIVE["asset"] + " sha256:" + CPYTHON_ARCHIVE["sha256"] + " size " + str(CPYTHON_ARCHIVE["size"])
+              + " from " + CPYTHON_ARCHIVE["url"] + "; size and sha256 verified by right-git-ci.sh before extraction; no ambient runner interpreter")
 PIP_CODE = "import sys; sys.path.insert(0, sys.argv.pop(1)); from pip._internal.cli.main import main; sys.exit(main())"
 
 
@@ -105,6 +112,8 @@ def load_inputs(repository):
     require({w["name"]: w["version"] for w in wheels if w["name"] in ROOTS} == ROOTS, "root wheel versions differ")
     text = HEADER + "".join(w["name"] + "==" + w["version"] + " --hash=sha256:" + w["sha256"] + "\n" for w in wheels)
     require(source(repository, REQUIREMENTS).read_text() == text, "requirements differ from exact wheel set")
+    pinned = parse(source(repository, CPYTHON_LOCK).read_bytes())
+    require(pinned.get("archive") == CPYTHON_ARCHIVE and pinned.get("release") == "20260929" and pinned.get("expected", {}).get("pythonFullVersion") == TARGET["pythonFullVersion"] and pinned["expected"].get("freeThreaded") is False, "pinned CPython lock differs from bootstrap provenance")
     return lock, {rel: {"path": str(source(repository, rel)), "digest": file_digest(source(repository, rel))} for rel in (SELF, CAPTURE, REPLAY, LOCK, REQUIREMENTS)}
 
 
@@ -164,6 +173,7 @@ def verify_enrollment(repository_root, enrollment, live=False):
     require(isinstance(interpreter["sysVersion"], str) and interpreter["sysVersion"].startswith("3.14.7 "), "observed full CPython version absent")
     require(interpreter["version"] == "3.14.7" and interpreter["cacheTag"] == "cpython-314" and interpreter["soabi"].startswith("cpython-314-"), "actual managed CPython identity differs")
     stdlib = absolute(interpreter["stdlibRoot"])
+    require(absolute(interpreter["basePrefix"]).name == CPYTHON_ROOT and PurePosixPath(interpreter["path"]).parent.parent == absolute(interpreter["basePrefix"]), "interpreter is not the pinned CPython extraction root")
     require(inside(stdlib, absolute(interpreter["basePrefix"])) and runtime["exclusions"] == [str(stdlib / "site-packages")], "runtime exclusions expanded")
     require(runtime["files"].get(str(absolute(interpreter["path"])).lstrip("/")) == interpreter["digest"], "managed interpreter bytes absent")
     managed = enrollment["managedRuntime"]
@@ -241,6 +251,7 @@ def main():
     require(os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_OS") == "macOS", "managed macOS GitHub CI only")
     require(sys.platform == "darwin" and platform.machine() == "arm64" and sys.implementation.name == "cpython" and platform.python_version() == "3.14.7" and not sysconfig.get_config_var("Py_GIL_DISABLED"), "require actual managed arm64 CPython3.14.7 standard ABI")
     require(int(platform.mac_ver()[0].split(".")[0]) >= 15, "require managed macOS15+")
+    require(Path(sys.base_prefix).resolve(strict=True) == (Path(os.environ["RUNNER_TEMP"]).resolve(strict=True) / CPYTHON_ROOT).resolve(strict=True), "interpreter must be the digest-pinned CPython extracted by right-git-ci.sh")
     repository = args.repository_root.resolve(strict=True)
     require(Path(__file__).resolve(strict=True) == source(repository, SELF), "bootstrap must be supplied source")
     lock, inputs = load_inputs(repository)

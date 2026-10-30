@@ -324,6 +324,82 @@ LICENSE_ALIAS
   export LEGION_LICENSE_TOOL_ROOT="$tool"
 }
 
+# Digest-pinned CPython 3.14.7 (python-build-standalone) for macOS Python
+# qualification provisioning; never the runner's ambient python3 (issue #131).
+# The archive size and sha256 are verified before extraction. Runs once per gate
+# shell and stays in this shell so LEGION_PINNED_PYTHON reaches later spans.
+provision_pinned_cpython() {
+  # Reuse only this shell's own verified extraction; any other preset is refused.
+  if [[ -n "${LEGION_PINNED_PYTHON:-}" ]]; then
+    [[ "$LEGION_PINNED_PYTHON" == "${RUNNER_TEMP}/legion-cpython-3.14.7/bin/python3.14" && -x "$LEGION_PINNED_PYTHON" ]] && return 0
+    echo "refusing preset LEGION_PINNED_PYTHON outside the pinned extraction" >&2
+    return 2
+  fi
+  [[ "${RUNNER_OS:-}" == "macOS" ]] || { echo "pinned CPython is macOS arm64 only" >&2; return 2; }
+  local lock="$GITHUB_WORKSPACE/scripts/ci/python-tool-locks/cpython-3.14.7-macos-arm64.json"
+  local url sha size asset version
+  url="$(audit_native_command /usr/bin/plutil -extract archive.url raw -o - "$lock")" || return "$?"
+  sha="$(audit_native_command /usr/bin/plutil -extract archive.sha256 raw -o - "$lock")" || return "$?"
+  size="$(audit_native_command /usr/bin/plutil -extract archive.size raw -o - "$lock")" || return "$?"
+  asset="$(audit_native_command /usr/bin/plutil -extract archive.asset raw -o - "$lock")" || return "$?"
+  version="$(audit_native_command /usr/bin/plutil -extract expected.pythonFullVersion raw -o - "$lock")" || return "$?"
+  [[ "$version" == "3.14.7" && "$sha" =~ ^[0-9a-f]{64}$ && "$size" =~ ^[0-9]+$ ]] \
+    && [[ "$url" == "https://github.com/astral-sh/python-build-standalone/releases/download/"* ]] \
+    && [[ "$asset" =~ ^cpython-3\.14\.7\+[0-9]+-aarch64-apple-darwin-install_only\.tar\.gz$ ]] \
+    || { echo "pinned CPython lock malformed" >&2; return 1; }
+  local root="${RUNNER_TEMP}/legion-cpython-3.14.7"
+  local download="${RUNNER_TEMP}/legion-cpython-3.14.7-download"
+  [[ ! -e "$root" && ! -e "$download" ]] || { echo "refusing existing pinned CPython output" >&2; return 1; }
+  audit_native_command /bin/mkdir -m 700 "$download" "$root" || return "$?"
+  local effective
+  effective="$(audit_native_command /usr/bin/curl --fail --silent --show-error --location --retry 0 --max-time 300 \
+    --proto '=https' --proto-redir '=https' --write-out '%{url_effective}' \
+    --output "$download/$asset" "$url")" || return "$?"
+  case "$effective" in
+    https://github.com/*|https://objects.githubusercontent.com/*|https://release-assets.githubusercontent.com/*) ;;
+    *) echo "pinned CPython download redirected outside GitHub: $effective" >&2; return 1 ;;
+  esac
+  local actual_size actual_sha
+  actual_size="$(audit_native_command /usr/bin/stat -f %z "$download/$asset")" || return "$?"
+  actual_sha="$(audit_native_command /usr/bin/shasum -a 256 "$download/$asset")" || return "$?"
+  actual_sha="${actual_sha%% *}"
+  if [[ "$actual_size" != "$size" || "$actual_sha" != "$sha" ]]; then
+    printf 'pinned CPython archive mismatch: size %s/%s sha256 %s/%s\n' "$actual_size" "$size" "$actual_sha" "$sha" >&2
+    return 1
+  fi
+  # Verified bytes only. Every member must live under python/ with no parent hops.
+  local members
+  members="$(audit_native_command /usr/bin/tar -tzf "$download/$asset")" || return "$?"
+  if [[ -z "$members" ]] || printf '%s\n' "$members" | /usr/bin/grep -Evq '^python/' \
+    || printf '%s\n' "$members" | /usr/bin/grep -Eq '(^|/)\.\.(/|$)'; then
+    echo "pinned CPython archive layout differs (expected only python/ members)" >&2
+    return 1
+  fi
+  audit_native_command /usr/bin/tar -xzf "$download/$asset" -C "$root" --strip-components=1 || return "$?"
+  local candidate="$root/bin/python3.14"
+  [[ -x "$candidate" && ! -L "$candidate" ]] || { echo "pinned CPython executable missing" >&2; return 1; }
+  audit_native_command "$candidate" -I -S -c '
+import platform, sys, sysconfig
+assert platform.python_version() == "3.14.7", platform.python_version()
+assert sys.implementation.name == "cpython" and sys.implementation.cache_tag == "cpython-314", sys.implementation.cache_tag
+assert sys.platform == "darwin" and platform.machine() == "arm64", (sys.platform, platform.machine())
+assert not sysconfig.get_config_var("Py_GIL_DISABLED"), "free-threaded ABI"
+assert sys.base_prefix == sys.prefix and sys.flags.isolated == 1
+print("PINNED_CPYTHON", sys.version.split()[0], sys.executable, sys.base_prefix)
+' || return "$?"
+  # venv --copies needs an interpreter with libpython linked statically (PBS
+  # --enable-static-libpython-for-interpreter); refuse any libpython dylib load.
+  local linkage
+  linkage="$(audit_native_command /usr/bin/otool -L "$candidate")" || return "$?"
+  printf '%s\n' "$linkage"
+  if [[ "$linkage" == *libpython* ]]; then
+    echo "pinned CPython links libpython dynamically; venv --copies would break" >&2
+    return 2
+  fi
+  LEGION_PINNED_PYTHON="$candidate"
+  export LEGION_PINNED_PYTHON
+}
+
 # Shared Python scanners use reviewed binary-wheel closures in private CI tools
 # storage. Each consumer calls this through run_audit_qualification before its
 # scanner selector; exports remain in this shell for actual SDK enrollment.
@@ -332,8 +408,9 @@ provision_python_qualification_tool() {
   unset PYTHONPATH PYTHONHOME
   local tool="$1"
   case "$tool" in pip-audit|semgrep|sqlfluff) ;; *) return 2 ;; esac
+  provision_pinned_cpython || return "$?"
   local output="${RUNNER_TEMP}/legion-python-tools/${tool}"
-  audit_native_command python3 -I -S -B scripts/ci/provision-python-qualification-tools.py \
+  audit_native_command "$LEGION_PINNED_PYTHON" -I -S -B scripts/ci/provision-python-qualification-tools.py \
     --tool "$tool" --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
   export LEGION_PYTHON_TOOL_ENROLLMENT="${output}/enrollment.json"
   local launcher
@@ -355,8 +432,9 @@ provision_dotnet_code_sdk() {
     --root "${RUNNER_TEMP}/legion-dotnet-code-sdk-tools"
 }
 provision_python_code_sdk() {
+  provision_pinned_cpython || return "$?"
   local output="${RUNNER_TEMP}/legion-python-code-sdk-tools"
-  audit_native_command python3 scripts/ci/audit-python-sdk-bootstrap.py \
+  audit_native_command "$LEGION_PINNED_PYTHON" scripts/ci/audit-python-sdk-bootstrap.py \
     --repository-root "$GITHUB_WORKSPACE" --output-root "$output" || return "$?"
   local values
   values="$(audit_native_command python3 - "$output/enrollment.json" <<'PYTHON_CODE_SDK_ENV'

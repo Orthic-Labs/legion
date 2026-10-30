@@ -1,0 +1,21 @@
+{
+  "abi": "cp314",
+  "archive": {
+    "asset": "cpython-3.14.7+20260929-aarch64-apple-darwin-install_only.tar.gz",
+    "sha256": "0211ccf04c5e0a0feb0b9bf1148030e1f6a31b8eae624f13919a7752a4e3dc79",
+    "size": 26775255,
+    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260929/cpython-3.14.7%2B20260929-aarch64-apple-darwin-install_only.tar.gz"
+  },
+  "basis": "python-build-standalone release asset digest as computed by the GitHub releases API (gh api repos/astral-sh/python-build-standalone/releases/tags/20260929)",
+  "expected": {
+    "cacheTag": "cpython-314",
+    "freeThreaded": false,
+    "implementation": "cpython",
+    "machine": "arm64",
+    "platform": "darwin",
+    "pythonFullVersion": "3.14.7"
+  },
+  "release": "20260929",
+  "schema": "legion-cpython-lock/1",
+  "source": "https://github.com/astral-sh/python-build-standalone"
+}
