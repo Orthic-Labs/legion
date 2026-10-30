@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "repository": "example/project",
+  "pullRequest": 17,
+  "expectedHead": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expectedBase": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "terminalGoal": "user_handoff",
+  "nowUnixSeconds": 1000,
+  "maxAgeSeconds": 300,
+  "snapshot": {
+    "repository": "example/project",
+    "pullRequest": 17,
+    "observedAtUnixSeconds": 990,
+    "headBefore": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "baseBefore": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "headAfter": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "baseAfter": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "state": "open",
+    "draft": false,
+    "mergeability": "positive",
+    "mergeState": "clear",
+    "completeness": { "checks": true, "reviews": true, "threads": true, "policy": true },
+    "branchPolicy": {
+      "known": true,
+      "requiredChecks": [{ "name": "CI", "appId": 15368 }],
+      "humanReviewRequired": true,
+      "allowNeutral": false,
+      "allowSkipped": false
+    },
+    "checks": [{ "name": "CI", "appId": 15368, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "success" }],
+    "humanReview": "satisfied",
+    "unresolvedThreads": 0,
+    "autoMergeEnabled": false,
+    "inMergeQueue": false,
+    "mergeCommit": null
+  },
+  "verification": {
+    "completed": true,
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "observedAtUnixSeconds": 990,
+    "implementer": "implementer-agent",
+    "reviewer": "test-runner",
+    "evidenceRefs": ["ci/run/123"]
+  },
+  "independentReview": {
+    "completed": true,
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "observedAtUnixSeconds": 990,
+    "implementer": "implementer-agent",
+    "reviewer": "oracle-agent",
+    "evidenceRefs": ["review/456"]
+  }
+}

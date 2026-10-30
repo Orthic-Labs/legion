@@ -30,7 +30,8 @@
     ],
     "outputs": [
       "references/agent-routing.md",
-      "references/manual.md"
+      "references/manual.md",
+      "references/work-plan.md"
     ],
     "scripts": [],
     "templates": [
@@ -57,7 +58,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:eda696e98900292fef761650edcf4553297c2b24cd884e3932cc56e1e8128338"
+      "digest": "sha256:2808a9713b79cffcbd39c2e8a3fab97cf15318e0ef7c481c0e12977eb4344f7c"
     },
     {
       "path": "agents/openai.yaml",
@@ -163,6 +164,11 @@
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
       "digest": "sha256:7a8c9b8fcfb597a41c7337b61fa554443210e9f9de00a3b030bd0807f7c1018a"
+    },
+    {
+      "path": "references/work-plan.md",
+      "uri": "legion-skill://dispatch/references/work-plan.md",
+      "digest": "sha256:1500f30bb602129641279d8da49f9b72420295874fb1f7cd2bf0b605d09a44f4"
     }
   ]
 }

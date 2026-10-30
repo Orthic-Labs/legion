@@ -42,6 +42,10 @@ TERMINAL: Frozen diff is verified, committed, pushed, & identity-proven.
 protection), the latter only when the host provides GitHub access.
 Per-step tool/model authority is declared inline below via each step's `EXECUTOR` block, which
 supersedes the legacy flat `SPECIALIST_REFS_MAX` cap with a per-step capability declaration.
+For successive ordinary reviews, `references/review-loop.md` describes the optional native
+`legion review-loop assess` ledger. It preserves the existing repair cap, frozen diff, and four
+external requests; its assessment is no review or effect authorization. End-to-end PR readiness
+and an explicitly authorized merge belong to Delivery above this narrow pushed endpoint.
 
 1. Confirm primary checkout, branch, overlay, remote, worktree ownership, & exact frozen scope.
    EXECUTOR:

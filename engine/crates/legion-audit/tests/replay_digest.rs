@@ -100,3 +100,61 @@ fn temp_path_rewrite_keeps_message_and_distinct_subpaths() {
         replay_digest(&msg("/tmp/b/f")).unwrap()
     );
 }
+
+fn windows_syft_receipts(scratch: &str) -> serde_json::Value {
+    let receipt = |format: &str| {
+        json!({
+            "providerId": "supply-chain.license-sbom-provenance",
+            "state": "unauthorized-effect",
+            "command": {
+                "executable": "syft",
+                "args": ["scan", "dir:.", "--config", format!(r"<run>\{scratch}\syft-native.yaml"),
+                    "--override-default-catalogers", "all", "-o", format, "-q"],
+            },
+            "timeoutMs": 120000,
+        })
+    };
+    json!({
+        "executionReceipt": receipt("cyclonedx-json"),
+        "executionReceipts": [receipt("cyclonedx-json"), receipt("spdx-json")],
+    })
+}
+
+#[test]
+fn windows_syft_scratch_directories_are_replay_equivalent_without_mutating_receipts() {
+    let a = windows_syft_receipts("legion-audit-security-8180-1793195200123456789-2");
+    let b = windows_syft_receipts("legion-audit-security-9440-1793195200987654321-7");
+    let original_a = serde_json::to_vec(&a).unwrap();
+    let original_b = serde_json::to_vec(&b).unwrap();
+    assert_eq!(replay_digest(&a).unwrap(), replay_digest(&b).unwrap());
+    assert!(replay_differences(&a, &b).is_empty());
+    assert_eq!(
+        replay_normalize(&a)["executionReceipt"]["command"]["args"][3],
+        r"<run>\legion-audit-security-N-N-N\syft-native.yaml"
+    );
+    assert_eq!(serde_json::to_vec(&a).unwrap(), original_a);
+    assert_eq!(serde_json::to_vec(&b).unwrap(), original_b);
+    assert_ne!(
+        legion_audit::digest(&a).unwrap(),
+        legion_audit::digest(&b).unwrap()
+    );
+}
+
+#[test]
+fn windows_syft_replay_keeps_semantic_command_and_receipt_differences() {
+    let a = windows_syft_receipts("legion-audit-security-8180-1793195200123456789-2");
+    let replacement = r"<run>\legion-audit-security-9999-1793195200987654321-7\changed.yaml";
+    let mut filename = a.clone();
+    filename["executionReceipt"]["command"]["args"][3] = json!(replacement);
+    let mut argument = a.clone();
+    argument["executionReceipt"]["command"]["args"][7] = json!("other-format");
+    let mut bound = a.clone();
+    bound["executionReceipt"]["timeoutMs"] = json!(120001);
+    let mut kind = a.clone();
+    kind["executionReceipt"]["command"]["args"][3] =
+        json!(r"<run>\legion-audit-other-8180-1793195200123456789-2\syft-native.yaml");
+    for changed in [filename, argument, bound, kind] {
+        assert_ne!(replay_digest(&a).unwrap(), replay_digest(&changed).unwrap());
+        assert!(!replay_differences(&a, &changed).is_empty());
+    }
+}

@@ -167,6 +167,14 @@ enum Command {
     Research(commands::research::ResearchArgs),
     /// Run an independent completion-validation review.
     Review(commands::review::ReviewArgs),
+    /// Validate bounded work ownership, dependencies, and declared completion evidence.
+    WorkPlan(commands::engineering::WorkPlanArgs),
+    /// Assess bounded ordinary review rounds against the current artifact.
+    ReviewLoop(commands::engineering::ReviewLoopArgs),
+    /// Observe a pull request once or assess revision-bound delivery evidence.
+    Delivery(commands::engineering::DeliveryArgs),
+    /// Summarize imported quality measurements without certifying their claims.
+    Quality(commands::engineering::QualityArgs),
     /// Install, check, or purge the installed Legion product.
     Setup(commands::setup::SetupArgs),
     /// Dispatch to the Rust port of a `skills/**/scripts/**` CLI (`--list` to enumerate).
@@ -1674,6 +1682,12 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Handoff(args) => commands::handoff::run(args),
         Command::Research(args) => commands::research::run(args, cancellation.clone()),
         Command::Review(args) => commands::review::run(args, cancellation.clone()).await,
+        Command::WorkPlan(args) => commands::engineering::work_plan(args),
+        Command::ReviewLoop(args) => commands::engineering::review_loop(args),
+        Command::Delivery(args) => {
+            commands::engineering::delivery(args, cancellation.clone()).await
+        }
+        Command::Quality(args) => commands::engineering::quality(args),
         Command::Setup(args) => commands::setup::run(args, cancellation.clone()).await,
         Command::Providers(args) => commands::providers::run(args),
         Command::Languages(args) => commands::languages::run(args),
@@ -1757,6 +1771,9 @@ fn finish(result: CommandResult) -> i32 {
                 serde_json::to_string_pretty(&value)
             };
             println!("{}", rendered.unwrap_or_else(|_| "{}".into()));
+            if let Some(code) = commands::engineering::diagnostic_exit_code(&value) {
+                return code;
+            }
             if value
                 .get("integrity")
                 .and_then(Value::as_object)

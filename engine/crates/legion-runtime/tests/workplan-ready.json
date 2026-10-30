@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "planId": "native-engineering-example",
+  "units": [
+    {
+      "id": "implementation",
+      "owner": "implementation-worker",
+      "access": "write",
+      "revision": "work-v1",
+      "writeScopes": [
+        {
+          "path": "src/feature.rs",
+          "kind": "file"
+        }
+      ],
+      "dependsOn": [],
+      "completion": [
+        {
+          "id": "behavior",
+          "description": "The requested behavior passes its declared focused check",
+          "artifact": {
+            "path": "src/feature.rs",
+            "revision": "artifact-v1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "evidenceRequirements": [
+        {
+          "name": "focused-check",
+          "predicateId": "behavior",
+          "independentReview": false
+        }
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "documentation",
+      "owner": "documentation-worker",
+      "access": "write",
+      "revision": "work-v1",
+      "writeScopes": [
+        {
+          "path": "docs/feature.md",
+          "kind": "file"
+        }
+      ],
+      "dependsOn": [],
+      "completion": [
+        {
+          "id": "usage",
+          "description": "The usage example describes the accepted behavior",
+          "artifact": {
+            "path": "docs/feature.md",
+            "revision": "artifact-v1",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        }
+      ],
+      "evidenceRequirements": [
+        {
+          "name": "usage-review",
+          "predicateId": "usage",
+          "independentReview": true
+        }
+      ],
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "integration",
+      "owner": "integration-owner",
+      "access": "write",
+      "revision": "work-v1",
+      "writeScopes": [
+        {
+          "path": "src/feature.rs",
+          "kind": "file"
+        }
+      ],
+      "dependsOn": [
+        "implementation",
+        "documentation"
+      ],
+      "completion": [
+        {
+          "id": "integrated",
+          "description": "The integrated artifact satisfies the accepted behavior and documentation",
+          "artifact": {
+            "path": "src/feature.rs",
+            "revision": "artifact-v2",
+            "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "evidenceRequirements": [
+        {
+          "name": "integration-check",
+          "predicateId": "integrated",
+          "independentReview": true
+        }
+      ],
+      "status": "pending",
+      "evidence": []
+    }
+  ]
+}

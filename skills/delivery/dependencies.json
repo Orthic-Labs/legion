@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    { "class": "HOST_CAPABILITY", "capability": "legion" },
+    { "class": "HOST_CAPABILITY", "capability": "github-read" },
+    { "class": "PACKAGE_INTERNAL", "path": "../dispatch/SKILL.md" },
+    { "class": "PACKAGE_INTERNAL", "path": "../commit/SKILL.md" },
+    { "class": "PACKAGE_INTERNAL", "path": "../wake/SKILL.md" },
+    { "class": "PACKAGE_INTERNAL", "path": "../oracle/SKILL.md" },
+    { "class": "PACKAGE_INTERNAL", "path": "../../src/roster/oracle.md" },
+    { "class": "PACKAGE_INTERNAL", "path": "../../doctrine/oracle.md" }
+  ]
+}

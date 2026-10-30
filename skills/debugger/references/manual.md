@@ -158,6 +158,11 @@ remaining route; revise from current evidence. This does not lower Level-4 root-
 - One change at a time, observe, confirm/reject.
 - If all hypotheses fail, the observation set is incomplete — return to Phase 1 with more
   instrumentation, not to Phase 3 with more guesses.
+- After two failed repairs that share a premise or diagnostic oracle, identify that shared
+  assumption, one observation that would disconfirm it, and the affected state owners before
+  attempting another repair. Evidence may invalidate a premise immediately; recurrence alone
+  does not prove the opposite premise. Keep this reasoning proportional to the bug; the
+  three-failed-fixes stop below still applies.
 
 ### 5. Fix + verify
 

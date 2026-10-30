@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod budget;
+pub mod delivery;
 pub mod engine;
 pub mod error;
 pub mod escalation;
@@ -49,3 +50,4 @@ pub use task::{validate_task, ContextRequest};
 pub mod p6_inventory;
 pub mod validation;
 pub mod wf_port;
+pub mod workplan;

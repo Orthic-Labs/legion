@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:fef1685678a64e7a0ebc8e8d7cf893d818892c0a35495a94719ae4a99062a56b",
+  "digest": "sha256:a6d1172fdd21d25b2c8de6077ec3a8c0d3febbc3934e159f20787822d81f2ca5",
   "counts": {
-    "skills": 31,
+    "skills": 32,
     "agents": 6,
     "mcpServers": 1,
     "hookEvents": 9
@@ -24,6 +24,7 @@
       "commit",
       "council",
       "debugger",
+      "delivery",
       "designer",
       "dispatch",
       "foundation",
