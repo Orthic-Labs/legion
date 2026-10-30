@@ -1286,7 +1286,8 @@ fn each_lens_selects_its_relevant_document_and_never_an_unrelated_one() {
 
 #[test]
 fn lens_without_reference_or_keyword_match_gets_no_document_filler() {
-    // correctness has no keyword row and nothing references a doc: no filler.
+    // No correctness keyword matches these paths and nothing references a doc:
+    // no filler.
     let fixture = Fixture::new(&[
         ("src/lib.rs", "pub fn plain() {}\n".to_owned()),
         ("docs/naming.md", "# Naming\n".to_owned()),

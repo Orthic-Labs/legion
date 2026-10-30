@@ -1,6 +1,6 @@
 //! Packet-local graph hints backed by the complete frozen provider context.
 //! Graph metadata never establishes source review or exhaustive coverage.
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use legion_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
@@ -194,6 +194,9 @@ const REFERENCE_SCAN_BYTES: usize = 64 * 1024;
 /// prose after explicit references. Data, not logic: a lens absent here gets
 /// only explicitly referenced documents, and nothing unranked ever fills space.
 const LENS_DOC_KEYWORDS: &[(&str, &[&str])] = &[
+    ("correctness", &["policy", "invariant"]),
+    ("security", &["security", "isolation", "auth"]),
+    ("data-safety", &["retention", "migration", "backup"]),
     ("ai-slop", &["comment", "style"]),
     ("naming", &["naming"]),
     ("dead-file", &["module", "discovery"]),
@@ -244,6 +247,29 @@ fn lens_doc_eligible(path: &str) -> bool {
         && !lower.contains("/archive")
 }
 
+/// Path-like tokens in `text` and every suffix after a `/`, so a mention such
+/// as `../docs/rules.md` or `repo/docs/rules.md` references `docs/rules.md`.
+/// One linear pass per file instead of one substring scan per candidate,
+/// which keeps a repository with many documents inside the lens size gate.
+fn path_mentions(text: &str) -> HashSet<&str> {
+    let mut mentions = HashSet::new();
+    let is_path_char = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/');
+    for token in text.split(|c: char| !is_path_char(c)) {
+        let token = token.trim_end_matches('.');
+        if token.is_empty() {
+            continue;
+        }
+        mentions.insert(token);
+        for (index, _) in token.match_indices('/') {
+            let suffix = &token[index + 1..];
+            if !suffix.is_empty() {
+                mentions.insert(suffix);
+            }
+        }
+    }
+    mentions
+}
+
 /// Deterministic ranking: explicit references (tier 0) before path keywords
 /// (tier 1); ties by path. Documents matching neither are never returned.
 fn ranked_lens_docs<'a>(
@@ -270,7 +296,13 @@ fn ranked_lens_docs<'a>(
             continue;
         };
         let text = String::from_utf8_lossy(&bytes);
-        referenced.extend(candidates.iter().copied().filter(|doc| text.contains(doc)));
+        let mentioned = path_mentions(&text);
+        referenced.extend(
+            candidates
+                .iter()
+                .copied()
+                .filter(|doc| mentioned.contains(*doc)),
+        );
     }
     let keywords = LENS_DOC_KEYWORDS
         .iter()
