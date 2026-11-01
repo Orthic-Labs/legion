@@ -1,6 +1,6 @@
 {
  "repo": "legion",
- "commit": "0f5e9cee",
+ "commit": "578b08af",
  "generated": "2026-11-01",
  "files": [
   {
@@ -502,138 +502,138 @@
   {
    "path": "engine/bins/legion-dev/src/generators/catalogs.rs",
    "loc": 148,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/codex_skill_sidecars.rs",
    "loc": 280,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/host_adapters.rs",
    "loc": 159,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/host_projection.rs",
    "loc": 437,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/manifest.rs",
    "loc": 132,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/mod.rs",
    "loc": 16,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/native_cli_installed_parity.rs",
    "loc": 236,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/native_cli_inventory.rs",
    "loc": 1032,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/native_cli_rust_characterization.rs",
    "loc": 283,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/plugin_dev.rs",
    "loc": 25,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/provider_result_cli.rs",
    "loc": 119,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/refresh_local_skill_manifests.rs",
    "loc": 361,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/report_to_sarif.rs",
    "loc": 368,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/roster.rs",
    "loc": 239,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/schemas.rs",
    "loc": 276,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/skill_catalog.rs",
    "loc": 491,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/generators/verify_plugin_parity.rs",
    "loc": 517,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "catalog & inventory generators",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion-dev/src/main.rs",
@@ -870,10 +870,10 @@
   {
    "path": "engine/bins/legion/src/commands/bind.rs",
    "loc": 1994,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "host setup, binding & script projection",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion/src/commands/budget.rs",
@@ -1190,18 +1190,18 @@
   {
    "path": "engine/bins/legion/src/commands/script.rs",
    "loc": 4274,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "host setup, binding & script projection",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion/src/commands/setup.rs",
    "loc": 6569,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "host setup, binding & script projection",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/bins/legion/src/commands/skills.rs",
@@ -5142,58 +5142,58 @@
   {
    "path": "engine/crates/legion-catalog/Cargo.toml",
    "loc": 15,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-catalog/src/catalog.rs",
    "loc": 636,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-catalog/src/discovery.rs",
    "loc": 206,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-catalog/src/error.rs",
    "loc": 72,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-catalog/src/frontmatter.rs",
    "loc": 286,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-catalog/src/lib.rs",
    "loc": 23,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-catalog/src/projection.rs",
    "loc": 107,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-contracts/Cargo.toml",
@@ -5790,258 +5790,258 @@
   {
    "path": "engine/crates/legion-harness/Cargo.toml",
    "loc": 14,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/assets.rs",
    "loc": 69,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/descriptor.rs",
    "loc": 295,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/engine.rs",
    "loc": 590,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/error.rs",
    "loc": 39,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/host_projection.rs",
    "loc": 90,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/lib.rs",
    "loc": 17,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/markers.rs",
    "loc": 49,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/registry.rs",
    "loc": 173,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/skills.rs",
    "loc": 475,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/src/surfaces.rs",
    "loc": 13,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-harness/tests/descriptor_parity.rs",
    "loc": 46,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/Cargo.toml",
    "loc": 17,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/agent_plugins.rs",
    "loc": 83,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/capability.rs",
    "loc": 108,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/codex_skills.rs",
    "loc": 1855,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/descriptor.rs",
    "loc": 216,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/detect.rs",
    "loc": 250,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/error.rs",
    "loc": 138,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/install.rs",
    "loc": 213,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/legacy_claude.rs",
    "loc": 1847,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/lib.rs",
    "loc": 75,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/marketplace.rs",
    "loc": 1152,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/ownership.rs",
    "loc": 157,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/p4_port/forges.rs",
    "loc": 188,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/p4_port/mod.rs",
    "loc": 10,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/projection.rs",
    "loc": 384,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/reasoning.rs",
    "loc": 148,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/setup_registry.rs",
    "loc": 6604,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/uninstall.rs",
    "loc": 235,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/src/verify.rs",
    "loc": 63,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-host/tests/p4_port_forges.rs",
    "loc": 116,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-minimize/Cargo.toml",
@@ -10622,50 +10622,50 @@
   {
    "path": "engine/crates/legion-topology/Cargo.toml",
    "loc": 14,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-topology/src/binding.rs",
    "loc": 38,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-topology/src/inspect.rs",
    "loc": 1121,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-topology/src/lib.rs",
    "loc": 11,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-topology/src/packs.rs",
    "loc": 31,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-topology/src/projection.rs",
    "loc": 75,
-   "target": "rightkit-skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "capability catalog & frontmatter, host detection/projection into Claude Code/Codex/AGENTS.md, plugin marketplace install",
-   "origTarget": "rightkit-skills"
+   "origTarget": "legion"
   },
   {
    "path": "engine/crates/legion-workspace-tests/Cargo.toml",
@@ -12942,202 +12942,202 @@
   {
    "path": "skills/designer/engine/huashu/assets/android_frame.jsx",
    "loc": 175,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/animations.jsx",
    "loc": 348,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/browser_window.jsx",
    "loc": 166,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/deck_index.html",
    "loc": 348,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/deck_stage.js",
    "loc": 420,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/design_canvas.jsx",
    "loc": 230,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/ios_frame.jsx",
    "loc": 192,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/huashu/assets/macos_window.jsx",
    "loc": 96,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/detect-antipatterns-browser.js",
    "loc": 5518,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/app-shell.html",
    "loc": 20,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/bad-landing.html",
    "loc": 34,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/cta-competition.html",
    "loc": 25,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/good-landing.html",
    "loc": 32,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/hover-header.html",
    "loc": 30,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/site-exists.html",
    "loc": 2,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/detector/tests/structure/site-index.html",
    "loc": 14,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/live-browser-dom.js",
    "loc": 146,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/live-browser-session.js",
    "loc": 123,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/live-browser.js",
    "loc": 11173,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/live/ui-core.mjs",
    "loc": 180,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/designer/engine/scripts/modern-screenshot.umd.js",
    "loc": 14,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/seo/tests/fixtures/badseo/clean.html",
    "loc": 1,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/seo/tests/fixtures/badseo/injected_hidden_link.html",
    "loc": 1,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/seo/tests/fixtures/badseo/noindex.html",
    "loc": 1,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   },
   {
    "path": "skills/seo/tests/fixtures/badseo/wrong_canonical.html",
    "loc": 1,
-   "target": "@rightkit/skills",
-   "action": "NEW",
+   "target": "legion",
+   "action": "LEGION",
    "capability": "agent skill packs & doctrine (architect, audit, council, designer, iOS/macOS/Android dev, marketing, SEO, research, writing, etc.)",
-   "origTarget": "@rightkit/skills"
+   "origTarget": "legion"
   }
  ]
 }
