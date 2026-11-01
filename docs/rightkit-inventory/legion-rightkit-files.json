@@ -1,6 +1,6 @@
 {
  "repo": "legion",
- "commit": "07312ef7",
+ "commit": "16ba35b7",
  "generated": "2026-11-01",
  "files": [
   {
@@ -302,9 +302,9 @@
   {
    "path": "engine/bins/legion-dev/src/apple_skill_integrity.rs",
    "loc": 782,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
@@ -342,161 +342,161 @@
   {
    "path": "engine/bins/legion-dev/src/checks/authority_parity.rs",
    "loc": 537,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/authority_replay.rs",
    "loc": 295,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/blueprint_config.rs",
    "loc": 117,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/canonical_names.rs",
    "loc": 589,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/dependency_closure.rs",
    "loc": 1115,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/distribution_contract.rs",
    "loc": 483,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/mod.rs",
    "loc": 169,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/native_cli_surface.rs",
    "loc": 368,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/packed_import_closure.rs",
    "loc": 310,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/portability.rs",
    "loc": 318,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/publication_policy.rs",
    "loc": 175,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/publication_surface.rs",
    "loc": 128,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/release_obligations.rs",
    "loc": 336,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/retirements.rs",
    "loc": 310,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/run_skill_evals.rs",
    "loc": 1239,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/skill_eval_judging.rs",
    "loc": 578,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/skill_evals.rs",
    "loc": 948,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/skill_references.rs",
    "loc": 468,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/checks/version_parity.rs",
    "loc": 612,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/ci_qualification_child.rs",
    "loc": 393,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
@@ -638,65 +638,65 @@
   {
    "path": "engine/bins/legion-dev/src/main.rs",
    "loc": 581,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/native_cli_gate.rs",
    "loc": 1809,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/native_lint_qualification.rs",
    "loc": 589,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/repo.rs",
    "loc": 21,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/shared/capabilities.rs",
    "loc": 224,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/shared/mod.rs",
    "loc": 23,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "repo gates: version parity, distribution/publication contract, portability, lint qualification",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/shared/route_resources.rs",
    "loc": 154,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion-dev/src/shared/skill_frontmatter.rs",
    "loc": 432,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill-corpus checks",
    "origTarget": "app-shell"
   },
   {
@@ -814,25 +814,25 @@
   {
    "path": "engine/bins/legion/src/apple_mcp.rs",
    "loc": 1041,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-apple-ops",
+   "action": "NEW",
+   "capability": "Apple ops CLI/MCP gate",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/cli.rs",
    "loc": 2018,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-engine-host",
+   "action": "NEW",
+   "capability": "engine binary framework: sidecar + headless CLI modes, command registration, contract export & TS codegen, human/JSON presentation, engine client",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/apple.rs",
    "loc": 115,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-apple-ops",
+   "action": "NEW",
+   "capability": "Apple ops CLI/MCP gate",
    "origTarget": "app-shell"
   },
   {
@@ -878,9 +878,9 @@
   {
    "path": "engine/bins/legion/src/commands/budget.rs",
    "loc": 120,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-agent-orchestration",
+   "action": "NEW",
+   "capability": "run, budget & schedule commands",
    "origTarget": "app-shell"
   },
   {
@@ -894,129 +894,129 @@
   {
    "path": "engine/bins/legion/src/commands/completion.rs",
    "loc": 335,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/contract.rs",
    "loc": 1187,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/coverage.rs",
    "loc": 553,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/decision.rs",
    "loc": 314,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/doctor.rs",
    "loc": 1720,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-doctor",
+   "action": "NEW",
+   "capability": "doctor command",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/engineering.rs",
    "loc": 256,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/explain.rs",
    "loc": 114,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-agent-orchestration",
+   "action": "NEW",
+   "capability": "run, budget & schedule commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/fix.rs",
    "loc": 468,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/freeze.rs",
    "loc": 881,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/freeze_consumer.rs",
    "loc": 766,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/freeze_delivery.rs",
    "loc": 304,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/freeze_git.rs",
    "loc": 779,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/freeze_review.rs",
    "loc": 561,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/freeze_store.rs",
    "loc": 420,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/github_observer.rs",
    "loc": 596,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-github",
+   "action": "NEW",
+   "capability": "GitHub delivery observation",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/governance.rs",
    "loc": 109,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
@@ -1030,17 +1030,17 @@
   {
    "path": "engine/bins/legion/src/commands/harness.rs",
    "loc": 144,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill/host projection commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/hooks.rs",
    "loc": 713,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill/host projection commands",
    "origTarget": "app-shell"
   },
   {
@@ -1054,25 +1054,25 @@
   {
    "path": "engine/bins/legion/src/commands/host_runtime.rs",
    "loc": 391,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill/host projection commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/init.rs",
    "loc": 113,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-agent-orchestration",
+   "action": "NEW",
+   "capability": "run, budget & schedule commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/keys.rs",
    "loc": 116,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
@@ -1086,33 +1086,33 @@
   {
    "path": "engine/bins/legion/src/commands/mcp_config.rs",
    "loc": 216,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill/host projection commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/minimize.rs",
    "loc": 166,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/mod.rs",
    "loc": 180,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-engine-host",
+   "action": "NEW",
+   "capability": "engine binary framework: sidecar + headless CLI modes, command registration, contract export & TS codegen, human/JSON presentation, engine client",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/nim_seat.rs",
    "loc": 457,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill/host projection commands",
    "origTarget": "app-shell"
   },
   {
@@ -1142,49 +1142,49 @@
   {
    "path": "engine/bins/legion/src/commands/report.rs",
    "loc": 273,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/research.rs",
    "loc": 1043,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-research",
+   "action": "NEW",
+   "capability": "research command",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/review.rs",
    "loc": 143,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/rules.rs",
    "loc": 1067,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-code-audit",
+   "action": "NEW",
+   "capability": "audit CLI commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/run.rs",
    "loc": 633,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-agent-orchestration",
+   "action": "NEW",
+   "capability": "run, budget & schedule commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/schedule.rs",
    "loc": 273,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-agent-orchestration",
+   "action": "NEW",
+   "capability": "run, budget & schedule commands",
    "origTarget": "app-shell"
   },
   {
@@ -1206,17 +1206,17 @@
   {
    "path": "engine/bins/legion/src/commands/skills.rs",
    "loc": 535,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "legion",
+   "action": "LEGION",
+   "capability": "Legion's own skill/host projection commands",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/src/commands/state.rs",
    "loc": 453,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-evidence",
+   "action": "NEW",
+   "capability": "evidence, freeze, contract & decision commands",
    "origTarget": "app-shell"
   },
   {
@@ -1238,201 +1238,201 @@
   {
    "path": "engine/bins/legion/src/main.rs",
    "loc": 37,
-   "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "target": "rightkit-engine-host",
+   "action": "NEW",
+   "capability": "engine binary framework: sidecar + headless CLI modes, command registration, contract export & TS codegen, human/JSON presentation, engine client",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/apple_cli.rs",
    "loc": 71,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/audit_artifacts.rs",
    "loc": 767,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/audit_assurance_cli.rs",
    "loc": 163,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/audit_end_to_end.rs",
    "loc": 452,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/audit_gate_authenticity.rs",
    "loc": 330,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/audit_journal_cli.rs",
    "loc": 615,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/audit_review_runtime.rs",
    "loc": 1371,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/cli_truthfulness.rs",
    "loc": 772,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/engineering_cli.rs",
    "loc": 168,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/entrypoint_inventory.rs",
    "loc": 1317,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/frozen_scope_cli.rs",
    "loc": 601,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/languages_root.rs",
    "loc": 42,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/m1_vertical_slice.rs",
    "loc": 656,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/m2_plugin_root.rs",
    "loc": 887,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/minimize_cli.rs",
    "loc": 174,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/native_cutover_cli.rs",
    "loc": 406,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/native_migration_paths.rs",
    "loc": 198,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/native_product_parity.rs",
    "loc": 223,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/plan_key_custody.rs",
    "loc": 288,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/reasoning_runtime_qualification.rs",
    "loc": 439,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/research_cli.rs",
    "loc": 971,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/rules_cli.rs",
    "loc": 606,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/runtime_app_accuracy.rs",
    "loc": 588,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
    "path": "engine/bins/legion/tests/script_cli.rs",
    "loc": 1196,
    "target": "app-shell",
-   "action": "SHELL",
-   "capability": "legion CLI & dev generators",
+   "action": "APPTEST",
+   "capability": "app journey/e2e/unit tests of the app binary",
    "origTarget": "app-shell"
   },
   {
@@ -11086,9 +11086,9 @@
   {
    "path": "right-release.config.mjs",
    "loc": 399,
-   "target": "app-shell",
-   "action": "CONFIG",
-   "capability": "app manifests",
+   "target": "@rightkit/release",
+   "action": "EXTEND",
+   "capability": "release config logic moves into @rightkit/release; app keeps a JSON data config (P8)",
    "origTarget": "app-shell"
   },
   {
