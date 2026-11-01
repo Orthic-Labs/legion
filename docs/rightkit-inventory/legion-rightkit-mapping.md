@@ -1,6 +1,6 @@
 # Legion: RightKit mapping
 
-Repo `legion` at `b8b767d2` (main). Generated 2026-11-01. Every tracked code file (Rust, TS/JS, Swift, Kotlin, Python, shell, CSS/HTML, TOML, SQL) is assigned to exactly one target. Full per-file list: [`legion-rightkit-files.json`](legion-rightkit-files.json).
+Repo `legion` at `07312ef7` (main). Generated 2026-11-01. Every tracked code file (Rust, TS/JS, Swift, Kotlin, Python, shell, CSS/HTML, TOML, SQL) is assigned to exactly one target. Full per-file list: [`legion-rightkit-files.json`](legion-rightkit-files.json).
 
 Package names are final, after cross-app merging (see master plan in RightKit `docs/audits/2026-11-01-rightkit-package-master-plan.md`).
 
@@ -8,17 +8,16 @@ Package names are final, after cross-app merging (see master plan in RightKit `d
 
 | Action | Meaning | Files | Lines |
 |---|---|---:|---:|
-| NEW | new RightKit package (or new piece of one) | 382 | 105,460 |
+| NEW | new RightKit package (or new piece of one) | 815 | 357,424 |
 | EXTEND | existing RightKit package gains this | 555 | 190,578 |
 | ADOPT | RightKit already ships it; delete app copy & use owner | 6 | 1,357 |
 | LEGION | skill/doctrine code: lives in Legion (suite skills owner), not RightKit | 111 | 62,055 |
-| PRODUCT | product-specific domain logic or UI: stays in the app (P13 app-specific) | 433 | 251,964 |
 | APPTEST | app journey/e2e test: stays with the app (P7, §6), runs on rightkit-qa | 11 | 3,666 |
 | SHELL | thin app composition that stays in app | 102 | 47,597 |
 | CONFIG | app manifest/config that stays | 42 | 856 |
 | **Total** | | **1,642** | **663,533** |
 
-Code leaving the app (NEW + EXTEND + ADOPT + LEGION + vendor + DROP): **359,450 lines**. Staying in the app as product code: **251,964 lines**; as shell/config: **48,453 lines** (7% of code), plus **3,666 lines** of app journey/e2e tests.
+Code leaving the app (NEW + EXTEND + ADOPT + LEGION + vendor + DROP): **611,414 lines**. Staying in the app as product code: **0 lines**; as shell/config: **48,453 lines** (7% of code), plus **3,666 lines** of app journey/e2e tests.
 
 ## Mapping table
 
@@ -28,6 +27,8 @@ Code leaving the app (NEW + EXTEND + ADOPT + LEGION + vendor + DROP): **359,450 
 | `rightkit-agent-orchestration` | crate | NEW | handoff packets, continuity gate, live state | 22 | 8,813 | `engine/crates/legion-handoff/`, `engine/crates/legion-handoff/src/`, `engine/crates/legion-handoff/src/l1_port/` +2 dirs |
 | `rightkit-agent-policy` | crate | NEW | policy model, rules & enforcement | 39 | 9,043 | `engine/crates/legion-policy/`, `engine/crates/legion-policy-model/`, `engine/crates/legion-policy-model/src/` +9 dirs |
 | `rightkit-apple-ops` | crate | NEW | Apple ops: App Store Connect API & upload, build analysis, preflight, profiling, SwiftUI traces | 12 | 10,150 | `engine/crates/legion-apple/`, `engine/crates/legion-apple/src/` |
+| `rightkit-code-audit` | crate | NEW | repository audit engine: native providers (security, architecture, data, frontend, platform), DAG & scheduler, evidence issuers, findings history, review runtime, provider SDK, rule registry & qualification corpora | 425 | 233,866 | `engine/crates/legion-audit/`, `engine/crates/legion-audit/assets/`, `engine/crates/legion-audit/examples/` +96 dirs |
+| `rightkit-code-audit` | crate | NEW | audit/verify commands & audit bench | 8 | 18,098 | `engine/bins/legion-dev/src/`, `engine/bins/legion/src/commands/` |
 | `rightkit-evidence` | crate | NEW | contracts, effect execution & receipts, decision store, evidence/SARIF/HTML reports, certification & governance lifecycle | 97 | 27,195 | `engine/crates/legion-application/`, `engine/crates/legion-application/src/`, `engine/crates/legion-arcane/` +15 dirs |
 | `rightkit-research` | crate | NEW | research pipeline (sources, claims, evidence) | 27 | 9,047 | `engine/crates/legion-research/`, `engine/crates/legion-research/src/`, `engine/crates/legion-research/src/research_port/` +2 dirs |
 | `@rightkit/qa` | npm | EXTEND | CI gates, validators, fixtures, python tool locks | 224 | 26,088 | `scripts/`, `scripts/ci/`, `scripts/ci/fixtures/audit-code-jvm-sdk/` +106 dirs |
@@ -42,8 +43,6 @@ Code leaving the app (NEW + EXTEND + ADOPT + LEGION + vendor + DROP): **359,450 
 | `legion` | Legion | LEGION | host setup, binding & script projection | 3 | 12,837 | `engine/bins/legion/src/commands/` |
 | `legion` | Legion | LEGION | skill & designer checks | 21 | 6,445 | `engine/crates/legion-runtime/src/l5_skills/`, `engine/crates/legion-runtime/src/l6_designer_checks/`, `engine/crates/legion-runtime/src/p8_designer/` +1 dirs |
 | `legion` | Legion | LEGION | catalog & inventory generators | 17 | 5,119 | `engine/bins/legion-dev/src/generators/` |
-| `app-product` | other | PRODUCT | repository audit engine: native providers (security, architecture, data, frontend, platform), DAG & scheduler, evidence issuers, findings history, review runtime, provider SDK, rule registry & qualification corpora (was rightkit-code-audit) | 425 | 233,866 | `engine/crates/legion-audit/`, `engine/crates/legion-audit/assets/`, `engine/crates/legion-audit/examples/` +96 dirs |
-| `app-product` | other | PRODUCT | audit/verify commands & audit bench (was rightkit-code-audit) | 8 | 18,098 | `engine/bins/legion-dev/src/`, `engine/bins/legion/src/commands/` |
 | `app-shell` | other | APPTEST | app journey/e2e tests | 11 | 3,666 | `engine/tests/` |
 | `app-shell` | other | SHELL | legion CLI & dev generators | 102 | 47,597 | `engine/bins/legion/`, `engine/bins/legion-dev/`, `engine/bins/legion-dev/src/` +5 dirs |
 | `app-shell` | other | CONFIG | app manifests | 35 | 651 | `./`, `bench/_selfcheck/`, `bench/corpora/dotnet/negative/` +27 dirs |
