@@ -391,9 +391,7 @@ mod tests {
             run(&[unresolved, user("UNRESOLVED: x")]),
             ["B3/build-red-or-uncompiled"]
         );
-        assert_eq!(
-            safe("use ghp_abcdefghijklmnopqrstuvwxyz0123 ok", 99),
-            "use [redacted] ok"
-        );
+        let token = format!("use {}_{} ok", "ghp", "a".repeat(36));
+        assert_eq!(safe(&token, 99), "use [redacted] ok");
     }
 }
