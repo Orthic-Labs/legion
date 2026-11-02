@@ -220,12 +220,46 @@ fn follow_up(g: &Group, issue: &Known, gh: Gh) -> Option<String> {
     (count > 0).then(|| outcome(format!("{verb} {}#{number} ({})", g.repo, g.fp), &gh(&args)))
 }
 
-/// File a new issue and note it in the ledger.
+/// Issues anyone filed on the same failure: a title search over open and closed issues.
+fn similar(g: &Group, gh: Gh) -> Result<Vec<u64>, String> {
+    let out = gh(&[
+        "issue", "list", "-R", g.repo, "--state", "all", "--search", &g.title, "--limit", "5",
+        "--json", "number",
+    ])?;
+    let items: Vec<Value> =
+        serde_json::from_str(&out).map_err(|e| format!("gh search {}: {e}", g.repo))?;
+    Ok(items.iter().filter_map(|i| i["number"].as_u64()).collect())
+}
+
+/// File a new issue and note it in the ledger, unless a search finds one already: then comment
+/// there instead. A failed search files nothing.
 fn create(g: &Group, ledger: &mut Ledger, gh: Gh) -> String {
+    match similar(g, gh) {
+        Err(e) => return format!("FAILED search before create {}: {e}", g.repo),
+        Ok(hits) if !hits.is_empty() => {
+            let number = hits[0].to_string();
+            let body = format!(
+                "Daily scan: {} looks like this issue (title search).\n\nFingerprint: {}\n\n{}",
+                g.title,
+                g.fp,
+                g.quoted(Some(i64::MIN)).1
+            );
+            let args: [&str; 7] = ["issue", "comment", &number, "-R", g.repo, "--body", &body];
+            let done = gh(&args);
+            if done.is_ok() {
+                ledger.issues.insert(g.fp.clone(), hits[0]);
+            }
+            return outcome(
+                format!("comment {}#{number} (found by search)", g.repo),
+                &done,
+            );
+        }
+        Ok(_) => {}
+    }
     let body = format!(
         "{}\n\nFingerprint: {}\n\
          Checked: scanned Mac and Dell transcripts and broker receipts; {} events on {} days, \
-         no open or closed issue carries this fingerprint.\n\n\
+         no open or closed issue carries this fingerprint and a title search found none.\n\n\
          Occurrences in the last run (newest first):\n{}\n\nFiled by `legion daily`.",
         g.title,
         g.fp,
@@ -322,11 +356,39 @@ mod tests {
     fn run(groups: &[Group], known: &Listing, ledger: &mut Ledger) -> Vec<Vec<String>> {
         let mut calls = Vec::new();
         let mut gh = |args: &[&str]| {
+            if args[1] == "list" {
+                return Ok::<String, String>("[]".to_owned());
+            }
             calls.push(args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>());
             Ok::<String, String>("https://github.com/Orthic-Labs/legion/issues/41\n".to_owned())
         };
         sync(groups, known, ledger, &mut gh);
         calls
+    }
+
+    #[test]
+    fn a_title_search_hit_gets_a_comment_and_a_failed_search_files_nothing() {
+        let today = [group(FP, &[(2 * D, true)])];
+        let mut ledger = saved(&[D + 100, 2 * D + 100]);
+        let mut calls = Vec::new();
+        let mut gh = |args: &[&str]| {
+            calls.push(args[1].to_owned());
+            Ok::<String, String>(
+                if args[1] == "list" {
+                    r#"[{"number":7}]"#
+                } else {
+                    ""
+                }
+                .into(),
+            )
+        };
+        let done = sync(&today, &listing(vec![]), &mut ledger, &mut gh);
+        assert_eq!(calls, ["list", "comment"]);
+        assert!(done[0].contains("#7 (found by search)") && ledger.issues[FP] == 7);
+        let mut ledger = saved(&[D + 100, 2 * D + 100]);
+        let mut down = |_: &[&str]| Err::<String, String>("offline".into());
+        let done = sync(&today, &listing(vec![]), &mut ledger, &mut down);
+        assert!(done[0].starts_with("FAILED search") && ledger.issues.is_empty());
     }
 
     #[test]

@@ -21,6 +21,8 @@ const HOUR: u64 = 3600;
 const RESEND: i64 = 2 * 3600;
 /// Only the end of a transcript is read: an open call is always near it.
 const TAIL: u64 = 4 << 20;
+/// Seconds a shell may start after the Bash call that owns it.
+const SKEW: u64 = 120;
 const BUILDERS: [&str; 5] = [
     "rightkit-gate",
     "rightkit-host-gate",
@@ -219,8 +221,9 @@ fn read_calls(session: &str, lines: &str, now: i64) -> Vec<Call> {
 }
 
 /// The Bash call that started this shell: its first line, cut at a quote, is in the shell's own
-/// command line. None unless exactly one session matches.
-fn owner<'a>(shell: &str, calls: &'a [Call]) -> Option<&'a Call> {
+/// command line and it started within `SKEW` of the shell. None unless exactly one session
+/// matches, so an unmatched item is listed but never messaged.
+fn owner<'a>(shell: &Proc, calls: &'a [Call]) -> Option<&'a Call> {
     let needle = |c: &Call| {
         let head = c.cmd.lines().next()?.split('\'').next()?.trim();
         let end = head.char_indices().nth(40).map_or(head.len(), |(i, _)| i);
@@ -228,7 +231,8 @@ fn owner<'a>(shell: &str, calls: &'a [Call]) -> Option<&'a Call> {
     };
     let hits: Vec<&Call> = calls
         .iter()
-        .filter(|c| c.tool == "Bash" && needle(c).is_some_and(|n| shell.contains(n)))
+        .filter(|c| c.tool == "Bash" && c.age.abs_diff(shell.age) <= SKEW)
+        .filter(|c| needle(c).is_some_and(|n| shell.cmd.contains(n)))
         .collect();
     let last = hits.last()?;
     hits.iter()
@@ -236,8 +240,11 @@ fn owner<'a>(shell: &str, calls: &'a [Call]) -> Option<&'a Call> {
         .then_some(*last)
 }
 
-fn blocked(call: &Call) -> bool {
-    call.open && call.last && !call.background
+/// The session's chat is inside a foreground call and cannot read messages.
+fn blocked(session: &str, calls: &[Call]) -> bool {
+    calls
+        .iter()
+        .any(|c| c.session == session && c.open && c.last && !c.background)
 }
 
 fn item(
@@ -246,6 +253,7 @@ fn item(
     age: u64,
     ids: Option<(u32, u32)>,
     call: Option<&Call>,
+    calls: &[Call],
     quiet: bool,
 ) -> Item {
     Item {
@@ -255,7 +263,7 @@ fn item(
         pid: ids.map(|i| i.0),
         pgid: ids.map(|i| i.1),
         session: call.map(|c| c.session.clone()),
-        blocked: call.is_some_and(blocked),
+        blocked: call.is_some_and(|c| blocked(&c.session, calls)),
         report_only: quiet,
     }
 }
@@ -277,7 +285,7 @@ fn find(procs: &[Proc], calls: &[Call]) -> (Vec<Item>, BTreeMap<String, usize>) 
         } else {
             parent.filter(|q| is_snapshot(&q.cmd))
         };
-        let call = shell.and_then(|s| owner(&s.cmd, calls));
+        let call = shell.and_then(|s| owner(s, calls));
         used.extend(call.map(|c| c.id.clone()));
         let what = clip(p.cmd.split(" eval ").nth(1).unwrap_or(&p.cmd), 80);
         out.push(item(
@@ -286,6 +294,7 @@ fn find(procs: &[Proc], calls: &[Call]) -> (Vec<Item>, BTreeMap<String, usize>) 
             p.age,
             Some((p.pid, p.pgid)),
             call,
+            calls,
             quiet,
         ));
     }
@@ -303,6 +312,7 @@ fn find(procs: &[Proc], calls: &[Call]) -> (Vec<Item>, BTreeMap<String, usize>) 
                 c.age,
                 None,
                 Some(c),
+                calls,
                 exempt(&c.cmd),
             ));
         }
@@ -314,7 +324,7 @@ fn message(item: &Item) -> String {
     let (who, stop) = match item.pgid {
         Some(g) => (
             format!("pid {}, process group {g}", item.pid.unwrap_or(0)),
-            format!("KillShell/TaskStop for your own background task, or `kill {g}` for your own process"),
+            format!("KillShell/TaskStop for your own background task, or `kill -- -{g}` for your own process group"),
         ),
         None => ("a tool call in this chat".to_owned(), "TaskStop for your own task".to_owned()),
     };
@@ -671,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn a_shell_maps_to_its_one_session_and_a_last_open_foreground_call_blocks_it() {
+    fn a_shell_maps_to_its_one_session_by_command_and_age_and_a_foreground_call_blocks_it() {
         let now = time::parse("2026-11-02T12:00:00Z").unwrap();
         let mut calls = read_calls("one", &transcript(), now);
         let state: Vec<_> = calls
@@ -687,23 +697,30 @@ mod tests {
             ]
         );
         assert_eq!(calls[2].age, 2 * HOUR);
-        let build = [Proc {
+        let at = |age| Proc {
             pid: 5,
             ppid: 4,
             pgid: 5,
-            age: 3 * HOUR,
+            age,
             cmd: shell("cargo build --release"),
-        }];
+        };
+        let build = [at(2 * HOUR + 30)];
         let (items, _) = find(&build, &calls);
         assert_eq!(
             (items[0].session.as_deref(), items[0].blocked),
-            (Some("one"), false)
+            (Some("one"), true),
+            "session one is inside its foreground call c, so it is not messaged"
+        );
+        let (items, _) = find(&[at(3 * HOUR)], &calls);
+        assert_eq!(
+            items[0].session, None,
+            "a call an hour older is not the owner"
         );
         let late = [Proc {
             pid: 5,
             ppid: 4,
             pgid: 5,
-            age: 3 * HOUR,
+            age: 2 * HOUR,
             cmd: shell("sleep 99999 && echo late"),
         }];
         let (items, _) = find(&late, &calls);
@@ -772,7 +789,7 @@ mod tests {
         );
         assert!(
             texts[0].starts_with("Information from Legion's sweep, not Adrian's words.")
-                && texts[0].contains("kill 9")
+                && texts[0].contains("kill -- -9")
         );
     }
 }

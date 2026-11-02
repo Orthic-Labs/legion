@@ -16,8 +16,14 @@ static ROLES: [(&str, &str, &str, bool); 6] = [
     ("council-seat", "deliberation", "fable", true),
 ];
 /// Read-only lookup types (plus `egm:*`): haiku by default, sonnet allowed.
-const LOOKUPS: [&str; 4] = ["Explore", "general-purpose", "claude-code-guide", "Plan"];
-const NAME_A_ROLE: &str = "Name a role: subagent_type must be legion:alchemist, legion:alchemist-specialist, legion:oracle, legion:sage, legion:sentry, legion:council-seat, or a lookup type (Explore, general-purpose, claude-code-guide, Plan, egm:*).";
+const LOOKUPS: [&str; 5] = [
+    "Explore",
+    "general-purpose",
+    "claude-code-guide",
+    "Plan",
+    "web-fetch",
+];
+const NAME_A_ROLE: &str = "Name a role: subagent_type must be legion:alchemist, legion:alchemist-specialist, legion:oracle, legion:sage, legion:sentry, legion:council-seat, or a lookup type (Explore, general-purpose, claude-code-guide, Plan, web-fetch, egm:*).";
 
 #[derive(Debug, PartialEq)]
 enum Decision {

@@ -16,6 +16,23 @@ const MSG_CRON: &str = "Adrian has not asked for a schedule, wake, loop or watch
 const MSG_CHAT: &str = "Starting a new chat needs Adrian's express approval (workspace rules); use the existing chat or ask him.";
 /// Words that make a `claude` or `codex` command a one-shot or an introspection, not a chat.
 const NOT_A_CHAT: [&str; 7] = ["-p", "--print", "exec", "--version", "-v", "--help", "-h"];
+/// Subcommands that manage the CLI rather than open a chat.
+const TOOLS: [&str; 14] = [
+    "plugin",
+    "mcp",
+    "config",
+    "update",
+    "doctor",
+    "install",
+    "auth",
+    "setup-token",
+    "login",
+    "logout",
+    "apply",
+    "completion",
+    "features",
+    "sandbox",
+];
 
 /// True when a command line starts `claude` or `codex` as an interactive chat.
 fn starts_chat(command: &str, depth: u8) -> bool {
@@ -27,7 +44,11 @@ fn starts_chat(command: &str, depth: u8) -> bool {
         }
         let words = crate::shell_words(stripped);
         let program = words.first().map(|word| crate::program_name(word));
+        let tool = words
+            .get(1)
+            .is_some_and(|word| TOOLS.contains(&word.as_str()));
         matches!(program, Some("claude" | "codex"))
+            && !tool
             && !words.iter().any(|word| NOT_A_CHAT.contains(&word.as_str()))
     })
 }
@@ -47,7 +68,7 @@ fn seconds(arg: &str) -> f64 {
     digits.parse::<f64>().unwrap_or(0.0) * factor
 }
 
-/// Foreground `sleep` seconds in a command; any sleep inside a loop is unbounded.
+/// Foreground `sleep` seconds in a command; any sleep inside a `while` or `until` loop is unbounded.
 fn sleep_secs(command: &str, depth: u8) -> f64 {
     let (mut total, mut looping, mut slept) = (0.0, false, false);
     for segment in crate::command_segments(command) {
@@ -62,7 +83,7 @@ fn sleep_secs(command: &str, depth: u8) -> f64 {
         let control = |word: &&String| matches!(word.as_str(), "do" | "then" | "else" | "{" | "!");
         let skip = words.iter().take_while(control).count();
         match words.get(skip).map(|word| crate::program_name(word)) {
-            Some("while" | "until" | "for") => looping = true,
+            Some("while" | "until") => looping = true,
             Some("sleep") => {
                 slept = true;
                 total += words[skip + 1..]
@@ -243,6 +264,10 @@ mod tests {
         assert!(sleep_secs("bash -c 'sleep 45'", 0) > 30.0);
         assert!(sleep_secs("sleep 2m", 0) > 30.0);
         assert!(sleep_secs("while true; do sleep 5; done", 0).is_infinite());
+        assert_eq!(
+            sleep_secs("for i in 1 2 3; do curl x && break; sleep 2; done", 0),
+            2.0
+        );
         assert!(sleep_secs("sleep 20", 0) <= 30.0);
         assert_eq!(sleep_secs("echo sleep 100", 0), 0.0);
     }
@@ -277,6 +302,9 @@ mod tests {
         }
         for fine in [
             "claude -p 'hi'",
+            "claude plugin update legion",
+            "codex mcp list",
+            "codex login",
             "codex exec fix",
             "claude --version",
             "echo claude",
