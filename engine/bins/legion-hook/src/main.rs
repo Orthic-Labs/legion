@@ -28,6 +28,8 @@ mod protocol;
 mod red_gate;
 mod roles;
 mod skills_gate;
+mod state;
+mod transcript;
 mod words;
 
 use error::HookError;
