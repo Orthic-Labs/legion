@@ -684,7 +684,8 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   printf '%s  %s\n' "$machete_binary_sha" "$machete_tool_dir/unpacked/$machete_member" | shasum -a 256 --check
   cp "$machete_tool_dir/unpacked/$machete_member" "$machete_tool_dir/bin/cargo-machete"
   chmod 755 "$machete_tool_dir/bin/cargo-machete"
-  export LEGION_CARGO_MACHETE_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  LEGION_CARGO_MACHETE_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_CARGO_MACHETE_TOOLCHAIN_BIN
   export LEGION_CARGO_MACHETE_BINARY_SHA256="sha256:$machete_binary_sha"
   export LEGION_CARGO_MACHETE_ASSET_SHA256="sha256:$machete_asset_sha"
   export LEGION_CARGO_MACHETE_SCRATCH="${RUNNER_TEMP}/legion-cargo-machete-fixtures"
@@ -759,7 +760,8 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   printf '%s  %s\n' "$outdated_binary_sha" "$outdated_tool_dir/unpacked/$outdated_member" | shasum -a 256 --check
   cp "$outdated_tool_dir/unpacked/$outdated_member" "$outdated_tool_dir/bin/cargo-outdated"
   chmod 755 "$outdated_tool_dir/bin/cargo-outdated"
-  export LEGION_RUST_OUTDATED_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  LEGION_RUST_OUTDATED_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_RUST_OUTDATED_TOOLCHAIN_BIN
   export LEGION_RUST_OUTDATED_BINARY_SHA256="sha256:$outdated_binary_sha"
   export LEGION_RUST_OUTDATED_ASSET_SHA256="sha256:$outdated_asset_sha"
   export LEGION_RUST_OUTDATED_SCRATCH="${RUNNER_TEMP}/legion-cargo-outdated-fixtures"
@@ -1040,7 +1042,8 @@ PY_PIN
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_SECRET_QUALIFICATION_DIR"
   unset LEGION_GITLEAKS_BINARY LEGION_GITLEAKS_SHA256 LEGION_GITLEAKS_ARCHIVE_NAME LEGION_GITLEAKS_ARCHIVE_SHA256 LEGION_SECRET_QUALIFICATION_DIR
   # Real existing build/lint SDK controls; no production owner-admission claim.
-  export LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_QUALITY_TOOLCHAIN_BIN
   export LEGION_QUALITY_COMMAND_SCRATCH="${RUNNER_TEMP}/legion-quality-command-fixtures"
   export LEGION_PROVIDER_BENCHMARK_DIR="${RUNNER_TEMP}/legion-provider-qualification/quality"
   mkdir -p "$LEGION_QUALITY_COMMAND_SCRATCH" "$LEGION_PROVIDER_BENCHMARK_DIR"
@@ -1247,7 +1250,7 @@ if set(values) != set(names) or any(not isinstance(v, str) or not Path(v).is_abs
 print("\t".join(values[name] for name in names))
 RUST_CODE_SDK_ENV
 )" || return "$?"
-    IFS=$'\t' read -r rust_sdk_fixture_cargo_home LEGION_RUST_CODE_ENROLLMENT_JSON SDKROOT <<< "$values" || return "$?"
+    IFS=$'\t' read -r _ LEGION_RUST_CODE_ENROLLMENT_JSON SDKROOT <<< "$values" || return "$?"
     export LEGION_RUST_CODE_ENROLLMENT_JSON SDKROOT
   }
   rust_sdk_previous_cargo_home="${CARGO_HOME-}"
@@ -1255,14 +1258,15 @@ RUST_CODE_SDK_ENV
   rust_sdk_had_cargo_home="${CARGO_HOME+x}"
   rust_sdk_had_sdkroot="${SDKROOT+x}"
   run_audit_qualification provision_rust_code_sdk
-  export LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  LEGION_QUALITY_TOOLCHAIN_BIN="$(rustc +1.98.0 --print sysroot)/bin"
+  export LEGION_QUALITY_TOOLCHAIN_BIN
   export LEGION_RUST_CODE_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/code-rust-sdk"
   mkdir -p "$LEGION_RUST_CODE_RECEIPTS"
   run_audit_qualification audit_cargo_test --test real_rust_code_accuracy \
     real_rust_code_accuracy -- --ignored --exact --nocapture --test-threads=1
   run_audit_qualification python3 scripts/ci/audit-rust-code-sdk-accuracy.py \
     --root "$GITHUB_WORKSPACE" --receipts "$LEGION_RUST_CODE_RECEIPTS"
-  unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_RUST_CODE_RECEIPTS LEGION_RUST_CODE_ENROLLMENT_JSON rust_sdk_fixture_cargo_home
+  unset LEGION_QUALITY_TOOLCHAIN_BIN LEGION_RUST_CODE_RECEIPTS LEGION_RUST_CODE_ENROLLMENT_JSON
   if [[ "$rust_sdk_had_cargo_home" == x ]]; then export CARGO_HOME="$rust_sdk_previous_cargo_home"; else unset CARGO_HOME; fi
   if [[ "$rust_sdk_had_sdkroot" == x ]]; then export SDKROOT="$rust_sdk_previous_sdkroot"; else unset SDKROOT; fi
   unset rust_sdk_previous_cargo_home rust_sdk_previous_sdkroot rust_sdk_had_cargo_home rust_sdk_had_sdkroot
@@ -1286,7 +1290,8 @@ RUST_CODE_SDK_ENV
   }
   cargo_deny_tool_dir="${RUNNER_TEMP}/legion-cargo-deny-native-0.20.2"
   run_audit_qualification audit_provision_cargo_deny
-  export LEGION_CARGO_DENY_TOOLCHAIN_BIN="$(rustc --print sysroot)/bin"
+  LEGION_CARGO_DENY_TOOLCHAIN_BIN="$(rustc --print sysroot)/bin"
+  export LEGION_CARGO_DENY_TOOLCHAIN_BIN
   export LEGION_CARGO_DENY_BIN="${cargo_deny_tool_dir}/cargo-deny"
   export LEGION_CARGO_DENY_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/cargo-deny"
   mkdir -p "$LEGION_CARGO_DENY_RECEIPTS"
@@ -1543,6 +1548,8 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     python3 scripts/ci/provision-audit-node-outdated.py --root "$GITHUB_WORKSPACE" \
       --receipts "$LEGION_NODE_OUTDATED_RECEIPTS"; then
     while IFS= read -r audit_npm_runtime; do
+      # Each line of runtime.env is NAME=value; exporting the line is intended.
+      # shellcheck disable=SC2163
       export "$audit_npm_runtime"
     done < "$LEGION_NODE_OUTDATED_RECEIPTS/runtime.env"
     run_audit_qualification audit_cargo_test --test node_outdated_accuracy real_node_outdated_accuracy \

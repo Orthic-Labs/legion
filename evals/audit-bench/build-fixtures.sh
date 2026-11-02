@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# The fixture edits below are literal source text; `${...}` and backticks must not expand.
+# shellcheck disable=SC2016
 # Rebuild the audit-bench fixture bundles from scratch.
 #
 #   evals/audit-bench/build-fixtures.sh <work-dir> [out-dir]

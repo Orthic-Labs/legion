@@ -191,6 +191,20 @@ fn copy_tree(source: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The SDK enrollment file location. Supplying it through the environment is a
+/// qualification seam that exists only in builds with debug assertions and is
+/// compiled out of release builds, where no enrollment exists
+/// (Orthic-Labs/legion#127).
+#[cfg(debug_assertions)]
+fn enrollment_path_from_environment() -> Option<std::ffi::OsString> {
+    std::env::var_os("LEGION_JVM_SDK_ENROLLMENT_JSON")
+}
+
+#[cfg(not(debug_assertions))]
+fn enrollment_path_from_environment() -> Option<std::ffi::OsString> {
+    None
+}
+
 struct Inputs {
     enrollment: Value,
     enrollment_path: PathBuf,
@@ -210,8 +224,7 @@ impl Inputs {
         entries: &[InventoryEntry],
         selected: &BTreeSet<String>,
     ) -> Result<Self, String> {
-        let raw = std::env::var_os("LEGION_JVM_SDK_ENROLLMENT_JSON")
-            .ok_or_else(|| error("enrollment-missing"))?;
+        let raw = enrollment_path_from_environment().ok_or_else(|| error("enrollment-missing"))?;
         let enrollment_path = fs::canonicalize(raw).map_err(|_| error("enrollment-path"))?;
         let enrollment_bytes =
             fs::read(&enrollment_path).map_err(|_| error("enrollment-unreadable"))?;

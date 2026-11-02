@@ -142,8 +142,17 @@ fn command_timeout(argv: &[OsString]) -> Duration {
 
 #[cfg(test)]
 mod tests {
-    use super::command_timeout;
-    use std::{ffi::OsString, time::Duration};
+    use super::{
+        combine_rechecks, command_timeout, recheck_identity, recheck_observation, recheck_pid,
+        split_failed, sweep_error_fails, sweep_failed, FailedSweep, Recheck,
+    };
+    use rightkit_child_process::{AdoptedIdentity, StartToken};
+    use std::{
+        ffi::OsString,
+        io,
+        num::NonZeroU32,
+        time::{Duration, Instant},
+    };
 
     fn matrix_commands() -> Vec<(Vec<OsString>, u64)> {
         [
@@ -258,6 +267,147 @@ mod tests {
             assert_eq!(command_timeout(&extended), default, "{extended:?}");
         }
     }
+
+    // Orthic-Labs/legion#116: a descendant the sweep failed to signal because it was
+    // already exiting must not turn a passing lane into exit 125.
+
+    fn split_with(failed: &[u32], verdicts: &[(u32, Recheck)]) -> FailedSweep {
+        split_failed(failed, |pid| {
+            verdicts
+                .iter()
+                .find(|(candidate, _)| *candidate == pid)
+                .map_or(Recheck::Unobserved, |(_, verdict)| *verdict)
+        })
+    }
+
+    #[test]
+    fn exiting_descendant_is_not_a_failed_sweep() {
+        let split = split_with(&[41], &[(41, Recheck::Gone)]);
+        assert_eq!(
+            split,
+            FailedSweep {
+                exited: vec![41],
+                failed: vec![]
+            }
+        );
+        assert!(!sweep_failed(&split, &[]));
+    }
+
+    #[test]
+    fn running_or_unobserved_descendant_stays_failed() {
+        for verdict in [Recheck::Running, Recheck::Unobserved] {
+            let split = split_with(&[41], &[(41, verdict)]);
+            assert_eq!(
+                split,
+                FailedSweep {
+                    exited: vec![],
+                    failed: vec![41]
+                },
+                "{verdict:?}"
+            );
+            assert!(sweep_failed(&split, &[]), "{verdict:?}");
+        }
+    }
+
+    #[test]
+    fn mixed_failures_keep_only_the_real_ones_in_order() {
+        let split = split_with(
+            &[1, 2, 3, 4],
+            &[
+                (1, Recheck::Gone),
+                (2, Recheck::Running),
+                (3, Recheck::Gone),
+                (4, Recheck::Unobserved),
+            ],
+        );
+        assert_eq!(split.exited, vec![1, 3]);
+        assert_eq!(split.failed, vec![2, 4]);
+        assert!(sweep_failed(&split, &[]));
+    }
+
+    #[test]
+    fn every_failed_pid_is_rechecked_exactly_once() {
+        let mut seen = Vec::new();
+        let split = split_failed(&[7, 8, 9], |pid| {
+            seen.push(pid);
+            Recheck::Gone
+        });
+        assert_eq!(seen, vec![7, 8, 9]);
+        assert_eq!(split.exited, vec![7, 8, 9]);
+    }
+
+    #[test]
+    fn survivors_fail_the_sweep_even_when_every_failed_pid_exited() {
+        let split = split_with(&[41], &[(41, Recheck::Gone)]);
+        assert!(sweep_failed(&split, &[52]));
+    }
+
+    #[test]
+    fn clean_sweep_report_passes() {
+        let split = split_with(&[], &[]);
+        assert_eq!(split, FailedSweep::default());
+        assert!(!sweep_failed(&split, &[]));
+    }
+
+    #[test]
+    fn observation_error_is_never_read_as_an_exit() {
+        assert_eq!(recheck_observation(&Ok(true)), Recheck::Gone);
+        assert_eq!(recheck_observation(&Ok(false)), Recheck::Running);
+        for error in [
+            io::Error::from(io::ErrorKind::PermissionDenied),
+            io::Error::from_raw_os_error(5),
+            io::Error::other("unreadable"),
+        ] {
+            assert_eq!(recheck_observation(&Err(error)), Recheck::Unobserved);
+        }
+    }
+
+    #[test]
+    fn one_pid_is_gone_only_when_every_remembered_identity_is() {
+        use Recheck::{Gone, Running, Unobserved};
+        assert_eq!(combine_rechecks(Vec::<Recheck>::new()), Unobserved);
+        assert_eq!(combine_rechecks([Gone]), Gone);
+        assert_eq!(combine_rechecks([Gone, Gone]), Gone);
+        assert_eq!(combine_rechecks([Gone, Unobserved]), Unobserved);
+        assert_eq!(combine_rechecks([Gone, Running]), Running);
+        assert_eq!(combine_rechecks([Unobserved, Running, Gone]), Running);
+    }
+
+    #[test]
+    fn errored_sweep_fails_unless_every_descendant_is_gone() {
+        use Recheck::{Gone, Running, Unobserved};
+        assert!(sweep_error_fails(Vec::<Recheck>::new()));
+        assert!(!sweep_error_fails([Gone, Gone]));
+        assert!(sweep_error_fails([Gone, Running]));
+        assert!(sweep_error_fails([Gone, Unobserved]));
+    }
+
+    #[test]
+    fn recheck_tells_a_recycled_pid_from_a_running_process() {
+        let pid = NonZeroU32::new(std::process::id()).expect("process id is nonzero");
+        let live = AdoptedIdentity::capture(pid)
+            .expect("own identity is readable")
+            .expect("own process exists");
+        // Same pid, other start time: the pid changed hands, so the remembered process is gone.
+        let recycled = AdoptedIdentity::from_recorded(pid, StartToken { major: 0, minor: 0 }, None);
+        // A deadline that has already passed still observes once.
+        let now = Instant::now();
+        assert_eq!(recheck_identity(&live, now), Recheck::Running);
+        assert_eq!(recheck_identity(&recycled, now), Recheck::Gone);
+        assert_eq!(
+            recheck_pid(std::slice::from_ref(&recycled), pid.get(), now),
+            Recheck::Gone
+        );
+        assert_eq!(
+            recheck_pid(&[recycled, live.clone()], pid.get(), now),
+            Recheck::Running
+        );
+        assert_eq!(recheck_pid(&[], pid.get(), now), Recheck::Unobserved);
+        assert_eq!(
+            recheck_pid(&[live], pid.get().wrapping_add(1), now),
+            Recheck::Unobserved
+        );
+    }
 }
 
 #[cfg(unix)]
@@ -274,6 +424,114 @@ fn shell_status(status: ExitStatus) -> u8 {
     status.code().map_or_else(
         || (128 + signal(status).unwrap_or(0)) as u8,
         |code| code as u8,
+    )
+}
+
+/// How long one second look at the descendants the sweep could not signal may wait for
+/// them to finish exiting. It matches the bound `rightkit-child-process` 0.5.6 applies to
+/// the same case inside `sweep`.
+const FAILED_RECHECK_TIMEOUT: Duration = Duration::from_secs(2);
+const FAILED_RECHECK_POLL: Duration = Duration::from_millis(20);
+
+/// What a second look at one remembered descendant found (Orthic-Labs/legion#116).
+///
+/// The sweep lists a pid as `failed` when its signal errored. On Windows that includes a
+/// process that is already exiting: `TerminateProcess` fails with `ERROR_ACCESS_DENIED`
+/// while the exit finishes. Such a descendant is gone, not failed, and counting it failed
+/// turned passing lanes into exit 125.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Recheck {
+    /// The remembered process no longer runs: its pid names nothing, names a different
+    /// process, or is an exited process awaiting reap.
+    Gone,
+    /// The remembered process still runs although the sweep could not stop it.
+    Running,
+    /// The process could not be observed, which proves nothing about whether it exited.
+    Unobserved,
+}
+
+/// Maps `AdoptedIdentity::confirmed_gone` to a verdict. An observation error is never
+/// read as an exit: a descendant that cannot be proven gone stays failed.
+fn recheck_observation(observed: &std::io::Result<bool>) -> Recheck {
+    match observed {
+        Ok(true) => Recheck::Gone,
+        Ok(false) => Recheck::Running,
+        Err(_) => Recheck::Unobserved,
+    }
+}
+
+/// Combines the verdicts for every identity remembered under one pid. The pid is gone only
+/// when each remembered process is; no identity at all proves nothing.
+fn combine_rechecks(rechecks: impl IntoIterator<Item = Recheck>) -> Recheck {
+    let mut any = false;
+    let mut unobserved = false;
+    for recheck in rechecks {
+        any = true;
+        match recheck {
+            Recheck::Running => return Recheck::Running,
+            Recheck::Unobserved => unobserved = true,
+            Recheck::Gone => {}
+        }
+    }
+    if any && !unobserved {
+        Recheck::Gone
+    } else {
+        Recheck::Unobserved
+    }
+}
+
+/// The pids a sweep listed as `failed`, split by a second look.
+#[derive(Debug, Default, Eq, PartialEq)]
+struct FailedSweep {
+    /// The signal failed but the process is gone: it was exiting, so it is not a failure.
+    exited: Vec<u32>,
+    /// Still running, or not provably gone: a real failure.
+    failed: Vec<u32>,
+}
+
+fn split_failed(failed: &[u32], mut recheck: impl FnMut(u32) -> Recheck) -> FailedSweep {
+    let mut split = FailedSweep::default();
+    for &pid in failed {
+        if recheck(pid) == Recheck::Gone {
+            split.exited.push(pid);
+        } else {
+            split.failed.push(pid);
+        }
+    }
+    split
+}
+
+/// Whether the sweep leaves the lane failed: a real failure or any survivor. A survivor was
+/// force-signalled and still present at the end of the sweep, so it is never rechecked away.
+fn sweep_failed(split: &FailedSweep, survivors: &[u32]) -> bool {
+    !split.failed.is_empty() || !survivors.is_empty()
+}
+
+/// Whether a sweep that errored before it finished still fails the lane. It does unless
+/// every remembered descendant is proven gone, which is the state the sweep was after.
+fn sweep_error_fails(rechecks: impl IntoIterator<Item = Recheck>) -> bool {
+    combine_rechecks(rechecks) != Recheck::Gone
+}
+
+/// Looks again at one remembered process until it is confirmed gone or `deadline` passes,
+/// always observing at least once. An observation error is retried: a process that is
+/// still exiting can refuse to be opened for a moment.
+fn recheck_identity(identity: &AdoptedIdentity, deadline: Instant) -> Recheck {
+    loop {
+        let verdict = recheck_observation(&identity.confirmed_gone());
+        if verdict == Recheck::Gone || Instant::now() >= deadline {
+            return verdict;
+        }
+        std::thread::sleep(FAILED_RECHECK_POLL);
+    }
+}
+
+fn recheck_pid(descendants: &[AdoptedIdentity], pid: u32, deadline: Instant) -> Recheck {
+    combine_rechecks(
+        descendants
+            .iter()
+            .filter(|identity| identity.pid() == pid)
+            .map(|identity| recheck_identity(identity, deadline)),
     )
 }
 
@@ -353,18 +611,37 @@ pub fn run(sequence: u64, argv: &[OsString]) -> u8 {
     // Owner checks pid+start identity before every signal. Its force wait is
     // fixed500ms; no unrelated process is killed after PID reuse.
     let swept = sweep(&descendants, Duration::ZERO);
-    let (sweep_receipt, sweep_failed) = match swept {
+    // A descendant whose signal errored may simply be exiting (Windows reports
+    // ERROR_ACCESS_DENIED then). Look again at each before it can fail the lane; a live
+    // survivor or an unobservable pid still does.
+    let recheck_deadline = Instant::now() + FAILED_RECHECK_TIMEOUT;
+    let (sweep_receipt, lane_sweep_failed) = match swept {
         Ok(report) => {
-            let failed = !report.failed.is_empty() || !report.survivors.is_empty();
+            let split = split_failed(&report.failed, |pid| {
+                recheck_pid(&descendants, pid, recheck_deadline)
+            });
+            let failed = sweep_failed(&split, &report.survivors);
             (
                 json!({"gone":report.gone,"terminated":report.terminated,
-                "refused":report.refused,"survivors":report.survivors,"failed":report.failed}),
+                "refused":report.refused,"survivors":report.survivors,
+                "failed":split.failed,"failedButGone":split.exited}),
                 failed,
             )
         }
-        Err(error) => (json!({"error":error.to_string()}), true),
+        Err(error) => {
+            let failed = sweep_error_fails(
+                descendants
+                    .iter()
+                    .map(|identity| recheck_identity(identity, recheck_deadline)),
+            );
+            let gone_after_error = !failed;
+            (
+                json!({"error":error.to_string(),"descendantsGoneAfterError":gone_after_error}),
+                failed,
+            )
+        }
     };
-    let status = if cleanup_error.is_some() || wait_error.is_some() || sweep_failed {
+    let status = if cleanup_error.is_some() || wait_error.is_some() || lane_sweep_failed {
         125
     } else if timed_out {
         124

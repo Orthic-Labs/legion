@@ -60,10 +60,35 @@ pub fn display_path(path: &Path) -> PathBuf {
     let text = path.to_string_lossy();
     PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text))
 }
+/// The versioned native application configuration injected through the
+/// environment. It replaces the composed application wholesale, so it is a
+/// test and development seam that exists only in builds with debug assertions
+/// and is compiled out of release builds (Orthic-Labs/legion#127).
+#[cfg(debug_assertions)]
+fn injected_native_application_config() -> Option<String> {
+    std::env::var("LEGION_NATIVE_APPLICATION_CONFIG").ok()
+}
+
+#[cfg(not(debug_assertions))]
+fn injected_native_application_config() -> Option<String> {
+    None
+}
+
+/// Whether the environment names an injected native application configuration,
+/// including a value that is not valid Unicode.
+#[cfg(debug_assertions)]
+fn native_application_config_is_injected() -> bool {
+    std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some()
+}
+
+#[cfg(not(debug_assertions))]
+fn native_application_config_is_injected() -> bool {
+    false
+}
 pub fn native_application_for(
     repository_id: &str,
 ) -> Result<Arc<legion_application::NativeApplication>, CommandError> {
-    if let Ok(configured) = std::env::var("LEGION_NATIVE_APPLICATION_CONFIG") {
+    if let Some(configured) = injected_native_application_config() {
         return legion_application::NativeApplicationConfig::from_versioned_source(&configured)
             .and_then(legion_application::NativeApplicationConfig::build)
             .map(Arc::new)

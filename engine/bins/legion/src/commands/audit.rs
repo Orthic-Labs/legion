@@ -863,8 +863,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
             "assurance profiles require the native provider registry route; --provider-plan, --provider-result and --native-rule-manifest cannot carry a frozen denominator",
         ));
     }
-    let native_application_configured =
-        std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some();
+    let native_application_configured = super::native_application_config_is_injected();
     if args.rightkit_trust.is_some()
         && !rightkit_trust_route_is_supported(
             direct,
@@ -4576,14 +4575,15 @@ fn native_rule_diagnostic_application(
 }
 
 /// Application for operating on an existing audit run (e.g. `verify`): honours
-/// `LEGION_NATIVE_APPLICATION_CONFIG`, otherwise builds the same canonical
-/// provider registry `legion audit` builds for `repository_id` (its root).
+/// `LEGION_NATIVE_APPLICATION_CONFIG` (builds with debug assertions only),
+/// otherwise builds the same canonical provider registry `legion audit` builds
+/// for `repository_id` (its root).
 pub(super) fn audit_application_for(
     repository_id: &str,
     only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<Arc<legion_application::NativeApplication>, CommandError> {
     let root = std::path::Path::new(repository_id);
-    if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() || !root.is_dir() {
+    if super::native_application_config_is_injected() || !root.is_dir() {
         return super::native_application_for(repository_id);
     }
     native_registry_application(root, None, only_paths, None)
@@ -5025,10 +5025,16 @@ fn host_owned_external_tool(
 }
 
 fn native_provider_registry_path() -> Option<std::path::PathBuf> {
-    if let Some(path) = std::env::var_os("LEGION_PROVIDER_REGISTRY") {
-        let path = std::path::PathBuf::from(path);
-        if path.is_file() {
-            return Some(path);
+    // The registry override is a test seam: it exists only in builds with
+    // debug assertions and is compiled out of release builds, which always use
+    // the installed registry (Orthic-Labs/legion#127).
+    #[cfg(debug_assertions)]
+    {
+        if let Some(path) = std::env::var_os("LEGION_PROVIDER_REGISTRY") {
+            let path = std::path::PathBuf::from(path);
+            if path.is_file() {
+                return Some(path);
+            }
         }
     }
     let composition = crate::cli::installed_m1_composition().ok()?;

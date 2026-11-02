@@ -3,7 +3,23 @@
 use super::*;
 use std::io::Read;
 
+/// Supplying the enrollment through the environment is a qualification seam
+/// that exists only in builds with debug assertions (and test builds) and is
+/// compiled out of release builds, where no enrollment exists
+/// (Orthic-Labs/legion#127).
+#[cfg(any(test, debug_assertions))]
 pub(super) const ENV: &str = "LEGION_MOBILE_SDK_ENROLLMENT";
+
+#[cfg(debug_assertions)]
+fn enrollment_path_from_environment() -> Option<PathBuf> {
+    std::env::var_os(ENV).map(PathBuf::from)
+}
+
+#[cfg(not(debug_assertions))]
+fn enrollment_path_from_environment() -> Option<PathBuf> {
+    None
+}
+
 const MAX_NODES: usize = 500_000;
 const MAX_BYTES: u64 = 32 * 1024 * 1024 * 1024;
 
@@ -175,7 +191,7 @@ pub(super) fn capture(sdk: &Path, swiftlint: &Path, audited_root: &Path) -> Resu
 }
 
 pub(super) fn descriptor(audited_root: &Path) -> Result<Option<Value>, String> {
-    let Some(path) = std::env::var_os(ENV).map(PathBuf::from) else {
+    let Some(path) = enrollment_path_from_environment() else {
         return Ok(None);
     };
     let path = path

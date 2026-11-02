@@ -193,10 +193,22 @@ fn locked_cache(bytes: &[u8], packages: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+/// The SDK enrollment file location. Supplying it through the environment is a
+/// qualification seam that exists only in builds with debug assertions and is
+/// compiled out of release builds, where no enrollment exists
+/// (Orthic-Labs/legion#127).
+#[cfg(debug_assertions)]
+fn enrollment_path_from_environment() -> Option<std::ffi::OsString> {
+    std::env::var_os("LEGION_DOTNET_ENROLLMENT")
+}
+
+#[cfg(not(debug_assertions))]
+fn enrollment_path_from_environment() -> Option<std::ffi::OsString> {
+    None
+}
+
 fn enrollment() -> Result<(PathBuf, Value), String> {
-    let path = PathBuf::from(
-        std::env::var_os("LEGION_DOTNET_ENROLLMENT").ok_or("sdk-enrollment-missing")?,
-    );
+    let path = PathBuf::from(enrollment_path_from_environment().ok_or("sdk-enrollment-missing")?);
     canonical(&path)?;
     let value: Value = serde_json::from_slice(&read(&path, MAX_ENROLLMENT_BYTES)?)
         .map_err(|_| "sdk-enrollment-malformed")?;

@@ -15,7 +15,25 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Environment names that point the policy gate at a development composition
+/// instead of the verified installed release. A development seam: it exists
+/// only in builds with debug assertions and is compiled out of release builds
+/// (Orthic-Labs/legion#127).
+#[cfg(debug_assertions)]
 const CONFIG_ENVS: [&str; 2] = ["LEGION_M1_CONFIG_PATH", "LEGION_M1_CONFIG"];
+
+#[cfg(debug_assertions)]
+fn composition_path_from_environment() -> Option<PathBuf> {
+    CONFIG_ENVS
+        .iter()
+        .find_map(|name| env::var_os(name).filter(|value| !value.is_empty()))
+        .map(PathBuf::from)
+}
+
+#[cfg(not(debug_assertions))]
+fn composition_path_from_environment() -> Option<PathBuf> {
+    None
+}
 
 /// Invoke one canonical Apple operation from CLI or MCP request shape.
 pub async fn invoke(request: &Value) -> Result<Value, RuntimeError> {
@@ -842,11 +860,8 @@ fn canonical_operation(operation: &str) -> &str {
 }
 
 fn load_policy_evaluator() -> Result<PolicyEvaluator, String> {
-    let config_path = if let Some(path) = CONFIG_ENVS
-        .iter()
-        .find_map(|name| env::var_os(name).filter(|value| !value.is_empty()))
-    {
-        PathBuf::from(path)
+    let config_path = if let Some(path) = composition_path_from_environment() {
+        path
     } else {
         let installed = legion_runtime::release_binding::load_installed_release()
             .map_err(|error| format!("installed release binding unavailable: {error}"))?;

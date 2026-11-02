@@ -771,6 +771,8 @@ fn capture_accounting(
 
 /// Diagnostic only: when LEGION_NATIVE_STREAM_DIR names a directory, keep the
 /// raw native stream under its digest so protocol failures carry evidence.
+/// Compiled out of release builds (Orthic-Labs/legion#127).
+#[cfg(debug_assertions)]
 fn dump_native_stream(digest: &str, bytes: &[u8]) {
     let Some(dir) = std::env::var_os("LEGION_NATIVE_STREAM_DIR") else {
         return;
@@ -779,6 +781,9 @@ fn dump_native_stream(digest: &str, bytes: &[u8]) {
     let _ = std::fs::create_dir_all(&dir);
     let _ = std::fs::write(Path::new(&dir).join(format!("{name}.ndjson")), bytes);
 }
+
+#[cfg(not(debug_assertions))]
+fn dump_native_stream(_digest: &str, _bytes: &[u8]) {}
 
 fn native_process_failure(code: Option<i32>) -> String {
     match code {
