@@ -493,11 +493,7 @@ pub fn parse_banned_words(markdown: &str) -> BannedWords {
     })
     .into_iter()
     .filter_map(|cells| cells.first().cloned())
-    .map(|term| {
-        term.replace(|c: char| c == '`' || c == '"', "")
-            .trim()
-            .to_string()
-    })
+    .map(|term| term.replace(['`', '"'], "").trim().to_string())
     .filter(|t| !t.is_empty())
     .collect();
 
@@ -509,7 +505,7 @@ pub fn parse_banned_words(markdown: &str) -> BannedWords {
 
 fn is_level2_heading(line: &str) -> bool {
     line.strip_prefix("##")
-        .map_or(false, |rest| rest.starts_with(char::is_whitespace))
+        .is_some_and(|rest| rest.starts_with(char::is_whitespace))
 }
 
 fn is_header_label(first: &str) -> bool {
@@ -887,7 +883,7 @@ mod tests {
 
     impl ToolProbe for FakeTools {
         fn present(&self, binary: &str) -> bool {
-            self.0.iter().any(|p| *p == binary)
+            self.0.contains(&binary)
         }
     }
 
@@ -1050,7 +1046,7 @@ mod tests {
             split_sentences("One. Two three.  Four"),
             vec!["One.", "Two three.", "Four"]
         );
-        let long: String = std::iter::repeat("word ").take(41).collect::<String>() + "end.";
+        let long: String = "word ".repeat(41) + "end.";
         let mut input = clean_input();
         input.text_files = vec![TextFile {
             path: "index.html".to_string(),
@@ -1115,8 +1111,7 @@ mod tests {
             .detail
             .get("reason")
             .and_then(Value::as_str)
-            .map_or(false, |r| r
-                .starts_with("artifacts/qa/bundle-baseline.json unreadable")));
+            .is_some_and(|r| r.starts_with("artifacts/qa/bundle-baseline.json unreadable")));
     }
 
     #[test]

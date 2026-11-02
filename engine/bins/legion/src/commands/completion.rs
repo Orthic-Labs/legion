@@ -142,7 +142,7 @@ fn events(root: &Path, session: &str, k: &KeyRing) -> Result<Vec<Value>, Command
     }
     Ok(out)
 }
-fn claim(root: &Path, a: &[String], file: &str, b: &Value, s: &str, k: KeyRing) -> CommandResult {
+fn claim(root: &Path, _a: &[String], file: &str, b: &Value, s: &str, k: KeyRing) -> CommandResult {
     let outcome: Value = serde_json::from_slice(
         &fs::read(file)
             .map_err(|e| CommandError::usage(format!("invalid completion artifact: {e}")))?,
@@ -206,7 +206,7 @@ fn claim(root: &Path, a: &[String], file: &str, b: &Value, s: &str, k: KeyRing) 
 }
 fn evidence(
     root: &Path,
-    a: &[String],
+    _a: &[String],
     file: &str,
     b: &Value,
     s: &str,

@@ -6,7 +6,7 @@
 //! `resolveVarRefs`/`resolveLengthPx` from the shared cascade module) are
 //! not ported: they need a full HTML DOM and CSS-AST parser (`htmlparser2`
 //! + `css-select` + `csstree` equivalents) this crate does not have, and
-//! have no return-value contract without one.
+//!   have no return-value contract without one.
 //!
 //! Color parsing reuses this crate's existing
 //! [`crate::l6_designer_checks::css_color::parse_any_color`] (the same
@@ -44,10 +44,7 @@ pub fn unwrap_css_at_layer(source: &str) -> String {
     let mut out = String::new();
     let mut last_idx = 0usize;
     let mut search_from = 0usize;
-    loop {
-        let Some(m) = at_layer_open_re().find_at(source, search_from) else {
-            break;
-        };
+    while let Some(m) = at_layer_open_re().find_at(source, search_from) {
         let open_start = m.start();
         let open_end = m.end(); // position right after `{`
         let mut depth = 1i32;
@@ -327,7 +324,9 @@ pub fn static_color_to_css(r: f64, g: f64, b: f64, a: f64) -> String {
     }
 }
 
-const STATIC_NAMED_COLORS: &[(&str, (f64, f64, f64, f64))] = &[
+type StaticNamedRgba = (f64, f64, f64, f64);
+
+const STATIC_NAMED_COLORS: &[(&str, StaticNamedRgba)] = &[
     ("black", (0.0, 0.0, 0.0, 1.0)),
     ("white", (255.0, 255.0, 255.0, 1.0)),
     ("transparent", (0.0, 0.0, 0.0, 0.0)),

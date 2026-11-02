@@ -109,13 +109,10 @@ fn unchanged_runtime_metadata(
                 .modified()
                 .map_err(|error| invalid(error.to_string()))?;
     #[cfg(unix)]
-    {
+    let unchanged = {
         use std::os::unix::fs::MetadataExt;
-        return Ok(unchanged
-            && before.ctime() == after.ctime()
-            && before.ctime_nsec() == after.ctime_nsec());
-    }
-    #[cfg(not(unix))]
+        unchanged && before.ctime() == after.ctime() && before.ctime_nsec() == after.ctime_nsec()
+    };
     Ok(unchanged)
 }
 
@@ -612,6 +609,7 @@ impl InitialRequestSizer {
         planning_author_sizes(&prompt, works).map(Some)
     }
 
+    #[cfg(test)]
     pub(crate) fn shared_request_bytes(
         &mut self,
         works: &[PendingLensWork],
@@ -766,18 +764,16 @@ fn planning_author_sizes(
 /// Initial physical host envelopes, including JSON escaping, schemas & tools.
 /// Additional context/verification calls & native hidden overhead are not
 /// predicted here; each actual call still requires its own authorization.
+#[cfg(test)]
 pub(crate) fn initial_seat_request_bytes(works: &[PendingLensWork]) -> Result<u64, AuditError> {
     InitialRequestSizer::default().request_bytes(works)
 }
 
+#[cfg(test)]
 pub(crate) fn shared_seat_supported(works: &[PendingLensWork]) -> Result<bool, AuditError> {
     Ok(InitialRequestSizer::default()
         .shared_request_bytes(works)?
         .is_some())
-}
-
-pub(crate) fn initial_gather_request_bytes(works: &[PendingLensWork]) -> Result<u64, AuditError> {
-    gather::initial_request_sizes(works).map(|sizes| sizes.host_envelope_bytes)
 }
 
 pub(super) struct Controller<'a> {
@@ -1079,6 +1075,7 @@ impl Controller<'_> {
         Ok(observation)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn call_once(
         &mut self,
         seat: &Value,
@@ -2395,6 +2392,7 @@ mod tests {
             .contains("initial context snapshot differs from frozen packet"));
     }
     #[test]
+    #[allow(clippy::permissions_set_readonly_false)]
     fn warm_sizer_readmits_manifest_before_reusing_context_tools() {
         let fixture = crate::snapshot::tests::Fixture::new();
         let snapshot = fixture.capture(crate::scope::ScopeSpec::Local);
@@ -2430,6 +2428,7 @@ mod tests {
         work
     }
 
+    #[allow(clippy::permissions_set_readonly_false)]
     fn writable(path: &Path) {
         let mut permissions = fs::metadata(path).unwrap().permissions();
         permissions.set_readonly(false);

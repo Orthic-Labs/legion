@@ -24,7 +24,6 @@
 //!   Failed steps are recorded in [`VerifyReport::failures`] and never print
 //!   a success tick.
 
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 // ---------------------------------------------------------------------------

@@ -74,6 +74,7 @@ fn usage_error(message: impl Into<String>, details: Value) -> KernelError {
     )
 }
 
+#[allow(clippy::result_large_err)]
 fn schema_for(name: &str) -> Result<Value, KernelError> {
     let path = schema_path(name).ok_or_else(|| {
         KernelError::new(
@@ -321,6 +322,7 @@ mod chrono_lite {
 }
 
 /// Port of `assertContract(name, value, label = name)`.
+#[allow(clippy::result_large_err)]
 pub fn assert_contract(
     name: &str,
     value: &Value,
@@ -340,6 +342,7 @@ pub fn assert_contract(
 }
 
 /// Port of `bindRunIdentity(fields)`.
+#[allow(clippy::result_large_err)]
 pub fn bind_run_identity(fields: &Value) -> Result<Value, KernelError> {
     let mut identity = json::json!({ "schemaVersion": 1, "kind": "legion-run-identity" });
     if let (Some(target), Some(extra)) = (identity.as_object_mut(), fields.as_object()) {

@@ -323,8 +323,7 @@ pub fn validate_bundle(payload: &Value) -> Value {
         if !ok {
             errors.push(format!(
                 "actions[{i}] references missing recommendation: {}",
-                rid.map(|s| format!("{s}"))
-                    .unwrap_or_else(|| "None".to_string())
+                rid.map(str::to_owned).unwrap_or_else(|| "None".to_string())
             ));
         }
     }
@@ -334,8 +333,7 @@ pub fn validate_bundle(payload: &Value) -> Value {
         if !ok {
             errors.push(format!(
                 "outcomes[{i}] references missing action: {}",
-                aid.map(|s| format!("{s}"))
-                    .unwrap_or_else(|| "None".to_string())
+                aid.map(str::to_owned).unwrap_or_else(|| "None".to_string())
             ));
         }
     }

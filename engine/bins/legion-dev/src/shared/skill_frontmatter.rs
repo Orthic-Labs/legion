@@ -5,6 +5,14 @@
 use regex::Regex;
 use serde_json::{Map, Value};
 use std::collections::HashSet;
+use std::sync::LazyLock;
+
+static INDENTED_LINE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s+\S").unwrap());
+static INDENTED_LIST_ITEM_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s+-\s+\S").unwrap());
+static LIST_ITEM_PREFIX_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s+-\s+").unwrap());
+static BLANK_LINE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*$").unwrap());
+static INDENT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s+").unwrap());
 
 const SCALAR_FIELDS: &[&str] = &[
     "name",
@@ -40,60 +48,7 @@ const EFFECTS: &[&str] = &[
 
 #[derive(Default, Clone)]
 pub struct Frontmatter {
-    pub name: String,
-    pub description: String,
-    pub kind: String,
-    pub capability_class: Option<String>,
-    pub discoverability: String,
-    pub domain: Option<String>,
-    pub target: Option<String>,
-    pub operations: Vec<String>,
-    pub effects: Vec<String>,
     pub host_requirements: Vec<String>,
-}
-
-impl Frontmatter {
-    /// Render as the JSON-object shape produced by the JS
-    /// `parseSkillFrontmatter`, for callers that consume it as a `Value` map
-    /// rather than typed fields.
-    pub fn as_value(&self) -> Map<String, Value> {
-        let mut out = Map::new();
-        out.insert("name".into(), Value::from(self.name.clone()));
-        out.insert("description".into(), Value::from(self.description.clone()));
-        out.insert("kind".into(), Value::from(self.kind.clone()));
-        if let Some(cc) = &self.capability_class {
-            out.insert("capabilityClass".into(), Value::from(cc.clone()));
-        }
-        out.insert(
-            "discoverability".into(),
-            Value::from(self.discoverability.clone()),
-        );
-        if let Some(d) = &self.domain {
-            out.insert("domain".into(), Value::from(d.clone()));
-        }
-        if let Some(target) = &self.target {
-            out.insert("target".into(), Value::from(target.clone()));
-        }
-        out.insert(
-            "operations".into(),
-            Value::Array(self.operations.iter().cloned().map(Value::from).collect()),
-        );
-        out.insert(
-            "effects".into(),
-            Value::Array(self.effects.iter().cloned().map(Value::from).collect()),
-        );
-        out.insert(
-            "hostRequirements".into(),
-            Value::Array(
-                self.host_requirements
-                    .iter()
-                    .cloned()
-                    .map(Value::from)
-                    .collect(),
-            ),
-        );
-        out
-    }
 }
 
 enum Field {
@@ -176,16 +131,14 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
         }
 
         if let Some((_, _, block_lines)) = &mut block {
-            if Regex::new(r"^\s+\S").unwrap().is_match(line) {
+            if INDENTED_LINE_RE.is_match(line) {
                 block_lines.push(line.trim().to_string());
                 continue;
             }
         }
         if let Some(k) = &key {
-            if list_field_set.contains(k.as_str())
-                && Regex::new(r"^\s+-\s+\S").unwrap().is_match(line)
-            {
-                let item_text = Regex::new(r"^\s+-\s+").unwrap().replace(line, "");
+            if list_field_set.contains(k.as_str()) && INDENTED_LIST_ITEM_RE.is_match(line) {
+                let item_text = LIST_ITEM_PREFIX_RE.replace(line, "");
                 let item = scalar(&item_text, path, k)?;
                 if let Some(Field::List(items)) = out.get_mut(k) {
                     items.push(item);
@@ -193,9 +146,7 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
                 continue;
             }
         }
-        if Regex::new(r"^\s*$").unwrap().is_match(line)
-            || Regex::new(r"^\s+").unwrap().is_match(line)
-        {
+        if BLANK_LINE_RE.is_match(line) || INDENT_RE.is_match(line) {
             continue;
         }
         return Err(format!(
@@ -305,18 +256,7 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
         return Err(format!("{path}: duplicate hostRequirements value"));
     }
 
-    Ok(Frontmatter {
-        name: get_scalar(&out, "name"),
-        description: get_scalar(&out, "description"),
-        kind,
-        capability_class: capability_class_raw.filter(|s| !s.is_empty()),
-        discoverability,
-        domain: domain.filter(|s| !s.is_empty()),
-        target: target_raw.filter(|s| !s.is_empty()),
-        operations,
-        effects,
-        host_requirements,
-    })
+    Ok(Frontmatter { host_requirements })
 }
 
 /// `parseSkillFrontmatter` in its JSON-object shape, for generator callers.

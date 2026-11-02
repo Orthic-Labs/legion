@@ -293,7 +293,7 @@ pub fn resolve_font_size_px(el: ElementRef, doc: &StaticDocument) -> f64 {
         } else if v.ends_with("em") {
             px *= num;
         } else if v.ends_with('%') {
-            px = (num / 100.0) * px;
+            px *= num / 100.0;
         } else {
             px = num;
         }
@@ -490,7 +490,7 @@ pub fn check_element_italic_serif(
 pub fn check_element_hero_eyebrow(
     el: ElementRef,
     doc: &StaticDocument,
-    style: &crate::wf_port::r09::ComputedStyle,
+    _style: &crate::wf_port::r09::ComputedStyle,
     tag: &str,
 ) -> Vec<Finding> {
     if tag != "h1" {
@@ -553,7 +553,7 @@ pub fn check_element_motion(tag: &str, style: &crate::wf_port::r09::ComputedStyl
 }
 
 pub fn check_element_glow(
-    tag: &str,
+    _tag: &str,
     style: &crate::wf_port::r09::ComputedStyle,
     effective_bg: Option<Rgba>,
 ) -> Vec<Finding> {
@@ -583,7 +583,7 @@ pub fn check_element_oversized_h1(el: ElementRef, doc: &StaticDocument, tag: &st
 }
 
 fn collapse_ws(s: &str) -> String {
-    s.trim().split_whitespace().collect::<Vec<_>>().join(" ")
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 // ─── checkElementGptBorderShadow (checks.mjs ~2337-2340) ───────────────────
@@ -844,7 +844,6 @@ pub fn check_element_quality(
     let mut findings = Vec::new();
 
     // --- Flush against a visible boundary --- (rect-free)
-    let upper_tag = tag.to_ascii_uppercase();
     let el_position = style.get_property_value("position");
     let children = children_elements(el);
     if !FLUSH_SKIP_TAGS.contains(&tag)
@@ -1054,14 +1053,15 @@ pub fn check_element_quality(
     }
 
     // --- All-caps body text ---
-    if has_direct_text && text_len > 30 && style.get_property_value("text-transform") == "uppercase"
+    if has_direct_text
+        && text_len > 30
+        && style.get_property_value("text-transform") == "uppercase"
+        && !matches!(tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
     {
-        if !matches!(tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
-            findings.push(Finding {
-                id: "all-caps-body",
-                snippet: format!("text-transform: uppercase on {text_len} chars of body text"),
-            });
-        }
+        findings.push(Finding {
+            id: "all-caps-body",
+            snippet: format!("text-transform: uppercase on {text_len} chars of body text"),
+        });
     }
 
     // --- Wide letter spacing on body text ---
@@ -1217,6 +1217,7 @@ fn kicker_skip(e: &ElementRef) -> bool {
         || attr(e, "data-impeccable-allow-kickers").is_some()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn is_repeated_kicker_candidate(
     heading_tag: &str,
     heading_text: &str,
@@ -1237,7 +1238,7 @@ fn is_repeated_kicker_candidate(
     if slash_word_re().is_match(trimmed) {
         return false;
     }
-    if !(heading_font_size >= 20.0) {
+    if heading_font_size.is_nan() || heading_font_size < 20.0 {
         return false;
     }
     if matches!(kicker_tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
@@ -1247,7 +1248,7 @@ fn is_repeated_kicker_candidate(
         return false;
     }
     let len = kicker_text.chars().count();
-    if kicker_text.is_empty() || len < 2 || len > 34 {
+    if kicker_text.is_empty() || !(2..=34).contains(&len) {
         return false;
     }
     if step_re().is_match(kicker_text) || digit1_2_re().is_match(kicker_text) {

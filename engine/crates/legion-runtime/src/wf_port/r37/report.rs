@@ -665,7 +665,7 @@ pub fn generate_report(
     let chart_paths = generate_charts(report_type, data, &charts_dir);
     let html_content = build_report_html(report_type, data, domain, &chart_paths, timestamp);
 
-    let safe_domain = domain.replace(':', "_").replace('/', "_");
+    let safe_domain = domain.replace([':', '/'], "_");
     let base_name = format!("Google-SEO-Report-{safe_domain}-{}", report_type.as_str());
 
     if output_format.wants_html() {

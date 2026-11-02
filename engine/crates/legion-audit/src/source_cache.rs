@@ -7,7 +7,7 @@ use rightkit_fs::state::StateDir;
 use rightkit_fs::{FileLock, LockOptions};
 use serde::{Deserialize, Serialize};
 use sha1::Digest as Sha1Digest;
-use sha2::{Digest as Sha2Digest, Sha256};
+use sha2::Sha256;
 use std::collections::{BTreeMap, HashSet};
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -640,8 +640,8 @@ mod tests {
     fn pin_pressure_keeps_live_objects_and_cache_miss_still_returns_source() {
         let temp = Temp::new();
         let mut cache = SourceCache::open(&temp.0, 500).unwrap();
-        let first = cache.verified_source(&vec![1; 100]).unwrap();
-        let second = cache.verified_source(&vec![2; 100]).unwrap();
+        let first = cache.verified_source(&[1; 100]).unwrap();
+        let second = cache.verified_source(&[2; 100]).unwrap();
         assert_eq!(first, vec![1; 100]);
         assert_eq!(second, vec![2; 100]);
         assert!(cache.stats.skipped_writes > 0);

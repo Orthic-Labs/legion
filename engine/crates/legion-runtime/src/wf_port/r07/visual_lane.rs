@@ -174,7 +174,7 @@ pub fn visual_contrast_lane<D: ChromeDriver>(
                 continue;
             };
             let already_flagged =
-                str_field(result, "selector").map_or(false, |s| existing.contains(s));
+                str_field(result, "selector").is_some_and(|s| existing.contains(s));
             if already_flagged {
                 continue;
             }
@@ -211,9 +211,8 @@ pub fn visual_contrast_lane<D: ChromeDriver>(
     let pending: Vec<ContrastCandidate> = candidates
         .iter()
         .filter(|c| {
-            let skip = str_field(c, "selector").map_or(false, |s| {
-                existing.contains(s) || browser_resolved.contains(s)
-            });
+            let skip = str_field(c, "selector")
+                .is_some_and(|s| existing.contains(s) || browser_resolved.contains(s));
             !skip
         })
         .map(parse_candidate)
@@ -312,8 +311,10 @@ mod tests {
             shots: vec![],
             expressions: vec![],
         };
-        let mut options = DetectUrlOptions::default();
-        options.visual_contrast = false;
+        let options = DetectUrlOptions {
+            visual_contrast: false,
+            ..DetectUrlOptions::default()
+        };
         let out =
             visual_contrast_lane(&mut driver, "https://x.test", &json!([]), &options).unwrap();
         assert!(out.is_empty());
@@ -334,8 +335,10 @@ mod tests {
             shots: vec![],
             expressions: vec![],
         };
-        let mut options = DetectUrlOptions::default();
-        options.visual_contrast_pixel = false;
+        let options = DetectUrlOptions {
+            visual_contrast_pixel: false,
+            ..DetectUrlOptions::default()
+        };
         let out =
             visual_contrast_lane(&mut driver, "https://x.test", &json!([]), &options).unwrap();
         assert_eq!(out.len(), 1);
@@ -362,8 +365,10 @@ mod tests {
             shots: vec![],
             expressions: vec![],
         };
-        let mut options = DetectUrlOptions::default();
-        options.visual_contrast_pixel = false;
+        let options = DetectUrlOptions {
+            visual_contrast_pixel: false,
+            ..DetectUrlOptions::default()
+        };
         let out = visual_contrast_lane(&mut driver, "https://x.test", &groups, &options).unwrap();
         assert!(out.is_empty());
     }

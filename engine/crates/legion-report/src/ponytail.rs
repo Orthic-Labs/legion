@@ -175,7 +175,7 @@ pub(crate) fn render(report: &ReportV2) -> String {
 }
 
 fn line_text(text: &str) -> String {
-    escape::markdown(text).replace('\r', " ").replace('\n', " ")
+    escape::markdown(text).replace(['\r', '\n'], " ")
 }
 
 fn tag(finding: &FindingV2) -> Option<&'static str> {
@@ -222,7 +222,7 @@ fn estimate(finding: &FindingV2) -> Option<(i64, i64, i64)> {
 }
 
 fn cut_estimate(finding: &FindingV2) -> Option<(i64, i64, i64)> {
-    estimate(finding).map(|(lines, deps, files)| (lines, deps, files))
+    estimate(finding)
 }
 
 fn ordered(report: &ReportV2) -> Vec<&FindingV2> {
@@ -428,7 +428,7 @@ mod tests {
                 < rendered.find("unrelated security finding").unwrap()
         );
         let metadata: Value = serde_json::from_str(
-            &rendered
+            rendered
                 .split("```json\n")
                 .last()
                 .unwrap()

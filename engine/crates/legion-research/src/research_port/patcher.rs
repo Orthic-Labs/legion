@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
@@ -173,12 +173,12 @@ fn parse_unified(diff: &str) -> Result<Vec<Hunk>, PatcherError> {
 
     for line in &lines {
         let without_ending = line_without_ending(line);
-        if without_ending.starts_with("diff --git ") {
+        if let Some(header) = without_ending.strip_prefix("diff --git ") {
             if git_file_header_seen || !hunks.is_empty() || current.is_some() {
                 return Err(error("multi-file diffs are not allowed"));
             }
             git_file_header_seen = true;
-            let mut paths = without_ending[11..].split_whitespace();
+            let mut paths = header.split_whitespace();
             let old = paths
                 .next()
                 .ok_or_else(|| error("invalid diff --git header"))?;
@@ -407,8 +407,7 @@ fn atomic_replace(path: &Path, contents: &[u8], expected_source: &[u8]) -> std::
         // Check again after preparing the temporary file so a concurrent edit
         // during validation cannot be overwritten by the rename.
         if fs::read(path)? != expected_source {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 "draft changed during patch validation",
             ));
         }

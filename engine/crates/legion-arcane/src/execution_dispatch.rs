@@ -142,7 +142,7 @@ pub fn dispatch_execution_control(
         "command.verify" => {
             let observed = capability
                 .and_then(|cap| cap.observed_command_result.as_ref())
-                .map(|value| value.clone())
+                .cloned()
                 .unwrap_or(json!({}));
             verify_command_result(
                 &observed,

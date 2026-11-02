@@ -4,9 +4,9 @@
 //! Completes the gap `wf_port::w2_012::sweep`'s module doc left open:
 //! `checkStatus`'s HEAD/GET-retry status check and `sweepSite`'s page fetch
 //! + link fan-out + finding assembly. Network I/O sits behind the
-//! [`PageFetcher`] trait so the orchestration (`sweep_site`) is unit-tested
-//! with fakes, per this packet's brief; [`ReqwestFetcher`] is the real
-//! `reqwest`-backed implementation.
+//!   [`PageFetcher`] trait so the orchestration (`sweep_site`) is unit-tested
+//!   with fakes, per this packet's brief; [`ReqwestFetcher`] is the real
+//!   `reqwest`-backed implementation.
 
 use std::collections::BTreeMap;
 

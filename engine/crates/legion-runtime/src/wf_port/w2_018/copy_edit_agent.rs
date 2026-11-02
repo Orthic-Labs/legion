@@ -34,15 +34,14 @@ const DEFAULT_TIMEOUT_MS: u64 = 60_000;
 /// Mirrors `buildCopyEditBatchPrompt(batch, { cwd })`.
 pub fn build_copy_edit_batch_prompt(batch: &Value, cwd: &Path) -> String {
     let repair = batch.get("repair").filter(|r| !r.is_null());
-    let mut lines: Vec<String> = Vec::new();
-    lines.push("You are the Impeccable staged copy-edit batch applier.".to_string());
-    lines.push(String::new());
-    lines.push(
+    let mut lines: Vec<String> = vec![
+        "You are the Impeccable staged copy-edit batch applier.".to_string(),
+        String::new(),
         "Apply the staged browser copy edits to the real source files in this repository."
             .to_string(),
-    );
-    lines.push(String::new());
-    lines.push("Rules:".to_string());
+        String::new(),
+        "Rules:".to_string(),
+    ];
     for rule in RULES {
         lines.push(format!("- {rule}"));
     }

@@ -637,7 +637,7 @@ fn whitespace_re() -> &'static Regex {
 fn split_font_stack(stack: &str) -> Vec<String> {
     let s = important_suffix_re().replace(stack, "");
     s.split(',')
-        .map(|p| normalize_font_name(p))
+        .map(normalize_font_name)
         .filter(|s| !s.is_empty())
         .collect()
 }

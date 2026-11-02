@@ -3,12 +3,12 @@
 
 use std::collections::BTreeSet;
 
+type DependencyContract = (BTreeSet<String>, BTreeSet<(String, String)>);
+
 /// Port of `parse_dependency_contract()`. Returns `(roots, edges)` or
 /// `None` when the value is empty or malformed, matching the Python
 /// function's `None` return.
-pub fn parse_dependency_contract(
-    value: &str,
-) -> Option<(BTreeSet<String>, BTreeSet<(String, String)>)> {
+pub fn parse_dependency_contract(value: &str) -> Option<DependencyContract> {
     let compact: String = value
         .chars()
         .filter(|c| !c.is_whitespace())
@@ -30,10 +30,7 @@ pub fn parse_dependency_contract(
             }
             continue;
         }
-        let rest = match part.strip_prefix("EDGES:") {
-            Some(rest) => rest,
-            None => return None,
-        };
+        let rest = part.strip_prefix("EDGES:")?;
         let chains: Vec<&str> = rest.split(',').filter(|c| !c.is_empty()).collect();
         for chain in chains {
             let nodes: Vec<&str> = chain.split("->").filter(|n| !n.is_empty()).collect();

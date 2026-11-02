@@ -164,9 +164,9 @@ fn operations(spec: &Value) -> Result<Vec<Operation>, String> {
     Ok(result)
 }
 
-fn select_operation<'a>(
+fn select_operation(
     object: &Map<String, Value>,
-    operations: &'a [Operation],
+    operations: &[Operation],
 ) -> Result<Operation, String> {
     let selector = object
         .get("operationId")

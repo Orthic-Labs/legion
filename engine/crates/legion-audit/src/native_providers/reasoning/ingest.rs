@@ -92,7 +92,7 @@ fn redact_call_diagnostic(value: &Value) -> Value {
             items
                 .iter()
                 .map(|(key, value)| {
-                    let normalized = key.to_ascii_lowercase().replace('-', "").replace('_', "");
+                    let normalized = key.to_ascii_lowercase().replace(['-', '_'], "");
                     let sensitive = [
                         "password",
                         "secret",
@@ -3447,10 +3447,6 @@ struct LoadedReceipt {
     parts: Option<PartsProgress>,
 }
 
-fn string_at<'a>(value: &'a Value, pointer: &str) -> Option<&'a str> {
-    value.pointer(pointer).and_then(Value::as_str)
-}
-
 /// Merges the verified per-part results of one provider into the single
 /// provider-level result: examined coverage is the union of the ingested
 /// parts' paths (plus split files whose every chunk was covered), the provider
@@ -6687,7 +6683,7 @@ mod variant_anchor_scope_tests {
 
         set_derived_provider_coverage(&mut report, None, true, 1);
 
-        assert!(report.claims.get("providerCoverage").is_none());
+        assert!(!report.claims.contains_key("providerCoverage"));
     }
 
     #[test]

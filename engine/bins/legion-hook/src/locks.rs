@@ -47,7 +47,7 @@ fn gate_holding(listing: &str, checkout: &str) -> Option<String> {
             )
         };
         let inside = |word: &&str| {
-            let path = word.split('=').last().unwrap_or("");
+            let path = word.split('=').next_back().unwrap_or("");
             path == checkout || path.starts_with(&format!("{checkout}/"))
         };
         (words.iter().take(2).any(gate) && words.iter().any(inside)).then(|| pid.to_owned())

@@ -56,6 +56,7 @@ pub fn default_profile_policy(name: &str) -> Option<ProfileLimits> {
     })
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_limits(
     name: &str,
     limits: Option<ProfileLimits>,
@@ -94,6 +95,7 @@ pub struct ModelProfile {
 }
 
 /// Port of `loadModelProfile(name, policy = DEFAULT_PROFILE_POLICY)`.
+#[allow(clippy::result_large_err)]
 pub fn load_model_profile(
     name: &str,
     policy: impl Fn(&str) -> Option<ProfileLimits>,
@@ -111,6 +113,7 @@ pub fn load_model_profile(
 }
 
 /// Port of `downgradeModelProfile(profile, reason, options)`.
+#[allow(clippy::result_large_err)]
 pub fn downgrade_model_profile(
     profile: &ModelProfile,
     reason: &str,

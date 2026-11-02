@@ -1090,11 +1090,7 @@ impl NativeLegacyCheckExecutor {
                     } else {
                         LegacyCheckProcessState::Failed
                     };
-                    let message = if matches!(&error, ResolveError::NotConfigured(_)) {
-                        error.message()
-                    } else {
-                        error.message()
-                    };
+                    let message = error.message();
                     let gap = if unavailable {
                         message.clone()
                     } else {
@@ -1130,7 +1126,7 @@ impl NativeLegacyCheckExecutor {
                 }
             }
         }
-        if test_command_source.is_some() {
+        if let Some(test_source) = test_command_source.as_ref() {
             let Some(tool) = &self.external_project_tool else {
                 let mut execution = execute_external(&input, contract.command, now_ms());
                 attach_test_command_source(&mut execution, test_command_source.as_ref());
@@ -1161,9 +1157,7 @@ impl NativeLegacyCheckExecutor {
                 self.fixture_policy_authorizer.as_deref(),
                 &self.root,
                 resolved,
-                test_command_source
-                    .as_ref()
-                    .expect("resolved test source metadata"),
+                test_source,
                 provider,
                 inventory,
                 &input,
@@ -2415,7 +2409,7 @@ fn execute_input(input: &LegacyCheckInput, contract: &LegacyCheckSpec) -> Legacy
             } else {
                 LegacyCheckProcessState::Failed
             };
-            let error = hard_gap.then(|| "native source analysis was incomplete");
+            let error = hard_gap.then_some("native source analysis was incomplete");
             terminal_execution(
                 input,
                 contract.command,
@@ -2727,6 +2721,7 @@ fn managed_test_refusal(
             .is_some_and(Value::is_null)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn terminal_execution(
     input: &LegacyCheckInput,
     command: CommandShape,
@@ -2781,6 +2776,7 @@ fn terminal_execution(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execution_receipt(
     input: &LegacyCheckInput,
     command: CommandShape,
@@ -3141,7 +3137,7 @@ fn native_decomposition(
             ));
         }
     }
-    oversized.sort_by(|a, b| b.1.cmp(&a.1));
+    oversized.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     // Mechanical-split detection: group `*_parts/`-dir or `partNN.<ext>`-named
     // files by containing directory and reconstruct the logical-unit LOC.
@@ -3199,7 +3195,7 @@ fn native_decomposition(
         };
         mechanical_splits.push((dir.clone(), gfiles.len(), logical_loc, class));
     }
-    mechanical_splits.sort_by(|a, b| b.2.cmp(&a.2));
+    mechanical_splits.sort_by_key(|b| std::cmp::Reverse(b.2));
 
     let runtime_count = oversized.iter().filter(|(_, _, c)| *c == "runtime").count()
         + mechanical_splits

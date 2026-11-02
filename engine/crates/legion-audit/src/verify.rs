@@ -396,6 +396,68 @@ fn verify_execution_structure(report: &ExecutionReport) -> Result<(), AuditError
     Ok(())
 }
 
+/// Run artifacts that make up a run's replay-comparison view.
+pub const REPLAY_RUN_FILES: &[&str] = &["plan.json", "facts.json", "execution.json", "report.json"];
+
+/// Reads a persisted run into one document `{ "<file>": <json> }` for
+/// replay comparison (`normalize::replay_digest` / `replay_differences`).
+/// A missing artifact is recorded as `null`, so a run lacking evidence can
+/// never compare equal to one that has it.
+pub fn replay_run_value(run_dir: &Path) -> Result<Value, AuditError> {
+    let mut document = serde_json::Map::new();
+    for name in REPLAY_RUN_FILES {
+        let path = run_dir.join(name);
+        let value = match fs::symlink_metadata(&path) {
+            Ok(meta) if meta.is_file() => {
+                let bytes = fs::read(&path)
+                    .map_err(|error| AuditError::Invalid(format!("cannot read {name}: {error}")))?;
+                serde_json::from_slice(&bytes)
+                    .map_err(|error| AuditError::Invalid(format!("{name} is invalid: {error}")))?
+            }
+            Ok(_) => return Err(AuditError::Invalid(format!("{name} is not a regular file"))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Value::Null,
+            Err(error) => return Err(AuditError::Invalid(format!("cannot stat {name}: {error}"))),
+        };
+        document.insert((*name).to_owned(), value);
+    }
+    // The run's own location is per-run, not content: rewrite it to `<run>`.
+    let mut roots = vec![run_dir.to_string_lossy().into_owned()];
+    if let Ok(canonical) = fs::canonicalize(run_dir) {
+        roots.push(canonical.to_string_lossy().into_owned());
+    }
+    // Windows records the same directory with or without the verbatim prefix.
+    let plain: Vec<String> = roots
+        .iter()
+        .filter_map(|root| root.strip_prefix(r"\\?\").map(str::to_owned))
+        .collect();
+    roots.extend(plain);
+    roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
+    Ok(rewrite_run_root(Value::Object(document), &roots))
+}
+
+fn rewrite_run_root(value: Value, roots: &[String]) -> Value {
+    match value {
+        Value::String(text) => Value::String(
+            roots
+                .iter()
+                .filter(|root| root.len() > 1)
+                .fold(text, |text, root| text.replace(root.as_str(), "<run>")),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| rewrite_run_root(item, roots))
+                .collect(),
+        ),
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(key, child)| (key, rewrite_run_root(child, roots)))
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
 #[cfg(test)]
 mod effect_artifact_tests {
     use std::{fs, path::PathBuf, time::SystemTime};
@@ -575,67 +637,5 @@ mod effect_artifact_tests {
         fs::remove_file(run.join("artifacts/original/stdout.bin")).unwrap();
         assert!(validate_effect_artifacts(&run, &marked_plan(), &stored, &execution).is_err());
         fs::remove_dir_all(run).unwrap();
-    }
-}
-
-/// Run artifacts that make up a run's replay-comparison view.
-pub const REPLAY_RUN_FILES: &[&str] = &["plan.json", "facts.json", "execution.json", "report.json"];
-
-/// Reads a persisted run into one document `{ "<file>": <json> }` for
-/// replay comparison (`normalize::replay_digest` / `replay_differences`).
-/// A missing artifact is recorded as `null`, so a run lacking evidence can
-/// never compare equal to one that has it.
-pub fn replay_run_value(run_dir: &Path) -> Result<Value, AuditError> {
-    let mut document = serde_json::Map::new();
-    for name in REPLAY_RUN_FILES {
-        let path = run_dir.join(name);
-        let value = match fs::symlink_metadata(&path) {
-            Ok(meta) if meta.is_file() => {
-                let bytes = fs::read(&path)
-                    .map_err(|error| AuditError::Invalid(format!("cannot read {name}: {error}")))?;
-                serde_json::from_slice(&bytes)
-                    .map_err(|error| AuditError::Invalid(format!("{name} is invalid: {error}")))?
-            }
-            Ok(_) => return Err(AuditError::Invalid(format!("{name} is not a regular file"))),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Value::Null,
-            Err(error) => return Err(AuditError::Invalid(format!("cannot stat {name}: {error}"))),
-        };
-        document.insert((*name).to_owned(), value);
-    }
-    // The run's own location is per-run, not content: rewrite it to `<run>`.
-    let mut roots = vec![run_dir.to_string_lossy().into_owned()];
-    if let Ok(canonical) = fs::canonicalize(run_dir) {
-        roots.push(canonical.to_string_lossy().into_owned());
-    }
-    // Windows records the same directory with or without the verbatim prefix.
-    let plain: Vec<String> = roots
-        .iter()
-        .filter_map(|root| root.strip_prefix(r"\\?\").map(str::to_owned))
-        .collect();
-    roots.extend(plain);
-    roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
-    Ok(rewrite_run_root(Value::Object(document), &roots))
-}
-
-fn rewrite_run_root(value: Value, roots: &[String]) -> Value {
-    match value {
-        Value::String(text) => Value::String(
-            roots
-                .iter()
-                .filter(|root| root.len() > 1)
-                .fold(text, |text, root| text.replace(root.as_str(), "<run>")),
-        ),
-        Value::Array(items) => Value::Array(
-            items
-                .into_iter()
-                .map(|item| rewrite_run_root(item, roots))
-                .collect(),
-        ),
-        Value::Object(map) => Value::Object(
-            map.into_iter()
-                .map(|(key, child)| (key, rewrite_run_root(child, roots)))
-                .collect(),
-        ),
-        other => other,
     }
 }

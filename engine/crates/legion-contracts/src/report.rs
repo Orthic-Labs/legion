@@ -353,6 +353,7 @@ pub fn position_anchor(
 /// evidence; it is never repaired by searching for similar text. Evidence
 /// byte range covers the anchored lines' content in the original bytes
 /// (BOM excluded from line 1 content, CRLF retained between lines).
+#[allow(clippy::too_many_arguments)]
 pub fn position_anchor_canonical(
     path: &str,
     start: u32,
@@ -574,9 +575,8 @@ pub fn derive_status(inputs: &StatusInputs<'_>) -> StatusDecision {
         ReportStatus::Incomplete
     } else if inputs.findings.iter().any(|finding| {
         !inputs.advisory.contains(finding.id.as_str()) && finding.confidence != Confidence::Possible
-    }) {
-        ReportStatus::Findings
-    } else if inputs.base == ReportStatus::Findings && !inputs.allow_possible_demotion {
+    }) || (inputs.base == ReportStatus::Findings && !inputs.allow_possible_demotion)
+    {
         ReportStatus::Findings
     } else {
         ReportStatus::Clean
@@ -590,6 +590,11 @@ pub fn derive_status(inputs: &StatusInputs<'_>) -> StatusDecision {
 
 // ----- ReportV2 ---------------------------------------------------------------
 
+/// Scoped bytes of a repository-relative path, `None` when out of scope.
+type ResolveFn<'a> = &'a dyn Fn(&str) -> Option<Vec<u8>>;
+/// Diff tag for an anchor at `(path, start, end)`.
+type DiffTagFn<'a> = &'a dyn Fn(&str, u32, u32) -> DiffTag;
+
 /// Inputs for lifting a writer's v1 report into v2.
 pub struct LiftContext<'a> {
     pub scope: ReportScope,
@@ -597,9 +602,9 @@ pub struct LiftContext<'a> {
     /// when the path is not in scope. `None` here means positioning is
     /// unavailable (no scoped bytes): anchors are not attempted and are never
     /// reported as failed.
-    pub resolve: Option<&'a dyn Fn(&str) -> Option<Vec<u8>>>,
+    pub resolve: Option<ResolveFn<'a>>,
     /// Diff tag for an anchor (diff modes); `None` when not in a diff mode.
-    pub diff_tag: Option<&'a dyn Fn(&str, u32, u32) -> DiffTag>,
+    pub diff_tag: Option<DiffTagFn<'a>>,
     /// Provider-declared exactness for a finding's rule class. Absent means
     /// every finding is heuristic.
     pub exactness: Option<&'a dyn Fn(&Finding) -> Exactness>,
@@ -618,10 +623,7 @@ impl<'a> LiftContext<'a> {
         Self::with_resolver(scope, None)
     }
 
-    fn with_resolver(
-        scope: ReportScope,
-        resolve: Option<&'a dyn Fn(&str) -> Option<Vec<u8>>>,
-    ) -> Self {
+    fn with_resolver(scope: ReportScope, resolve: Option<ResolveFn<'a>>) -> Self {
         Self {
             scope,
             resolve,

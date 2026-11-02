@@ -351,7 +351,8 @@ mod storage_tests {
         // from an allocated ACL containing zero entries.
         let filesec = unsafe { filesec_init() };
         assert!(!filesec.is_null());
-        let configured = unsafe { filesec_set_property(filesec, 5, 1usize as *const c_void) };
+        let configured =
+            unsafe { filesec_set_property(filesec, 5, std::ptr::dangling::<c_void>()) };
         assert_eq!(configured, 0);
         let removed = unsafe { chmodx_np(c_path.as_ptr(), filesec) };
         let error = std::io::Error::last_os_error();
@@ -561,7 +562,12 @@ mod tests {
         ] {
             let relative = !Path::new(&path).is_absolute();
             let command_cwd = if relative { &root } else { Path::new("/") };
-            let output = run("/usr/bin/touch", &[path.clone()], command_cwd, &root);
+            let output = run(
+                "/usr/bin/touch",
+                std::slice::from_ref(&path),
+                command_cwd,
+                &root,
+            );
             assert!(
                 !output.status.success(),
                 "write unexpectedly succeeded: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} status={} stderr={}",
@@ -588,7 +594,12 @@ mod tests {
         ] {
             let relative = !Path::new(&path).is_absolute();
             let command_cwd = if relative { &root } else { Path::new("/") };
-            let output = run("/usr/bin/tee", &[path.clone()], command_cwd, &root);
+            let output = run(
+                "/usr/bin/tee",
+                std::slice::from_ref(&path),
+                command_cwd,
+                &root,
+            );
             assert!(
                 !output.status.success(),
                 "overwrite unexpectedly succeeded: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} status={} stderr={}",
@@ -614,7 +625,7 @@ mod tests {
         ] {
             let relative = !Path::new(&path).is_absolute();
             let command_cwd = if relative { &root } else { Path::new("/") };
-            let output = run("/bin/rm", &[path.clone()], command_cwd, &root);
+            let output = run("/bin/rm", std::slice::from_ref(&path), command_cwd, &root);
             assert!(
                 !output.status.success(),
                 "delete unexpectedly succeeded: scope_root={root:?} canonical_root={canonical_root:?} cwd={command_cwd:?} argv={path:?} status={} stderr={}",

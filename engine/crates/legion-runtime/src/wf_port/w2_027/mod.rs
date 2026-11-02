@@ -188,7 +188,6 @@ fn extract_first(content: &str, pattern: &str) -> Option<String> {
 /// `>` (or before the next `<img` if the tag is unterminated, matching
 /// PCRE's own unanchored `[^>]*` behaviour on a truncated tag).
 fn has_img_without_alt(content: &str) -> bool {
-    let bytes = content.as_bytes();
     let mut idx = 0;
     while let Some(rel) = content[idx..].find("<img") {
         let start = idx + rel;

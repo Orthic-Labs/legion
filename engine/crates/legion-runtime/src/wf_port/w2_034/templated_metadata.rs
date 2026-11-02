@@ -180,7 +180,7 @@ pub fn analyze(rows: &[PageRow]) -> AnalysisResult {
         })
         .collect();
     // `Counter.most_common` sorts by count descending, stable on insertion order for ties.
-    most_common.sort_by(|a, b| b.1.cmp(&a.1));
+    most_common.sort_by_key(|b| std::cmp::Reverse(b.1));
     most_common.truncate(10);
 
     AnalysisResult {

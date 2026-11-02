@@ -499,9 +499,9 @@ impl AuthorityBindingStore {
                 per_message: true,
                 source: "host",
             })
-            .and_then(|a| {
+            .map(|a| {
                 let _ = key_id; // key presence already validated above, matching JS (keyId is threaded to the caller's signer, not used by the ledger itself)
-                Ok(a)
+                a
             })
     }
 }

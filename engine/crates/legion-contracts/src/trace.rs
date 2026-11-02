@@ -140,7 +140,7 @@ impl RoleDecision {
             && self
                 .reason
                 .as_deref()
-                .map_or(true, |reason| reason.trim().is_empty())
+                .is_none_or(|reason| reason.trim().is_empty())
         {
             return Err(ContractError::InvalidContract {
                 path: "role_decisions.reason".into(),
@@ -416,9 +416,8 @@ pub fn fold_role_decision_declarations(
     }
     let mut metrics = RoleDecisionDeclarationMetrics::default();
     for (_, _, decision) in latest {
-        match decision.eligible {
-            Some(true) => metrics.labelled_eligible += 1,
-            Some(false) | None => {}
+        if let Some(true) = decision.eligible {
+            metrics.labelled_eligible += 1;
         }
         match (decision.state, decision.eligible) {
             (RoleDecisionState::Launched, Some(true)) => metrics.declared_eligible_launches += 1,

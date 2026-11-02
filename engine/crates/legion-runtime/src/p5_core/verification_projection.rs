@@ -41,7 +41,7 @@ fn project(value: Value) -> Value {
             let projected: Vec<Value> = items.into_iter().map(project).collect();
             if !projected.is_empty() && projected.iter().all(is_id_bearing_object) {
                 let mut sorted = projected;
-                sorted.sort_by(|a, b| id_sort_key(a).cmp(&id_sort_key(b)));
+                sorted.sort_by_key(id_sort_key);
                 Value::Array(sorted)
             } else {
                 Value::Array(projected)

@@ -40,6 +40,7 @@ fn usage_error(message: impl Into<String>) -> KernelError {
 }
 
 /// Port of `encodeUlid(now, entropy)`.
+#[allow(clippy::result_large_err)]
 fn encode_ulid(now: u64, entropy: &[u8; 10]) -> Result<String, KernelError> {
     if now > 281_474_976_710_655 {
         return Err(usage_error("ULID timestamp is outside 48-bit range"));
@@ -87,6 +88,7 @@ pub fn now_millis() -> u64 {
 }
 
 /// Port of `mintId(kind, options)`.
+#[allow(clippy::result_large_err)]
 pub fn mint_id(kind: &str, now: u64, entropy: &[u8; 10]) -> Result<String, KernelError> {
     let prefix = prefix_for(kind).ok_or_else(|| usage_error(format!("unknown id kind: {kind}")))?;
     Ok(format!("{prefix}{}", encode_ulid(now, entropy)?))
@@ -97,6 +99,7 @@ fn is_valid_ulid_body(body: &str) -> bool {
 }
 
 /// Port of `validateId(kind, value)`.
+#[allow(clippy::result_large_err)]
 pub fn validate_id(kind: &str, value: &str) -> Result<(), KernelError> {
     let prefix = prefix_for(kind).ok_or_else(|| usage_error(format!("unknown id kind: {kind}")))?;
     let valid = value
@@ -110,6 +113,7 @@ pub fn validate_id(kind: &str, value: &str) -> Result<(), KernelError> {
 }
 
 /// Port of `validateExecutionTaskId(value)`: `^T-\d+(\.\d+)*$`.
+#[allow(clippy::result_large_err)]
 pub fn validate_execution_task_id(value: &str) -> Result<(), KernelError> {
     let invalid = || usage_error(format!("invalid ExecutionTask id: {value}"));
     let Some(rest) = value.strip_prefix("T-") else {

@@ -2,7 +2,7 @@ use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
 use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 

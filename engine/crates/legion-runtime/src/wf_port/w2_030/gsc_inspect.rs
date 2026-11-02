@@ -8,8 +8,6 @@
 //! reuses [`super::gsc_query_v2::resolve_bearer_token`]: the saved OAuth token when usable,
 //! otherwise a service-account token minted for the `gsc` scope.
 
-use std::io::Write;
-
 use serde_json::{json, Value};
 
 use super::gsc_query_v2::resolve_bearer_token;

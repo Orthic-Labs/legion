@@ -239,7 +239,7 @@ pub fn pairwise(
         rows.extend(pool);
     }
 
-    rows.sort_by(|a, b| stable(a).cmp(&stable(b)));
+    rows.sort_by_key(stable);
 
     let complete = uncovered.is_empty() && !omitted.iter().any(|o| o.mandatory);
 

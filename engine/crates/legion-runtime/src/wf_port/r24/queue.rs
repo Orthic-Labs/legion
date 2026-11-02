@@ -240,7 +240,7 @@ impl QueueState {
         let ty = event.get("type").and_then(Value::as_str).map(str::to_owned);
         if let Some(id) = &id {
             let dup = inner.pending_events.iter().any(|entry| {
-                entry.id() == Some(id.as_str()) && entry.event_type().as_deref() == ty.as_deref()
+                entry.id() == Some(id.as_str()) && entry.event_type() == ty.as_deref()
             });
             if dup {
                 return;

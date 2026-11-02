@@ -97,7 +97,7 @@ pub fn storage_errors(
         errors.push(format!("dispatch receipt must be named {expected_receipt}"));
     }
     let receipt_normalized = normalized_path(&receipt_arg.to_string_lossy(), None);
-    if forbidden_parts(&receipt_normalized) || in_platform_temp_dir(&receipt_arg) {
+    if forbidden_parts(&receipt_normalized) || in_platform_temp_dir(receipt_arg) {
         errors.push("dispatch receipt cannot use temporary/cache/review-run storage".to_string());
     }
     errors

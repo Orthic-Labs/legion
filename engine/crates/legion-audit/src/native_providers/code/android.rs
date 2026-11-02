@@ -170,7 +170,7 @@ fn decode_entities(raw: &str) -> Result<String, String> {
 }
 
 fn attach(
-    stack: &mut Vec<XmlElement>,
+    stack: &mut [XmlElement],
     root: &mut Option<XmlElement>,
     element: XmlElement,
 ) -> Result<(), String> {
@@ -1001,7 +1001,7 @@ fn select_variants<'a>(
             for module in &model.modules {
                 let before = selected.len();
                 for variant in &module.variants {
-                    if build_types.iter().any(|bt| *bt == variant.build_type) {
+                    if build_types.contains(&variant.build_type) {
                         selected.push((module, variant));
                     }
                 }
@@ -1536,6 +1536,7 @@ pub enum ReportFormat {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum LintEvidenceSource {
     /// Admitted local run, linked to its sealed execution receipt.
     LocalRun {
@@ -2038,9 +2039,7 @@ pub fn evaluate_lint(
     let applicable = plan.is_applicable();
     let complete = applicable && !results.is_empty() && obligations_ok && all_gaps.is_empty();
     let any_findings = results.iter().any(|r| !r.candidates.is_empty());
-    let profile_satisfied = if !applicable {
-        true
-    } else if complete {
+    let profile_satisfied = if !applicable || complete {
         true
     } else if plan.profile == AuditProfile::PrePr && all_gaps.iter().all(|g| is_deferrable(g)) {
         for obligation in &plan.obligations {

@@ -368,7 +368,7 @@ fn fix_doubled_drive(raw: &str) -> String {
     }
     let drive = &raw[0..2];
     let rest = &raw[3..];
-    if rest.len() >= drive.len() + 1
+    if rest.len() > drive.len()
         && rest[..drive.len()].eq_ignore_ascii_case(drive)
         && matches!(rest.as_bytes()[drive.len()], b'\\' | b'/')
     {

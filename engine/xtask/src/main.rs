@@ -686,7 +686,7 @@ fn main() -> ExitCode {
             isolated_root,
             positional,
         } => {
-            let candidate = candidate.or_else(|| positional.get(0).cloned());
+            let candidate = candidate.or_else(|| positional.first().cloned());
             let isolated_root = isolated_root.or_else(|| positional.get(1).cloned());
             let Some(candidate) = candidate else {
                 eprintln!(

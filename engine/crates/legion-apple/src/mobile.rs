@@ -2955,7 +2955,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(args.windows(2).any(|window| window == ["log", "show"]));
         assert!(args.windows(2).any(|window| window == ["--last", "30s"]));
-        assert!(!args.iter().any(|arg| *arg == "stream"));
+        assert!(!args.contains(&"stream"));
         let build = invoke("project.build", &json!({"cwd": cwd.clone(), "project": "Demo.xcodeproj", "scheme": "Demo", "derived_data_path": "new/DerivedData", "result_bundle_path": "new/Result.xcresult"})).await.unwrap();
         let args = build["args"]
             .as_array()

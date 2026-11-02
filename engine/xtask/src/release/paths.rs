@@ -25,38 +25,12 @@ pub fn sha256_file(path: &Path) -> ReleaseResult<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-pub fn sha256_bytes(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
-
 /// Mirrors `assertFile`: must exist, be a regular file, and not a symlink.
 pub fn assert_file(path: &Path, label: &str) -> ReleaseResult<()> {
     let meta = fs::symlink_metadata(path)
         .map_err(|_| format!("{label} is missing: {}", path.display()))?;
     if meta.is_symlink() || !meta.is_file() {
         return Err(format!("{label} is not a regular file: {}", path.display()));
-    }
-    Ok(())
-}
-
-/// Mirrors `assertDirectory`: must exist (or be created when `create`), be a
-/// real directory, and not a symlink.
-pub fn assert_directory(path: &Path, label: &str, create: bool) -> ReleaseResult<()> {
-    if !path.exists() {
-        if !create {
-            return Err(format!("{label} is missing: {}", path.display()));
-        }
-        fs::create_dir_all(path).map_err(|e| format!("{label} could not be created: {e}"))?;
-    }
-    let meta = fs::symlink_metadata(path)
-        .map_err(|_| format!("{label} is missing: {}", path.display()))?;
-    if meta.is_symlink() || !meta.is_dir() {
-        return Err(format!(
-            "{label} is not a regular directory: {}",
-            path.display()
-        ));
     }
     Ok(())
 }
@@ -104,19 +78,6 @@ fn dunce_canonicalize_lenient(path: &Path) -> PathBuf {
         }
     }
     out
-}
-
-pub fn path_from(root: &Path, value: &str, label: &str) -> ReleaseResult<PathBuf> {
-    if value.is_empty() || value.contains('\0') {
-        return Err(format!("{label} path is invalid"));
-    }
-    let candidate = Path::new(value);
-    let joined = if candidate.is_absolute() {
-        candidate.to_path_buf()
-    } else {
-        root.join(candidate)
-    };
-    inside(root, &joined, label, false)
 }
 
 pub fn read_json(path: &Path, label: &str) -> ReleaseResult<serde_json::Value> {
@@ -173,47 +134,6 @@ pub fn spawn_sync(command: &str, args: &[String], options: &CommandOptions) -> C
         Duration::from_millis(process_boundary::RELEASE_COMMAND_TIMEOUT_MS),
         process_boundary::RELEASE_CAPTURE_MAX_BYTES,
     )
-}
-
-pub fn run_json(
-    runner: CommandRunner,
-    command: &str,
-    args: &[String],
-    options: &CommandOptions,
-    label: &str,
-) -> ReleaseResult<serde_json::Value> {
-    let result = runner(command, args, options);
-    if result.error_message.is_some() || result.status != Some(0) {
-        return Err(format!(
-            "{label} failed: {}",
-            process_boundary::command_diagnostic(&result)
-        ));
-    }
-    let stdout = result.stdout.unwrap_or_default();
-    serde_json::from_str(stdout.trim()).map_err(|_| format!("{label} must emit one JSON object"))
-}
-
-pub fn run_ok(
-    runner: CommandRunner,
-    command: &str,
-    args: &[String],
-    options: &CommandOptions,
-    label: &str,
-) -> ReleaseResult<CommandResult> {
-    let result = runner(command, args, options);
-    if result.error_message.is_some() || result.status != Some(0) {
-        return Err(format!(
-            "{label} failed: {}",
-            process_boundary::command_diagnostic(&result)
-        ));
-    }
-    Ok(result)
-}
-
-pub const SHA256_RE_LEN: usize = 64;
-
-pub fn is_sha256_hex(value: &str) -> bool {
-    value.len() == SHA256_RE_LEN && value.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 pub fn is_revision_hex(value: &str) -> bool {

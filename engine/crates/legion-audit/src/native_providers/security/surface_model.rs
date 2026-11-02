@@ -903,7 +903,7 @@ impl Builder {
                 "http-route",
                 &format!("ANY {route}"),
                 path,
-                &[ev.clone()],
+                std::slice::from_ref(&ev),
                 POSSIBLE,
                 &[
                     ("method", "ANY".into()),
@@ -946,7 +946,7 @@ impl Builder {
                 path,
                 "observed",
                 STRONG,
-                &[ev.clone()],
+                std::slice::from_ref(&ev),
                 &[],
             );
             if let (Some(a), Some(dc)) = (a, dc) {
@@ -956,7 +956,7 @@ impl Builder {
                     &dc,
                     "observed",
                     STRONG,
-                    &[ev.clone()],
+                    std::slice::from_ref(&ev),
                     "inventory-bytes",
                 );
             }
@@ -982,7 +982,7 @@ impl Builder {
                         "cli",
                         path,
                         path,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         POSSIBLE,
                         &[("derivation", "package-bin-field".into())],
                         a.as_deref(),
@@ -1114,7 +1114,7 @@ impl Builder {
                     subkind,
                     &format!("{method} {route}"),
                     path,
-                    &[ev.clone()],
+                    std::slice::from_ref(&ev),
                     strength,
                     &[
                         ("method", method.clone()),
@@ -1135,7 +1135,7 @@ impl Builder {
                             path,
                             "inferred",
                             POSSIBLE,
-                            &[gev.clone()],
+                            std::slice::from_ref(&gev),
                             &[("controlState", "unknown".into())],
                         ) {
                             self.relation(
@@ -1179,7 +1179,7 @@ impl Builder {
                         "cli",
                         path,
                         path,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         strength,
                         &[("derivation", "argument-parser".into())],
                         a.as_deref(),
@@ -1202,7 +1202,7 @@ impl Builder {
                         "ipc-command",
                         &name,
                         path,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         STRONG,
                         &[("framework", "tauri".into())],
                         a.as_deref(),
@@ -1218,7 +1218,7 @@ impl Builder {
                         "ipc-command",
                         &c[1],
                         path,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         STRONG,
                         &[("framework", "electron".into())],
                         a.as_deref(),
@@ -1233,7 +1233,7 @@ impl Builder {
                         "ipc-command",
                         &format!("preload-bridge:{path}"),
                         path,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         STRONG,
                         &[("framework", "electron-preload-bridge".into())],
                         a.as_deref(),
@@ -1253,9 +1253,9 @@ impl Builder {
                             .unwrap_or_default()
                     })
                     .or_else(|| p.queue_js_topic.captures(line).map(|c| c[1].to_string()))
-            } else if has_queue_py && p.queue_py.is_match(line) {
-                Some(String::new())
-            } else if lang == Lang::Rs && p.queue_rs.is_match(line) {
+            } else if (has_queue_py && p.queue_py.is_match(line))
+                || (lang == Lang::Rs && p.queue_rs.is_match(line))
+            {
                 Some(String::new())
             } else {
                 None
@@ -1272,7 +1272,7 @@ impl Builder {
                     "queue-consumer",
                     &name,
                     path,
-                    &[ev.clone()],
+                    std::slice::from_ref(&ev),
                     if lang == Lang::Rs { POSSIBLE } else { STRONG },
                     &[],
                     a.as_deref(),
@@ -1313,7 +1313,7 @@ impl Builder {
                         "mcp-tool",
                         &name,
                         path,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         STRONG,
                         &[],
                         a.as_deref(),
@@ -1354,7 +1354,7 @@ impl Builder {
                     "scheduled-job",
                     &name,
                     path,
-                    &[ev.clone()],
+                    std::slice::from_ref(&ev),
                     if is_workflow { STRONG } else { POSSIBLE },
                     &[],
                     a.as_deref(),
@@ -1371,7 +1371,7 @@ impl Builder {
                             "ci-trigger",
                             &trig,
                             path,
-                            &[ev.clone()],
+                            std::slice::from_ref(&ev),
                             STRONG,
                             &[],
                             a.as_deref(),
@@ -1395,7 +1395,7 @@ impl Builder {
                             "env",
                             "observed",
                             POSSIBLE,
-                            &[ev.clone()],
+                            std::slice::from_ref(&ev),
                             &[
                                 ("valueRecorded", "false".into()),
                                 ("derivation", "env-var-name".into()),
@@ -1430,7 +1430,7 @@ impl Builder {
                             "credential-store",
                             &tok,
                             path,
-                            &[ev.clone()],
+                            std::slice::from_ref(&ev),
                             POSSIBLE,
                             &[("derivation", "library-token".into())],
                         ) {
@@ -1460,7 +1460,7 @@ impl Builder {
                             "repository",
                             "observed",
                             POSSIBLE,
-                            &[ev.clone()],
+                            std::slice::from_ref(&ev),
                             &[],
                         ) {
                             if let Some(a) = a {
@@ -1499,7 +1499,7 @@ impl Builder {
                             "money",
                             &format!("payment-provider:{prov}"),
                             path,
-                            &[ev.clone()],
+                            std::slice::from_ref(&ev),
                             POSSIBLE,
                             &[("derivation", "payment-dependency".into())],
                         ) {
@@ -1529,7 +1529,7 @@ impl Builder {
                 "pii-store",
                 path,
                 path,
-                &[ev.clone()],
+                std::slice::from_ref(&ev),
                 POSSIBLE,
                 &[
                     ("fieldNames", fields),
@@ -1624,7 +1624,7 @@ impl Builder {
                 path,
                 "observed",
                 STRONG,
-                &[ev.clone()],
+                std::slice::from_ref(&ev),
                 &[],
             ) {
                 if let Some(a) = &artifact {
@@ -1634,7 +1634,7 @@ impl Builder {
                         &scope,
                         "observed",
                         STRONG,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         "inventory-bytes",
                     );
                 }
@@ -1684,7 +1684,7 @@ impl Builder {
                 path,
                 "observed",
                 STRONG,
-                &[ev.clone()],
+                std::slice::from_ref(&ev),
                 &[("command", command), ("transport", transport.into())],
             ) {
                 if let Some(a) = &artifact {
@@ -1694,7 +1694,7 @@ impl Builder {
                         &id,
                         "observed",
                         STRONG,
-                        &[ev.clone()],
+                        std::slice::from_ref(&ev),
                         "inventory-bytes",
                     );
                 }
@@ -1919,7 +1919,7 @@ impl Builder {
                             "graph-depth-limit",
                             "reachability search stopped at the hop limit; deeper paths are not modelled",
                             false,
-                            &[ep_path.clone()],
+                            std::slice::from_ref(&ep_path),
                         );
                     }
                     continue;
@@ -1938,7 +1938,7 @@ impl Builder {
         self.graph_used = graph_used;
     }
 
-    fn finish(mut self, input: &SurfaceModelInput<'_>) -> SecurityModel {
+    fn finish(self, input: &SurfaceModelInput<'_>) -> SecurityModel {
         let graph_used = self.graph_used;
 
         const DOMAINS: &[(&str, &str)] = &[

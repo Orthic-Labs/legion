@@ -481,49 +481,6 @@ pub(super) fn variant_receipt_paths(
     Ok((findings, withdrawn))
 }
 
-pub(super) fn variant_receipt_counts(
-    run_dir: &Path,
-) -> Result<(u64, u64, Vec<String>), AuditError> {
-    let dir = run_dir.join(LENS_RECEIPT_DIR);
-    let single = format!("{VARIANT_PROVIDER_ID}.json");
-    let prefix = format!("{VARIANT_PROVIDER_ID}.part-");
-    let (mut confirmed, mut rejected, mut reasons) = (0u64, 0u64, Vec::new());
-    let mut names = Vec::new();
-    for entry in fs::read_dir(&dir)
-        .map_err(|error| io(error, "could not list the variant receipts"))?
-        .filter_map(Result::ok)
-    {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if name == single || (name.starts_with(&prefix) && name.ends_with(".json")) {
-            names.push(entry.path());
-        }
-    }
-    names.sort();
-    for path in names {
-        let receipt = read_json(&path)?;
-        confirmed += receipt
-            .pointer("/result/details/lensFindings")
-            .and_then(Value::as_array)
-            .map_or(0, |items| items.len() as u64);
-        for entry in receipt
-            .pointer("/result/details/withdrawnFindings")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-        {
-            rejected += 1;
-            reasons.push(
-                entry
-                    .get("reason")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-            );
-        }
-    }
-    Ok((confirmed, rejected, reasons))
-}
-
 /// Called by the variant-lens ingest: seal `<followup>/variant-ledger.json`
 /// from the authenticated receipts plus the host-recorded per-part inputs. The
 /// optional result field `variantLedger` carries `unresolved`, `matched` and
@@ -708,6 +665,7 @@ pub struct FollowupPlanned {
 
 /// State of the follow-up as seen from the parent run.
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum FollowupState {
     /// No follow-up has been compiled.
     Absent,

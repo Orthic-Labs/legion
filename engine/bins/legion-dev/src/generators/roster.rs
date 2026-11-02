@@ -4,14 +4,20 @@
 //! with its own lighter-weight local `rosterFrontmatter`, ported inline in
 //! `host_projection.rs`); ported here for other T2 callers per the brief.
 
+#[cfg(test)]
 use std::fs;
+#[cfg(test)]
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
 pub const ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle", "sentry"];
 /// Tier variants of a role: (variant id, base role). A variant has its own roster file
 /// (`variantOf: <base>`) but embeds the base role's doctrine and roster body.
+#[cfg(test)]
 pub const VARIANT_IDS: &[(&str, &str)] = &[("alchemist-specialist", "alchemist")];
+#[cfg(test)]
 const MODEL_TIERS: &[&str] = &["frontier-judgment", "balanced-executor", "mechanical-cheap"];
+#[cfg(test)]
 fn route_method(id: &str) -> &'static str {
     match id {
         "sage" => "doctrine/sage.md",
@@ -22,16 +28,15 @@ fn route_method(id: &str) -> &'static str {
     }
 }
 
+#[cfg(test)]
 pub struct RosterRole {
-    pub id: String,
-    pub path: PathBuf,
     pub name: String,
     pub description: String,
     pub model_tier: String,
-    pub delegation_tiers: String,
     pub body: String,
 }
 
+#[cfg(test)]
 fn parse_frontmatter(
     text: &str,
     path: &Path,
@@ -64,6 +69,7 @@ fn parse_frontmatter(
     Ok((values, body))
 }
 
+#[cfg(test)]
 pub fn roster_path(root: &Path, id: &str) -> Result<PathBuf, String> {
     if !ROLE_IDS.contains(&id) && !VARIANT_IDS.iter().any(|(variant, _)| *variant == id) {
         return Err(format!("unknown roster role: {id}"));
@@ -71,6 +77,7 @@ pub fn roster_path(root: &Path, id: &str) -> Result<PathBuf, String> {
     Ok(root.join("src/roster").join(format!("{id}.md")))
 }
 
+#[cfg(test)]
 pub fn load_roster_role(root: &Path, id: &str) -> Result<RosterRole, String> {
     let path = roster_path(root, id)?;
     let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -98,25 +105,15 @@ pub fn load_roster_role(root: &Path, id: &str) -> Result<RosterRole, String> {
             }
         ));
     }
-    let delegation_tiers = values.get("delegationTiers").cloned().unwrap_or_default();
     Ok(RosterRole {
-        id: id.to_string(),
-        path,
         name,
         description,
         model_tier,
-        delegation_tiers,
         body,
     })
 }
 
-pub fn roster_roles(root: &Path) -> Result<Vec<RosterRole>, String> {
-    ROLE_IDS
-        .iter()
-        .map(|id| load_roster_role(root, id))
-        .collect()
-}
-
+#[cfg(test)]
 pub fn role_projection(root: &Path, id: &str) -> Result<String, String> {
     let role = load_roster_role(root, id)?;
     let method_path = root.join(route_method(id));
@@ -151,26 +148,6 @@ pub fn role_projection(root: &Path, id: &str) -> Result<String, String> {
     lines.push(String::new());
     lines.push(method);
     lines.push(String::new());
-    Ok(lines.join("\n"))
-}
-
-pub fn low_fidelity_projection(root: &Path) -> Result<String, String> {
-    let roles = roster_roles(root)?;
-    let mut lines = vec!["# Legion authority context".to_string(), String::new()];
-    for role in &roles {
-        lines.push(format!(
-            "- **{}** — {} Model tier: `{}`.",
-            role.name, role.description, role.model_tier
-        ));
-    }
-    lines.push(
-        "- **Council seat** — doctrine-only advisory review seat; not an authority.".to_string(),
-    );
-    lines.push(String::new());
-    lines.push(
-        "Use Legion routing. Do not edit generated harness files; rerun `legion bind --write`."
-            .to_string(),
-    );
     Ok(lines.join("\n"))
 }
 

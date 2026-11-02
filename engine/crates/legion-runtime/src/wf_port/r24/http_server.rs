@@ -133,7 +133,7 @@ fn read_request(stream: &mut impl Read) -> Option<Request> {
     if reader.read_line(&mut request_line).ok()? == 0 {
         return None;
     }
-    let mut parts = request_line.trim().split_whitespace();
+    let mut parts = request_line.split_whitespace();
     let method = parts.next()?.to_string();
     let target = parts.next()?.to_string();
 
@@ -594,6 +594,7 @@ fn is_valid_event_id(id: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_request<'a>(
     req: Request,
     mut stream: impl Write,

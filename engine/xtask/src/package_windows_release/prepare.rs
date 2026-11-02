@@ -177,7 +177,7 @@ fn resolve_inside(root: &Path, relative_path: &str, label: &str) -> Result<PathB
     let base = fs::canonicalize(root)
         .map(crate::windows_release_support::strip_verbatim)
         .map_err(|e| format!("{label} root is unreadable: {e}"))?;
-    let candidate = base.join(relative_path.replace('/', &std::path::MAIN_SEPARATOR.to_string()));
+    let candidate = base.join(relative_path.replace('/', std::path::MAIN_SEPARATOR_STR));
     let candidate_resolved = crate::windows_release_support::canonical_path(&candidate);
     if candidate_resolved == base || !candidate_resolved.starts_with(&base) {
         return Err(format!("{label} escapes release root: {relative_path}"));

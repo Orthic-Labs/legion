@@ -116,10 +116,12 @@ fn gen_deck_thumbs_end_to_end_via_run() {
         writes: RefCell::new(HashMap::new()),
     };
     let mut browser = FakeThumbsBrowser;
-    let mut args = gen_deck_thumbs::Args::default();
-    args.slides = slides;
-    args.out = out.clone();
-    args.width = 1;
+    let args = gen_deck_thumbs::Args {
+        slides,
+        out: out.clone(),
+        width: 1,
+        ..Default::default()
+    };
     let outcome = gen_deck_thumbs::run(&fs, &mut browser, &args).unwrap();
     assert_eq!(outcome.ok_count, 1);
     assert!(fs.writes.borrow().contains_key(&out.join("01-cover.jpg")));

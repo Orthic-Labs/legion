@@ -86,6 +86,7 @@ pub fn string_gap(value: &Value) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn provider_result(
     provider: &str,
     required: bool,

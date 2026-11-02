@@ -86,6 +86,7 @@ fn has_flag(argv: &[String], name: &str) -> bool {
 /// Result of parsing argv. `Err(())` mirrors the usage-error path (`html`
 /// missing, or `argv[2]` starts with `--`): the caller prints the usage
 /// message and exits 1.
+#[allow(clippy::result_unit_err)]
 pub fn parse_args(argv: &[String]) -> Result<SeekArgs, ()> {
     // Mirrors `const HTML_FILE = process.argv[2];`
     let html_file = argv.get(2).cloned();

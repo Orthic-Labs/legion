@@ -429,10 +429,6 @@ pub fn build_surface_record(root: &Path, check_installed_binaries: bool) -> Resu
     Ok(Value::Object(record))
 }
 
-pub fn run(root: &Path, check: bool) -> bool {
-    run_opts(root, check, false)
-}
-
 pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
     let record = match build_surface_record(root, !structural_only) {
         Ok(r) => r,
@@ -499,7 +495,7 @@ pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
             counts["agents"],
             counts["mcpServers"],
             counts["hookEvents"],
-            &record_digest.chars().take(19).collect::<String>()
+            record_digest.chars().take(19).collect::<String>()
         );
         return true;
     }

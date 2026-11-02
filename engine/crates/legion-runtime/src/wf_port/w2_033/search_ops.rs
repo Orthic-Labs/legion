@@ -166,6 +166,7 @@ pub fn save_state(path: &Path, state: &SearchOpsState) -> Result<(), SearchOpsEr
 }
 
 /// A parsed CLI invocation, mirroring `search_ops.py`'s `argparse` subcommands.
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     Start(Intervention),
     Deploy {

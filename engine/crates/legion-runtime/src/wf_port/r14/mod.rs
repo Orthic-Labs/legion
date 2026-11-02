@@ -472,7 +472,7 @@ pub fn persist_cache(cwd: &Path, mut cache: Cache) -> bool {
             .iter()
             .map(|(id, s)| (id.clone(), s.updated_at))
             .collect();
-        ids.sort_by(|a, b| b.1.cmp(&a.1));
+        ids.sort_by_key(|a| std::cmp::Reverse(a.1));
         ids.truncate(CACHE_MAX_SESSIONS);
         let keep: std::collections::HashSet<String> = ids.into_iter().map(|(id, _)| id).collect();
         cache.sessions.retain(|id, _| keep.contains(id));
@@ -970,7 +970,7 @@ pub fn parse_apply_patch_paths(command: &str, project_cwd: &Path) -> Vec<String>
 /// event value (already harness-normalized by `normalize_hook_event`).
 pub fn resolve_target_files(event: &Value, project_cwd: &Path) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
-    let mut add = |p: Option<&str>, out: &mut Vec<String>| {
+    let add = |p: Option<&str>, out: &mut Vec<String>| {
         if let Some(p) = p {
             if !p.is_empty() && !out.iter().any(|x| x == p) {
                 out.push(p.to_string());
@@ -1327,7 +1327,7 @@ pub fn co_located_stylesheets(file_path: &str) -> Vec<String> {
         .unwrap_or_default();
 
     let mut candidates: Vec<String> = Vec::new();
-    let mut push_unique = |p: PathBuf, out: &mut Vec<String>| {
+    let push_unique = |p: PathBuf, out: &mut Vec<String>| {
         let s = p.to_string_lossy().replace('\\', "/");
         if !out.contains(&s) {
             out.push(s);

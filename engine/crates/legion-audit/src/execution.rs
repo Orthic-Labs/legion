@@ -610,6 +610,7 @@ fn run_unit_sync(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_unit_async(
     executor: &dyn ProviderExecutor,
     plan: &FrozenPlan,
@@ -2655,7 +2656,7 @@ fn stamp_executed_toolchain(provider: &AuditProvider, result: &mut ProviderResul
         found.sort();
         found.dedup();
         // Every receipt must identify its tool; mixed or partial identity is UNKNOWN.
-        (found.len() >= 1 && receipts.iter().all(|r| receipt_toolchain(r).is_some()))
+        (!found.is_empty() && receipts.iter().all(|r| receipt_toolchain(r).is_some()))
             .then(|| found.join("+"))
     };
     if let Some(identity) = identity {

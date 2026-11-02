@@ -481,12 +481,15 @@ fn count_em_dashes(text: &str) -> usize {
             i += 1;
             continue;
         }
-        if chars[i] == '-' && i + 1 < chars.len() && chars[i + 1] == '-' {
-            if i + 2 < chars.len() && !chars[i + 2].is_whitespace() {
-                count += 1;
-                i += 2;
-                continue;
-            }
+        if chars[i] == '-'
+            && i + 1 < chars.len()
+            && chars[i + 1] == '-'
+            && i + 2 < chars.len()
+            && !chars[i + 2].is_whitespace()
+        {
+            count += 1;
+            i += 2;
+            continue;
         }
         i += 1;
     }

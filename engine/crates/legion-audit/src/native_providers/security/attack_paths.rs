@@ -578,9 +578,7 @@ fn fields_compatible(a: &Fact, b: &Fact) -> bool {
 
 fn kind_action(pattern: &Value, fact: &Fact) -> bool {
     pattern["kind"].as_str() == Some(fact.kind.as_str())
-        && pattern["action"]
-            .as_str()
-            .map_or(true, |a| a == fact.action)
+        && pattern["action"].as_str().is_none_or(|a| a == fact.action)
 }
 
 /// Best composition of `a` into `b`, if any. Deterministic: bridge registry
@@ -707,7 +705,7 @@ fn objective_hit<'a>(
                     continue;
                 }
             }
-            if best.as_ref().map_or(true, |(cur, _)| {
+            if best.as_ref().is_none_or(|(cur, _)| {
                 (registry.rank(&obj.priority), &obj.id) < (registry.rank(&cur.priority), &cur.id)
             }) {
                 best = Some((obj, effect.raw.clone()));
@@ -1013,7 +1011,7 @@ pub fn synthesize(
     raws.retain(|raw| {
         prefix_rank
             .get(&raw.members)
-            .map_or(true, |r| *r > registry.rank(&raw.objective.1))
+            .is_none_or(|r| *r > registry.rank(&raw.objective.1))
     });
 
     let mut built: Vec<(Vec<String>, Value)> = Vec::new();

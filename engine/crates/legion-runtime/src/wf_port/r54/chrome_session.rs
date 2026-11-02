@@ -203,9 +203,8 @@ impl BrowserSession for ChromeSession {
     fn wait_for_eval(&mut self, expression: &str, timeout_ms: u64) -> Result<Value, String> {
         // `waitForEval` (qa.mjs lines 467-476): poll every 250ms until `.ok` truthy or timeout.
         let started = std::time::Instant::now();
-        let mut last = Value::Null;
         loop {
-            last = self.eval_raw(expression)?;
+            let last = self.eval_raw(expression)?;
             if last.get("ok").and_then(|v| v.as_bool()) == Some(true) {
                 return Ok(last);
             }

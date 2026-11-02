@@ -781,7 +781,7 @@ pub fn run(
     let api_ref = api.as_deref();
 
     let mut stderr = String::new();
-    let mut stdout = String::new();
+    let stdout: String;
     let mut exit_code = 0;
 
     match parsed.command.as_str() {

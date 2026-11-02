@@ -273,7 +273,7 @@ mod tests {
                 )
             });
             let deadline = Instant::now() + Duration::from_secs(2);
-            while queue.len() == 0 {
+            while queue.is_empty() {
                 assert!(Instant::now() < deadline, "manual apply event not queued");
                 thread::sleep(Duration::from_millis(1));
             }

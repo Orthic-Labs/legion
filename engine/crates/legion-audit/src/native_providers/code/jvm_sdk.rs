@@ -557,7 +557,7 @@ fn parse(
                     warned.insert(language.to_owned());
                     findings.push(super::evidence::NativeFinding {
                         rule: format!("jvm-compiler-warning:{language}").into(),
-                        severity: "medium".into(),
+                        severity: "medium",
                         path,
                         line: c[2].parse().map_err(|_| error("diagnostic-line"))?,
                         message: c[4].chars().take(300).collect(),

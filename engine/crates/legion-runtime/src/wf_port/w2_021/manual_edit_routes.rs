@@ -422,7 +422,7 @@ fn handle_commit(
     let mut routed_provider = "subprocess".to_string();
     let mut transaction: Option<Value> = None;
     let mut commit_batch: Option<Value> = None;
-    let commit_outcome: Result<Value, (String, String)> = (|| {
+    let mut run_commit = || -> Result<Value, (String, String)> {
         if pending_count > 0 {
             let transaction_batch = deps.build_manual_edit_evidence(page_url.as_deref());
             commit_batch = Some(transaction_batch.clone());
@@ -472,7 +472,8 @@ fn handle_commit(
             batch: commit_batch.clone(),
         })
         .map_err(|message| (routed_provider.clone(), message))
-    })();
+    };
+    let commit_outcome = run_commit();
 
     let result = match commit_outcome {
         Err((provider, message)) => {

@@ -25,12 +25,12 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::wf_port::r18::rollback::{
-    changed_files_since_snapshot, collect_apply_owned_files, rollback_changed_files,
-    snapshot_rollback_files, unreported_changed_files, RollbackSnapshot,
+    collect_apply_owned_files, rollback_changed_files, snapshot_rollback_files,
+    unreported_changed_files, RollbackSnapshot,
 };
 use crate::wf_port::r18::verify::{
     verification_failures_for_entries, verify_applied_entry, verify_entries_after_repair,
-    FsSourceStore, SourceStore,
+    FsSourceStore,
 };
 use crate::wf_port::w2_017::commit_edits::{
     all_entry_ids, arg_val, build_repair_batch, candidates_for_entry, count_ops,
@@ -106,6 +106,7 @@ fn count_by_page_json(cwd: &Path) -> Value {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_agent(
     batch: &Value,
     cwd: &Path,
@@ -1105,11 +1106,11 @@ pub fn run_cli(args: &[String], cwd: PathBuf, env: &HashMap<String, String>) -> 
     let has_failures = result
         .get("failed")
         .and_then(Value::as_array)
-        .map_or(true, |f| !f.is_empty());
+        .is_none_or(|f| !f.is_empty());
     let has_applied = result
         .get("applied")
         .and_then(Value::as_array)
-        .map_or(false, |a| !a.is_empty());
+        .is_some_and(|a| !a.is_empty());
     let code = if !has_reason && !has_failures && has_applied {
         0
     } else {

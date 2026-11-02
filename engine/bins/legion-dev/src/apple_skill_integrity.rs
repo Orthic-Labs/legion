@@ -224,14 +224,13 @@ fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
                     .extension()
                     .and_then(|extension| extension.to_str())
                     == Some("md")
+                && !anchors(&resolved).contains(&fragment)
             {
-                if !anchors(&resolved).contains(&fragment) {
-                    issues.push(format!(
-                        "broken anchor {}#{fragment} in {}",
-                        resolved.display(),
-                        path.display()
-                    ));
-                }
+                issues.push(format!(
+                    "broken anchor {}#{fragment} in {}",
+                    resolved.display(),
+                    path.display()
+                ));
             }
             if resolved
                 .extension()
@@ -253,13 +252,12 @@ fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
             .extension()
             .and_then(|extension| extension.to_str())
             == Some("md")
+            && !visited.contains(&entry.path().canonicalize().unwrap())
         {
-            if !visited.contains(&entry.path().canonicalize().unwrap()) {
-                issues.push(format!(
-                    "unreachable Markdown reference {}",
-                    entry.path().display()
-                ));
-            }
+            issues.push(format!(
+                "unreachable Markdown reference {}",
+                entry.path().display()
+            ));
         }
     }
     issues
@@ -499,12 +497,11 @@ fn assert_source_ledgers(root: &Path) {
                 }
                 if !fragment.is_empty()
                     && target.extension().and_then(|extension| extension.to_str()) == Some("md")
+                    && !anchors(&target).contains(fragment)
                 {
-                    if !anchors(&target).contains(fragment) {
-                        destination_issues.push(format!(
-                            "{identity}: broken destination anchor: {destination}"
-                        ));
-                    }
+                    destination_issues.push(format!(
+                        "{identity}: broken destination anchor: {destination}"
+                    ));
                 }
             }
         }

@@ -353,8 +353,8 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             }
         }
 
-        fs::create_dir_all(self.root.join("proofs")).map_err(|e| io_err(e))?;
-        fs::create_dir_all(self.root.join("transitions")).map_err(|e| io_err(e))?;
+        fs::create_dir_all(self.root.join("proofs")).map_err(io_err)?;
+        fs::create_dir_all(self.root.join("transitions")).map_err(io_err)?;
         let issued_at = (self.clock)();
         let expires_at = add_millis_iso(&issued_at, 300_000);
         let domain = format!("arcane-authority-proof:{role}:{purpose}");

@@ -600,7 +600,7 @@ fn codex_hook_state(
 }
 
 fn codex_hook_state_at(
-    home: &Path,
+    _home: &Path,
     codex_home: &Path,
     cache_state: &str,
     plugin_path: Option<&Path>,

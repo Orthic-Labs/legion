@@ -10,10 +10,10 @@
 //! host/{capabilities,fs,process,fixed-host,index,sandbox-policy,surfaces}.mjs,
 //! host/adapters/*, host/arcane/stop-disposition.mjs, and host-projection.mjs
 //! + open-for-review.mjs. Not yet ported (see report for why): the remaining
-//! host/arcane/* files (decision-envelope, hook-adapter-core, host-event,
-//! host-event-ledger, host-runtime-output, legacy-bridge, continuity,
-//! session-binding, source-revision, codex-escalation, discipline-controls,
-//! denial-circuit) and the standalone auto-jury.mjs / design-gate.mjs.
+//!   host/arcane/* files (decision-envelope, hook-adapter-core, host-event,
+//!   host-event-ledger, host-runtime-output, legacy-bridge, continuity,
+//!   session-binding, source-revision, codex-escalation, discipline-controls,
+//!   denial-circuit) and the standalone auto-jury.mjs / design-gate.mjs.
 
 pub mod capabilities;
 pub mod content;

@@ -302,16 +302,14 @@ fn inspect_product(
                 .get("gaps")
                 .and_then(Value::as_array)
                 .cloned()
-                .unwrap_or_default()
-                .into_iter(),
+                .unwrap_or_default(),
         )
         .chain(
             journeys
                 .get("gaps")
                 .and_then(Value::as_array)
                 .cloned()
-                .unwrap_or_default()
-                .into_iter(),
+                .unwrap_or_default(),
         )
         .chain(
             stacks
@@ -839,7 +837,12 @@ fn extract_components(
             .unwrap()
             .is_match(path)
     }) {
-        candidates.push(component("ui", &target_ids, &[path.clone()], Map::new()));
+        candidates.push(component(
+            "ui",
+            &target_ids,
+            std::slice::from_ref(path),
+            Map::new(),
+        ));
     }
     let value = json!({
         "schemaVersion": 1,
@@ -945,7 +948,7 @@ fn build_stack_graph(
 }
 
 fn discover_external_systems(
-    projection: &Value,
+    _projection: &Value,
     components: &Value,
     binding: Option<&Value>,
 ) -> Result<Value, String> {
@@ -1055,7 +1058,7 @@ fn build_journeys(
 
 fn compile_baseline(
     _packs: &[Value],
-    portfolio: &Value,
+    _portfolio: &Value,
     _components: &Value,
     _stacks: &Value,
     _contract: &Value,

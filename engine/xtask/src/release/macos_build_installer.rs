@@ -85,7 +85,6 @@ pub struct MacosCommand {
 
 pub struct MacosInstallerPlan {
     pub input: PathBuf,
-    pub output: PathBuf,
     pub version: String,
     pub app: PathBuf,
     pub dmg: PathBuf,
@@ -215,7 +214,6 @@ pub fn macos_installer_plan(
     ];
     Ok(MacosInstallerPlan {
         input,
-        output,
         version: version.to_string(),
         app,
         dmg,

@@ -1227,7 +1227,7 @@ mod tests {
         assert!(outcome
             .meta
             .iter()
-            .any(|(key, value)| *key == "totalDeps" && *value == Value::from(2_u64)));
+            .any(|(key, value)| *key == "totalDeps" && value.as_u64() == Some(2)));
     }
 
     #[test]
@@ -1461,7 +1461,7 @@ mod tests {
         assert!(outcome
             .meta
             .iter()
-            .any(|(key, value)| *key == "majorsBehind" && *value == Value::from(1_u64)));
+            .any(|(key, value)| *key == "majorsBehind" && value.as_u64() == Some(1)));
     }
 
     #[test]
@@ -1510,16 +1510,16 @@ mod tests {
         assert!(outcome
             .meta
             .iter()
-            .any(|(key, value)| *key == "ponytail" && *value == Value::from(2_u64)));
+            .any(|(key, value)| *key == "ponytail" && value.as_u64() == Some(2)));
         // one ponytail line contains "upgrade" (has a trigger word), the other doesn't.
         assert!(outcome
             .meta
             .iter()
-            .any(|(key, value)| *key == "ponytailNoTrigger" && *value == Value::from(1_u64)));
+            .any(|(key, value)| *key == "ponytailNoTrigger" && value.as_u64() == Some(1)));
         assert!(outcome
             .meta
             .iter()
-            .any(|(key, value)| *key == "todoFixme" && *value == Value::from(2_u64)));
+            .any(|(key, value)| *key == "todoFixme" && value.as_u64() == Some(2)));
     }
 
     #[test]

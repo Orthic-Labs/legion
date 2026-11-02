@@ -4532,7 +4532,7 @@ fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
 }
 
 fn native_rule_diagnostic_application(
-    args: &AuditArgs,
+    _args: &AuditArgs,
     root: &std::path::Path,
     manifest: &std::path::Path,
     only_paths: Option<&std::collections::BTreeSet<String>>,
@@ -6933,7 +6933,6 @@ mod closure_tests {
 #[cfg(test)]
 mod sealed_plan_tests {
     use super::*;
-    use legion_audit::InventorySource as _;
 
     const KEY: &[u8] = b"sealed-plan-test-key";
 

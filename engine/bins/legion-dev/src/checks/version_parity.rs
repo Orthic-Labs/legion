@@ -15,7 +15,7 @@ struct Issue {
 }
 
 #[derive(Serialize)]
-struct Report {
+pub struct Report {
     #[serde(rename = "schemaVersion")]
     schema_version: u32,
     kind: &'static str,

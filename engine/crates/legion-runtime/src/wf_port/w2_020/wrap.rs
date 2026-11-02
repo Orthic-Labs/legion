@@ -221,7 +221,7 @@ pub fn build_search_queries(
         if class_list.len() > 1 {
             let joined = class_list.join(" ");
             let mut sorted = class_list.clone();
-            sorted.sort_by(|a, b| b.len().cmp(&a.len()));
+            sorted.sort_by_key(|b| std::cmp::Reverse(b.len()));
             queries.push(format!("class=\"{joined}\""));
             queries.push(format!("className=\"{joined}\""));
             for class_name in sorted {

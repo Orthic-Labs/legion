@@ -510,13 +510,12 @@ fn replace_first_removal(pat: &Regex, content: &str) -> Option<String> {
     let whole = caps.get(0).unwrap();
     let leading_indent = caps.get(1).map(|m| m.as_str()).unwrap_or("");
     let trailing = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-    let replacement = if trailing.contains('\n') || trailing.contains('\r') {
-        leading_indent.to_string()
-    } else if !leading_indent.is_empty() {
-        leading_indent.to_string()
-    } else {
-        trailing.to_string()
-    };
+    let replacement =
+        if trailing.contains('\n') || trailing.contains('\r') || !leading_indent.is_empty() {
+            leading_indent.to_string()
+        } else {
+            trailing.to_string()
+        };
     Some(format!(
         "{}{}{}",
         &content[..whole.start()],
@@ -706,7 +705,7 @@ const BASE64_ALPHABET: &[u8; 64] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 fn base64_encode(data: &[u8]) -> String {
-    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
         let b0 = chunk[0];
         let b1 = *chunk.get(1).unwrap_or(&0);
@@ -1500,7 +1499,7 @@ mod tests {
         let content = "<html>\n</body>\n<!-- comment with </body> inside -->\n</body>\n</html>";
         let c = cfg(Some("</body>"), None);
         let out = insert_tag(content, &c, 4321, "index.html");
-        assert!(out.contains(&format!("{MARKER_OPEN_TEXT}")));
+        assert!(out.contains(MARKER_OPEN_TEXT));
         // Inserted right before the LAST </body>.
         let marker_idx = out.find(MARKER_OPEN_TEXT).unwrap();
         let last_body_idx = out.rfind("</body>").unwrap();

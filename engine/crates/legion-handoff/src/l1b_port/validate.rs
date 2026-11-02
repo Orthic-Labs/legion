@@ -648,11 +648,11 @@ fn is_py_launcher_selector(token: &str) -> bool {
     let digits = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
     let mut parts = version.split('.');
     let major_ok = matches!(parts.next(), Some("2" | "3"));
-    let minor_ok = parts.next().map_or(true, digits);
+    let minor_ok = parts.next().is_none_or(digits);
     major_ok
         && minor_ok
         && parts.next().is_none()
-        && arch.map_or(true, |a| matches!(a, "32" | "64" | "arm64"))
+        && arch.is_none_or(|a| matches!(a, "32" | "64" | "arm64"))
 }
 
 /// Allow-list for interpreter options after the (optional) launcher selector
@@ -683,8 +683,8 @@ fn python_flag_is_supported(token: &str) -> bool {
 ///     control, and `-0`/`--list`/version/help print and exit);
 ///   - then only known no-argument flags ([`python_flag_is_supported`]);
 ///   - then the validator script by exact basename.
-///   Any other option returns `None`, because it could stop the script from
-///   being what is actually executed.
+///     Any other option returns `None`, because it could stop the script from
+///     being what is actually executed.
 fn validator_args(tokens: &[String]) -> Option<&[String]> {
     if let [a, b, c, rest @ ..] = tokens {
         if a == "legion" && b == "script" && c == "handoff/validate-handoff" {

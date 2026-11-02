@@ -176,9 +176,9 @@ fn pnpm_pack(root: &Path) -> Result<std::path::PathBuf, String> {
 /// Read a packed tarball's file list and UTF-8 JavaScript sources. Package
 /// tarballs nest content under a `package/` prefix, which is stripped to
 /// match the packed-path convention used by `package.json#files`.
-fn read_tarball(
-    tgz_path: &Path,
-) -> Result<(Vec<String>, HashMap<String, String>, Vec<String>), String> {
+type TarballContents = (Vec<String>, HashMap<String, String>, Vec<String>);
+
+fn read_tarball(tgz_path: &Path) -> Result<TarballContents, String> {
     let file = std::fs::File::open(tgz_path).map_err(|e| e.to_string())?;
     let decoder = GzDecoder::new(file);
     let mut archive = tar::Archive::new(decoder);

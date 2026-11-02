@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::{Component, Path, PathBuf},
+    path::{Component, Path},
     process::Stdio,
     time::Duration,
 };
@@ -1412,6 +1412,7 @@ pub(super) fn run(root: &Path, opts: &Options) -> Result<bool, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
     fn corpus() -> Corpus {
         parse(include_bytes!(
             "../../../../evals/audit-bench/capsules/core.json"
@@ -1544,6 +1545,7 @@ mod tests {
         }
         let duplicate = r#"{"x":"first","x":"second"}"#;
         #[derive(Deserialize)]
+        #[allow(dead_code)]
         struct FilesOnly(#[serde(deserialize_with = "unique_files")] BTreeMap<String, String>);
         assert!(serde_json::from_str::<FilesOnly>(duplicate).is_err());
         for p in [
@@ -1627,7 +1629,7 @@ mod tests {
         let case = corpus().capsules.remove(0).cases.remove(0);
         let excerpts:Vec<_>=case.files.iter().map(|(p,s)|json!({"path":p,"sourceSide":"selected","mode":"raw","truncated":false,"redacted":false,"startLine":1,"endLine":s.lines().count(),"content":s})).collect();
         let r = request(json!({"excerpts":excerpts}));
-        assert!(required_delivery(&case, &[r.clone()]).is_ok());
+        assert!(required_delivery(&case, std::slice::from_ref(&r)).is_ok());
         for mutation in 0..4 {
             let mut tampered = r.clone();
             match mutation {
@@ -1654,7 +1656,10 @@ mod tests {
                 })
                 .collect();
             let exact = request(json!({"excerpts":excerpts}));
-            assert!(required_delivery(&case, &[exact.clone()]).is_ok(), "{mode}");
+            assert!(
+                required_delivery(&case, std::slice::from_ref(&exact)).is_ok(),
+                "{mode}"
+            );
             for mutation in 0..6 {
                 let mut changed = exact.clone();
                 let excerpt = &mut changed.packet["excerpts"][0];

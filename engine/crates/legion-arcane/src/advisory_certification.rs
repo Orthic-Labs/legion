@@ -118,8 +118,6 @@ const INPUT_FIELDS: &[&str] = &[
     "profileDigest",
 ];
 
-const DEFAULT_FRESHNESS_MS: i64 = 86_400_000;
-
 /// Port of `isDigest`: `typeof value === "string" && DIGEST_PATTERN.test(value)`.
 fn is_digest(value: Option<&Value>) -> bool {
     match value.and_then(Value::as_str) {
@@ -343,7 +341,7 @@ fn parse_rfc3339_ms(s: &str) -> Option<i64> {
 fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     let y = if m <= 2 { y - 1 } else { y };
     let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = (y - era * 400) as i64;
+    let yoe = y - era * 400;
     let mp = (m + 9) % 12;
     let doy = (153 * mp + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
@@ -900,6 +898,7 @@ pub fn verify_advisory_certification(
 }
 
 /// Port of `findCurrentAdvisoryCertification({ receiptStore, artifactDigest, expected }, options)`.
+#[allow(clippy::too_many_arguments)]
 pub fn find_current_advisory_certification(
     receipt_store: &dyn CertificationReceiptStore,
     artifact_digest: &str,

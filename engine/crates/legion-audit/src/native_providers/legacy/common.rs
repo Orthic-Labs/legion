@@ -70,6 +70,7 @@ pub fn finding(rule_id: &str, severity: &str, file: &str, line: usize) -> Findin
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn result(
     input: &ProviderInput<'_>,
     status: ProviderStatus,
@@ -291,6 +292,7 @@ impl ProviderExecutor for ProviderExecutorAdapter {
 
 impl ProviderExecutorAdapter {
     /// Explicit host enrollment only; this supplies no policy admission.
+    #[allow(clippy::too_many_arguments)]
     pub async fn execute_ownership_async(
         &self,
         plan: &crate::FrozenPlan,

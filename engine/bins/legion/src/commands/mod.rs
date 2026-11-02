@@ -50,7 +50,6 @@ pub mod state;
 pub mod sweep;
 pub mod topology;
 pub mod verify;
-use legion_audit::InventorySource as _;
 use serde_json::Value;
 use std::{
     path::{Path, PathBuf},

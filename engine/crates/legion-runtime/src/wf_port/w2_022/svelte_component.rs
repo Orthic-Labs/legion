@@ -1526,6 +1526,7 @@ pub fn inline_svelte_component_accept(
 }
 
 /// Port of `inlineSvelteComponentInsertAccept`.
+#[allow(clippy::too_many_arguments)]
 fn inline_svelte_component_insert_accept(
     manifest: &Value,
     markup: &str,

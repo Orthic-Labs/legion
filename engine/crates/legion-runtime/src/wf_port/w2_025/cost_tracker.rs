@@ -242,7 +242,7 @@ pub fn last_n_days(ledger: &CostLedger, n: usize) -> Vec<(String, DailyUsage)> {
 }
 
 /// `today` command support.
-pub fn today_usage<'a>(ledger: &'a CostLedger, today: &str) -> DailyUsage {
+pub fn today_usage(ledger: &CostLedger, today: &str) -> DailyUsage {
     ledger.daily.get(today).cloned().unwrap_or_default()
 }
 

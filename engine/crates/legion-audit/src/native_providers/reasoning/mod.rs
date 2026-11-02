@@ -396,21 +396,21 @@ impl ReasoningProviderExecutor {
                 AuditError::Provider("reasoning replay guard is unavailable".into())
             })?;
             if !used.insert(request.request_id.clone()) {
-                return Ok(failure_result(
+                return failure_result(
                     provider,
                     &denominator,
                     "reasoning-replay-detected",
                     "replay-detected",
-                )?);
+                );
             }
         }
         let Some(host) = &self.host else {
-            return Ok(failure_result(
+            return failure_result(
                 provider,
                 &denominator,
                 "reasoning-host-unavailable",
                 "host-unavailable",
-            )?);
+            );
         };
         // Never spend a host invocation whose response cannot be authenticated.
         let key = self.verification_key.as_deref().ok_or_else(|| {
@@ -424,23 +424,23 @@ impl ReasoningProviderExecutor {
                         ("reasoning-host-unavailable", "host-unavailable")
                     }
                     ReasoningHostError::Degraded(reason) => {
-                        return Ok(failure_result(
+                        return failure_result(
                             provider,
                             &denominator,
                             format!("reasoning-host-degraded:{reason}"),
                             "host-degraded",
-                        )?);
+                        );
                     }
                     ReasoningHostError::Invocation(reason) => {
-                        return Ok(failure_result(
+                        return failure_result(
                             provider,
                             &denominator,
                             format!("reasoning-host-invocation-failed:{reason}"),
                             "host-invocation-failed",
-                        )?);
+                        );
                     }
                 };
-                return Ok(failure_result(provider, &denominator, gap, degradation)?);
+                return failure_result(provider, &denominator, gap, degradation);
             }
         };
         verify_response(&request, &denominator, &response, key)
@@ -1051,6 +1051,7 @@ pub fn validate_delivery_evidence(
 /// `part` key). Every part carries the full frozen denominator in its
 /// envelope, so the plan digest binding and receipt denominator checks are
 /// identical for every part.
+#[allow(clippy::too_many_arguments)]
 fn build_invocations(
     plan: &FrozenPlan,
     provider: &AuditProvider,
@@ -1395,7 +1396,7 @@ fn append_candidate_parts(
         let mut low = 0;
         let mut high = routed.len() - offset;
         while low < high {
-            let count = low + (high - low + 1) / 2;
+            let count = low + (high - low).div_ceil(2);
             template.packet["candidateContext"] = json!(&routed[offset..offset + count]);
             refresh_request_identity(&mut template, epoch)?;
             if measure_invocations(std::slice::from_ref(&template), provider, sizer)? != u64::MAX {
@@ -1553,6 +1554,7 @@ fn domain_contract_set(
     ))
 }
 
+#[cfg(test)]
 fn lens_plan_for_part(lens_plan: Option<&Value>, source_paths: &[String]) -> Option<Value> {
     lens_plan_for_part_budgeted(lens_plan, source_paths, None)
 }
@@ -1584,6 +1586,7 @@ fn provider_card_budget(provider: &AuditProvider) -> Option<u64> {
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_invocations_with_budget(
     plan: &FrozenPlan,
     provider: &AuditProvider,
@@ -1609,6 +1612,7 @@ fn build_invocations_with_budget(
 
 /// Same as `build_invocations_with_budget`, with the lens documentation budget
 /// chosen by the caller so documentation shrinks before source excerpts do.
+#[allow(clippy::too_many_arguments)]
 fn build_invocations_with_docs(
     plan: &FrozenPlan,
     provider: &AuditProvider,
@@ -2250,7 +2254,7 @@ fn sampled_review(
     for (canonical, members) in ordered {
         let mode = members
             .iter()
-            .map(|member| mode_of(*member))
+            .map(|member| mode_of(member))
             .max_by_key(|mode| mode_strength(*mode))
             .unwrap_or(default_mode);
         for member in &members {

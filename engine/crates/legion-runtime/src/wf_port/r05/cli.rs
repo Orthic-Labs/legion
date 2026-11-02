@@ -163,7 +163,7 @@ fn filter_findings(findings: Vec<CliFinding>, config: &DetectionConfig) -> Vec<C
     // finding's fields aren't necessarily unique).
     let mut kept_iter = kept.into_iter().peekable();
     let mut out = Vec::new();
-    for (f, cf) in findings.into_iter().zip(config_findings.into_iter()) {
+    for (f, cf) in findings.into_iter().zip(config_findings) {
         if kept_iter.peek().map(|k| findings_match(k, &cf)) == Some(true) {
             kept_iter.next();
             out.push(f);
@@ -247,7 +247,7 @@ fn parse_args(argv: &[String]) -> ParsedArgs {
     let mut site_type = None;
     let mut site_type_invalid = false;
     if let Some(st) = args.iter().find(|a| a.starts_with("--site-type=")) {
-        let value = st.splitn(2, '=').nth(1).unwrap_or("");
+        let value = st.split_once('=').map_or("", |(_, v)| v);
         if is_valid_site_type(value) {
             site_type = Some(value.to_string());
         } else {
@@ -602,12 +602,10 @@ fn handle_stdin<D: Detectors>(
                     .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                     .unwrap_or_default();
                 if html_extensions().contains(ext.as_str()) {
-                    return match profiled_result(profile, "static-html", "detect-html", fp, || {
+                    return profiled_result(profile, "static-html", "detect-html", fp, || {
                         detectors.detect_html(fp, design_system)
-                    }) {
-                        Ok(f) => f,
-                        Err(_) => Vec::new(),
-                    };
+                    })
+                    .unwrap_or_default();
                 }
                 if let Ok(content) = std::fs::read_to_string(fp) {
                     return profiled_findings(profile, "regex", "detect-text", fp, || {

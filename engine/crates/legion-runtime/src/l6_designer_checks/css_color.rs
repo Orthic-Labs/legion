@@ -62,7 +62,7 @@ pub fn oklch_to_rgb(l: f64, c: f64, h: f64) -> Rgba {
     let g_lin = -1.2684380046 * lc + 2.6097574011 * mc - 0.3413193965 * sc;
     let b_lin = -0.0041960863 * lc - 0.7034186147 * mc + 1.7076147010 * sc;
     let enc = |x: f64| {
-        let c = x.max(0.0).min(1.0);
+        let c = if x.is_nan() { 0.0 } else { x.clamp(0.0, 1.0) };
         if c <= 0.0031308 {
             12.92 * c
         } else {

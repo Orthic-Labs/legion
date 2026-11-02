@@ -118,11 +118,11 @@ pub fn run(argv: &[String]) -> ExitCode {
         .get("output")
         .or_else(|| options.get("out"))
         .map(PathBuf::from);
-    let force = options.get("force").is_some();
-    let finalize = options.get("finalize").is_some();
-    let publish_github = options.get("publishgithub").is_some();
-    let dry_run = options.get("dryrun").is_some();
-    let json_output = options.get("json").is_some();
+    let force = options.contains_key("force");
+    let finalize = options.contains_key("finalize");
+    let publish_github = options.contains_key("publishgithub");
+    let dry_run = options.contains_key("dryrun");
+    let json_output = options.contains_key("json");
     let source_revision = options.get("sourcerevision").cloned();
 
     let result = if finalize {

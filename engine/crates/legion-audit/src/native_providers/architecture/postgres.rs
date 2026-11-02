@@ -1374,21 +1374,16 @@ fn check_alter_clause(
                         format!("ADD COLUMN {col} on existing {table} uses a volatile/generated/identity default and rewrites the table under ACCESS EXCLUSIVE"),
                     );
                 } else if has_default {
-                    match an.at_least(11, "add-column-default") {
-                        Some(false) => {
-                            an.cardinality(table);
-                            an.push(
-                                "add-column-table-rewrite",
-                                "warning",
-                                "conditional",
-                                path,
-                                line,
-                                format!(
-                                    "ADD COLUMN {col} DEFAULT on PostgreSQL <11 rewrites {table}"
-                                ),
-                            );
-                        }
-                        _ => {}
+                    if let Some(false) = an.at_least(11, "add-column-default") {
+                        an.cardinality(table);
+                        an.push(
+                            "add-column-table-rewrite",
+                            "warning",
+                            "conditional",
+                            path,
+                            line,
+                            format!("ADD COLUMN {col} DEFAULT on PostgreSQL <11 rewrites {table}"),
+                        );
                     }
                 }
             }

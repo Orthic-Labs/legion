@@ -93,7 +93,6 @@ enum Outcome {
     AliasPass,
     Fail(String),
     RequiresModel,
-    Skip,
 }
 
 fn sha256(bytes: &[u8]) -> String {
@@ -665,7 +664,7 @@ fn context_matches(expected: &Value, actual: &Value) -> bool {
     expected
         .get("selected")
         .and_then(Value::as_array)
-        .map_or(true, |want| want == selected)
+        .is_none_or(|want| want == selected)
 }
 
 /// `skills/<parent>/specialists/<branch>/evals/..` → `(parent, branch)`.
@@ -785,6 +784,7 @@ fn bundle_of(path: &str) -> String {
     dir.rsplit('/').next().unwrap_or(dir).to_string()
 }
 
+#[cfg(test)]
 pub fn evaluate(root: &Path, files: &[String], bundles: &[String]) -> Summary {
     evaluate_with_observations(root, files, bundles, &BTreeMap::new(), None)
 }
@@ -838,7 +838,6 @@ fn evaluate_with_observations(
                 let alias = evaluate_case(case, &known, &aliases, rel, array);
                 match &alias {
                     Outcome::AliasPass => entry.alias_passed += 1,
-                    Outcome::Skip => entry.skipped += 1,
                     Outcome::Fail(why) => {
                         entry.failed += 1;
                         summary
@@ -864,7 +863,7 @@ fn evaluate_with_observations(
                             entry.observed_cases += 1;
                             summary.mismatches.push(format!("{key}: {why}"));
                         }
-                        Ok(Outcome::RequiresModel | Outcome::Skip) => {
+                        Ok(Outcome::RequiresModel) => {
                             if !needs_output_judgment {
                                 entry.requires_model += 1;
                             }
@@ -880,7 +879,7 @@ fn evaluate_with_observations(
                         }
                     },
                     None => {
-                        if !needs_output_judgment && !matches!(alias, Outcome::Skip) {
+                        if !needs_output_judgment {
                             entry.requires_model += 1;
                         }
                     }
@@ -894,10 +893,6 @@ fn evaluate_with_observations(
     }
     summary.mismatches.sort();
     summary
-}
-
-pub fn run(root: &Path, bundles: &[String], as_json: bool) -> bool {
-    run_with_observations(root, bundles, as_json, None)
 }
 
 pub fn run_with_observations(

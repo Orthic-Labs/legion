@@ -181,7 +181,7 @@ pub fn parse_time_sample_addresses(xml: &str) -> Result<Vec<u64>, String> {
             }
             if let Some(id) = tag.attrs.get("id") {
                 active_definition = Some(id.clone());
-                if row_depth > 0 && tag.attrs.get("ref").is_none() {
+                if row_depth > 0 && !tag.attrs.contains_key("ref") {
                     references.push(id.clone());
                 }
             }

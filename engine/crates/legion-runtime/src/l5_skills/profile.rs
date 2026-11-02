@@ -46,9 +46,7 @@ fn join_relative(dir: &str, target: &str) -> String {
         }
     }
     let mut parts: Vec<&str> = Vec::with_capacity(leading_escapes + segments.len());
-    for _ in 0..leading_escapes {
-        parts.push("..");
-    }
+    parts.resize(leading_escapes, "..");
     parts.extend(segments);
     parts.join("/")
 }

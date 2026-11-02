@@ -13,12 +13,28 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Map, Value};
 
-/// Compiles a static pattern once per call site.
+/// Returns the compiled static pattern, compiling each pattern once per process.
 macro_rules! re {
-    ($pattern:expr) => {{
-        static CELL: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-        CELL.get_or_init(|| regex::Regex::new($pattern).expect("static design-parser pattern"))
-    }};
+    ($pattern:expr) => {
+        cached_regex($pattern)
+    };
+}
+
+/// Compiles each static pattern once and hands out the cached regex.
+fn cached_regex(pattern: &'static str) -> &'static regex::Regex {
+    static CACHE: std::sync::Mutex<Vec<(&'static str, &'static regex::Regex)>> =
+        std::sync::Mutex::new(Vec::new());
+    let mut cache = CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some((_, re)) = cache.iter().find(|(p, _)| *p == pattern) {
+        return *re;
+    }
+    let re: &'static regex::Regex = Box::leak(Box::new(
+        regex::Regex::new(pattern).expect("static design-parser pattern"),
+    ));
+    cache.push((pattern, re));
+    re
 }
 
 const CANONICAL_SECTIONS: [&str; 6] = [
@@ -58,7 +74,7 @@ fn split_lines(text: &str) -> Vec<&str> {
 }
 
 fn normalize_apostrophes(text: &str) -> String {
-    text.replace('\u{2018}', "'").replace('\u{2019}', "'")
+    text.replace(['\u{2018}', '\u{2019}'], "'")
 }
 
 fn join_lines(lines: &[String]) -> String {

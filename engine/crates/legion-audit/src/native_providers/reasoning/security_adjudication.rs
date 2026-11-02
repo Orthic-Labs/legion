@@ -436,7 +436,7 @@ pub fn create_security_candidate(
         alleged_trigger: input.alleged_trigger,
         alleged_impact: input.alleged_impact,
         evidence: input.evidence,
-        generated_at: input.generated_at.unwrap_or_else(|| chrono_now_rfc3339()),
+        generated_at: input.generated_at.unwrap_or_else(chrono_now_rfc3339),
     })
 }
 
@@ -1564,10 +1564,10 @@ fn check_text(
 /// The text fields of a verdict that must be meaningful, with whether they
 /// are mandatory for this verdict kind. `attackerControl` is an assessment
 /// level ("full", "partial") and so is exempt from the length floor.
-fn content_fields<'a>(
-    input: &'a SecurityVerdictInput,
+fn content_fields(
+    input: &SecurityVerdictInput,
     surviving: bool,
-) -> Vec<(&'static str, Option<&'a str>, bool, bool)> {
+) -> Vec<(&'static str, Option<&str>, bool, bool)> {
     // (field, text, mandatory, short_ok)
     vec![
         ("threatModel", input.threat_model.as_deref(), true, false),
@@ -2590,7 +2590,7 @@ fn cluster_entry(cluster: &Cluster, by_id: &BTreeMap<&str, &ScannerCandidate>) -
             "sourceMapping": representative.map(|candidate| &candidate.source_mapping),
             "evidenceDigest": representative.map(|candidate| &candidate.evidence_digest),
             "locationStatus": representative.map(|candidate| &candidate.location_status),
-            "domain": representative.map(|candidate| effective_candidate_domain(candidate)),
+            "domain": representative.map(effective_candidate_domain),
             "requiredEvidence": representative.map(|candidate| domain_required_evidence(effective_candidate_domain(candidate))),
         },
         "memberLocations": locations,
@@ -2627,13 +2627,13 @@ pub fn adjudication_batches(
     ordered.sort_by(|left, right| {
         (
             &left.family,
-            representative_path(*left),
+            representative_path(left),
             &left.rule,
             &left.cluster_id,
         )
             .cmp(&(
                 &right.family,
-                representative_path(*right),
+                representative_path(right),
                 &right.rule,
                 &right.cluster_id,
             ))
@@ -3195,8 +3195,7 @@ pub fn stage_observation(
                                 .and_then(Value::as_u64)
                                 .zip(excerpt.get("endLine").and_then(Value::as_u64))
                                 .is_some_and(|(start, last)| {
-                                    last >= start
-                                        && content.lines().count() as u64 >= last - start + 1
+                                    last >= start && content.lines().count() as u64 > last - start
                                 })
                         })
                     && excerpt
@@ -5012,7 +5011,7 @@ mod scaled_tests {
         );
         let rows = adjudicate_scanner_candidates_scoped(
             &candidates,
-            &[verdict.clone()],
+            std::slice::from_ref(&verdict),
             PARENT,
             ContextPolicy::Attested,
             &AdjudicationScope::Batch {

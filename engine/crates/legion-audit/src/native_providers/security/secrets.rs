@@ -99,9 +99,11 @@ pub fn normalize_finding(
     let digest_value = finding
         .get("SecretDigest")
         .or_else(|| finding.get("secretDigest"));
-    let secret_digest = valid_digest(digest_value)
-        .then(|| digest_value.cloned().unwrap_or(Value::Null))
-        .unwrap_or(Value::Null);
+    let secret_digest = if valid_digest(digest_value) {
+        digest_value.cloned().unwrap_or(Value::Null)
+    } else {
+        Value::Null
+    };
     json!({"schemaVersion":1,"kind":"legion-secret-finding","provider":provider.unwrap_or("secrets.gitleaks"),"providerVersion":provider_version.unwrap_or("8.18.0"),"ruleId":rule.cloned().unwrap_or_else(|| Value::String("secret.unknown".into())),"file":file.cloned().unwrap_or(Value::Null),"line":line,"endLine":end_line,"secretType":rule.cloned().unwrap_or(Value::Null),"secretDigest":secret_digest,"match":if finding.get("Match").is_some_and(|v| !v.is_null()) {Value::String(REDACTED.into())} else {Value::Null},"commit":finding.get("Commit").or_else(|| finding.get("commit")).cloned().unwrap_or(Value::Null),"mode":finding.get("Mode").or_else(||finding.get("mode")).and_then(Value::as_str).unwrap_or(mode),"blobOid":finding.get("BlobOid").or_else(||finding.get("blobOid")).cloned().unwrap_or(Value::Null),"blobDigest":finding.get("BlobDigest").or_else(||finding.get("blobDigest")).cloned().unwrap_or(Value::Null),"historyManifestDigest":finding.get("HistoryManifestDigest").or_else(||finding.get("historyManifestDigest")).cloned().unwrap_or(Value::Null),"validity":finding.get("Validity").or_else(|| finding.get("validity")).and_then(Value::as_str).unwrap_or("unproven"),"classification":finding.get("Classification").or_else(|| finding.get("classification")).and_then(Value::as_str).unwrap_or("unproven"),"evidenceRefs":[]})
 }
 

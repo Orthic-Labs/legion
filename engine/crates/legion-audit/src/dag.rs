@@ -67,7 +67,7 @@ pub fn topological(providers: &[AuditProvider]) -> Result<Vec<String>, AuditErro
                     .dependencies
                     .iter()
                     .all(|dep| by_id.contains_key(dep.as_str()) && done.contains(dep.as_str()))
-                    && capture_sources[*id].map_or(true, |source| done.contains(source))
+                    && capture_sources[*id].is_none_or(|source| done.contains(source))
             })
             .copied();
         let Some(id) = next else {

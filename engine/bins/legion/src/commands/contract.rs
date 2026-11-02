@@ -857,7 +857,7 @@ fn amendment_proof(
     role: &str,
 ) -> Result<String, CommandError> {
     let ed = canonical_digest(event).map_err(|e| CommandError::integrity(e.to_string()))?;
-    let cd = canonical_digest(c).map_err(|e| CommandError::integrity(e.to_string()))?;
+    let _cd = canonical_digest(c).map_err(|e| CommandError::integrity(e.to_string()))?;
     let task = c["tasks"]
         .as_array()
         .and_then(|x| x.first())

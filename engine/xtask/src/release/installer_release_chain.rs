@@ -185,19 +185,6 @@ fn run_command(
     Ok(result)
 }
 
-fn run_json(
-    runner: CommandRunner,
-    command: &str,
-    args: &[String],
-    options: &CommandOptions,
-    label: &str,
-) -> ReleaseResult<Value> {
-    let result = run_command(runner, command, args, options, label)?;
-    let stdout = result.stdout.unwrap_or_default();
-    serde_json::from_str(stdout.trim())
-        .map_err(|_| fail(format!("{label} must emit one JSON object")))
-}
-
 struct RightReleaseEnvironment {
     source_revision: String,
     unsigned_candidate_root: PathBuf,
@@ -633,11 +620,8 @@ pub fn finalization_manifest(
 }
 
 pub struct ReadFinalization {
-    pub schema_version: u32,
-    pub platform: String,
     pub version: String,
     pub source_revision: String,
-    pub root: PathBuf,
     pub manifest_path: PathBuf,
     pub digest: String,
     pub records: Vec<Record>,
@@ -698,12 +682,9 @@ pub fn read_finalization(root: &Path, platform: &str) -> ReleaseResult<ReadFinal
         }
     }
     Ok(ReadFinalization {
-        schema_version: 1,
-        platform: platform.to_string(),
         version,
         source_revision,
         digest: sha256_file(&manifest_path)?,
-        root: root.to_path_buf(),
         manifest_path,
         records,
     })

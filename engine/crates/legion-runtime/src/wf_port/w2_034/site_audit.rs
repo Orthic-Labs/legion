@@ -321,10 +321,9 @@ pub fn build_report(
     target_host: impl Fn(&str) -> String,
 ) -> IssuesReport {
     let mut issues: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
-    let mut push =
-        |issues: &mut BTreeMap<&'static str, Vec<String>>, key: &'static str, v: String| {
-            issues.entry(key).or_default().push(v);
-        };
+    let push = |issues: &mut BTreeMap<&'static str, Vec<String>>, key: &'static str, v: String| {
+        issues.entry(key).or_default().push(v);
+    };
 
     // `ok = {u: s for u, s in pages.items() if s.get('status') == 200 and 'title' in s}`
     let ok: Vec<(&String, &PageSignals)> = pages

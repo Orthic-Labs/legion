@@ -730,7 +730,7 @@ fn counts_for(lines: &[RedLine]) -> RedactionCounts {
 /// one empty chunk.
 fn chunk_ranges_budgeted(lines: &[RedLine], cap_bytes: usize) -> Vec<std::ops::Range<usize>> {
     if lines.is_empty() {
-        return vec![0..0];
+        return std::iter::once(0..0).collect();
     }
     let mut ranges = Vec::new();
     let mut start = 0usize;
@@ -1519,7 +1519,7 @@ pub(crate) fn partition_review_set_with_source(
         // split source on whole lines instead of forcing a 32KiB chunk past
         // physical request limits. An indivisible long line refuses later.
         let chunk_cap = budget.map_or(MAX_BYTES_PER_FILE, |budget| {
-            (budget.cap_bytes / 2).max(1).min(MAX_BYTES_PER_FILE)
+            (budget.cap_bytes / 2).clamp(1, MAX_BYTES_PER_FILE)
         });
         match prepare_file_with_source(source, path, item.mode, windowed, flagged, chunk_cap) {
             Err(reason) => {
@@ -1616,6 +1616,7 @@ mod tests {
         fs::write(full, content).unwrap();
     }
 
+    #[allow(clippy::permissions_set_readonly_false)]
     fn writable(path: &Path) {
         let mut permissions = fs::metadata(path).unwrap().permissions();
         permissions.set_readonly(false);

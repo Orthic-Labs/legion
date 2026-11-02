@@ -92,7 +92,7 @@ pub fn validate_coverage_evidence(
         .get("rawLog")
         .and_then(|r| r.get("digest"))
         .and_then(Value::as_str)
-        .is_some_and(|d| is_sha256(d));
+        .is_some_and(is_sha256);
     let status_ok = artifact.get("status").and_then(Value::as_str) == Some("pass");
     let test_path_ok = artifact
         .get("testPath")

@@ -199,6 +199,7 @@ impl DeckStageState {
     /// for `total_slides == 0` since the subtraction underflows toward a
     /// value `current_slide` can never be less than in JS's float domain —
     /// mirrored here by treating an empty deck as never advanceable).
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> bool {
         if self.total_slides > 0 && self.current_slide + 1 < self.total_slides {
             self.current_slide += 1;

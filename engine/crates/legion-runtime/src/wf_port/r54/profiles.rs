@@ -15,6 +15,7 @@ pub struct DirEntry {
 /// Abstracts `readdirSync`/`statSync`/`rmSync` on `.cache` so the sweep is testable without disk
 /// I/O. `remove` is only called for entries this function decides to delete.
 pub trait ProfileDir {
+    #[allow(clippy::result_unit_err)]
     fn list(&self) -> Result<Vec<DirEntry>, ()>;
     fn remove(&mut self, name: &str);
 }

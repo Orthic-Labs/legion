@@ -712,7 +712,10 @@ mod tests {
         }
         let good =
             json!({"path":"src/a.rs","line":3,"text":"db.execute(&format!(\"select {q}\"))"});
-        assert!(scoped_clean_evidence_covers(&scope, &[good.clone()]));
+        assert!(scoped_clean_evidence_covers(
+            &scope,
+            std::slice::from_ref(&good)
+        ));
         // A trivial anchor riding along with a good one is rejected.
         assert!(!scoped_clean_evidence_covers(
             &scope,
@@ -724,7 +727,10 @@ mod tests {
         let scope = BTreeSet::from(["src/a.rs".to_owned(), "src/b.rs".to_owned()]);
         let a = json!({"path":"src/a.rs","line":1,"text":"let value = parse_input(raw)"});
         let b = json!({"path":"src/b.rs","line":2,"text":"validate_request(payload, limits)"});
-        assert!(!scoped_clean_evidence_covers(&scope, &[a.clone()]));
+        assert!(!scoped_clean_evidence_covers(
+            &scope,
+            std::slice::from_ref(&a)
+        ));
         assert!(scoped_clean_evidence_covers(&scope, &[a, b]));
         assert!(!scoped_clean_evidence_covers(&BTreeSet::new(), &[]));
     }
@@ -754,7 +760,10 @@ mod tests {
         let logic =
             json!({"path":"src/a.rs","line":9,"text":"let rows = db.query(&sanitize(input))"});
         assert!(!boilerplate_line("let rows = db.query(&sanitize(input))"));
-        assert!(scoped_clean_evidence_covers(&scope, &[logic.clone()]));
+        assert!(scoped_clean_evidence_covers(
+            &scope,
+            std::slice::from_ref(&logic)
+        ));
         let scope2 = BTreeSet::from(["src/a.rs".to_owned(), "src/b.rs".to_owned()]);
         let header = json!({"path":"src/b.rs","line":1,"text":"use std::collections::HashMap;"});
         assert!(!scoped_clean_evidence_covers(&scope2, &[logic, header]));

@@ -95,7 +95,7 @@ fn field_text(record: &Value, key: &str) -> String {
 }
 
 fn is_null_or_missing(record: &Value, key: &str) -> bool {
-    record.get(key).map_or(true, Value::is_null)
+    record.get(key).is_none_or(Value::is_null)
 }
 
 /// `_coerce_locus`: validates a locus and adds its `contentSha256`.
@@ -203,9 +203,8 @@ pub fn active(records: &[Value], repository_id: Option<&str>) -> Vec<Value> {
                 .is_some_and(|status| ACTIVE_STATUSES.contains(&status))
         })
         .filter(|record| {
-            repository_id.map_or(true, |repo| {
-                record.get("repositoryId").and_then(Value::as_str) == Some(repo)
-            })
+            repository_id
+                .is_none_or(|repo| record.get("repositoryId").and_then(Value::as_str) == Some(repo))
         })
         .collect()
 }

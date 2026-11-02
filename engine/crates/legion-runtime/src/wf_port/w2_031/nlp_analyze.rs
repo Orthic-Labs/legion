@@ -554,12 +554,8 @@ pub fn analyze_text_with(
     let body = build_request_body(text, &feats, language);
 
     match transport.post_annotate(key, &body) {
-        Ok((status, _)) if status == 403 => {
-            error_result(text_length, language, categorize_http_status(403).unwrap())
-        }
-        Ok((status, _)) if status == 429 => {
-            error_result(text_length, language, categorize_http_status(429).unwrap())
-        }
+        Ok((403, _)) => error_result(text_length, language, categorize_http_status(403).unwrap()),
+        Ok((429, _)) => error_result(text_length, language, categorize_http_status(429).unwrap()),
         Ok((status, data)) if (200..300).contains(&status) => {
             let mut result: AnalyzeResult =
                 build_result_from_response(text_length, language, &data).into();

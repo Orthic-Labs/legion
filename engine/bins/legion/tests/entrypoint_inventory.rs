@@ -933,6 +933,7 @@ fn outcome(result: &ProbeResult, skipped: bool) -> &'static str {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn row(
     group: &str,
     key: &str,
@@ -1113,7 +1114,7 @@ fn entrypoint_inventory() {
                 probe.key,
                 "legion",
                 legion.as_deref(),
-                &vec!["script".into(), probe.key.into()],
+                &["script".into(), probe.key.into()],
                 "NOT_EXERCISED",
                 Some("dispatch key absent from actual --list response".to_string()),
                 &root,
@@ -1130,7 +1131,7 @@ fn entrypoint_inventory() {
                 name,
                 "legion",
                 legion.as_deref(),
-                &vec!["script".into(), name.clone()],
+                &["script".into(), name.clone()],
                 "NOT_EXERCISED",
                 Some("actual --list key has no safe probe mapping".to_string()),
                 &root,
@@ -1166,7 +1167,7 @@ fn entrypoint_inventory() {
                 probe.key,
                 "legion",
                 legion.as_deref(),
-                &vec!["script".into(), probe.key.into()],
+                &["script".into(), probe.key.into()],
                 probe.mode.label(),
                 Some("actual --list response unavailable".to_string()),
                 &root,
@@ -1182,7 +1183,15 @@ fn entrypoint_inventory() {
         ));
     }
 
-    let groups: [(&str, &str, Option<&Path>, &[&str], usize, &[&str]); 3] = [
+    type Group<'a> = (
+        &'a str,
+        &'a str,
+        Option<&'a Path>,
+        &'a [&'a str],
+        usize,
+        &'a [&'a str],
+    );
+    let groups: [Group; 3] = [
         (
             "root",
             "legion",

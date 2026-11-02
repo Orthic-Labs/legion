@@ -155,7 +155,7 @@ pub(crate) fn render(report: &ReportV2) -> String {
     ));
     output.push_str("Scope, coverage, uncertainty, & provenance:\n\n");
     append_json_block(&mut output, &metadata(report));
-    output.push_str("\n");
+    output.push('\n');
     output.push_str("Not checked:\n");
     let mut gaps = report.gaps.clone();
     if let Some(notes) = report.claims.get("coverageNotes").and_then(Value::as_array) {

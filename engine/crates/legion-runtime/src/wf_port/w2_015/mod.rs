@@ -68,7 +68,7 @@ fn glob_to_regex(glob: &str) -> Option<regex::Regex> {
                 if let Some(end_offset) = chars[i..].iter().position(|&c| c == '}') {
                     let end = i + end_offset;
                     let body: String = chars[i + 1..end].iter().collect();
-                    let parts: Vec<String> = body.split(',').map(|p| regex::escape(p)).collect();
+                    let parts: Vec<String> = body.split(',').map(regex::escape).collect();
                     re.push_str("(?:");
                     re.push_str(&parts.join("|"));
                     re.push(')');
@@ -131,7 +131,7 @@ pub fn clean_ignore_value_display(value: &str) -> String {
 }
 
 fn strip_matching_quotes(s: &str) -> &str {
-    let s = s.strip_prefix('"').or(Some(s)).unwrap();
+    let s = s.strip_prefix('"').unwrap_or(s);
     let s = s.strip_prefix('\'').unwrap_or(s);
     let s = s.strip_suffix('"').unwrap_or(s);
     s.strip_suffix('\'').unwrap_or(s)
@@ -947,7 +947,11 @@ mod tests {
             value: "inter".to_string(),
             files: vec!["src/*.tsx".to_string()],
         };
-        let out = filter_findings(&[f.clone()], &HashSet::new(), &[entry.clone()]);
+        let out = filter_findings(
+            std::slice::from_ref(&f),
+            &HashSet::new(),
+            std::slice::from_ref(&entry),
+        );
         assert!(out.is_empty());
 
         let mut f2 = f;

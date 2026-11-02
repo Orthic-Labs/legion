@@ -9,6 +9,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::LazyLock;
 
 use regex::Regex;
 use serde_json::{json, Value};
@@ -17,6 +18,8 @@ use sha2::{Digest, Sha256};
 use crate::assemble_native_release::{self, AssembleArgs};
 use crate::prepare_unsigned_candidate::{self, CheckArgs};
 use crate::rightkit_release_bridge;
+
+static WINDOWS_DRIVE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z]:").unwrap());
 
 const EXECUTABLES: [&str; 3] = ["legion", "legion-hook", "legion-mcp"];
 
@@ -77,21 +80,21 @@ pub fn real_run_tar(args: &[String], cwd: &Path) -> Result<(i32, String, String)
 /// makes (listing, then extraction), mirroring the JS test's `commandRunner`
 /// override in `tests/unsigned-release-candidate.test.mjs`.
 pub struct MacosFinalizeDeps<'a> {
-    pub run_tar: Box<dyn FnMut(&[String], &Path) -> Result<(i32, String, String), String> + 'a>,
+    pub run_tar: Box<TarRunFn<'a>>,
 }
+
+/// Trait-object form of the `tar` runner seam; `real_run_tar` matches it.
+type TarRunFn<'a> = dyn FnMut(&[String], &Path) -> Result<(i32, String, String), String> + 'a;
 
 impl<'a> Default for MacosFinalizeDeps<'a> {
     fn default() -> Self {
         Self {
-            run_tar: Box::new(|args, cwd| real_run_tar(args, cwd)),
+            run_tar: Box::new(real_run_tar),
         }
     }
 }
 
-fn assert_safe_archive_entries(
-    archive: &Path,
-    run_tar: &mut dyn FnMut(&[String], &Path) -> Result<(i32, String, String), String>,
-) -> Result<(), String> {
+fn assert_safe_archive_entries(archive: &Path, run_tar: &mut TarRunFn<'_>) -> Result<(), String> {
     let args = vec![
         "-tzf".to_string(),
         archive.file_name().unwrap().to_string_lossy().to_string(),
@@ -107,10 +110,9 @@ fn assert_safe_archive_entries(
             continue;
         }
         let entry = raw.strip_prefix("./").unwrap_or(raw);
-        let windows_drive = Regex::new(r"^[A-Za-z]:").unwrap();
         if entry.is_empty()
             || entry.starts_with('/')
-            || windows_drive.is_match(entry)
+            || WINDOWS_DRIVE_RE.is_match(entry)
             || entry.split('/').any(|seg| seg == "..")
         {
             return Err(format!("unsafe candidate archive entry: {raw}"));
@@ -339,6 +341,7 @@ pub struct PackageArgs {
 /// broken out for the default implementation, which calls
 /// `assemble_native_release::run` in-process instead of spawning Node.
 pub struct RebindRequest {
+    #[cfg(test)]
     pub args: Vec<String>,
     pub platform: String,
     pub architecture: String,
@@ -352,10 +355,14 @@ pub struct RebindRequest {
 /// (archive creation, the signed-runtime rebind, and the notarization zip),
 /// mirroring the JS test's `createArchive`/`commandRunner` overrides.
 pub struct MacosPackageDeps<'a> {
-    pub create_archive: Box<dyn Fn(&Path, &Path, &Path) -> Result<Value, String> + 'a>,
-    pub rebind: Box<dyn FnMut(&RebindRequest) -> Result<(), String> + 'a>,
-    pub run_ditto: Box<dyn FnMut(&Path, &Path) -> Result<(), String> + 'a>,
+    pub create_archive: CreateArchiveFn<'a>,
+    pub rebind: RebindFn<'a>,
+    pub run_ditto: RunDittoFn<'a>,
 }
+
+type CreateArchiveFn<'a> = Box<dyn Fn(&Path, &Path, &Path) -> Result<Value, String> + 'a>;
+type RebindFn<'a> = Box<dyn FnMut(&RebindRequest) -> Result<(), String> + 'a>;
+type RunDittoFn<'a> = Box<dyn FnMut(&Path, &Path) -> Result<(), String> + 'a>;
 
 /// Builds the real (non-test) dependency set, bound to `repository_root`
 /// (the rebind and ditto closures both need it, so this isn't a plain
@@ -463,6 +470,7 @@ pub fn package_macos_candidate_with(
     );
     let bin_dir = input.join("bin");
     let rebind_request = RebindRequest {
+        #[cfg(test)]
         args: vec![
             "--profile".to_string(),
             "release".to_string(),
@@ -672,8 +680,8 @@ mod tests {
             &source_revision,
         );
 
-        let captured: std::rc::Rc<std::cell::RefCell<Option<(Vec<String>, PathBuf)>>> =
-            std::rc::Rc::new(std::cell::RefCell::new(None));
+        type Captured = std::rc::Rc<std::cell::RefCell<Option<(Vec<String>, PathBuf)>>>;
+        let captured: Captured = std::rc::Rc::new(std::cell::RefCell::new(None));
         let captured_clone = captured.clone();
         let mut deps = MacosFinalizeDeps {
             run_tar: Box::new(move |args, cwd| {

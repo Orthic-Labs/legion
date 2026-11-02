@@ -675,7 +675,7 @@ fn glob_to_regex(glob: &str) -> Option<Regex> {
         } else if c == '{' {
             if let Some(end) = chars[i..].iter().position(|&ch| ch == '}').map(|p| p + i) {
                 let inner: String = chars[i + 1..end].iter().collect();
-                let parts: Vec<String> = inner.split(',').map(|p| regex::escape(p)).collect();
+                let parts: Vec<String> = inner.split(',').map(regex::escape).collect();
                 re.push_str(&format!("(?:{})", parts.join("|")));
                 i = end + 1;
             } else {

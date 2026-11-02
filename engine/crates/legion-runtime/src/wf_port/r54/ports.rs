@@ -45,16 +45,15 @@ pub trait HttpProbe {
 
 /// Port of `waitForHttp(url, timeoutMs = 30000)` (qa.mjs lines 238-252).
 pub fn wait_for_http(probe: &mut dyn HttpProbe, url: &str, timeout_ms: u64) -> Result<(), String> {
-    let mut last = String::new();
     loop {
-        match probe.attempt(url) {
+        let last = match probe.attempt(url) {
             HttpAttempt::Ok => return Ok(()),
             HttpAttempt::NotOk {
                 status,
                 status_text,
-            } => last = format!("{status} {status_text}"),
-            HttpAttempt::Error(msg) => last = msg,
-        }
+            } => format!("{status} {status_text}"),
+            HttpAttempt::Error(msg) => msg,
+        };
         if probe.elapsed_ms() >= timeout_ms {
             return Err(format!("Timed out waiting for {url}: {last}"));
         }

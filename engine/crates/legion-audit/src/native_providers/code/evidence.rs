@@ -1442,8 +1442,10 @@ mod javascript_context_tests {
         );
 
         let entry = fixture.file("tsconfig.json", package);
-        let mut limits = EvidenceLimits::default();
-        limits.max_total_bytes = package.len() as u64 - 1;
+        let limits = EvidenceLimits {
+            max_total_bytes: package.len() as u64 - 1,
+            ..EvidenceLimits::default()
+        };
         let capped = fixture.produce(&[entry], &limits);
         assert_eq!((capped.context_expected, capped.context_examined), (1, 0));
         assert_eq!(capped.context_bytes_read, 0);
@@ -1559,7 +1561,7 @@ mod rust_context_tests {
     fn context_only_and_unsafe_keyword_inventory_never_claim_language_soundness() {
         let f = Fixture::new();
         let manifest = f.file("Cargo.toml", "[features]\noptional=[]\n");
-        let made = f.produce(&[manifest.clone()], &EvidenceLimits::default());
+        let made = f.produce(std::slice::from_ref(&manifest), &EvidenceLimits::default());
         assert_eq!((made.expected, made.examined), (0, 0));
         assert_eq!((made.context_expected, made.context_examined), (1, 1));
         assert_eq!(made.input["facts"][0]["filesRead"], 0);
@@ -1580,8 +1582,10 @@ mod rust_context_tests {
         let f = Fixture::new();
         let source = f.file("lib.rs", "pub fn answer()->u8{42}\n");
         let manifest = f.file("Cargo.toml", "[package]\nname='fixture'\nversion='0.0.0'\n");
-        let mut limits = EvidenceLimits::default();
-        limits.max_total_bytes = std::fs::metadata(f.0.join("lib.rs")).unwrap().len();
+        let limits = EvidenceLimits {
+            max_total_bytes: std::fs::metadata(f.0.join("lib.rs")).unwrap().len(),
+            ..EvidenceLimits::default()
+        };
         let made = f.produce(&[source, manifest], &limits);
         assert_eq!((made.expected, made.examined), (1, 1));
         assert_eq!(made.context_examined, 0);

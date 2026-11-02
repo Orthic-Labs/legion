@@ -137,7 +137,7 @@ fn text_for(record: &DecisionRecord) -> String {
 }
 
 fn estimated_tokens(text: &str) -> u64 {
-    (((text.chars().count() as u64) + 3) / 4).max(1)
+    (text.chars().count() as u64).div_ceil(4).max(1)
 }
 
 fn status_str(status: DecisionStatus) -> &'static str {

@@ -182,7 +182,7 @@ fn same_commit(a: &str, b: &str) -> bool {
 fn approval_from(block: &str, cwd: &str, now: u64) -> Option<Value> {
     let mut found: Vec<Hit> = Vec::new();
     for command in commands(block) {
-        found.extend(hits(&command, cwd, 0));
+        found.extend(hits(command, cwd, 0));
     }
     let repo = field(block, "repo");
     let repo = repo_of(&if repo.is_empty() {
@@ -341,10 +341,10 @@ pub fn pre_tool(request: &HookRequest) -> Option<HookResponse> {
         decide(&resolved, approval, facts)
     };
     let none: Decision = Err("no approval is on record in this chat".to_owned());
-    let mut outcome = base.as_ref().map_or(none, |approval| attempt(approval));
+    let mut outcome = base.as_ref().map_or(none, attempt);
     if outcome.is_err() {
         let relay = relay_approval(payload, &cwd, base.as_ref());
-        if let Some(Ok(left)) = relay.as_ref().map(|relay| attempt(relay)) {
+        if let Some(Ok(left)) = relay.as_ref().map(attempt) {
             (outcome, base) = (Ok(left), relay);
         }
     }

@@ -684,6 +684,7 @@ fn check_url(url: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
 fn check_loopback_url(url: &str) -> Result<(), String> {
     check_url(url)?;
     let lower = url.to_ascii_lowercase();
@@ -1214,7 +1215,6 @@ async fn capture_surface(ctx: &Ctx<'_>, index: usize, label: &str, url: &str) ->
         return outcome;
     }
 
-    let mut request = request;
     if let Some(owner) = &ctx.owner {
         if let Err(gap) = super::owner_request::apply_owner(
             owner,

@@ -22,7 +22,7 @@ pub struct Rgba {
 pub fn is_neutral_color(color: Option<&str>) -> bool {
     let color = match color {
         None => return true,
-        Some(c) if c == "transparent" => return true,
+        Some("transparent") => return true,
         Some(c) => c,
     };
 
@@ -222,7 +222,7 @@ fn take_signed_number_token(s: &str) -> Option<(f64, &str)> {
 pub fn parse_rgb(color: Option<&str>) -> Option<Rgba> {
     let color = match color {
         None => return None,
-        Some(c) if c == "transparent" => return None,
+        Some("transparent") => return None,
         Some(c) => c,
     };
     let idx = find_ci(color, "rgb(").or_else(|| find_ci(color, "rgba("))?;

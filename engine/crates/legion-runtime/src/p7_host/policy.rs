@@ -270,6 +270,7 @@ pub fn classify_lineage(input: &LineageInput) -> &'static str {
 
 // ---- org/index.mjs ----
 
+#[allow(clippy::too_many_arguments)]
 pub fn organization_policy(
     id: &str,
     version: &Value,

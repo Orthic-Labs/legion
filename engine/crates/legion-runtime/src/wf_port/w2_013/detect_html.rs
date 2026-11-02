@@ -317,10 +317,10 @@ impl StaticStylesheet {
                             best_family = Some((meta, decl.value.clone()));
                         }
                     }
-                    "font-size" => {
-                        if compare_static_priority(best_size.as_ref().map(|(m, _)| m), &meta) {
-                            best_size = Some((meta, decl.value.clone()));
-                        }
+                    "font-size"
+                        if compare_static_priority(best_size.as_ref().map(|(m, _)| m), &meta) =>
+                    {
+                        best_size = Some((meta, decl.value.clone()));
                     }
                     _ => {}
                 }
@@ -432,7 +432,7 @@ pub fn check_static_page_typography(
         let Some(px) = resolve_px_literal(&size) else {
             continue;
         };
-        if px >= 8.0 && px < 200.0 {
+        if (8.0..200.0).contains(&px) {
             sizes.insert((px * 10.0).round() as u64);
         }
     }

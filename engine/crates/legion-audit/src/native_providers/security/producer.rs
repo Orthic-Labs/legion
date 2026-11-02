@@ -151,7 +151,7 @@ impl ArtifactProducer {
             "OSV_SCANNER_OFFLINE_DB",
         ]
         .iter()
-        .filter_map(|name| std::env::var_os(name))
+        .filter_map(std::env::var_os)
         .map(PathBuf::from)
         .find(|path| !path.as_os_str().is_empty());
         Self {
@@ -2045,14 +2045,6 @@ fn lockfile_kind(path: &str) -> Option<&'static str> {
     }
 }
 
-fn lockfile_paths(paths: &[String]) -> Vec<String> {
-    paths
-        .iter()
-        .filter(|p| lockfile_kind(p).is_some())
-        .cloned()
-        .collect()
-}
-
 fn purl(kind: &str, name: &str, version: &str) -> String {
     format!("pkg:{kind}/{}@{version}", name.replace('@', "%40"))
 }
@@ -2244,7 +2236,7 @@ fn requirements_packages(text: &str) -> Vec<String> {
                 .trim();
             let (name, version) = line.split_once("==")?;
             let name = name.split('[').next()?.trim();
-            let version = version.trim().split_whitespace().next()?;
+            let version = version.split_whitespace().next()?;
             (!name.is_empty() && !version.is_empty())
                 .then(|| purl("pypi", &pypi_name(name), version))
         })

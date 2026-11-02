@@ -34,6 +34,7 @@ pub struct JsonlJournal {
 
 impl JsonlJournal {
     /// Port of `static async open(filePath)`.
+    #[allow(clippy::result_large_err)]
     pub fn open(file_path: impl AsRef<Path>) -> Result<Self, KernelError> {
         let file_path = file_path.as_ref().to_path_buf();
         if let Some(parent) = file_path.parent() {
@@ -97,6 +98,7 @@ impl JsonlJournal {
 
     /// Port of `append(record)` / `appendNow(record)`, collapsed to a single
     /// synchronous call since Rust's `&mut self` already serializes callers.
+    #[allow(clippy::result_large_err)]
     pub fn append(&mut self, mut record: Value) -> Result<Value, KernelError> {
         let sequence = (self.records.len() + 1) as u64;
         record

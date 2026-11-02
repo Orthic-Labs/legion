@@ -5,10 +5,10 @@ use crate::{
 use hmac::{Hmac, KeyInit, Mac};
 use legion_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
 

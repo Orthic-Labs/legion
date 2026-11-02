@@ -98,7 +98,7 @@ mod unix {
         rx
     }
 
-    fn run(mut owned: OwnedCommand, deadline: Instant) -> Result<Vec<u8>, String> {
+    fn run(owned: OwnedCommand, deadline: Instant) -> Result<Vec<u8>, String> {
         if Instant::now() >= deadline {
             return Err(failure("120-second delivery deadline exhausted"));
         }

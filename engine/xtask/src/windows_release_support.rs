@@ -51,10 +51,6 @@ pub fn digest_matches(observed: Option<&str>, expected: Option<&str>) -> bool {
     is_hex64(&left) && is_hex64(&right) && left == right
 }
 
-pub fn is_hex_digest(value: Option<&str>) -> bool {
-    is_hex64(&bare_digest_opt(value))
-}
-
 pub const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 pub fn is_nonempty_digest(value: Option<&str>) -> bool {
@@ -188,7 +184,7 @@ pub fn path_inside(root: Option<&str>, candidate: Option<&str>) -> bool {
     let root_canon = canonical_path(Path::new(root));
     let candidate_canon = canonical_path(Path::new(candidate));
     match candidate_canon.strip_prefix(&root_canon) {
-        Ok(rel) => rel.as_os_str().len() > 0,
+        Ok(rel) => !rel.as_os_str().is_empty(),
         Err(_) => false,
     }
 }
@@ -205,7 +201,7 @@ pub fn version_root_matches(
     };
     let prefix = format!(
         "{version}-{}",
-        &bare_digest_opt(archive_digest)
+        bare_digest_opt(archive_digest)
             .chars()
             .take(12)
             .collect::<String>()

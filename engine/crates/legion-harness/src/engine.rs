@@ -515,6 +515,11 @@ fn write_json_pretty(path: &Path, value: &Value) -> Result<(), HarnessError> {
 }
 
 fn assert_plausible_toml(path: &Path, surface: &str) -> Result<(), HarnessError> {
+    static TABLE_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"^(?:\[[^\]]+\]|\[\[[^\]]+\]\])$").expect("regex"));
+    static KEY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"^(?:"(?:\\.|[^"\\])*"|'[^']*'|[A-Za-z0-9_.-]+)\s*="#).expect("regex")
+    });
     if !path.is_file() {
         return Ok(());
     }
@@ -533,16 +538,10 @@ fn assert_plausible_toml(path: &Path, surface: &str) -> Result<(), HarnessError>
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if Regex::new(r"^(?:\[[^\]]+\]|\[\[[^\]]+\]\])$")
-            .expect("regex")
-            .is_match(line)
-        {
+        if TABLE_RE.is_match(line) {
             continue;
         }
-        if Regex::new(r#"^(?:"(?:\\.|[^"\\])*"|'[^']*'|[A-Za-z0-9_.-]+)\s*="#)
-            .expect("regex")
-            .is_match(line)
-        {
+        if KEY_RE.is_match(line) {
             if multi.iter().any(|marker| line.trim_end().ends_with(marker)) {
                 in_multiline = true;
             }

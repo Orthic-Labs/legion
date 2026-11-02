@@ -110,7 +110,7 @@ fn positive_tabindex_offsets(text: &str) -> Vec<usize> {
         } else {
             bytes
                 .get(cursor)
-                .map_or(true, |byte| byte.is_ascii_whitespace() || *byte == b'>')
+                .is_none_or(|byte| byte.is_ascii_whitespace() || *byte == b'>')
         };
         if whole_value {
             offsets.push(offset);

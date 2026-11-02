@@ -27,12 +27,3 @@ pub fn digest(value: &Value) -> String {
     let bytes = serde_json::to_string(&canonical).unwrap_or_else(|_| "null".into());
     format!("sha256:{}", sha256_hex(bytes.as_bytes()))
 }
-
-pub fn digest_without_field(value: &Value, field: &str) -> String {
-    if let Some(object) = value.as_object() {
-        let mut copy = object.clone();
-        copy.remove(field);
-        return digest(&Value::Object(copy));
-    }
-    digest(value)
-}

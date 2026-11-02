@@ -131,7 +131,7 @@ fn sheet_xml(sheet: &Sheet) -> String {
     if !cols_by_width.is_empty() {
         cols_xml.push_str("<cols>");
         for (i, max_len) in cols_by_width.iter().enumerate() {
-            let width = (*max_len as f64 + 4.0).min(60.0).max(8.0);
+            let width = (*max_len as f64 + 4.0).clamp(8.0, 60.0);
             cols_xml.push_str(&format!(
                 "<col min=\"{}\" max=\"{}\" width=\"{width}\" customWidth=\"1\"/>",
                 i + 1,
@@ -569,9 +569,9 @@ fn write_xlsx(sheets: &[Sheet], out_path: &Path) -> Result<(), String> {
         .system(zip::System::Unix)
         .compression_method(zip::CompressionMethod::Deflated);
 
-    let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
-                          name: &str,
-                          content: &[u8]|
+    let write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
+                      name: &str,
+                      content: &[u8]|
      -> Result<(), String> {
         zip.start_file(name, options).map_err(|e| e.to_string())?;
         zip.write_all(content).map_err(|e| e.to_string())

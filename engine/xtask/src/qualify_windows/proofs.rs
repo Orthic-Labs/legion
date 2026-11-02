@@ -54,8 +54,6 @@ pub fn resolve_codex_executable(path_value: &str, platform: &str) -> Option<Path
 }
 
 pub struct EnvResult {
-    pub home: PathBuf,
-    pub codex_root: PathBuf,
     pub state: PathBuf,
     pub environment: BTreeMap<String, String>,
 }
@@ -121,12 +119,7 @@ pub fn command_environment(
     environment.insert("TEMP".to_string(), temp.to_string_lossy().to_string());
     environment.insert("TMP".to_string(), temp.to_string_lossy().to_string());
     environment.insert("PATH".to_string(), path_value);
-    Ok(EnvResult {
-        home,
-        codex_root,
-        state,
-        environment,
-    })
+    Ok(EnvResult { state, environment })
 }
 
 /// Mirrors `proofReleaseMatches`.
@@ -578,9 +571,12 @@ pub fn exact_complete_json(invocation: &Value, kind: &str) -> Option<Value> {
     }
 }
 
+/// Live command seam used by `setup_health`.
+type RunCommand<'a> = dyn Fn(&str, &[String], Option<&CommandOptions>) -> Value + 'a;
+
 #[allow(clippy::too_many_arguments)]
 pub fn setup_health(
-    run_command: &dyn Fn(&str, &[String], Option<&CommandOptions>) -> Value,
+    run_command: &RunCommand<'_>,
     state: &Path,
     installed_launcher: &Path,
     codex_executable: Option<&Path>,

@@ -91,7 +91,7 @@ fn load_finding_records(receipt_store: &ReceiptStore) -> Vec<Value> {
             record.get("kind").and_then(Value::as_str) == Some("arcane-governance-finding-state")
         })
         .filter_map(|record| record.get("records").and_then(Value::as_array).cloned())
-        .last()
+        .next_back()
         .unwrap_or_default()
 }
 
@@ -177,7 +177,7 @@ fn dispatch_operation(
             let evidence = call_host_value(&capability.host.closure_evidence, "closureEvidence")?;
             Ok(verify_finding_closure(&evidence))
         }
-        "finding.filter-threshold" => filter_findings_by_threshold(payload).map_err(|error| error),
+        "finding.filter-threshold" => filter_findings_by_threshold(payload),
         "finding.scoped-recheck" => {
             let input = call_host_value(
                 &capability.host.scoped_recheck_evidence,
@@ -191,7 +191,7 @@ fn dispatch_operation(
                     "detail": {},
                 }));
             }
-            apply_scoped_recheck(&input).map_err(|error| error)
+            apply_scoped_recheck(&input)
         }
         "deficit.classify" => {
             let items = call_host_items(&capability.host.acceptance_items, "acceptanceItems")?;

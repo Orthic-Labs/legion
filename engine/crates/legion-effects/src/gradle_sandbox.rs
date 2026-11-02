@@ -443,6 +443,7 @@ mod tests {
 
     #[test]
     #[ignore = "helper process for Gradle native confinement driver"]
+    #[allow(clippy::zombie_processes)]
     fn gradle_bind_only_worker() {
         let Ok(mode) = std::env::var("LEGION_GRADLE_NATIVE_MODE") else {
             return;

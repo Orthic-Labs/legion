@@ -302,7 +302,7 @@ fn load_rows(object: &Map<String, Value>) -> Result<Vec<TraceRow>, String> {
         .collect())
 }
 
-fn required_xml<'a>(object: &'a Map<String, Value>) -> Result<&'a str, String> {
+fn required_xml(object: &Map<String, Value>) -> Result<&str, String> {
     let xml = object
         .get("xml")
         .and_then(Value::as_str)
@@ -363,7 +363,7 @@ fn matches_filters(row: &TraceRow, object: &Map<String, Value>) -> bool {
         object
             .get(key)
             .and_then(Value::as_str)
-            .map_or(true, |needle| {
+            .is_none_or(|needle| {
                 haystack
                     .to_ascii_lowercase()
                     .contains(&needle.to_ascii_lowercase())
@@ -868,7 +868,7 @@ fn parse_tag(body: &str) -> Result<(String, BTreeMap<String, String>), String> {
     Ok((name, attrs))
 }
 
-fn attach_node(stack: &mut Vec<XmlNode>, roots: &mut Vec<XmlNode>, node: XmlNode) {
+fn attach_node(stack: &mut [XmlNode], roots: &mut Vec<XmlNode>, node: XmlNode) {
     if let Some(parent) = stack.last_mut() {
         parent.children.push(node);
     } else {

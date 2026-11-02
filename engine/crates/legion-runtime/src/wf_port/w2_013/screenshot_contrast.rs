@@ -43,7 +43,7 @@ pub fn sanitize_screenshot_clip(clip: Option<Clip>, viewport_width: Option<i64>)
     let y = (clip.y).max(0);
     let vw = viewport_width.filter(|w| *w > 0).unwrap_or(1600);
     let width = clip.width.max(1).min(vw.max(1));
-    let height = clip.height.max(1).min(320);
+    let height = clip.height.clamp(1, 320);
     if width < 1 || height < 1 {
         return None;
     }

@@ -47,7 +47,7 @@ pub fn score_color(score: f64) -> &'static str {
 /// Port of `_rating_color`: CrUX rating strings, normalized the same way
 /// (`lower()`, `-`/` ` -> `_`).
 pub fn rating_color(rating: &str) -> &'static str {
-    let r = rating.to_lowercase().replace('-', "_").replace(' ', "_");
+    let r = rating.to_lowercase().replace(['-', ' '], "_");
     match r.as_str() {
         "good" | "pass" | "fast" => BRAND.success,
         "needs_improvement" | "average" | "warn" => BRAND.warning,

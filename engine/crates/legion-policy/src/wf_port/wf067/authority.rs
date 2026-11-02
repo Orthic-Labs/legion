@@ -179,18 +179,10 @@ pub fn payload_claims_authority(payload_fields: &[&str]) -> bool {
         .any(|f| payload_fields.contains(f))
 }
 
+#[derive(Default)]
 pub struct RequireAuthorityOpts<'a> {
     pub claimed_authority: Option<&'a str>,
     pub require_per_message: bool,
-}
-
-impl Default for RequireAuthorityOpts<'_> {
-    fn default() -> Self {
-        Self {
-            claimed_authority: None,
-            require_per_message: false,
-        }
-    }
 }
 
 /// Gate on the kernel-asserted authority for a turn. Mirrors JS

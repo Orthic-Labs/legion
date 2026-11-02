@@ -78,7 +78,6 @@ pub struct ManifestRow {
 }
 
 pub struct Manifest {
-    pub value: Value,
     #[allow(dead_code)]
     pub path: PathBuf,
     pub manifest_sha256: String,
@@ -127,7 +126,6 @@ pub fn load_manifest(manifest_path: &Path) -> Result<Manifest, String> {
         });
     }
     Ok(Manifest {
-        value: value.clone(),
         path: manifest_path.to_path_buf(),
         manifest_sha256: sha256(&bytes),
         row_count: rows.len(),
@@ -545,7 +543,7 @@ fn normalize_text(
     }
     if obj.get("tempRoots").and_then(Value::as_bool) == Some(true) {
         let mut roots: Vec<&String> = temp_roots.iter().filter(|r| !r.is_empty()).collect();
-        roots.sort_by(|a, b| b.len().cmp(&a.len()));
+        roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
         for root in roots {
             text = text.replace(root.as_str(), "<TEMP_ROOT>");
             let json_escaped = serde_json::to_string(root).unwrap();
@@ -1180,10 +1178,8 @@ pub fn summarize_results(
     let mut seen_once: BTreeSet<&str> = BTreeSet::new();
     let mut duplicate_ids: Vec<&str> = Vec::new();
     for id in &result_ids {
-        if !id.is_empty() {
-            if !seen_once.insert(id) && !duplicate_ids.contains(id) {
-                duplicate_ids.push(id);
-            }
+        if !id.is_empty() && !seen_once.insert(id) && !duplicate_ids.contains(id) {
+            duplicate_ids.push(id);
         }
     }
     let result_id_set: BTreeSet<&str> = result_ids.iter().copied().collect();
@@ -1535,10 +1531,6 @@ pub fn create_sandbox(root: &Path, fixture: &Value) -> Result<Sandbox, String> {
 
 pub fn remove_sandbox(sandbox: &Sandbox) {
     let _ = fs::remove_dir_all(&sandbox.base);
-}
-
-pub fn snapshot_sandbox(sandbox: &Sandbox) -> Result<Value, String> {
-    Ok(snapshot_sandbox_hashed(sandbox)?.0)
 }
 
 /// Matches `gate.mjs`'s `snapshotSandbox`, which returns `{ value, sha256 }`

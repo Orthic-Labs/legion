@@ -372,13 +372,12 @@ pub fn unproject_skills(legion_root: &Path, target_dir: &Path) -> Result<Value, 
         fs::remove_dir_all(&dest).ok();
         removed.push(id.clone());
     }
-    if target_dir.is_dir() {
-        if fs::read_dir(target_dir)
+    if target_dir.is_dir()
+        && fs::read_dir(target_dir)
             .map(|entries| entries.filter_map(Result::ok).next().is_none())
             .unwrap_or(false)
-        {
-            fs::remove_dir_all(target_dir).ok();
-        }
+    {
+        fs::remove_dir_all(target_dir).ok();
     }
     Ok(json!({ "removed": removed, "kept": kept }))
 }

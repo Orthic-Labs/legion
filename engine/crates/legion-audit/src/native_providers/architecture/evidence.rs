@@ -352,10 +352,8 @@ pub fn validate_refs(refs: Option<&Value>, authority: &Value) -> Vec<String> {
             }
         }
         let path = record.get("path").and_then(Value::as_str);
-        if root.is_none() || path.is_none() {
-            errors.push(format!("evidence-path-missing:{reference}"));
-        } else {
-            let path = Path::new(root.unwrap()).join(path.unwrap());
+        if let (Some(root), Some(path)) = (root, path) {
+            let path = Path::new(root).join(path);
             match std::fs::read(path) {
                 Ok(bytes) => {
                     let actual = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
@@ -365,6 +363,8 @@ pub fn validate_refs(refs: Option<&Value>, authority: &Value) -> Vec<String> {
                 }
                 Err(_) => errors.push(format!("evidence-bytes-missing:{reference}")),
             }
+        } else {
+            errors.push(format!("evidence-path-missing:{reference}"));
         }
         if record
             .get("storageReceipt")

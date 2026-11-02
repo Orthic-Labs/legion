@@ -144,7 +144,7 @@ pub fn classify(rows: &[Row]) -> Vec<QueryOwnership> {
         };
 
         let mut period_winners: Vec<String> = Vec::new();
-        for (_, scores) in &periods {
+        for scores in periods.values() {
             if let Some((winner, _)) = scores.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()) {
                 period_winners.push(winner.clone());
             }

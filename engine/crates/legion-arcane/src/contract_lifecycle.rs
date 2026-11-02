@@ -122,6 +122,7 @@ impl ContractLifecycle {
         .map_err(|_| "ARC_STORE_CORRUPT")?;
         Ok(record)
     }
+    #[allow(clippy::too_many_arguments)]
     fn receipt(
         &self,
         action: &str,
@@ -167,7 +168,7 @@ impl ContractLifecycle {
         } else {
             let (id, version, task) = target.ok_or("ARC_SCHEMA_INVALID")?;
             let path = crate::state_paths::state_file(
-                &seal_root.to_path_buf(),
+                seal_root,
                 "arcane.contract-seal.key.v1",
                 &[id.clone(), version.to_string()],
             )

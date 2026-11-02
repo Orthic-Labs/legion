@@ -13,7 +13,7 @@ const MODEL_TIERS: &str = include_str!(concat!(
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct ExecutionSelection {
+pub(crate) struct ExecutionSelection {
     pub role: &'static str,
     pub model_tier: &'static str,
     pub model: String,
@@ -294,6 +294,7 @@ pub(super) fn planning_author_candidates(
         .collect()
 }
 
+#[cfg(test)]
 pub(super) fn planning_gatherer_candidates() -> Result<Vec<ExecutionSelection>, AuditError> {
     ["claude-code", "codex"]
         .into_iter()

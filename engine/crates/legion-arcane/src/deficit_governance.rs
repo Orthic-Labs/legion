@@ -219,7 +219,7 @@ pub fn acknowledge_downstream_deficits(input: &Value) -> Value {
     }
     let missing = canonical_set
         .iter()
-        .filter(|id| !acknowledged.contains(&id.to_string()))
+        .filter(|id| !acknowledged.contains(id.as_str()))
         .cloned()
         .collect::<Vec<_>>();
     if !missing.is_empty() {

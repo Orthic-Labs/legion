@@ -149,6 +149,7 @@ fn prepared_args(
     args.extend(targets.into_iter().map(|p| format!("./{p}")));
     Ok(args)
 }
+#[allow(clippy::result_large_err)]
 pub(super) fn prepare(
     input: &LegacyCheckInput,
     provider: &AuditProvider,

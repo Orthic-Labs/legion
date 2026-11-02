@@ -460,7 +460,7 @@ pub fn adjudicate_chain(input: ChainAdjudicationInput<'_>) -> ChainVerdict {
                 .get(id)
                 .and_then(|v| non_empty(v, "evidenceStrength"))
                 .and_then(Strength::parse);
-            if member.map_or(true, |m| claimed_strength > m) {
+            if member.is_none_or(|m| claimed_strength > m) {
                 proven_gates.push(format!(
                     "step assessment for {id} upgrades the member evidence strength"
                 ));
@@ -484,7 +484,7 @@ pub fn adjudicate_chain(input: ChainAdjudicationInput<'_>) -> ChainVerdict {
                         required.as_str()
                     ));
                 }
-                if min_strength.map_or(true, |m| strength > m) {
+                if min_strength.is_none_or(|m| strength > m) {
                     proven_gates
                         .push("chain evidence strength exceeds its weakest member verdict".into());
                 }
@@ -550,7 +550,7 @@ pub fn adjudicate_chain(input: ChainAdjudicationInput<'_>) -> ChainVerdict {
             proven_gates.push("PROVEN chain requires a bound proof digest".into());
         }
         let nc = raw.get("negativeControl").unwrap_or(&Value::Null);
-        let nc_kind = non_empty(nc, "kind").map_or(false, |k| NEGATIVE_CONTROL_KINDS.contains(&k));
+        let nc_kind = non_empty(nc, "kind").is_some_and(|k| NEGATIVE_CONTROL_KINDS.contains(&k));
         if nc_kind
             && non_empty(nc, "rationale").is_some()
             && non_empty(nc, "outcome") == Some(NEGATIVE_CONTROL_OUTCOME)
@@ -742,7 +742,7 @@ fn slice_model_for_path(model: &Value, step_packets: &[Value]) -> Value {
         .filter(|e| {
             e.get("id")
                 .and_then(Value::as_str)
-                .map_or(false, |id| evidence_ids.contains(id))
+                .is_some_and(|id| evidence_ids.contains(id))
         })
         .collect();
     json!({ "entities": entities, "relations": relations, "evidence": evidence })

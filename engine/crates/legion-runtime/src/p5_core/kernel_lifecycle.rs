@@ -89,6 +89,7 @@ pub struct TaskLifecycle {
 
 impl TaskLifecycle {
     /// Port of `static async open(filePath)`.
+    #[allow(clippy::result_large_err)]
     pub fn open(file_path: impl AsRef<std::path::Path>) -> Result<Self, KernelError> {
         let journal = JsonlJournal::open(file_path)?;
         let mut lifecycle = TaskLifecycle {
@@ -100,6 +101,7 @@ impl TaskLifecycle {
         Ok(lifecycle)
     }
 
+    #[allow(clippy::result_large_err)]
     fn replay(&mut self) -> Result<(), KernelError> {
         for event in self.journal.all() {
             self.apply(&event)?;
@@ -107,6 +109,7 @@ impl TaskLifecycle {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn apply(&mut self, event: &Value) -> Result<(), KernelError> {
         let event_type = event
             .get("eventType")
@@ -233,6 +236,7 @@ impl TaskLifecycle {
     }
 
     /// Port of `get(taskId)`.
+    #[allow(clippy::result_large_err)]
     pub fn get(&self, task_id: &str) -> Result<KernelTask, KernelError> {
         validate_id("task", task_id)?;
         self.tasks.get(task_id).cloned().ok_or_else(|| {
@@ -248,6 +252,7 @@ impl TaskLifecycle {
     }
 
     /// Port of `create({ runId, input, taskId, idempotencyKey })`.
+    #[allow(clippy::result_large_err)]
     pub fn create(
         &mut self,
         run_id: &str,
@@ -284,6 +289,7 @@ impl TaskLifecycle {
         self.get(&task_id)
     }
 
+    #[allow(clippy::result_large_err)]
     fn transition(
         &mut self,
         task_id: &str,
@@ -322,6 +328,7 @@ impl TaskLifecycle {
         self.get(task_id)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn start(&mut self, task_id: &str) -> Result<KernelTask, KernelError> {
         let current = self.get(task_id)?;
         if current.state == "RUNNING" {
@@ -330,6 +337,7 @@ impl TaskLifecycle {
         self.transition(task_id, "RUNNING", "task.started", Value::Null)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn require_input(
         &mut self,
         task_id: &str,
@@ -338,6 +346,7 @@ impl TaskLifecycle {
         self.transition(task_id, "INPUT_REQUIRED", "task.input-required", request)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn provide_input(
         &mut self,
         task_id: &str,
@@ -346,6 +355,7 @@ impl TaskLifecycle {
         self.transition(task_id, "RUNNING", "task.input-provided", input)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn cancel(&mut self, task_id: &str, reason: Value) -> Result<KernelTask, KernelError> {
         self.transition(
             task_id,
@@ -355,18 +365,22 @@ impl TaskLifecycle {
         )
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn resume(&mut self, task_id: &str) -> Result<KernelTask, KernelError> {
         self.transition(task_id, "RUNNING", "task.resumed", Value::Null)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn complete(&mut self, task_id: &str, result: Value) -> Result<KernelTask, KernelError> {
         self.transition(task_id, "COMPLETED", "task.completed", result)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn expire(&mut self, task_id: &str) -> Result<KernelTask, KernelError> {
         self.transition(task_id, "EXPIRED", "task.expired", Value::Null)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn fail(&mut self, task_id: &str, error: Value) -> Result<KernelTask, KernelError> {
         self.transition(task_id, "FAILED_INVOCATION", "task.failed", error)
     }

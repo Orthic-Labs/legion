@@ -247,9 +247,9 @@ impl SnapshotAdmission {
 #[cfg(test)]
 thread_local! {
     static FULL_VERIFICATIONS: std::cell::RefCell<BTreeMap<PathBuf, usize>> =
-        std::cell::RefCell::new(BTreeMap::new());
+        const { std::cell::RefCell::new(BTreeMap::new()) };
     static STRUCTURE_VERIFICATIONS: std::cell::RefCell<BTreeMap<PathBuf, usize>> =
-        std::cell::RefCell::new(BTreeMap::new());
+        const { std::cell::RefCell::new(BTreeMap::new()) };
 }
 #[cfg(test)]
 pub(crate) fn full_verification_count(path: &Path) -> usize {
@@ -1300,6 +1300,7 @@ pub(crate) mod tests {
         }
     }
     impl Drop for Fixture {
+        #[allow(clippy::permissions_set_readonly_false)]
         fn drop(&mut self) {
             for entry in walkdir::WalkDir::new(&self.0)
                 .follow_links(false)
@@ -1316,6 +1317,7 @@ pub(crate) mod tests {
         }
     }
     #[test]
+    #[allow(clippy::permissions_set_readonly_false)]
     fn partially_staged_bytes_and_deleted_baseline_are_frozen() {
         let fixture = Fixture::new();
         std::fs::write(fixture.0.join("file.rs"), b"staged\n").unwrap();
@@ -1551,6 +1553,7 @@ pub(crate) mod tests {
         std::fs::write(fixture.0.join(".audit/state/audited.jsonl"), b"broken\n").unwrap();
         assert!(read_last_completed(&fixture.0).is_err());
     }
+    #[allow(clippy::permissions_set_readonly_false)]
     fn writable(path: &Path) {
         let mut permissions = std::fs::metadata(path).unwrap().permissions();
         permissions.set_readonly(false);

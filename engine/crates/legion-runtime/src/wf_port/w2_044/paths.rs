@@ -42,10 +42,7 @@ pub fn repository_root(path: &Path) -> Option<PathBuf> {
         if current.join(".git").exists() {
             return Some(current);
         }
-        match current.parent() {
-            Some(parent) => current = parent.to_path_buf(),
-            None => return None,
-        }
+        current = current.parent()?.to_path_buf();
     }
 }
 

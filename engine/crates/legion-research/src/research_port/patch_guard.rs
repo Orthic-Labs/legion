@@ -202,7 +202,7 @@ pub fn validate_receipt(
     {
         return Err(error("receipt must be a native Research patch receipt v3"));
     }
-    if receipt["issued_at"].as_str().map_or(true, str::is_empty) {
+    if receipt["issued_at"].as_str().is_none_or(str::is_empty) {
         return Err(error("patch receipt issued_at must be a nonempty string"));
     }
     if receipt["run_id"].as_str() != Some(run_id) {

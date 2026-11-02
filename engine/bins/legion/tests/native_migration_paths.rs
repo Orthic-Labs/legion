@@ -104,11 +104,11 @@ fn bind_write_projects_codex_harness_and_is_idempotent() {
     assert!(config.contains("[user]"));
     assert!(config.contains("keep = true"));
     assert!(!config.contains("[mcp_servers.legion]"));
-    let binding = std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap();
+    let binding = std::fs::read(fixture.0.join(".legion/binding.json")).unwrap();
     let second = fixture.run(&["bind", "--write", "--harness", "codex", "."]);
     assert_eq!(second.status.code(), Some(0));
     assert_eq!(
-        std::fs::read(&fixture.0.join(".legion/binding.json")).unwrap(),
+        std::fs::read(fixture.0.join(".legion/binding.json")).unwrap(),
         binding
     );
 }

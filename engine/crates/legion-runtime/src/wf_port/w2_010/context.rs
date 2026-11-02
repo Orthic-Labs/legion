@@ -558,15 +558,10 @@ fn discover_roots_for_pattern(repo_root: &Path, raw_pattern: &str) -> Vec<PathBu
         }
         return direct_child_dirs(&base);
     }
-    expand_simple_pattern(repo_root, &segments, 0, repo_root)
+    expand_simple_pattern(&segments, 0, repo_root)
 }
 
-fn expand_simple_pattern(
-    repo_root: &Path,
-    pattern_segments: &[&str],
-    index: usize,
-    current: &Path,
-) -> Vec<PathBuf> {
+fn expand_simple_pattern(pattern_segments: &[&str], index: usize, current: &Path) -> Vec<PathBuf> {
     if index >= pattern_segments.len() {
         return if current.exists() {
             vec![current.to_path_buf()]
@@ -576,12 +571,7 @@ fn expand_simple_pattern(
     }
     let segment = pattern_segments[index];
     if !segment.contains('*') {
-        return expand_simple_pattern(
-            repo_root,
-            pattern_segments,
-            index + 1,
-            &current.join(segment),
-        );
+        return expand_simple_pattern(pattern_segments, index + 1, &current.join(segment));
     }
     let entries = match fs::read_dir(current) {
         Ok(e) => e,
@@ -598,7 +588,6 @@ fn expand_simple_pattern(
             continue;
         }
         roots.extend(expand_simple_pattern(
-            repo_root,
             pattern_segments,
             index + 1,
             &current.join(&*name),

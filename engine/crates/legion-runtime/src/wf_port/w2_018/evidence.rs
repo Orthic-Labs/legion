@@ -56,8 +56,12 @@ const SKIP_DIRS: &[&str] = &[
     "coverage",
 ];
 
+static ORIGINAL_TEXT_ATTR_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"data-impeccable-original-text="([^"]*)""#).unwrap());
+static TEXT_CHUNK_SPLIT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"\s{2,}|\n|\t").unwrap());
+
 struct SearchFile {
-    file: PathBuf,
     relative_file: String,
     content: String,
     lines: Vec<String>,
@@ -260,8 +264,7 @@ fn build_context_hints_by_ref(entry: &Entry) -> HashMap<String, Vec<String>> {
             .and_then(|e| e.get("outerHTML"))
             .and_then(Value::as_str)
             .unwrap_or("");
-        let attr_re = Regex::new(r#"data-impeccable-original-text="([^"]*)""#).unwrap();
-        for m in attr_re.captures_iter(outer_html) {
+        for m in ORIGINAL_TEXT_ATTR_RE.captures_iter(outer_html) {
             add(m.get(1).unwrap().as_str());
         }
 
@@ -271,8 +274,7 @@ fn build_context_hints_by_ref(entry: &Entry) -> HashMap<String, Vec<String>> {
             .and_then(|e| e.get("textContent"))
             .and_then(Value::as_str)
         {
-            let split_re = Regex::new(r"\s{2,}|\n|\t").unwrap();
-            for chunk in split_re.split(text_content) {
+            for chunk in TEXT_CHUNK_SPLIT_RE.split(text_content) {
                 add(chunk);
             }
         }
@@ -417,7 +419,7 @@ fn normalize_source_hint(hint: &Value) -> Value {
     };
     let mut line = obj.get("line").and_then(Value::as_i64);
     let mut column = obj.get("column").and_then(Value::as_i64);
-    if (line.is_none() || column.is_none()) {
+    if line.is_none() || column.is_none() {
         if let Some(loc) = obj.get("loc").and_then(Value::as_str) {
             let re = Regex::new(r"^(\d+)(?::(\d+))?").unwrap();
             if let Some(caps) = re.captures(loc) {
@@ -549,7 +551,6 @@ fn maybe_add_search_file(
     };
     let lines = content.split('\n').map(String::from).collect();
     out.push(SearchFile {
-        file: file.to_path_buf(),
         relative_file: relativize(cwd, file),
         content,
         lines,

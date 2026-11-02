@@ -236,13 +236,6 @@ fn read_line_bounded(
     Ok(total)
 }
 
-struct ResolvedSource {
-    path: PathBuf,
-    session_id: String,
-    workspace: String,
-    method: &'static str,
-}
-
 /// Python: `resolve_source(platform, session_id, workspace, home)`.
 ///
 /// `requested_session_id` mirrors the Python fallback to

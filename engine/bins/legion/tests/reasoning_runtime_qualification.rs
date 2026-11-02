@@ -281,7 +281,7 @@ impl Drop for Fixture {
 fn reasoning_runtime_production_no_call_contract() {
     let binary = TestedBinary::prepare();
     let mut author_seats = 0;
-    for member_index in 0..MEMBER_PROVIDERS.len() {
+    for (member_index, _) in MEMBER_PROVIDERS.iter().enumerate() {
         let fixture = Fixture::new(member_index, &binary);
         let mut args: Vec<String> = [
             "audit".into(),

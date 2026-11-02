@@ -152,8 +152,8 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<SkillFrontmatte
             continue;
         }
 
-        if block.is_some() && BLOCK_LINE.is_match(line) {
-            block.as_mut().unwrap().lines.push(line.trim().to_string());
+        if let Some(open) = block.as_mut().filter(|_| BLOCK_LINE.is_match(line)) {
+            open.lines.push(line.trim().to_string());
             continue;
         }
         let list_active = current_key

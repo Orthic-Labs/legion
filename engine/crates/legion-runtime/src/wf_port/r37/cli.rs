@@ -48,7 +48,7 @@ pub fn parse_args(argv: &[String]) -> Result<Args, ParseArgsError> {
     let mut i = 0;
     while i < argv.len() {
         let arg = argv[i].as_str();
-        let mut take_value = |i: &mut usize| -> Option<String> {
+        let take_value = |i: &mut usize| -> Option<String> {
             *i += 1;
             argv.get(*i).cloned()
         };

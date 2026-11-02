@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use serde_json::{json, Value};
+use std::sync::LazyLock;
+
+static PLUGIN_ROOT_PATH_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?:\./|\$\{PLUGIN_ROOT\}/)(.+)$").unwrap());
 
 pub const PORTABLE_CORE_SCHEMA_VERSION: i64 = 1;
 pub const PORTABLE_CORE_KIND: &str = "rightax-portable-core";
@@ -90,14 +94,10 @@ fn skill_id_re() -> Regex {
 
 #[derive(Debug, Clone)]
 pub struct Finding {
-    pub rule_id: &'static str,
-    pub severity: &'static str,
     pub message: String,
 }
 fn finding(message: impl Into<String>) -> Finding {
     Finding {
-        rule_id: "portable-core",
-        severity: "error",
         message: message.into(),
     }
 }
@@ -458,9 +458,8 @@ fn validate_mcp_closure(
                 }
             }
         }
-        let re = Regex::new(r"^(?:\./|\$\{PLUGIN_ROOT\}/)(.+)$").unwrap();
         for (field, value) in values {
-            let Some(caps) = re.captures(&value) else {
+            let Some(caps) = PLUGIN_ROOT_PATH_RE.captures(&value) else {
                 continue;
             };
             let rel = caps[1].replace('\\', "/");

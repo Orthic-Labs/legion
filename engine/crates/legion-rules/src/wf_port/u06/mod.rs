@@ -228,6 +228,17 @@ fn resolve_contract<'a>(
 
 /// Port of `analyzeDocumentation(items, options)`.
 pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
+    static NOTICE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)(?:legal|security)-notice").expect("static regex")
+    });
+    static SHIPPED_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:now|already|currently)\s+(?:ships?|available|supports?)\b|\bshipped\b|\breleased\b")
+            .expect("static regex")
+    });
+    static PREAMBLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:it should be noted that|it is important to note that|in order to)\b")
+            .expect("static regex")
+    });
     let binding = options.get("binding").cloned().unwrap_or(json!({}));
     let denominator = json!({
         "kind": "documentation-content-items",
@@ -283,9 +294,8 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
     for item in items {
         let authority = str_field(item, "authority").unwrap_or("").to_lowercase();
         let kind_field = str_field(item, "kind").unwrap_or("");
-        let notice_re = Regex::new(r"(?i)(?:legal|security)-notice").expect("static regex");
         let is_authority_text =
-            authority == "legal" || authority == "security" || notice_re.is_match(kind_field);
+            authority == "legal" || authority == "security" || NOTICE_RE.is_match(kind_field);
         if is_authority_text {
             let id = str_field(item, "id").unwrap_or("");
             coverage_gaps.push(format!("authority-required:{}", id));
@@ -428,11 +438,8 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
                 .unwrap_or("unproven")
                 .to_string();
             let text = str_field(item, "text").unwrap_or("");
-            let shipped_re =
-                Regex::new(r"(?i)\b(?:now|already|currently)\s+(?:ships?|available|supports?)\b|\bshipped\b|\breleased\b")
-                    .expect("static regex");
             let claims_shipped = item.get("claimsShipped").and_then(Value::as_bool) == Some(true)
-                || shipped_re.is_match(text);
+                || SHIPPED_RE.is_match(text);
             let claim = if claims_shipped {
                 "shipped"
             } else if release_state == "planned" {
@@ -507,11 +514,7 @@ pub fn analyze_documentation(items: &[Value], options: &Value) -> Value {
         }
 
         let text = str_field(item, "text").unwrap_or("");
-        let preamble_re = Regex::new(
-            r"(?i)\b(?:it should be noted that|it is important to note that|in order to)\b",
-        )
-        .expect("static regex");
-        if let Some(m) = preamble_re.find(text) {
+        if let Some(m) = PREAMBLE_RE.find(text) {
             if !is_authority_text {
                 let start = text[..m.start()].chars().count();
                 let matched_chars = m.as_str().chars().count();

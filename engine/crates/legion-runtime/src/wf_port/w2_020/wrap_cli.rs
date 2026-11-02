@@ -75,13 +75,6 @@ fn err_json(value: Value) -> (i32, String) {
     (1, value.to_string())
 }
 
-fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
-    match path.to_str() {
-        Some(s) if s.starts_with(r"\\?\") => PathBuf::from(&s[4..]),
-        _ => path,
-    }
-}
-
 fn relative_slash(cwd: &Path, path: &Path) -> String {
     let abs = if path.is_absolute() {
         path.to_path_buf()

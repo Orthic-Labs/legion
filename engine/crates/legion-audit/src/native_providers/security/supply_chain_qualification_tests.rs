@@ -297,7 +297,7 @@ fn source_collector_excludes_only_regular_exact_session_receipts() {
         root.join(format!("{prefix}/{}.json", "b".repeat(64))),
     ] {
         std::os::unix::fs::symlink(target, &path).unwrap();
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| collect())).is_err());
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(&collect)).is_err());
         fs::remove_file(&path).unwrap();
     }
     fs::write(&path, b"generated receipt restored\n").unwrap();

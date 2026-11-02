@@ -15,7 +15,6 @@
 //! ([`bearer_with_service_account_fallback`]). No token is cached; each call that needs the
 //! fallback performs one exchange.
 
-use std::io::Write;
 use std::path::PathBuf;
 
 use serde_json::{json, Value};
@@ -389,7 +388,7 @@ pub fn query_with<T: SearchAnalyticsTransport>(
         Err(e) => return json!({"error": e, "property": site_url}),
     };
 
-    let page_size = page_size.max(1).min(25_000);
+    let page_size = page_size.clamp(1, 25_000);
     let mut rows: Vec<Value> = Vec::new();
     let mut start_row: i64 = 0;
     let mut hit_cap = false;

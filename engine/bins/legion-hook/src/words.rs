@@ -108,7 +108,7 @@ fn record_order(root: &Path, session: &str, prompt: &str, now: u64) {
 
 /// The header and the orders newest first, as many as fit in 4 KB.
 fn render(header: &str, mut shown: Vec<&Order>) -> Option<String> {
-    shown.sort_by(|a, b| b.id.cmp(&a.id));
+    shown.sort_by_key(|order| std::cmp::Reverse(order.id));
     let mut out = header.to_owned();
     for order in &shown {
         let line = format!("\n#{}: {}", order.id, order.text);

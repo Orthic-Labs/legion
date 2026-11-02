@@ -57,8 +57,21 @@ struct TypedEntry {
     provider_name: String,
     dataset: String,
     mode: String,
-    estimated_runs: Option<i64>,
-    min_wall_ms: Option<i64>,
+}
+
+fn all_candidates_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)\bALL_CANDIDATES\b").unwrap())
+}
+
+fn technical_start_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)^START:\s*\S").unwrap())
+}
+
+fn terminal_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)^TERMINAL:\s*\S").unwrap())
 }
 
 /// Port of `topology_errors()`.
@@ -493,7 +506,6 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
         }
 
         let wall_match = wall_re.captures(row[9].trim());
-        let mut min_wall_ms: Option<i64> = None;
         if wall_match.is_none() {
             errors.push(format!(
                 "typed stage {stage_id} requires integer WALL_FACTORS"
@@ -503,7 +515,6 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
             let ms_per_run: i64 = caps.get(2).unwrap().as_str().parse().unwrap_or(0);
             let concurrency: i64 = caps.get(3).unwrap().as_str().parse().unwrap_or(0);
             let mwm: i64 = caps.get(4).unwrap().as_str().parse().unwrap_or(0);
-            min_wall_ms = Some(mwm);
             let wall_evidence = caps.get(5).map(|m| m.as_str()).unwrap_or("");
             if concurrency < 1 || ms_per_run < 1 {
                 errors.push(format!(
@@ -570,8 +581,6 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
                 provider_name,
                 dataset,
                 mode,
-                estimated_runs,
-                min_wall_ms,
             },
         );
     }
@@ -622,14 +631,11 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
                 ));
             }
             if index == 0 {
-                static ALL_CANDIDATES_RE: OnceLock<Regex> = OnceLock::new();
-                let re = ALL_CANDIDATES_RE
-                    .get_or_init(|| Regex::new(r"(?i)\bALL_CANDIDATES\b").unwrap());
+                let re = all_candidates_re();
                 if !re.is_match(&row[3]) {
                     errors.push("TECHNICAL_RUNNABILITY input must be ALL_CANDIDATES".to_string());
                 }
-                static START_RE: OnceLock<Regex> = OnceLock::new();
-                let start_re = START_RE.get_or_init(|| Regex::new(r"(?i)^START:\s*\S").unwrap());
+                let start_re = technical_start_re();
                 if !start_re.is_match(&row[4]) {
                     errors.push("TECHNICAL_RUNNABILITY entry gate must be START".to_string());
                 }
@@ -673,8 +679,7 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
                     ));
                 }
             } else {
-                static TERMINAL_RE: OnceLock<Regex> = OnceLock::new();
-                let re = TERMINAL_RE.get_or_init(|| Regex::new(r"(?i)^TERMINAL:\s*\S").unwrap());
+                let re = terminal_re();
                 if !re.is_match(&row[9]) {
                     errors
                         .push("SYSTEM_INTERFERENCE downstream state must be TERMINAL".to_string());

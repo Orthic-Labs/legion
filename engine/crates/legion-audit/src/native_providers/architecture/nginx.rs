@@ -497,7 +497,6 @@ enum Tok {
 #[derive(Clone, Debug)]
 struct Arg {
     value: String,
-    quoted: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -716,7 +715,7 @@ fn make_directive(
     let args = taken
         .into_iter()
         .skip(1)
-        .map(|(value, quoted, _)| Arg { value, quoted })
+        .map(|(value, _, _)| Arg { value })
         .collect();
     Directive {
         name,
@@ -965,7 +964,7 @@ impl<'a> Resolver<'a> {
 
 fn parse_version(value: &str) -> Option<(u32, u32, u32)> {
     let core = value.trim().trim_start_matches("nginx/");
-    let mut it = core.split(|c: char| c == '.' || c == '-' || c == ' ');
+    let mut it = core.split(['.', '-', ' ']);
     Some((
         it.next()?.parse().ok()?,
         it.next()?.parse().ok()?,
@@ -1574,6 +1573,7 @@ fn has_cacheless_partition(e: &EffectiveFacts) -> bool {
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn candidate(
     rule: &str,
     loc_id: &str,

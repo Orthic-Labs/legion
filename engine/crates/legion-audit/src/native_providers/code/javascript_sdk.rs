@@ -63,6 +63,11 @@ fn context_path(scratch: &AuditScratch, dir: &str) -> PathBuf {
 }
 
 /// Source maps are tied to frozen inventory digests, including manifest/script
+fn pnpm_exact_re() -> &'static Regex {
+    static CELL: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    CELL.get_or_init(|| Regex::new(r"^pnpm@(\d+\.\d+\.\d+)$").expect("constant regex"))
+}
+
 /// bytes. Absent/other package managers are gaps rather than implicit fallbacks.
 pub(super) fn plan(
     root: &Path,
@@ -93,8 +98,7 @@ pub(super) fn plan(
             .get("packageManager")
             .and_then(Value::as_str)
             .unwrap_or("");
-        let exact = Regex::new(r"^pnpm@(\d+\.\d+\.\d+)$").expect("constant regex");
-        if !exact.is_match(manager) {
+        if !pnpm_exact_re().is_match(manager) {
             plan.notes
                 .push(format!("javascript-package-manager-unproven:{dir}"));
             continue;
@@ -736,10 +740,10 @@ fn emitted(
 // actual `answer()` assertion target. Unsupported module syntax is a gap.
 fn assertion_module(source: &str) -> Result<(), String> {
     let source = source.strip_prefix("debugger;\n").unwrap_or(source);
-    let source = if source.starts_with("const bad: number = 'wrong';\n") {
-        &source["const bad: number = 'wrong';\n".len()..]
-    } else if source.starts_with("/** @type {number} */ const bad = 'wrong';\n") {
-        &source["/** @type {number} */ const bad = 'wrong';\n".len()..]
+    let source = if let Some(rest) = source.strip_prefix("const bad: number = 'wrong';\n") {
+        rest
+    } else if let Some(rest) = source.strip_prefix("/** @type {number} */ const bad = 'wrong';\n") {
+        rest
     } else {
         source
     };

@@ -682,17 +682,17 @@ fn looks_like_credential(candidate: &Value) -> bool {
         })
 }
 
+type PriorCandidates = (
+    Vec<Value>,
+    BTreeMap<String, usize>,
+    Vec<(&'static str, String)>,
+);
+
 /// All candidates from prior provider results, with deterministic ids for
 /// records that lack one, provenance, and derived credential effects for
 /// credential-class records that carry no typed effects. Returns
 /// `(candidates, per-provider counts, gaps)`.
-fn prior_candidates(
-    prior: &[ProviderExecution],
-) -> (
-    Vec<Value>,
-    BTreeMap<String, usize>,
-    Vec<(&'static str, String)>,
-) {
+fn prior_candidates(prior: &[ProviderExecution]) -> PriorCandidates {
     let mut out = Vec::new();
     let mut counts = BTreeMap::new();
     let mut gaps = Vec::new();

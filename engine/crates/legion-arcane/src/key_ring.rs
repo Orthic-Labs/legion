@@ -73,7 +73,6 @@ pub struct KeyRing {
 struct KeyRecord {
     key: Vec<u8>,
     created_at: String,
-    custody: String,
     status: String,
 }
 
@@ -102,7 +101,7 @@ impl KeyRing {
                 )));
             }
         }
-        let mut ring = Self {
+        let ring = Self {
             keys: RefCell::new(BTreeMap::new()),
         };
         let entries = std::fs::read_dir(dir).map_err(|error| ArcaneError::Io(error.to_string()))?;
@@ -186,7 +185,7 @@ impl KeyRing {
         key_id: impl Into<String>,
         key_material: Vec<u8>,
         created_at: impl Into<String>,
-        custody: impl Into<String>,
+        _custody: impl Into<String>,
         status: impl Into<String>,
     ) -> Result<(), ArcaneError> {
         let key_id = key_id.into();
@@ -207,7 +206,6 @@ impl KeyRing {
             KeyRecord {
                 key: key_material,
                 created_at: created_at.into(),
-                custody: custody.into(),
                 status: status.into(),
             },
         );

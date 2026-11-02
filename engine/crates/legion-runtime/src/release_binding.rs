@@ -133,7 +133,7 @@ impl RuntimeOriginEvidence {
                 expected: "absolute isolated roots, non-empty process identity, and valid port"
                     .into(),
                 actual: reason,
-                remediation: "use an explicit development context".into(),
+                remediation: "use an explicit development context",
             })?;
         Ok(Self {
             origin: RuntimeOrigin::Development,

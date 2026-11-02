@@ -614,27 +614,39 @@ mod tests {
         assert!(!needs_cdp_shot(&a));
         a.shot = true;
         assert!(needs_cdp_shot(&a));
-        let mut a = Args::default();
-        a.throttle = Some("slow-3g".into());
+        let a = Args {
+            throttle: Some("slow-3g".into()),
+            ..Args::default()
+        };
         assert!(needs_cdp_shot(&a));
-        let mut a = Args::default();
-        a.cpu = Some(4.0);
+        let a = Args {
+            cpu: Some(4.0),
+            ..Args::default()
+        };
         assert!(needs_cdp_shot(&a));
-        let mut a = Args::default();
-        a.mobile = true;
+        let a = Args {
+            mobile: true,
+            ..Args::default()
+        };
         assert!(needs_cdp_shot(&a));
-        let mut a = Args::default();
-        a.load_session = Some("s.json".into());
+        let a = Args {
+            load_session: Some("s.json".into()),
+            ..Args::default()
+        };
         assert!(needs_cdp_shot(&a));
-        let mut a = Args::default();
-        a.save_session = Some("s.json".into());
+        let a = Args {
+            save_session: Some("s.json".into()),
+            ..Args::default()
+        };
         assert!(needs_cdp_shot(&a));
     }
 
     #[test]
     fn resolve_url_prefers_explicit_url() {
-        let mut a = Args::default();
-        a.url = Some("http://x/y".into());
+        let a = Args {
+            url: Some("http://x/y".into()),
+            ..Args::default()
+        };
         assert_eq!(resolve_url(&a, None).unwrap(), "http://x/y");
     }
 
@@ -655,9 +667,11 @@ mod tests {
 
     #[test]
     fn plan_sweep_wins_over_everything_else() {
-        let mut a = Args::default();
-        a.sweep = true;
-        a.shot = true;
+        let a = Args {
+            sweep: true,
+            shot: true,
+            ..Args::default()
+        };
         assert_eq!(
             plan(&a),
             Plan::Sweep {
@@ -673,9 +687,11 @@ mod tests {
 
     #[test]
     fn plan_usage_when_help_even_with_shot() {
-        let mut a = Args::default();
-        a.help = true;
-        a.shot = true;
+        let a = Args {
+            help: true,
+            shot: true,
+            ..Args::default()
+        };
         assert_eq!(plan(&a), Plan::Usage);
     }
 
@@ -691,8 +707,10 @@ mod tests {
 
     #[test]
     fn plan_run_reflects_needs_server_and_cdp_shot() {
-        let mut a = Args::default();
-        a.shot = true;
+        let a = Args {
+            shot: true,
+            ..Args::default()
+        };
         assert_eq!(
             plan(&a),
             Plan::Run {

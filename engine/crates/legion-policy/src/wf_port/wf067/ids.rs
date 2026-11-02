@@ -253,10 +253,9 @@ fn bump_random(prev: &[u8; 10]) -> [u8; 10] {
 pub fn ulid(now_ms: u64) -> String {
     let mut state = STATE.lock().unwrap();
     let now = now_ms as i64;
-    let rnd = if now == state.last_time && state.last_random.is_some() {
-        bump_random(state.last_random.as_ref().unwrap())
-    } else {
-        random_bytes_10()
+    let rnd = match state.last_random.as_ref() {
+        Some(last) if now == state.last_time => bump_random(last),
+        _ => random_bytes_10(),
     };
     state.last_time = now;
     state.last_random = Some(rnd);

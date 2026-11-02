@@ -54,7 +54,7 @@ impl CivilDate {
             self.year
         };
         let era = if y >= 0 { y } else { y - 399 } / 400;
-        let yoe = (y - era * 400) as i64; // [0, 399]
+        let yoe = y - era * 400; // [0, 399]
         let mp = (self.month as i64 + 9) % 12; // [0, 11]
         let doy = (153 * mp + 2) / 5 + self.day as i64 - 1; // [0, 365]
         let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy; // [0, 146096]

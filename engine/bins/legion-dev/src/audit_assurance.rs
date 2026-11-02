@@ -398,6 +398,7 @@ pub fn record_digest(record: &AssuranceQualificationRecord) -> String {
 
 /// Seal a freshly captured record. Enrollment still requires CI provenance;
 /// sealing only binds bytes, it authenticates nothing.
+#[cfg(test)]
 pub fn seal(record: &mut AssuranceQualificationRecord) {
     record.qualification_digest = record_digest(record);
 }
@@ -631,6 +632,7 @@ fn context_mismatches(
 /// Validate one record at `now_rfc3339_utc`, optionally against the current
 /// code/tool context. Raw-output file bytes are checked separately by
 /// [`validate_raw_outputs`] because they need a repository root.
+#[cfg(test)]
 pub fn validate_record(
     record: &AssuranceQualificationRecord,
     now_rfc3339_utc: &str,
@@ -639,7 +641,7 @@ pub fn validate_record(
     validate_record_enrolled(record, now_rfc3339_utc, current, &[])
 }
 
-/// Like [`validate_record`] with the enrolled attestor keys. A record that
+/// Like `validate_record` with the enrolled attestor keys. A record that
 /// claims CI capture or authentication without an attestation verified under
 /// an enrolled key is rejected: those fields are caller-asserted.
 pub fn validate_record_enrolled(
@@ -1117,6 +1119,7 @@ impl NegativeEvidenceKind {
             Self::IncompleteReview => "incomplete-review",
         }
     }
+    #[cfg(test)]
     pub const ALL: [Self; 11] = [
         Self::ForgedImport,
         Self::StaleImport,
@@ -1690,17 +1693,18 @@ mod tests {
         let keys = test_enrolled();
         // A key enrolled inside the audited repository root is refused.
         let in_repo = write_enrollment(&repo, "qualification-attestors.json", &keys);
-        let refused = load_enrolled_keys(&in_repo, &[repo.clone()]);
+        let refused = load_enrolled_keys(&in_repo, std::slice::from_ref(&repo));
         assert!(refused.is_err(), "repo-located enrollment must be refused");
         // The same enrollment in host state outside the repo loads and the
         // attested record verifies under it.
         let in_host = write_enrollment(&host, "audit-qualification-attestors.json", &keys);
-        let loaded = load_enrolled_keys(&in_host, &[repo.clone()]).unwrap();
+        let loaded = load_enrolled_keys(&in_host, std::slice::from_ref(&repo)).unwrap();
         assert_eq!(loaded, keys);
         let rec = record(BasisKind::Heldout);
         assert_eq!(verify_attestation(&rec, &loaded), Ok(()));
         // Missing host file: nothing enrolled, the attestation cannot verify.
-        let none = load_enrolled_keys(&host.join("absent.json"), &[repo.clone()]).unwrap();
+        let none =
+            load_enrolled_keys(&host.join("absent.json"), std::slice::from_ref(&repo)).unwrap();
         assert!(none.is_empty());
         assert!(verify_attestation(&rec, &none).is_err());
         // A group-writable (non-0600) host file is refused.
@@ -1708,7 +1712,7 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&in_host, fs::Permissions::from_mode(0o644)).unwrap();
         }
-        assert!(load_enrolled_keys(&in_host, &[repo.clone()]).is_err());
+        assert!(load_enrolled_keys(&in_host, std::slice::from_ref(&repo)).is_err());
         let _ = fs::remove_dir_all(&repo);
         let _ = fs::remove_dir_all(&host);
     }

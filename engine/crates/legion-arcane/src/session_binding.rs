@@ -27,9 +27,7 @@ impl SessionBindingStore {
         }
         let value: Value = serde_json::from_slice(&fs::read(self.path(session)).ok()?).ok()?;
         let obj = value.as_object()?;
-        if obj.get("runId").and_then(Value::as_str).is_none() {
-            return None;
-        }
+        obj.get("runId").and_then(Value::as_str)?;
         let trio = ["contractId", "contractVersion", "contractDigest"];
         let present = trio
             .iter()

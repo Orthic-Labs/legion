@@ -37,11 +37,14 @@ pub struct LaneContext<'a> {
     pub node_id: &'a str,
 }
 
+/// Lane body: runs one node against the results produced so far.
+pub type LaneRun = dyn Fn(&LaneContext) -> Result<Value, KernelError>;
+
 pub struct LaneNode {
     pub id: String,
     pub dependencies: Vec<String>,
     pub concurrency_key: Option<String>,
-    pub run: Box<dyn Fn(&LaneContext) -> Result<Value, KernelError>>,
+    pub run: Box<LaneRun>,
 }
 
 /// Port of `class LaneScheduler`.
@@ -55,6 +58,7 @@ impl LaneScheduler {
     }
 
     /// Port of `execute(nodes)`.
+    #[allow(clippy::result_large_err)]
     pub fn execute(&self, nodes: Vec<LaneNode>) -> Result<BTreeMap<String, Value>, KernelError> {
         let order: Vec<String> = nodes.iter().map(|n| n.id.clone()).collect();
         let mut by_id: HashMap<String, LaneNode> = HashMap::new();
@@ -137,6 +141,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
+    #[allow(clippy::result_large_err)]
     fn node(id: &str, deps: &[&str], value: Value) -> LaneNode {
         let value_clone = value.clone();
         LaneNode {
@@ -148,6 +153,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn execute_runs_nodes_respecting_dependencies() {
         let order = Arc::new(std::sync::Mutex::new(Vec::new()));
         let order_a = order.clone();
@@ -216,6 +222,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn serial_mode_runs_one_node_per_wave_in_id_order() {
         let counter = Arc::new(AtomicUsize::new(0));
         let seen_a = counter.clone();

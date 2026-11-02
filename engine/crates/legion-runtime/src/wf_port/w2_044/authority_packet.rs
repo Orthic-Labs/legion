@@ -691,7 +691,7 @@ fn direct_packet_errors(
                     _ => errors.push(format!("{label} requires known dispatch wave")),
                 }
 
-                let mut semantic_requirement: Option<&str> = None;
+                let semantic_requirement: Option<&str>;
                 if worker_obj.contains_key("executorRequirement") {
                     let executor_requirement = worker_obj
                         .get("executorRequirement")

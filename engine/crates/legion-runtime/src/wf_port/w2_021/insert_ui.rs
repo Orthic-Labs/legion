@@ -602,6 +602,8 @@ pub fn build_insert_generate_payload(input: &InsertGeneratePayloadInput) -> serd
     payload
 }
 
+type PickVariant<'a, T> = &'a dyn Fn(&T, i64) -> Option<T>;
+
 /// Pick the best live anchor during an insert session (placeholder until
 /// variants land).
 pub fn resolve_insert_session_anchor<T: Clone>(
@@ -610,7 +612,7 @@ pub fn resolve_insert_session_anchor<T: Clone>(
     visible_variant: i64,
     placeholder: Option<T>,
     insert_anchor: Option<T>,
-    pick_variant_content: Option<&dyn Fn(&T, i64) -> Option<T>>,
+    pick_variant_content: Option<PickVariant<'_, T>>,
 ) -> Option<T> {
     if let (Some(wrapper), Some(pick)) = (wrapper, pick_variant_content) {
         if variant_count > 0 && visible_variant > 0 {

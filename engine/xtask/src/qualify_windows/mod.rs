@@ -17,7 +17,5 @@ pub mod lifecycle;
 pub mod proofs;
 pub mod tree;
 
-pub use lifecycle::{qualify_windows_release, QualifyWindowsOptions};
-
 #[cfg(test)]
 mod tests;

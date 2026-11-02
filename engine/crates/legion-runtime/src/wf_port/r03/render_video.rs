@@ -23,7 +23,6 @@
 //! `preset medium`, `+faststart`) are unchanged. [`resolve_trim`] is still
 //! exposed for a caller that wires a continuous-recording backend instead.
 
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 pub use crate::wf_port::w2_008::render_video::{resolve_trim, HIDE_CHROME_CSS};

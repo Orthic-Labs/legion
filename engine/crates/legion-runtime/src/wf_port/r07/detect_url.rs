@@ -468,8 +468,10 @@ mod tests {
             responses: vec![Value::Null, Value::Null, json!([])],
         };
         let reg = registry();
-        let mut opts = DetectUrlOptions::default();
-        opts.visual_contrast = false;
+        let opts = DetectUrlOptions {
+            visual_contrast: false,
+            ..DetectUrlOptions::default()
+        };
         let out = detect_url(
             &mut driver,
             &reg,
@@ -500,8 +502,10 @@ mod tests {
             responses: vec![Value::Null, Value::Null, json!([])],
         };
         let reg = registry();
-        let mut opts = DetectUrlOptions::default();
-        opts.visual_contrast = true;
+        let opts = DetectUrlOptions {
+            visual_contrast: true,
+            ..DetectUrlOptions::default()
+        };
         let out = detect_url(
             &mut driver,
             &reg,
@@ -584,8 +588,10 @@ mod tests {
             responses: vec![Value::Null, Value::Null, json!([])],
         };
         let reg = registry();
-        let mut opts = DetectUrlOptions::default();
-        opts.visual_contrast = true;
+        let opts = DetectUrlOptions {
+            visual_contrast: true,
+            ..DetectUrlOptions::default()
+        };
         let err = detect_url(
             &mut driver,
             &reg,

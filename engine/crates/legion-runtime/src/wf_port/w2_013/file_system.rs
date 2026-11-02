@@ -557,7 +557,7 @@ mod tests {
         drop(listener);
 
         let status = is_port_listening_tcp(port);
-        assert_eq!(status.listening, false);
+        assert!(!status.listening);
         assert_eq!(status.matched, None);
     }
 
@@ -578,7 +578,7 @@ mod tests {
         let re = regex::Regex::new("(?i)next").unwrap();
         let status = is_port_listening_http(port, Some(("x-powered-by", Some(&re))), None);
         handle.join().unwrap();
-        assert_eq!(status.listening, true);
+        assert!(status.listening);
         assert_eq!(status.matched, Some(true));
     }
 }

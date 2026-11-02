@@ -273,7 +273,7 @@ args = [{}]",
                         .find(|index| lines[*index].trim_start().starts_with('['))
                         .unwrap_or(lines.len())
                 });
-                let payload = lines[start..payload_end].join("\n");
+                let _payload = lines[start..payload_end].join("\n");
                 if let Some(mark) = &mark {
                     // A digest mismatch under our OWN marker means the entry we
                     // wrote is stale — the executable path or args moved with an

@@ -580,6 +580,7 @@ fn array_empty(receipt: &Value, key: &str) -> bool {
         .is_some_and(Vec::is_empty)
 }
 
+#[cfg(test)]
 fn no_survivors(receipt: &Value) -> bool {
     match receipt.get("survivors") {
         None => true,
@@ -588,6 +589,7 @@ fn no_survivors(receipt: &Value) -> bool {
     }
 }
 
+#[cfg(test)]
 fn valid_broker_digest(value: Option<&Value>) -> bool {
     value.and_then(Value::as_str).is_some_and(|value| {
         value.len() == 64
@@ -597,10 +599,12 @@ fn valid_broker_digest(value: Option<&Value>) -> bool {
     })
 }
 
+#[cfg(test)]
 fn is_expected_test_command(value: Option<&str>, expected: &str) -> bool {
     value == Some(expected)
 }
 
+#[cfg(test)]
 fn is_known_cargo_argv_normalization(
     receipt: &Value,
     expected_command: &str,
@@ -625,6 +629,7 @@ fn is_known_cargo_argv_normalization(
     receipt.get("command").and_then(Value::as_str) == Some(&expected_effective_command)
 }
 
+#[cfg(test)]
 fn validate_status(
     status: &Value,
     id: &str,
@@ -738,6 +743,7 @@ fn valid_hex_digest(value: Option<&Value>) -> bool {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn validate_attested_payload(
     payload: &Value,
     status: &Value,
@@ -870,15 +876,14 @@ fn validate_attested_payload(
         {
             return Err("provenance-script-combined-with-prefix".into());
         }
-    } else if executable.get("argsPrefix").is_some() {
-        if executable.get("prefixAttested").and_then(Value::as_bool) != Some(false)
+    } else if executable.get("argsPrefix").is_some()
+        && (executable.get("prefixAttested").and_then(Value::as_bool) != Some(false)
             || executable
                 .get("argsPrefix")
                 .and_then(Value::as_array)
-                .is_none()
-        {
-            return Err("provenance-native-prefix-invalid".into());
-        }
+                .is_none())
+    {
+        return Err("provenance-native-prefix-invalid".into());
     }
     let descendants = payload
         .get("descendants")
@@ -942,6 +947,7 @@ fn validate_attested_payload(
     Ok(exit as i32)
 }
 
+#[cfg(test)]
 fn cleanup_proven(
     status: &Value,
     id: &str,
@@ -1318,6 +1324,7 @@ fn copied_request(
 
 /// Run a frozen Rust test declaration on a materialized copy. Only terminal,
 /// source-unchanged broker receipts produce a pass or failing-test finding.
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn execute(
     tool: &dyn ExternalProjectTool,
     plan_digest: &str,
@@ -3156,7 +3163,7 @@ mod tests {
             assert!(verify_copy_unchanged(
                 &copy,
                 &inventory,
-                &[generated_root.clone()],
+                std::slice::from_ref(&generated_root),
                 deadline,
                 &cancellation
             ));
@@ -3169,7 +3176,7 @@ mod tests {
             assert!(!verify_copy_unchanged(
                 &copy,
                 &inventory,
-                &[generated_root.clone()],
+                std::slice::from_ref(&generated_root),
                 deadline,
                 &cancellation
             ));
@@ -3178,7 +3185,7 @@ mod tests {
         assert!(verify_copy_unchanged(
             &copy,
             &inventory,
-            &[generated_root.clone()],
+            std::slice::from_ref(&generated_root),
             deadline,
             &cancellation
         ));

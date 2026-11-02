@@ -568,6 +568,7 @@ pub fn verify_retained_receipts(dir: &Path, key: &[u8], events: &[AuditEvent]) -
 
 /// What a resumed run feeds back into the engine instead of executing.
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ProviderSeed {
     /// Verified completed result from a signed receipt.
     Reuse {

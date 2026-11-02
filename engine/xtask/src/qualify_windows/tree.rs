@@ -11,8 +11,6 @@ use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 
-use crate::windows_release_support::sha256_hex;
-
 static RUN_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub fn next_run_sequence() -> u64 {
@@ -348,10 +346,6 @@ pub fn tree_digest(root: &Path) -> Result<String, String> {
     Ok(format!("sha256:{}", hex::encode(hasher.finalize())))
 }
 
-pub fn tree_digest_hex_for(name_bytes: &[u8]) -> String {
-    sha256_hex(name_bytes)
-}
-
 pub fn remove_exact(path: &Path, work_root: &Path, label: &str) -> Result<(), String> {
     assert_inside(work_root, path, label, "posix")?;
     if path.exists() {
@@ -371,9 +365,6 @@ pub struct AtomicReplaceResult {
     pub backup_moved: bool,
     pub committed: bool,
     pub rolled_back: bool,
-    pub error: Option<String>,
-    pub stage: PathBuf,
-    pub backup: PathBuf,
 }
 
 /// Mirrors `atomicReplaceProduct`. `inject_failure` runs after the backup
@@ -393,19 +384,18 @@ pub fn atomic_replace_product(
     inject_failure: Option<&dyn Fn() -> Result<(), String>>,
 ) -> Result<AtomicReplaceResult, String> {
     let parent = product_root.parent().unwrap_or(Path::new("."));
-    if let Err(error) = (|| -> Result<(), String> {
+    if (|| -> Result<(), String> {
         assert_inside(work_root, product_root, "product root", "posix")?;
         assert_inside(work_root, parent, "product parent", "posix")?;
         Ok(())
-    })() {
+    })()
+    .is_err()
+    {
         return Ok(AtomicReplaceResult {
             success: false,
             backup_moved: false,
             committed: false,
             rolled_back: false,
-            error: Some(error),
-            stage: PathBuf::new(),
-            backup: PathBuf::new(),
         });
     }
     if fs::create_dir_all(parent).is_err() {
@@ -414,9 +404,6 @@ pub fn atomic_replace_product(
             backup_moved: false,
             committed: false,
             rolled_back: false,
-            error: Some(format!("cannot create {}", parent.display())),
-            stage: PathBuf::new(),
-            backup: PathBuf::new(),
         });
     }
     let suffix = format!("{}-{}", std::process::id(), next_run_sequence());
@@ -455,9 +442,6 @@ pub fn atomic_replace_product(
             backup_moved,
             committed: true,
             rolled_back: false,
-            error: None,
-            stage,
-            backup,
         }),
         Err(error) => {
             if committed {
@@ -468,9 +452,6 @@ pub fn atomic_replace_product(
                     backup_moved,
                     committed: true,
                     rolled_back: false,
-                    error: Some(format!("product committed but cleanup failed: {error}")),
-                    stage,
-                    backup,
                 });
             }
             let restore = (|| -> Result<(), String> {
@@ -496,9 +477,6 @@ pub fn atomic_replace_product(
                 backup_moved,
                 committed,
                 rolled_back: had_original && product_root.exists(),
-                error: Some(error),
-                stage,
-                backup,
             })
         }
     }

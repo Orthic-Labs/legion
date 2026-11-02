@@ -123,7 +123,7 @@ fn compute(root: &Path, phase: &'static str) -> Summary {
     let mut issues: Vec<String> = Vec::new();
     let mut reported: BTreeSet<String> = BTreeSet::new();
 
-    let mut report_runtime_file =
+    let report_runtime_file =
         |path: &Path, issues: &mut Vec<String>, reported: &mut BTreeSet<String>| {
             let rel = rel_forward(root, path);
             if reported.contains(&rel) {

@@ -141,17 +141,19 @@ fn detect_url_cdp_end_to_end_with_design_system() {
         ],
     };
     let reg = registry();
-    let mut opts = DetectUrlOptions::default();
-    opts.design_system = Some(DesignSystemInput {
-        present: true,
-        has_colors: true,
-        allowed_color_keys: vec![Rgb {
-            r: 1.0,
-            g: 2.0,
-            b: 3.0,
-        }],
+    let opts = DetectUrlOptions {
+        design_system: Some(DesignSystemInput {
+            present: true,
+            has_colors: true,
+            allowed_color_keys: vec![Rgb {
+                r: 1.0,
+                g: 2.0,
+                b: 3.0,
+            }],
+            ..Default::default()
+        }),
         ..Default::default()
-    });
+    };
     let out = detect_url_cdp(
         &mut driver,
         &reg,
@@ -181,8 +183,10 @@ fn detect_url_without_visual_contrast_matches_cdp_only_path() {
         responses: vec![Value::Null, Value::Null, json!([])],
     };
     let reg = registry();
-    let mut opts = DetectUrlOptions::default();
-    opts.visual_contrast = false;
+    let opts = DetectUrlOptions {
+        visual_contrast: false,
+        ..Default::default()
+    };
     let a = detect_url_cdp(&mut driver_a, &reg, "https://x", "/*s*/", &opts).unwrap();
     let b = detect_url(
         &mut driver_b,

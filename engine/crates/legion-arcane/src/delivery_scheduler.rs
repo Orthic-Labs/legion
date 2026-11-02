@@ -6,10 +6,7 @@ fn readonly(value: Value) -> Value {
 }
 
 fn list(value: Option<&Value>) -> Vec<Value> {
-    value
-        .and_then(Value::as_array)
-        .map(|items| items.clone())
-        .unwrap_or_default()
+    value.and_then(Value::as_array).cloned().unwrap_or_default()
 }
 
 fn unique_strings(values: Vec<String>) -> Vec<String> {

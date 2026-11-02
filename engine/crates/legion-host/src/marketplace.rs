@@ -646,10 +646,9 @@ pub fn set_codex_enabled(config_path: &Path, enabled: bool) -> Result<(), String
                 .trim_start()
                 .split_once('=')
                 .is_some_and(|(key, _)| key.trim() == "enabled")
+                && enabled_line.replace(index).is_some()
             {
-                if enabled_line.replace(index).is_some() {
-                    return Err("Codex plugin config has duplicate enabled keys".into());
-                }
+                return Err("Codex plugin config has duplicate enabled keys".into());
             }
         }
         if let Some(index) = enabled_line {

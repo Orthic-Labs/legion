@@ -2816,7 +2816,7 @@ fn devin_hooks_present(home: &Path) -> bool {
             events.values().any(|entries| {
                 entries
                     .as_array()
-                    .is_some_and(|list| list.iter().any(|entry| devin_hook_entry_is_legion(entry)))
+                    .is_some_and(|list| list.iter().any(devin_hook_entry_is_legion))
             })
         })
 }
@@ -3018,7 +3018,7 @@ fn host_registration_diagnosis(input: &ClientProjectionInput, home: &Path) -> St
     let path = match input.client_id.as_str() {
         CLIENT_CLAUDE => home.join(".claude.json"),
         CLIENT_CODEX => home.join(".codex").join("config.toml"),
-        CLIENT_DEVIN => devin_config_root(&home).join("mcp_config.json"),
+        CLIENT_DEVIN => devin_config_root(home).join("mcp_config.json"),
         _ => return "no host config path is modelled for this client".into(),
     };
     let bytes = match fs::read(&path) {
@@ -4137,6 +4137,7 @@ fn projection_relative_is_under_unit(relative: &str, unit: &str) -> bool {
 /// product the single source it claims to be. Windows needs a junction here:
 /// `symlink_dir` requires privilege the installer does not have, while
 /// `mklink /J` does not.
+#[cfg(any(windows, test))]
 fn windows_mklink_path(path: &Path) -> String {
     let text = path.to_string_lossy().into_owned();
     text.strip_prefix(r"\\?\")
@@ -6594,7 +6595,7 @@ mod tests {
     fn lexical_link_ownership_resolves_dot_dot_without_following() {
         let normalized = lexical_normalize(Path::new("/a/b/../c/./d"));
         assert_eq!(normalized, PathBuf::from("/a/c/d"));
-        let owned = vec![PathBuf::from("/a/c")];
+        let owned = [PathBuf::from("/a/c")];
         assert!(path_starts_with(&normalized, &owned[0]));
         assert!(!path_starts_with(
             &lexical_normalize(Path::new("/a/c/../x")),

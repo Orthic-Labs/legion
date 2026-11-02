@@ -16,7 +16,7 @@ fn get<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
     value.get(key).filter(|v| !v.is_null())
 }
 
-fn first<'a>(value: &'a Value, paths: &[&[&str]]) -> Value {
+fn first(value: &Value, paths: &[&[&str]]) -> Value {
     for path in paths {
         let mut cursor = value;
         let mut ok = true;
@@ -71,7 +71,7 @@ fn stable_finding(finding: &Value) -> Value {
 }
 
 fn sorted_by_canonical(mut items: Vec<Value>) -> Vec<Value> {
-    items.sort_by(|a, b| canonical_json_string(a).cmp(&canonical_json_string(b)));
+    items.sort_by_key(canonical_json_string);
     items
 }
 

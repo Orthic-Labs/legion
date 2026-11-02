@@ -201,6 +201,7 @@ struct Probe {
     gaps: Vec<String>,
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn probe(
     executor: &NativeLegacyCheckExecutor,
     plan: &crate::FrozenPlan,
@@ -368,7 +369,7 @@ async fn probe(
         && state == LegacyCheckProcessState::Completed
         && exits.contains(&receipt.exit_code.unwrap_or(-1))
         && stderr.is_some())
-    .then(|| stdout.as_deref().and_then(|bytes| strict_json(bytes)))
+    .then(|| stdout.as_deref().and_then(strict_json))
     .flatten()
     .filter(|value| value.is_object() && value.get("error").is_none());
     let raw = json!({"label":label,"receipt":crate::execution_policy::receipt_json(&receipt),

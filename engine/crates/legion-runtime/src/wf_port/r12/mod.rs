@@ -1073,8 +1073,8 @@ pub fn repair_hook_manifests(fs_: &mut dyn AdminFs, cwd: &Path) -> RepairHookMan
         let fresh = (target.manifest)();
         let mut next = fresh.clone();
         if fs_.exists(&dest) {
-            match fs_.read_to_string(&dest) {
-                Some(existing_text) => match serde_json::from_str::<Value>(&existing_text) {
+            if let Some(existing_text) = fs_.read_to_string(&dest) {
+                match serde_json::from_str::<Value>(&existing_text) {
                     Ok(existing) => next = merge_hook_manifests(&existing, &fresh),
                     Err(_) => {
                         let backup = PathBuf::from(format!("{}.bak", dest.display()));
@@ -1082,8 +1082,7 @@ pub fn repair_hook_manifests(fs_: &mut dyn AdminFs, cwd: &Path) -> RepairHookMan
                             result.backups.push(backup);
                         }
                     }
-                },
-                None => {}
+                }
             }
         }
 
@@ -1161,24 +1160,6 @@ fn merge_hook_config(existing: Option<&Map<String, Value>>) -> HookRuntimeConfig
             .and_then(Value::as_f64);
     }
     cfg
-}
-
-fn hook_runtime_config_to_value(cfg: &HookRuntimeConfig) -> Value {
-    let mut obj = cfg.extra.clone();
-    obj.insert("enabled".into(), Value::Bool(cfg.enabled));
-    if cfg.max_findings.is_some() || cfg.max_chars.is_some() {
-        let mut limits = Map::new();
-        limits.insert(
-            "maxFindings".into(),
-            Value::from(cfg.max_findings.unwrap_or(5.0)),
-        );
-        limits.insert(
-            "maxChars".into(),
-            Value::from(cfg.max_chars.unwrap_or(8000.0)),
-        );
-        obj.insert("limits".into(), Value::Object(limits));
-    }
-    Value::Object(obj)
 }
 
 /// `writeHookConfig(cwd, hookConfig, opts)`: merge over existing hook object

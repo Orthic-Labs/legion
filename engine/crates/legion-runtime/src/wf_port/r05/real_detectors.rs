@@ -178,10 +178,7 @@ pub fn detect_html(
     if design_system.is_some_and(|ds| ds.present && (ds.has_fonts || ds.has_colors || ds.has_radii))
     {
         let executable = find_html_browser_executable().map_err(|error| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("unavailable: design-system DOM scan: {error}"),
-            )
+            std::io::Error::other(format!("unavailable: design-system DOM scan: {error}"))
         })?;
         let evaluator = ChromeDesignDomEvaluator::new(executable);
         detect_html_contents(file_path, &html, design_system, Some(&evaluator))
@@ -218,7 +215,7 @@ fn detect_html_contents(
     design_system: Option<&DesignSystem>,
     design_dom_evaluator: Option<&dyn DesignDomEvaluator>,
 ) -> std::io::Result<Vec<CliFinding>> {
-    let document = scraper::Html::parse_document(&html);
+    let document = scraper::Html::parse_document(html);
 
     let mut findings: Vec<CliFinding> = Vec::new();
     for raw in find_broken_images(&document) {
@@ -229,18 +226,14 @@ fn detect_html_contents(
         let mut design_findings = check_source_design_system(html, file_path, Some(ds));
         if ds.present && (ds.has_fonts || ds.has_colors || ds.has_radii) {
             let evaluator = design_dom_evaluator.ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "unavailable: design-system DOM evaluator was not supplied",
-                )
+                std::io::Error::other("unavailable: design-system DOM evaluator was not supplied")
             })?;
             let dom_findings =
                 collect_static_design_system_findings(evaluator, html, file_path, Some(ds))
                     .map_err(|error| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("unavailable: design-system DOM scan: {error}"),
-                        )
+                        std::io::Error::other(format!(
+                            "unavailable: design-system DOM scan: {error}"
+                        ))
                     })?;
             design_findings.extend(dom_findings);
         }
@@ -255,7 +248,7 @@ fn detect_html_contents(
         }
     }
 
-    if is_full_page(&html) {
+    if is_full_page(html) {
         let stylesheet = StaticStylesheet::from_document(&document);
         // Port of `shared/constants.mjs`'s `GENERIC_FONTS`/`OVERUSED_FONTS`
         // sets. Neither is ported as a shared item anywhere in this tree
@@ -319,7 +312,7 @@ fn detect_html_contents(
         // numbered section markers, aphoristic cadence) — `detectHtml`
         // calls these directly too, so `.html` files get the same
         // coverage as source files.
-        for tf in run_text_content_analyzers(&html, true, file_path) {
+        for tf in run_text_content_analyzers(html, true, file_path) {
             findings.push(CliFinding::new(
                 tf.antipattern,
                 file_path,
@@ -340,8 +333,8 @@ fn detect_html_contents(
     let css_text = collect_static_css_text(&document, file_dir);
     let static_doc = build_static_style_map(&document, &css_text);
     let mut static_findings = static_element_findings(&static_doc);
-    if is_full_page(&html) {
-        static_findings.extend(page_findings(&static_doc, &html));
+    if is_full_page(html) {
+        static_findings.extend(page_findings(&static_doc, html));
     }
     append_static_findings_deduped(&mut findings, static_findings, file_path);
 

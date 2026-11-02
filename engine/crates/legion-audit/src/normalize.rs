@@ -228,7 +228,7 @@ fn var_folders_root(text: &str, from: usize) -> Option<(usize, usize)> {
         let mut ok = true;
         for expected in [None, None, Some("T")] {
             match rest.split_once('/') {
-                Some((part, tail)) if !part.is_empty() && expected.map_or(true, |e| e == part) => {
+                Some((part, tail)) if !part.is_empty() && expected.is_none_or(|e| e == part) => {
                     consumed += part.len() + 1;
                     rest = tail;
                 }

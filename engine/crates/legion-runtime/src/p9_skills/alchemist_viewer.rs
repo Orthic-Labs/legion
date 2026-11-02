@@ -352,7 +352,7 @@ fn serve_one(mut stream: std::net::TcpStream, runs_dir: &dyn RunsDir) {
     if reader.read_line(&mut request_line).unwrap_or(0) == 0 {
         return;
     }
-    let mut parts = request_line.trim().split_whitespace();
+    let mut parts = request_line.split_whitespace();
     let _method = parts.next().unwrap_or("");
     let target = parts.next().unwrap_or("/").to_string();
     // Drain headers.

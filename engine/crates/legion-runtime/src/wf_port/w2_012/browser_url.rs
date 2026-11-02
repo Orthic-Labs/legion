@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn make_frame_uses_16_bit_length_form_at_126_bytes() {
         let mask = [0, 0, 0, 0];
-        let text: String = std::iter::repeat('a').take(200).collect();
+        let text: String = "a".repeat(200);
         let frame = make_frame(&text, mask);
         assert_eq!(frame[1] & 0x7f, 126);
         let (frames, _) = read_frames(&frame);

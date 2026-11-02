@@ -113,6 +113,7 @@ pub struct EventStore {
 }
 
 impl EventStore {
+    #[allow(clippy::result_large_err)]
     pub fn open(file_path: impl AsRef<Path>) -> Result<Self, KernelError> {
         let journal = JsonlJournal::open(file_path)?;
         let mut previous: Option<String> = None;
@@ -150,6 +151,7 @@ impl EventStore {
     }
 
     /// Port of `append(event)` / `appendNow(event)`.
+    #[allow(clippy::result_large_err)]
     pub fn append(&mut self, event: Value) -> Result<Value, KernelError> {
         let run_id = event
             .get("runId")
@@ -217,6 +219,7 @@ pub struct ArtifactStore {
 }
 
 impl ArtifactStore {
+    #[allow(clippy::result_large_err)]
     pub fn open(root: impl AsRef<Path>) -> Result<Self, KernelError> {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(root.join("blobs")).map_err(|cause| {
@@ -255,6 +258,7 @@ impl ArtifactStore {
     }
 
     /// Port of `put(record, content)` / `putNow(record, bytes)`.
+    #[allow(clippy::result_large_err)]
     pub fn put(&mut self, record: Value, content: &[u8]) -> Result<Value, KernelError> {
         let actual_digest = digest_content(content);
         let stated_digest = record
@@ -329,6 +333,7 @@ impl ArtifactStore {
         Ok(record)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get(&self, artifact_id: &str) -> Result<Value, KernelError> {
         validate_id("artifact", artifact_id)?;
         self.records.get(artifact_id).cloned().ok_or_else(|| {
@@ -343,6 +348,7 @@ impl ArtifactStore {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_content(&self, artifact_id: &str) -> Result<Vec<u8>, KernelError> {
         let record = self.get(artifact_id)?;
         let digest = record

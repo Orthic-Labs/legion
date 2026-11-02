@@ -43,9 +43,7 @@ pub fn slug_from_target(resolved: &str, cwd: &Path) -> Option<String> {
         };
         let _ = scheme_len;
         // hostname = up to next '/', '?' or '#'; pathname = the rest up to '?'/'#'.
-        let end_authority = rest
-            .find(|c: char| c == '/' || c == '?' || c == '#')
-            .unwrap_or(rest.len());
+        let end_authority = rest.find(['/', '?', '#']).unwrap_or(rest.len());
         let hostname = &rest[..end_authority];
         // strip userinfo@ and :port from hostname, matching URL's .hostname
         let hostname = hostname.rsplit('@').next().unwrap_or(hostname);
@@ -55,7 +53,7 @@ pub fn slug_from_target(resolved: &str, cwd: &Path) -> Option<String> {
         }
         let path_and_after = &rest[end_authority..];
         let pathname_end = path_and_after
-            .find(|c: char| c == '?' || c == '#')
+            .find(['?', '#'])
             .unwrap_or(path_and_after.len());
         let pathname = &path_and_after[..pathname_end];
         let pathname = if pathname.is_empty() { "" } else { pathname };

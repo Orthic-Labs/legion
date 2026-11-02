@@ -203,6 +203,7 @@ fn assert_final_finding(
 
 #[test]
 #[ignore = "Root-owned real Gitleaks v8.30.0 qualification; requires explicit private scratch + pinned executable digest"]
+#[allow(clippy::permissions_set_readonly_false)]
 fn native_current_history_qualification() {
     let parent = PathBuf::from(
         std::env::var_os("LEGION_SECRET_QUALIFICATION_DIR")

@@ -51,7 +51,7 @@ fn check_oversized_h1_public_api() {
     let findings = check_oversized_h1(OversizedH1Input {
         tag: "h1",
         font_size: 90.0,
-        heading_text: &"a very long hero headline that runs on and on".repeat(1),
+        heading_text: "a very long hero headline that runs on and on",
         rect: None,
         viewport_width: 0.0,
         viewport_height: 0.0,

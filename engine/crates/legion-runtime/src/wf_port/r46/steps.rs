@@ -26,6 +26,26 @@ pub const STEP_LABELS: &[&str] = &[
     "**On failure:**",
 ];
 
+fn start_dependency_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)^START:\s*\S").unwrap())
+}
+
+fn after_dependency_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)^AFTER:\s*(\S.+)$").unwrap())
+}
+
+fn dependency_separator_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"[,+]").unwrap())
+}
+
+fn advances_state_b_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)^ADVANCES_STATE_B:\s*\S").unwrap())
+}
+
 fn step_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?m)^### Step\s+\d+\s+—\s+.+$").unwrap())
@@ -179,17 +199,12 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
                     }
                     let dependency =
                         label_value(block, "**Dependency order:**").unwrap_or_default();
-                    if Regex::new(r"(?i)^START:\s*\S")
-                        .unwrap()
-                        .is_match(&dependency)
-                    {
+                    if start_dependency_re().is_match(&dependency) {
                         execution_dependencies.insert(step_id.clone(), BTreeSet::new());
-                    } else if let Some(dependency_match) = Regex::new(r"(?i)^AFTER:\s*(\S.+)$")
-                        .unwrap()
-                        .captures(&dependency)
+                    } else if let Some(dependency_match) =
+                        after_dependency_re().captures(&dependency)
                     {
-                        let deps: BTreeSet<String> = Regex::new(r"[,+]")
-                            .unwrap()
+                        let deps: BTreeSet<String> = dependency_separator_re()
                             .split(dependency_match.get(1).unwrap().as_str())
                             .map(|s| s.trim().to_uppercase())
                             .filter(|s| !s.is_empty())
@@ -213,10 +228,7 @@ pub fn step_errors(text: &str, allow_template: bool) -> Vec<String> {
                 }
             }
             let advances = label_value(block, "**Advances target:**").unwrap_or_default();
-            if !Regex::new(r"(?i)^ADVANCES_STATE_B:\s*\S")
-                .unwrap()
-                .is_match(&advances)
-            {
+            if !advances_state_b_re().is_match(&advances) {
                 errors.push(format!("{name} lacks observable ADVANCES_STATE_B delta"));
             }
         }

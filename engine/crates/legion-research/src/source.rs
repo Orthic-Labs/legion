@@ -250,8 +250,7 @@ fn is_fetch_error_text(text: &str) -> bool {
     if let Some(phrase) = PHRASES.iter().find(|phrase| lower.starts_with(**phrase)) {
         let rest = lower[phrase.len()..].trim_start();
         return rest.is_empty()
-            || rest
-                .starts_with(|c: char| matches!(c, '.' | ':' | '!' | ',' | '-' | '(' | '|' | '['))
+            || rest.starts_with(['.', ':', '!', ',', '-', '(', '|', '['])
             || rest.starts_with("http")
             || rest.starts_with("by ")
             || rest.starts_with("for ");

@@ -16,6 +16,7 @@ use serde_json::{Map, Value};
 /// this trait are expected to return `Err` only for genuinely storage-level
 /// failures (quota exceeded, unavailable storage), which [`LiveBrowserSessionState`]
 /// swallows exactly like the JS `safeRead`/`safeWrite`/`safeRemove` helpers.
+#[allow(clippy::result_unit_err)]
 pub trait KvStore {
     fn get_item(&self, key: &str) -> Result<Option<String>, ()>;
     fn set_item(&mut self, key: &str, value: &str) -> Result<(), ()>;

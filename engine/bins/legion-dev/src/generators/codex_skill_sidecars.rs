@@ -34,7 +34,7 @@ pub fn render_codex_skill_sidecar(id: &str, metadata: &Map<String, Value>) -> St
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    let lines = vec![
+    let lines = [
         "interface:".to_string(),
         format!("  display_name: {}", yaml_string(&display_name(id))),
         format!("  short_description: {}", yaml_string(&description)),

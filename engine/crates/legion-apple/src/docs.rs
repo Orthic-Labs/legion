@@ -512,6 +512,7 @@ fn documentation_roots(index: &Connection, limit: usize) -> Result<Vec<Value>, S
         .collect())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_read(
     document: &Value,
     path: &str,
@@ -664,10 +665,7 @@ fn document_paths(document: &Value, language: &str) -> Vec<String> {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        if language.is_empty()
-            || languages.is_empty()
-            || languages.iter().any(|value| *value == language)
-        {
+        if language.is_empty() || languages.is_empty() || languages.contains(&language) {
             if let Some(items) = variant.get("paths").and_then(Value::as_array) {
                 paths.extend(items.iter().filter_map(Value::as_str).map(str::to_string));
             }

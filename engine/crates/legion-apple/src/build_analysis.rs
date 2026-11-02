@@ -668,6 +668,9 @@ fn setting_check(config: &str, key: &str, expected: &str, actual: Option<&String
 }
 
 fn parse_script_phases(text: &str) -> Vec<Value> {
+    static ALWAYS_OUT_OF_DATE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"alwaysOutOfDate\s*=\s*1\s*;").expect("valid always out-of-date regex")
+    });
     // The regex crate has no look-ahead, so split the project text at each
     // object-entry start and match one entry per chunk; the body then runs to
     // the end of its own entry instead of to a look-ahead boundary.
@@ -701,9 +704,7 @@ fn parse_script_phases(text: &str) -> Vec<Value> {
             + script_list_count(body, &value_re("inputFileListPaths"));
         let outputs = script_list_count(body, &value_re("outputPaths"))
             + script_list_count(body, &value_re("outputFileListPaths"));
-        let always = Regex::new(r"alwaysOutOfDate\s*=\s*1\s*;")
-            .expect("valid always out-of-date regex")
-            .is_match(body);
+        let always = ALWAYS_OUT_OF_DATE.is_match(body);
         phases.push(json!({"name": name, "input_count": inputs, "output_count": outputs, "always_out_of_date": always, "has_shell_script": body.contains("shellScript") }));
     }
     phases

@@ -73,6 +73,8 @@ impl GitContext {
 }
 
 fn hide_console(command: &mut Command) {
+    #[cfg(not(windows))]
+    let _ = command;
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

@@ -222,7 +222,8 @@ pub fn static_prop_map() -> &'static HashMap<&'static str, &'static str> {
 /// copy, distinct from `buildBorderOverrideMap`'s smaller `NAMED_COLORS`).
 /// Kept as a fresh symbol here because the JS module exports both tables.
 pub fn static_named_colors() -> &'static HashMap<&'static str, (u8, u8, u8, f64)> {
-    static MAP: OnceLock<HashMap<&'static str, (u8, u8, u8, f64)>> = OnceLock::new();
+    type NamedColorTable = HashMap<&'static str, (u8, u8, u8, f64)>;
+    static MAP: OnceLock<NamedColorTable> = OnceLock::new();
     MAP.get_or_init(|| {
         HashMap::from([
             ("black", (0, 0, 0, 1.0)),

@@ -1152,6 +1152,7 @@ fn truncated_message(message: &str) -> String {
 /// must come from root's sealed receipt argv (every scanned file was an
 /// individual `--input`); without it or matching SARIF artifacts, a
 /// findings-free report is `detekt-scanned-set-unproven`, never clean.
+#[allow(clippy::too_many_arguments)]
 pub fn parse_sarif_report(
     bytes: &[u8],
     scope: &FrozenDetektScope,

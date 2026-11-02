@@ -535,6 +535,7 @@ mod tests {
         fs::write(full, content).unwrap();
     }
 
+    #[allow(clippy::permissions_set_readonly_false)]
     fn writable(path: &Path) {
         let mut permissions = fs::metadata(path).unwrap().permissions();
         permissions.set_readonly(false);

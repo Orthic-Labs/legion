@@ -26,7 +26,6 @@ pub fn publication_surface_digest(root: &Path) -> Result<String, String> {
 }
 
 pub struct Outcome {
-    pub status: &'static str,
     pub exit_code: i32,
     pub message: String,
 }
@@ -36,7 +35,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
         Some(c) if !c.is_empty() => c,
         _ => {
             return Outcome {
-                status: "error",
                 exit_code: 4,
                 message: "usage: legion-dev check-publication-policy --channel <name>".to_string(),
             }
@@ -44,7 +42,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
     };
     if internal_channels().contains(&channel) {
         return Outcome {
-            status: "pass",
             exit_code: 0,
             message: format!("internal channel allowed: {channel}"),
         };
@@ -52,7 +49,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
     let policy_path = root.join("release/publication-policy.json");
     if !policy_path.is_file() {
         return Outcome {
-            status: "blocked",
             exit_code: 5,
             message: format!("publication blocked: {} is absent", policy_path.display()),
         };
@@ -61,7 +57,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
         Ok(v) => v,
         Err(_) => {
             return Outcome {
-                status: "blocked",
                 exit_code: 5,
                 message: "publication blocked: invalid policy".to_string(),
             }
@@ -71,7 +66,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
         && policy.get("kind").and_then(|v| v.as_str()) == Some("legion-publication-policy");
     if !valid {
         return Outcome {
-            status: "blocked",
             exit_code: 5,
             message: "publication blocked: invalid policy".to_string(),
         };
@@ -101,7 +95,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
                 )
             };
             return Outcome {
-                status: "blocked",
                 exit_code: 5,
                 message,
             };
@@ -122,7 +115,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
         .and_then(|v| v.as_str());
     if !allowed || approved_by.is_none() || approved_at.is_none() || policy_digest.is_none() {
         return Outcome {
-            status: "blocked",
             exit_code: 5,
             message: format!("publication blocked: channel {channel} has no complete grant"),
         };
@@ -131,7 +123,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
         Ok(d) => d,
         Err(e) => {
             return Outcome {
-                status: "blocked",
                 exit_code: 5,
                 message: format!("publication blocked: {e}"),
             }
@@ -139,7 +130,6 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
     };
     if policy_digest != Some(observed.as_str()) {
         return Outcome {
-            status: "blocked",
             exit_code: 5,
             message: format!(
                 "publication blocked: channel {channel} policy digest drift (declared {}, current {observed})",
@@ -150,13 +140,11 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
     let surface = publication_surface::check(root);
     if !surface.ok {
         return Outcome {
-            status: "blocked",
             exit_code: 5,
             message: format!("publication blocked: {}", surface.message),
         };
     }
     Outcome {
-        status: "pass",
         exit_code: 0,
         message: format!("publication channel allowed: {channel}"),
     }

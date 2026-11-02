@@ -9,7 +9,7 @@
 //! already ported at
 //! `legion_audit::wf_port::wf010::provider_registry::load_provider_registry_v2`
 //! + `render_manifest`; this module composes them with file I/O the way
-//! `generate-manifest.mjs` does, rather than re-porting the registry.
+//!   `generate-manifest.mjs` does, rather than re-porting the registry.
 
 use serde_json::Value;
 use std::fs;

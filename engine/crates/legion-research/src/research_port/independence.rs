@@ -78,9 +78,7 @@ fn split_url(url: &str) -> (String, String, String, String) {
         _ => (String::new(), without_fragment),
     };
     let (netloc, after_netloc) = if let Some(stripped) = rest.strip_prefix("//") {
-        let end = stripped
-            .find(|c: char| c == '/' || c == '?')
-            .unwrap_or(stripped.len());
+        let end = stripped.find(['/', '?']).unwrap_or(stripped.len());
         (stripped[..end].to_string(), &stripped[end..])
     } else {
         (String::new(), rest)
@@ -432,8 +430,8 @@ pub fn cluster(evidence: &[Value], near_duplicate_threshold: f64) -> Result<Clus
         if left_len < 8 {
             continue;
         }
-        for j in (i + 1)..ids.len() {
-            let right = ids[j].clone();
+        for right_id in &ids[i + 1..] {
+            let right = right_id.clone();
             let right_len = shingle_map.get(&right).map_or(0, |set| set.len());
             if merger.uf.find(&left) == merger.uf.find(&right) || right_len < 8 {
                 continue;

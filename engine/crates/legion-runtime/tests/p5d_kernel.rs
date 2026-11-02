@@ -167,6 +167,7 @@ fn journal_lifecycle_event_and_artifact_stores_share_one_root() {
 }
 
 #[test]
+#[allow(clippy::result_large_err)]
 fn lane_scheduler_resolves_dependency_order_via_public_api() {
     let nodes = vec![
         LaneNode {

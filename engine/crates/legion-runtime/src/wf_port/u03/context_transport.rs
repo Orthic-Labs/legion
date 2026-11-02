@@ -48,6 +48,7 @@ pub fn consume_membrane_packet(packet: &Value) -> Result<Value, String> {
 pub trait MembraneTransport {
     /// Returns `Err(())` on transport failure (JS: `catch {}` swallows the
     /// original error and reports `membrane-transport-failed`).
+    #[allow(clippy::result_unit_err)]
     fn request(&self, request: &Value) -> Result<Value, ()>;
 }
 

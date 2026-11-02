@@ -420,7 +420,7 @@ fn assemble_and_smoke(
         &[],
         "native assembly",
     )?;
-    crate::native_installed_smoke::native_installed_smoke(&input_root, None)
+    crate::native_installed_smoke::native_installed_smoke(input_root, None)
         .map_err(|e| format!("installed-product smoke failed: {e}"))?;
     let bin_name = if identity.platform == "windows" {
         "legion.exe"
@@ -450,8 +450,10 @@ fn assemble_and_smoke(
 /// function (SBOM/provenance materialization, path safety, candidate.json)
 /// is exercised for real, same as the JS test.
 pub struct PrepareDeps<'a> {
-    pub create_archive: Box<dyn Fn(&Path, &Path, &Path) -> Result<Value, String> + 'a>,
+    pub create_archive: CreateArchiveFn<'a>,
 }
+
+type CreateArchiveFn<'a> = Box<dyn Fn(&Path, &Path, &Path) -> Result<Value, String> + 'a>;
 
 impl<'a> Default for PrepareDeps<'a> {
     fn default() -> Self {

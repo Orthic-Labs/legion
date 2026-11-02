@@ -11,6 +11,7 @@ use crate::{
 };
 use serde_json::{json, Map, Value};
 use std::io::{self, Write};
+#[cfg(any(windows, test))]
 use std::path::{Path, PathBuf};
 
 pub fn project_response(response: &HookResponse) -> (i32, Value) {
@@ -286,6 +287,7 @@ fn drop_unsupported_updated_input(output: &mut Value, request: Option<&HookReque
     }
 }
 
+#[cfg(any(windows, test))]
 fn bounded_id(value: &str) -> bool {
     value.len() == 36
         && value.bytes().enumerate().all(|(index, byte)| {
@@ -297,6 +299,7 @@ fn bounded_id(value: &str) -> bool {
         })
 }
 
+#[cfg(any(windows, test))]
 fn completion_notice(request: &HookRequest) -> Option<Value> {
     if !matches!(request.event_type.as_str(), "Stop" | "stop") {
         return None;
@@ -309,6 +312,7 @@ fn completion_notice(request: &HookRequest) -> Option<Value> {
     Some(json!({"type":"agent-turn-complete", "thread-id":session, "turn-id":turn}))
 }
 
+#[cfg(any(windows, test))]
 fn notifier_command(config_path: &Path) -> Result<Option<PathBuf>, String> {
     let bytes = match std::fs::read(config_path) {
         Ok(bytes) => bytes,

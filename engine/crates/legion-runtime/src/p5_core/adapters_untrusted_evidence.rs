@@ -7,8 +7,8 @@
 
 use sha2::{Digest, Sha256};
 
-/// Local hex-encoding shim: sha2 0.11's digest output no longer implements
-/// `LowerHex`, so format with the `hex` crate instead.
+// Local hex-encoding shim: sha2 0.11's digest output no longer implements
+// `LowerHex`, so format with the `hex` crate instead.
 
 /// Matches the JS `CONTROL_PATTERN`:
 /// `/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202a-\u202e\u2066-\u2069]/g`

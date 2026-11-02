@@ -99,7 +99,7 @@ fn parse_iso8601_utc_millis(s: &str) -> Option<i64> {
 fn days_from_civil(y: i64, m: i64, d: i64) -> Option<i64> {
     let y = if m <= 2 { y - 1 } else { y };
     let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = (y - era * 400) as i64; // [0, 399]
+    let yoe = y - era * 400; // [0, 399]
     let mp = (m + 9) % 12; // [0, 11]
     let doy = (153 * mp + 2) / 5 + d - 1; // [0, 365]
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy; // [0, 146096]
@@ -161,6 +161,7 @@ fn artifact_valid(artifact: &Value, binding: &Value) -> bool {
 /// signature) -> bool`. See module docs.
 pub type SignatureVerifier<'a> = dyn Fn(&[u8], &str, &[u8]) -> bool + 'a;
 
+#[derive(Default)]
 pub struct ExpectedEvidence<'a> {
     pub trusted_producers: Vec<Value>, // [{id, publicKey}]
     pub target_id: Option<&'a str>,
@@ -174,25 +175,6 @@ pub struct ExpectedEvidence<'a> {
     pub sensitive_fields: Vec<Value>,
     pub requires_exercise: bool,
     pub verifier: Option<&'a SignatureVerifier<'a>>,
-}
-
-impl<'a> Default for ExpectedEvidence<'a> {
-    fn default() -> Self {
-        ExpectedEvidence {
-            trusted_producers: vec![],
-            target_id: None,
-            environment: None,
-            artifact_digest: None,
-            control_id: None,
-            scope: None,
-            binding: None,
-            now: None,
-            max_age_ms: None,
-            sensitive_fields: vec![],
-            requires_exercise: false,
-            verifier: None,
-        }
-    }
 }
 
 /// `validateExternalEvidence(evidence, expected)`.
@@ -232,33 +214,35 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
     let mut payload: Option<Value> = None;
     let signed_content = ev.get("signedContent").and_then(Value::as_str);
     let signature = ev.get("signature").and_then(Value::as_str);
-    if signed_content.is_none() || signature.is_none() {
-        gaps.push("signature-unproven".to_string());
-    } else if !is_canonical_base64(signature.unwrap()) {
-        gaps.push("signature-noncanonical".to_string());
-    } else if let Some(trusted) = trusted {
-        let public_key = trusted
-            .get("publicKey")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let sig_bytes = base64util::decode(signature.unwrap()).unwrap_or_default();
-        let verified = match expected.verifier {
-            Some(verify) => verify(signed_content.unwrap().as_bytes(), public_key, &sig_bytes),
-            None => {
-                gaps.push("signature-verification-unavailable".to_string());
-                false
-            }
-        };
-        if !verified {
-            if expected.verifier.is_some() {
-                gaps.push("signature-invalid".to_string());
-            }
-        } else {
-            match serde_json::from_str::<Value>(signed_content.unwrap()) {
-                Ok(parsed) => payload = Some(parsed),
-                Err(_) => gaps.push("signature-invalid".to_string()),
+    if let (Some(signed_content), Some(signature)) = (signed_content, signature) {
+        if !is_canonical_base64(signature) {
+            gaps.push("signature-noncanonical".to_string());
+        } else if let Some(trusted) = trusted {
+            let public_key = trusted
+                .get("publicKey")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let sig_bytes = base64util::decode(signature).unwrap_or_default();
+            let verified = match expected.verifier {
+                Some(verify) => verify(signed_content.as_bytes(), public_key, &sig_bytes),
+                None => {
+                    gaps.push("signature-verification-unavailable".to_string());
+                    false
+                }
+            };
+            if !verified {
+                if expected.verifier.is_some() {
+                    gaps.push("signature-invalid".to_string());
+                }
+            } else {
+                match serde_json::from_str::<Value>(signed_content) {
+                    Ok(parsed) => payload = Some(parsed),
+                    Err(_) => gaps.push("signature-invalid".to_string()),
+                }
             }
         }
+    } else {
+        gaps.push("signature-unproven".to_string());
     }
 
     let payload_get =
@@ -458,7 +442,6 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn missing_evidence_reports_gaps() {

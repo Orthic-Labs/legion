@@ -76,8 +76,7 @@ pub fn seat_part_cap_bytes(seat_tokens: u64, lenses: usize, context_bytes: usize
     let reserve = lenses.saturating_mul(SEAT_PACKET_RESERVE_BYTES + context_bytes) + 4096;
     seat_bytes
         .saturating_sub(reserve.min(seat_bytes / 2))
-        .max(1)
-        .min(super::excerpts::MAX_TOTAL_EXCERPT_BYTES)
+        .clamp(1, super::excerpts::MAX_TOTAL_EXCERPT_BYTES)
 }
 
 /// Digest of the review set a lens actually examines after findings
@@ -875,11 +874,11 @@ pub fn plan_coverage_with_witnesses(
         .filter(|bundle| full_cost[bundle.id] * 100 > budget_tokens[bundle.id] * COMMIT_PERCENT)
         .map(|bundle| u64::from(bundle.budget_share_bp))
         .sum();
-    if deficit_share > 0 {
+    if let Some(deficit_share) = std::num::NonZeroU64::new(deficit_share) {
         for bundle in &present {
             if full_cost[bundle.id] * 100 > budget_tokens[bundle.id] * COMMIT_PERCENT {
                 *budget_tokens.get_mut(bundle.id).expect("present bundle") +=
-                    surplus * u64::from(bundle.budget_share_bp) / deficit_share;
+                    surplus * u64::from(bundle.budget_share_bp) / deficit_share.get();
             }
         }
         for bundle in &present {

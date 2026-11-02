@@ -61,16 +61,6 @@ pub const REQUIRED_RELEASE_STAGES: &[RequiredStage] = &[
     },
 ];
 
-fn repo_root() -> PathBuf {
-    let mut dir = std::env::current_dir().expect("cwd");
-    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        dir = PathBuf::from(manifest_dir);
-    }
-    dir.pop(); // engine/xtask -> engine
-    dir.pop(); // engine -> repo root
-    dir
-}
-
 struct GitResult {
     status: Option<i32>,
     stdout: String,
@@ -473,9 +463,7 @@ pub fn write_stage_summary(env: &HashMap<String, String>) -> ReleaseResult<Value
             Value::String(v)
         }
     };
-    let evidence_root = env
-        .get("RIGHT_GIT_STAGE_EVIDENCE_ROOT")
-        .map(|s| PathBuf::from(s));
+    let evidence_root = env.get("RIGHT_GIT_STAGE_EVIDENCE_ROOT").map(PathBuf::from);
     let summary = json!({
         "schemaVersion": 1,
         "stage": stage,

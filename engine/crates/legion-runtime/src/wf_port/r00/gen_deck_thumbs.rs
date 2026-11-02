@@ -385,10 +385,12 @@ mod tests {
             writes: RefCell::new(HashMap::new()),
         };
         let mut browser = FakeBrowser;
-        let mut args = Args::default();
-        args.slides = slides;
-        args.out = out.clone();
-        args.width = 4;
+        let args = Args {
+            slides,
+            out: out.clone(),
+            width: 4,
+            ..Args::default()
+        };
         let outcome = run(&fs, &mut browser, &args).unwrap();
         assert_eq!(outcome.ok_count, 2);
         assert_eq!(outcome.total, 2);

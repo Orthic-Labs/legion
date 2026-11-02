@@ -1523,6 +1523,8 @@ pub(crate) struct StateLock {
     _file: fs::File,
 }
 impl StateLock {
+    // File::try_lock needs Rust 1.89; the toolchain in use provides it.
+    #[allow(clippy::incompatible_msrv)]
     pub(crate) fn acquire(run_dir: &Path) -> Result<Self, AuditError> {
         let lock_root = crate::continuation::lock_root(run_dir)?;
         fs::create_dir_all(&lock_root).map_err(|error| invalid(error.to_string()))?;
@@ -1550,6 +1552,8 @@ impl StateLock {
 }
 
 impl Drop for StateLock {
+    // File::unlock needs Rust 1.89; the toolchain in use provides it.
+    #[allow(clippy::incompatible_msrv)]
     fn drop(&mut self) {
         // Unix locks belong to the open file description, which another
         // thread's fork may inherit before exec. Closing only our descriptor

@@ -1153,7 +1153,7 @@ impl<'a> SlideBuilder<'a> {
                  <a:srgbClr val=\"{}\"><a:alpha val=\"{}\"/></a:srgbClr></a:outerShdw></a:effectLst>",
                 pt_to_emu_line_width(shadow.blur),
                 pt_to_emu_line_width(shadow.offset),
-                (shadow.angle.clamp(0, 359) as i64) * 60_000,
+                shadow.angle.clamp(0, 359) * 60_000,
                 shadow.color.trim_start_matches('#'),
                 (shadow.opacity.clamp(0.0, 1.0) * 100_000.0).round() as i64
             ));
@@ -1167,6 +1167,7 @@ impl<'a> SlideBuilder<'a> {
 
     /// Port of the plain-text / list / merged-text branches of
     /// `addElements`: a text-only `<p:sp>` with no visible outline/fill.
+    #[allow(clippy::too_many_arguments)]
     fn add_text_box(
         &mut self,
         x: f64,
@@ -1369,13 +1370,15 @@ pub fn write_pptx_from_slide_data(
     )
 }
 
+type SlideParts = (String, String, Vec<(String, Vec<u8>)>);
+
 /// One slide's XML part, its `.rels` part, and any media bytes it needs,
 /// built the same way [`write_pptx_from_slide_data`] builds its single
 /// slide — factored out so [`write_pptx_from_slides`] can build several.
 fn build_slide_parts(
     slide_data: &RawSlideData,
     image_source: &mut dyn ImageSource,
-) -> Result<(String, String, Vec<(String, Vec<u8>)>), String> {
+) -> Result<SlideParts, String> {
     let mut builder = SlideBuilder {
         shapes_xml: String::new(),
         next_id: 1,
@@ -1421,10 +1424,7 @@ fn build_slide_parts(
     }
     slide_rels.push_str("</Relationships>");
 
-    let media: Vec<(String, Vec<u8>)> = bg_media
-        .into_iter()
-        .chain(builder.media.into_iter())
-        .collect();
+    let media: Vec<(String, Vec<u8>)> = bg_media.into_iter().chain(builder.media).collect();
     Ok((slide_xml, slide_rels, media))
 }
 
@@ -1457,7 +1457,7 @@ pub fn write_pptx_from_slides(
          <Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster\" Target=\"slideMasters/slideMaster1.xml\"/>",
     );
     let mut content_type_overrides = String::new();
-    let mut slide_parts: Vec<(String, String, Vec<(String, Vec<u8>)>)> = Vec::new();
+    let mut slide_parts: Vec<SlideParts> = Vec::new();
 
     for (i, slide_data) in slides.iter().enumerate() {
         let n = i + 1;
@@ -1484,9 +1484,9 @@ pub fn write_pptx_from_slides(
         .system(zip::System::Unix)
         .compression_method(zip::CompressionMethod::Deflated);
 
-    let mut write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
-                          name: &str,
-                          content: &[u8]|
+    let write_part = |zip: &mut zip::ZipWriter<std::fs::File>,
+                      name: &str,
+                      content: &[u8]|
      -> Result<(), String> {
         zip.start_file(name, options).map_err(|e| e.to_string())?;
         std::io::Write::write_all(zip, content).map_err(|e| e.to_string())

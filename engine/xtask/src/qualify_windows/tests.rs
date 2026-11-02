@@ -14,6 +14,9 @@ use crate::windows_release_support::{sha256_hex, sha256_prefixed};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+type ArchiveExtractorFn = Box<dyn Fn(&Path, &Path) -> Result<(), String>>;
+type CommandRunnerFn = Box<dyn Fn(&str, &[String], &CommandOptions) -> CommandOutcome>;
+
 fn temp_root() -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "legion-win-qualification-{}-{}",
@@ -93,7 +96,7 @@ fn archive_extractor(
     current_tree: PathBuf,
     prior_zip: Option<PathBuf>,
     prior_tree: PathBuf,
-) -> Box<dyn Fn(&Path, &Path) -> Result<(), String>> {
+) -> ArchiveExtractorFn {
     let _ = fixture_root;
     Box::new(move |archive: &Path, destination: &Path| {
         // Production canonicalizes archive paths (\\?\ on Windows, /private on macOS).
@@ -115,9 +118,7 @@ fn archive_extractor(
     })
 }
 
-fn command_runner(
-    codex_executable: PathBuf,
-) -> Box<dyn Fn(&str, &[String], &CommandOptions) -> CommandOutcome> {
+fn command_runner(codex_executable: PathBuf) -> CommandRunnerFn {
     Box::new(
         move |command: &str, args: &[String], options: &CommandOptions| -> CommandOutcome {
             assert!(!options.env.contains_key("LEGION_M1_CONFIG"));

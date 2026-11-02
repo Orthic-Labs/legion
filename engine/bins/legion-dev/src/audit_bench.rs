@@ -7,7 +7,7 @@
 //! `<fixture>.cases.json`; rows with `ruled: false` are never scored.
 
 use rightkit_child_process::OwnedCommand;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
@@ -498,7 +498,8 @@ fn report_metrics(report: &Value) -> Value {
 }
 
 fn raw_candidate_location(candidate: &Value) -> Option<Loc> {
-    fn anchor(value: &Value) -> Result<(Option<String>, Option<u32>, Option<u32>), ()> {
+    type Anchor = Result<(Option<String>, Option<u32>, Option<u32>), ()>;
+    fn anchor(value: &Value) -> Anchor {
         let path = value
             .get("path")
             .filter(|value| !value.is_null())
@@ -1289,6 +1290,7 @@ struct AuditObservation {
 }
 
 /// Run `legion audit` for one case inside `clone`; returns findings and source metrics.
+#[allow(clippy::too_many_arguments)]
 fn audit_case(
     legion: &Path,
     clone: &Path,
@@ -1597,32 +1599,6 @@ impl BenchTelemetry {
         for (total, value) in self.runtime_tokens.iter_mut().zip(other.runtime_tokens) {
             *total = total.saturating_add(value);
         }
-    }
-
-    fn to_json(&self) -> Value {
-        let latency_known = self.planned_cases > 0 && self.timed_cases == self.planned_cases;
-        let usage = if !self.runtime_requested {
-            json!({"status":"not-requested","callCount":null,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"retryTokens":null,"actualCost":{"status":"unknown","value":null}})
-        } else {
-            json!({
-                "status": if self.runtime_usage_known { "reported" } else { "unknown" },
-                "callCount": if self.runtime_usage_known { Some(self.runtime_calls) } else { None },
-                "inputTokens": if self.runtime_usage_known { Some(self.runtime_tokens[0]) } else { None },
-                "outputTokens": if self.runtime_usage_known { Some(self.runtime_tokens[1]) } else { None },
-                "cachedInputTokens": if self.runtime_usage_known { Some(self.runtime_tokens[2]) } else { None },
-                "retryTokens": if self.runtime_usage_known { Some(self.runtime_tokens[3]) } else { None },
-                "actualCost":{"status":"unknown","value":null}
-            })
-        };
-        json!({
-            "wallTimeMs": {
-                "status": if latency_known { "reported" } else { "unknown" },
-                "value": if latency_known { Some(self.wall_time_ms) } else { None },
-                "measuredCases": self.timed_cases,
-                "plannedCases": self.planned_cases
-            },
-            "runtimeUsage": usage
-        })
     }
 }
 
@@ -2795,7 +2771,10 @@ mod tests {
             "scripts/install.sh",
             [3, 3],
         );
-        let score = score_run(&[case.clone()], &BTreeMap::from([(case.id, candidates)]));
+        let score = score_run(
+            std::slice::from_ref(&case),
+            &BTreeMap::from([(case.id, candidates)]),
+        );
         assert_eq!(score.location_hits, 1);
         assert_eq!(report_metrics(&report)["finalReport"]["findingCount"], 0);
         assert_eq!(raw_candidate_location(&json!({"file":"src/session.ts","line":4,"evidence":[{"file":"src/session.ts","line":4,"endLine":5}]})).unwrap().end,Some(5));

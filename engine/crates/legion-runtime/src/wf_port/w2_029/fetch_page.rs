@@ -99,7 +99,7 @@ fn is_reserved_v6(v6: std::net::Ipv6Addr) -> bool {
     // 0000::/8 (minus ::/128 and ::1/128 handled by is_loopback),
     // 0100::/8, 0200::/7 .. 03FF::/8 legacy blocks, 4000::/3 through
     // D000::/3 unassigned-at-publication ranges Python still flags.
-    matches!(seg0 >> 8, 0x00 | 0x01 | 0x02 | 0x03) || (0x4000..=0xdfff).contains(&seg0)
+    matches!(seg0 >> 8, 0x00..=0x03) || (0x4000..=0xdfff).contains(&seg0)
 }
 
 #[derive(Debug, Clone, PartialEq)]

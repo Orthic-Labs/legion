@@ -185,7 +185,7 @@ pub fn effective_uid() -> u32 {
 /// `O_NOFOLLOW` open flag (Unix), for owners that open trusted files.
 #[cfg(unix)]
 pub fn o_nofollow() -> i32 {
-    libc::O_NOFOLLOW as i32
+    libc::O_NOFOLLOW
 }
 
 struct Inner {

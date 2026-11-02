@@ -239,10 +239,10 @@ pub fn changed_files_since_snapshot(
 ) -> Vec<ChangedFile> {
     let mut changed: Vec<(String, ChangedFile)> = Vec::new();
     let mut changed_index: HashMap<String, usize> = HashMap::new();
-    let mut push = |file: String,
-                    kind: &'static str,
-                    changed: &mut Vec<(String, ChangedFile)>,
-                    idx: &mut HashMap<String, usize>| {
+    let push = |file: String,
+                kind: &'static str,
+                changed: &mut Vec<(String, ChangedFile)>,
+                idx: &mut HashMap<String, usize>| {
         let record = ChangedFile {
             file: file.clone(),
             kind,

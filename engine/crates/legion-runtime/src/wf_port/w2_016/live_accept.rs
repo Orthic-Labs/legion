@@ -34,7 +34,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-const EXTENSIONS: [&str; 5] = [".html", ".jsx", ".tsx", ".vue", ".svelte"];
 // NOTE: JS EXTENSIONS also includes `.astro`; kept identical below via a
 // separate list to avoid a magic mismatch with the JS array literal order.
 const EXTENSIONS_WITH_ASTRO: [&str; 6] = [".html", ".jsx", ".tsx", ".vue", ".svelte", ".astro"];
@@ -124,6 +123,7 @@ pub fn expand_replace_range(
     if !is_jsx {
         return block;
     }
+    static DIV_OPEN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<div\b").unwrap());
     let mut start = block.start;
     let mut end = block.end;
 
@@ -135,14 +135,13 @@ pub fn expand_replace_range(
         }
         if has_variant_wrapper_attr(&lines[idx], id) {
             let mut opener = idx;
-            let div_re = Regex::new(r"<div\b").unwrap();
             while opener > 0
-                && !div_re.is_match(&lines[opener])
+                && !DIV_OPEN_RE.is_match(&lines[opener])
                 && !is_variant_end_marker_line(&lines[opener], id)
             {
                 opener -= 1;
             }
-            if div_re.is_match(&lines[opener]) {
+            if DIV_OPEN_RE.is_match(&lines[opener]) {
                 start = opener;
             }
             break;

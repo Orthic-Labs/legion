@@ -47,7 +47,7 @@ pub fn num(v: Option<&Value>) -> Option<f64> {
         return None;
     }
     let s = value_as_str(v)?;
-    let cleaned = s.replace(',', "").replace('%', "");
+    let cleaned = s.replace([',', '%'], "");
     let cleaned = cleaned.trim();
     if cleaned.is_empty() {
         return None;

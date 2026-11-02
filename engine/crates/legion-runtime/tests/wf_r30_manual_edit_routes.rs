@@ -99,9 +99,9 @@ impl ManualEditRoutesDeps for FakeDeps {
     }
 }
 
-fn base_deps(dir: &PathBuf) -> FakeDeps {
+fn base_deps(dir: &std::path::Path) -> FakeDeps {
     FakeDeps {
-        cwd: dir.clone(),
+        cwd: dir.to_path_buf(),
         token: "secret".to_string(),
         copy_agent_mode: "mock".to_string(),
         ..Default::default()

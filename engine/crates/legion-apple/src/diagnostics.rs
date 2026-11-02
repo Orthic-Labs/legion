@@ -490,7 +490,7 @@ fn visit_node(
     let mut children_weight = 0.0;
     let mut child_active = 0.0;
     for child in &child_values {
-        let (child_weight, child_active_weight) = visit_node(*child, totals, depth + 1)?;
+        let (child_weight, child_active_weight) = visit_node(child, totals, depth + 1)?;
         children_weight += child_weight;
         child_active += child_active_weight;
     }
@@ -738,11 +738,7 @@ fn summarize_build_log(
     }
     let exit_status = match args.get("exit_status").or_else(|| args.get("exitStatus")) {
         None => None,
-        Some(value) => Some(
-            value
-                .as_i64()
-                .ok_or_else(|| "exit_status must be an integer")?,
-        ),
+        Some(value) => Some(value.as_i64().ok_or("exit_status must be an integer")?),
     };
     let status = match exit_status {
         Some(0) if errors == 0 => "success",

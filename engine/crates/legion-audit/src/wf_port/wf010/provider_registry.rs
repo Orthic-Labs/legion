@@ -32,7 +32,7 @@ fn get<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
 fn str_of(value: &Value) -> Option<&str> {
     value.as_str()
 }
-fn arr_of<'a>(value: &'a Value) -> &'a [Value] {
+fn arr_of(value: &Value) -> &[Value] {
     value.as_array().map(|a| a.as_slice()).unwrap_or(&[])
 }
 

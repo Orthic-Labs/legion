@@ -6,20 +6,15 @@ use super::common::{array, digest};
 /// A locally parsed SARIF file is self-attested candidate evidence. Only an
 /// A03 authenticated envelope covering the exact SARIF bytes upgrades it;
 /// parser success is never proof of test execution.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SarifAuthentication {
+    #[default]
     SelfAttestedCandidate,
     Authenticated {
         evidence_digest: String,
         attestor: String,
     },
-}
-
-impl Default for SarifAuthentication {
-    fn default() -> Self {
-        Self::SelfAttestedCandidate
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

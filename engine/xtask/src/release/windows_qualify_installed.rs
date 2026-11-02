@@ -903,11 +903,9 @@ fn assert_fixed_activation_receipt(root: &Path) -> ReleaseResult<()> {
         .map_err(|e| fail(format!("activation receipt is invalid: {e}")))?;
     let matches = |field: &str, expected: &Path| {
         receipt.get(field).and_then(Value::as_str).map(|value| {
-            value.replace('/', "\\").to_ascii_lowercase()
-                == expected
-                    .to_string_lossy()
-                    .replace('/', "\\")
-                    .to_ascii_lowercase()
+            value
+                .replace('/', "\\")
+                .eq_ignore_ascii_case(&expected.to_string_lossy().replace('/', "\\"))
         }) == Some(true)
     };
     if receipt.get("state").and_then(Value::as_str) != Some("activated")

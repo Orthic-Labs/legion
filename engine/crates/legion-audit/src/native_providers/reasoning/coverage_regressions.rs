@@ -501,7 +501,7 @@ fn tracked_oversize_source_survives_snapshot_inventory_and_planning_as_a_gap() {
             .as_nanos(),
     ));
     std::fs::create_dir_all(&root).unwrap();
-    let result = (|| {
+    let result = {
         let oversized_path = "src/parser.c";
         std::fs::create_dir_all(root.join("src")).unwrap();
         std::fs::write(root.join("src/lib.rs"), "pub fn stable() {}\n").unwrap();
@@ -633,7 +633,7 @@ fn tracked_oversize_source_survives_snapshot_inventory_and_planning_as_a_gap() {
             .to_string()
             .contains("unavailable:oversize"));
         Ok::<(), crate::AuditError>(())
-    })();
+    };
     let _ = std::fs::remove_dir_all(&root);
     result.unwrap();
 }

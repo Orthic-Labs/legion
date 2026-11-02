@@ -34,8 +34,7 @@ impl HarnessRegistry {
     pub fn fidelity_matrix(&self, root: &Path) -> Result<Vec<Value>, HarnessError> {
         let legion_root = resolve_legion_root()?;
         let _ = legion_root;
-        Ok(self
-            .adapters
+        self.adapters
             .iter()
             .map(|adapter| {
                 let descriptor = if adapter.id == "generic" {
@@ -45,7 +44,7 @@ impl HarnessRegistry {
                 };
                 capabilities_value(&descriptor)
             })
-            .collect::<Result<Vec<_>, HarnessError>>()?)
+            .collect::<Result<Vec<_>, HarnessError>>()
     }
 
     pub fn capabilities(&self, id: &str, root: &Path) -> Result<Value, HarnessError> {

@@ -363,20 +363,11 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
                     "inherited clause {clause_id} REWRITE lacks MATCH_TEXT, REWRITE_TO, or numbered decision effect"
                 ));
             } else {
-                let old_text = old_match
-                    .unwrap()
-                    .get(1)
-                    .unwrap()
-                    .as_str()
-                    .trim()
-                    .to_lowercase();
-                let new_text = new_match
-                    .unwrap()
-                    .get(1)
-                    .unwrap()
-                    .as_str()
-                    .trim()
-                    .to_lowercase();
+                let (Some(old_match), Some(new_match)) = (old_match, new_match) else {
+                    unreachable!("REWRITE guard checked both matches");
+                };
+                let old_text = old_match.get(1).unwrap().as_str().trim().to_lowercase();
+                let new_text = new_match.get(1).unwrap().as_str().trim().to_lowercase();
                 if active_contract.contains(&old_text) {
                     errors.push(format!(
                         "rewritten inherited match text survives active contract: {clause_id}"

@@ -456,7 +456,7 @@ pub fn discover_targets(projection: &Value, binding: &Value) -> Vec<Value> {
             continue;
         }
         let value = json!({
-            "id": target_id("unknown-deliverable", &output_path, &[output_path.clone()]),
+            "id": target_id("unknown-deliverable", &output_path, std::slice::from_ref(&output_path)),
             "kind": "unknown-deliverable",
             "facets": [],
             "root": output_path,

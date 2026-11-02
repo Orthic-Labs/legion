@@ -25,11 +25,15 @@ use super::journal::{
 use super::proofs::{command_environment, resolve_codex_executable, setup_health, CurrentRelease};
 use super::tree::{
     assert_directory, assert_extracted_tree, assert_inside, atomic_replace_product,
-    extract_with_native_windows_tar, is_same_or_inside, native_tool, next_run_sequence,
-    remove_exact, tree_digest, CommandOptions, CommandOutcome,
+    extract_with_native_windows_tar, native_tool, remove_exact, tree_digest, CommandOptions,
+    CommandOutcome,
 };
 
 pub const REQUIRED_BINARIES: [&str; 3] = ["legion.exe", "legion-hook.exe", "legion-mcp.exe"];
+
+type ArchiveExtractor = Box<dyn Fn(&Path, &Path) -> Result<(), String>>;
+type CommandRunner = Box<dyn Fn(&str, &[String], &CommandOptions) -> CommandOutcome>;
+
 pub const REQUIRED_GATES: [&str; 6] = [
     "installed-product",
     "command-resolution",
@@ -126,7 +130,6 @@ fn assert_stable_install_paths(paths: StablePaths) -> Result<StablePaths, String
 }
 
 pub struct ReleaseInfo {
-    pub metadata: Value,
     pub release_version: String,
     pub runtime_sha256: String,
     #[allow(dead_code)]
@@ -189,7 +192,6 @@ fn release_metadata(root: &Path, architecture: &str, label: &str) -> Result<Rele
     }
     let generation = release_generation(&metadata, &release_version, &runtime_sha256);
     Ok(ReleaseInfo {
-        metadata,
         release_version,
         runtime_sha256,
         release_path,
@@ -332,8 +334,8 @@ pub struct QualifyWindowsOptions {
     pub work_root: Option<PathBuf>,
     pub platform: Option<String>,
     pub runner_architecture: Option<String>,
-    pub archive_extractor: Option<Box<dyn Fn(&Path, &Path) -> Result<(), String>>>,
-    pub command_runner: Option<Box<dyn Fn(&str, &[String], &CommandOptions) -> CommandOutcome>>,
+    pub archive_extractor: Option<ArchiveExtractor>,
+    pub command_runner: Option<CommandRunner>,
     pub codex_executable: Option<PathBuf>,
     pub allow_downgrade: bool,
 }
@@ -769,6 +771,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
         );
     }
 
+    #[allow(unused_assignments)]
     let mut prior_tree_sha256: Option<String> = None;
     let mut prior_health: Option<Value> = None;
     let mut rollback_health: Option<Value> = None;
@@ -840,7 +843,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     None
                 };
                 prior_health = computed_prior_health.clone();
-                integration_journal = write_integration_journal(
+                write_integration_journal(
                     &integration_journal_path,
                     integration_journal_record(IntegrationJournalInput {
                         state_root: &env.state,
@@ -908,7 +911,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     && archives_differ
                     && runtimes_differ
                     && no_installed_history;
-                integration_journal = write_integration_journal(
+                write_integration_journal(
                     &integration_journal_path,
                     integration_journal_record(IntegrationJournalInput {
                         state_root: &env.state,

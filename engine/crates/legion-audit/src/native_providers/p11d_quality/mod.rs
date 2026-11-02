@@ -149,7 +149,7 @@ pub mod data_suite {
         });
         for m in re.find_iter(text) {
             let rest_end = text[m.end()..]
-                .find(|c| c == ';' || c == '\n')
+                .find([';', '\n'])
                 .map(|i| m.end() + i)
                 .unwrap_or(text.len());
             let rest = &text[m.end()..rest_end];
@@ -172,13 +172,11 @@ pub mod data_suite {
         let re = RE.get_or_init(|| {
             Regex::new(r"(?is)sqlite(?:3)?[\s\S]{0,200}(?:connect|open)\s*\(").unwrap()
         });
+        let busy_timeout = Regex::new(r"(?i)busy_timeout|timeout").unwrap();
         for m in re.find_iter(text) {
             let end = char_floor(text, m.end() + 300);
             let window = &text[m.end()..end];
-            if !Regex::new(r"(?i)busy_timeout|timeout")
-                .unwrap()
-                .is_match(window)
-            {
+            if !busy_timeout.is_match(window) {
                 candidates.push(candidate("data.sqlite-no-busy-timeout", "note", "SQLite connection is configured without a visible busy timeout; assess lock contention.", file, line_at(text, m.start())));
             }
         }

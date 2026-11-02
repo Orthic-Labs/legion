@@ -468,7 +468,7 @@ mod tests {
     }
 
     thread_local! {
-        static NEXT: std::cell::Cell<u64> = std::cell::Cell::new(0);
+        static NEXT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
     }
 
     fn temp_dir_for(label: &str) -> PathBuf {

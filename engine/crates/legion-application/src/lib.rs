@@ -348,7 +348,7 @@ impl M1Application {
                 component: "runtime origin",
                 expected: "installed without development context".into(),
                 actual: "development context supplied".into(),
-                remediation: legion_runtime::REPAIR_COMMAND.into(),
+                remediation: legion_runtime::REPAIR_COMMAND,
             }
             .into());
         }
@@ -897,9 +897,9 @@ fn is_executable_file(path: &Path) -> bool {
     {
         use std::os::unix::fs::PermissionsExt;
 
-        return std::fs::metadata(path)
+        std::fs::metadata(path)
             .map(|metadata| metadata.permissions().mode() & 0o111 != 0)
-            .unwrap_or(false);
+            .unwrap_or(false)
     }
     #[cfg(not(unix))]
     {

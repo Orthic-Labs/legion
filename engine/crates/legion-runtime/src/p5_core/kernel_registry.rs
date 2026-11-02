@@ -30,6 +30,7 @@ impl OperationRegistry {
     }
 
     /// Port of `register(descriptor)`.
+    #[allow(clippy::result_large_err)]
     pub fn register(&mut self, descriptor: Value) -> Result<Value, KernelError> {
         let object = descriptor
             .as_object()
@@ -79,6 +80,7 @@ impl OperationRegistry {
     }
 
     /// Port of `lookup(operationId)`.
+    #[allow(clippy::result_large_err)]
     pub fn lookup(&self, operation_id: &str) -> Result<Value, KernelError> {
         self.operations.get(operation_id).cloned().ok_or_else(|| {
             KernelError::new(
@@ -102,6 +104,7 @@ impl OperationRegistry {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn normalize_capabilities(value: &[String], label: &str) -> Result<Vec<String>, KernelError> {
     if value.iter().any(|c| c.is_empty()) {
         return Err(usage_error(format!(
@@ -126,6 +129,7 @@ pub struct CapabilityNegotiation {
 }
 
 /// Port of `negotiateCapabilities({ required, supported })`.
+#[allow(clippy::result_large_err)]
 pub fn negotiate_capabilities(
     required: &[String],
     supported: &[String],

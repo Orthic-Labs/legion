@@ -672,6 +672,8 @@ pub fn clear_manual_apply_transaction(cwd: &Path, transaction_id: Option<&str>) 
     fs::remove_file(file).is_ok()
 }
 
+type RecordActivity<'a> = &'a mut dyn FnMut(&str, Value);
+
 /// Port of `rollbackManualApplyTransaction({ cwd, pageUrl, reason })`. The
 /// `recordManualEditActivity` callback is invoked when supplied, mirroring
 /// the JS optional-callback (`recordManualEditActivity?.(...)`) pattern.
@@ -679,7 +681,7 @@ pub fn rollback_manual_apply_transaction(
     cwd: &Path,
     page_url: Option<&str>,
     reason: &str,
-    mut record_activity: Option<&mut dyn FnMut(&str, Value)>,
+    record_activity: Option<RecordActivity<'_>>,
 ) -> Option<Value> {
     let transaction = read_manual_apply_transaction(cwd)?;
     let tx_page_url = transaction.get("pageUrl").and_then(Value::as_str);
@@ -757,7 +759,7 @@ pub fn rollback_manual_apply_transaction(
     }
     clear_manual_apply_transaction(cwd, tx_id.as_deref());
 
-    if let Some(cb) = record_activity.as_deref_mut() {
+    if let Some(cb) = record_activity {
         cb(
             "manual_edit_transaction_rolled_back",
             serde_json::json!({
@@ -1475,7 +1477,7 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
     pub(crate) fn try_begin_timeout_rollback(&self) -> Option<MutexGuard<'_, ()>> {
         match self.mutation_gate.try_lock() {
             Ok(guard) => Some(guard),
-            Err(TryLockError::WouldBlock | TryLockError::Poisoned(_)) => return None,
+            Err(TryLockError::WouldBlock | TryLockError::Poisoned(_)) => None,
         }
     }
 

@@ -93,7 +93,7 @@ pub fn resolve_descriptor(
     if id != "generic" {
         return Ok(base.clone());
     }
-    Ok(resolve_generic_descriptor(root, base)?)
+    resolve_generic_descriptor(root, base)
 }
 
 fn generic_default() -> HarnessDescriptor {

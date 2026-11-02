@@ -47,81 +47,6 @@ pub fn trace_requirement(value: &Value) -> Result<Value, String> {
     Ok(Value::Object(result))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    fn requirement(status: Value) -> Value {
-        json!({
-            "id": "req-1",
-            "authority": "product",
-            "owner": "team",
-            "status": status,
-        })
-    }
-
-    #[test]
-    fn accepts_every_requirement_status() {
-        for status in STATES {
-            let mut value = requirement(json!(status));
-            if *status == "implemented-and-verified" {
-                value["evidence"] = json!(["evidence-1"]);
-            }
-            assert!(trace_requirement(&value).is_ok(), "{status}");
-        }
-    }
-
-    #[test]
-    fn rejects_missing_non_string_and_unknown_statuses() {
-        for status in [None, Some(json!(42)), Some(json!("unknown"))] {
-            let mut value = requirement(status.clone().unwrap_or(Value::Null));
-            if status.is_none() {
-                value.as_object_mut().unwrap().remove("status");
-            }
-            assert!(trace_requirement(&value).is_err());
-        }
-    }
-
-    #[test]
-    fn rejects_missing_required_metadata() {
-        for field in ["id", "authority", "owner"] {
-            let mut value = requirement(json!("missing"));
-            value.as_object_mut().unwrap().remove(field);
-            assert!(trace_requirement(&value).is_err(), "{field}");
-        }
-    }
-
-    #[test]
-    fn verified_requires_non_empty_evidence() {
-        for evidence in [None, Some(json!([]))] {
-            let mut value = requirement(json!("implemented-and-verified"));
-            if let Some(evidence) = evidence {
-                value["evidence"] = evidence;
-            }
-            assert!(trace_requirement(&value).is_err());
-        }
-    }
-
-    #[test]
-    fn verified_accepts_non_empty_evidence_array() {
-        let value = requirement(json!("implemented-and-verified"));
-        let value = {
-            let mut value = value;
-            value["evidence"] = json!(["evidence-1"]);
-            value
-        };
-        let output = trace_requirement(&value).unwrap();
-        assert_eq!(output["evidence"], json!(["evidence-1"]));
-    }
-
-    #[test]
-    fn non_verified_missing_evidence_normalizes_to_empty_array() {
-        let output = trace_requirement(&requirement(json!("missing"))).unwrap();
-        assert_eq!(output["evidence"], json!([]));
-    }
-}
-
 pub fn analyze(input: &Value) -> Result<Analysis, String> {
     let object = object_input(input)?;
     let requirements = object
@@ -327,4 +252,79 @@ fn domain_contracts(
         }
     }
     Some(evaluation)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn requirement(status: Value) -> Value {
+        json!({
+            "id": "req-1",
+            "authority": "product",
+            "owner": "team",
+            "status": status,
+        })
+    }
+
+    #[test]
+    fn accepts_every_requirement_status() {
+        for status in STATES {
+            let mut value = requirement(json!(status));
+            if *status == "implemented-and-verified" {
+                value["evidence"] = json!(["evidence-1"]);
+            }
+            assert!(trace_requirement(&value).is_ok(), "{status}");
+        }
+    }
+
+    #[test]
+    fn rejects_missing_non_string_and_unknown_statuses() {
+        for status in [None, Some(json!(42)), Some(json!("unknown"))] {
+            let mut value = requirement(status.clone().unwrap_or(Value::Null));
+            if status.is_none() {
+                value.as_object_mut().unwrap().remove("status");
+            }
+            assert!(trace_requirement(&value).is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_missing_required_metadata() {
+        for field in ["id", "authority", "owner"] {
+            let mut value = requirement(json!("missing"));
+            value.as_object_mut().unwrap().remove(field);
+            assert!(trace_requirement(&value).is_err(), "{field}");
+        }
+    }
+
+    #[test]
+    fn verified_requires_non_empty_evidence() {
+        for evidence in [None, Some(json!([]))] {
+            let mut value = requirement(json!("implemented-and-verified"));
+            if let Some(evidence) = evidence {
+                value["evidence"] = evidence;
+            }
+            assert!(trace_requirement(&value).is_err());
+        }
+    }
+
+    #[test]
+    fn verified_accepts_non_empty_evidence_array() {
+        let value = requirement(json!("implemented-and-verified"));
+        let value = {
+            let mut value = value;
+            value["evidence"] = json!(["evidence-1"]);
+            value
+        };
+        let output = trace_requirement(&value).unwrap();
+        assert_eq!(output["evidence"], json!(["evidence-1"]));
+    }
+
+    #[test]
+    fn non_verified_missing_evidence_normalizes_to_empty_array() {
+        let output = trace_requirement(&requirement(json!("missing"))).unwrap();
+        assert_eq!(output["evidence"], json!([]));
+    }
 }

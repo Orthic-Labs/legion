@@ -474,10 +474,11 @@ fn is_exact_semver_pin(value: &str) -> bool {
                         || !identifier.starts_with('0'))
             })
     };
-    prerelease.map_or(true, |value| valid_identifiers(value, true))
-        && build.map_or(true, |value| valid_identifiers(value, false))
+    prerelease.is_none_or(|value| valid_identifiers(value, true))
+        && build.is_none_or(|value| valid_identifiers(value, false))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_frozen_test_runner(
     root: &Path,
     inventory: &InventoryEnvelope,
@@ -1011,19 +1012,20 @@ fn existing_file(path: &Path) -> Option<PathBuf> {
 }
 
 fn existing_file_with_platform_extensions(path: &Path) -> Option<PathBuf> {
-    existing_file(path).or_else(|| {
-        #[cfg(windows)]
-        {
-            for extension in [".exe", ".cmd", ".bat", ".com"] {
-                if let Some(value) =
-                    existing_file(&path.with_extension(extension.trim_start_matches('.')))
-                {
-                    return Some(value);
-                }
+    if let Some(found) = existing_file(path) {
+        return Some(found);
+    }
+    #[cfg(windows)]
+    {
+        for extension in [".exe", ".cmd", ".bat", ".com"] {
+            if let Some(value) =
+                existing_file(&path.with_extension(extension.trim_start_matches('.')))
+            {
+                return Some(value);
             }
         }
-        None
-    })
+    }
+    None
 }
 
 fn is_cargo_analysis_tool(tool: &str) -> bool {
@@ -1142,7 +1144,8 @@ mod test_command_resolution_tests {
 
     #[test]
     fn native_test_families_have_frozen_fixed_argv_fixtures() {
-        let fixtures: &[(&str, &[(&str, &str)], &str, &[&str])] = &[
+        type FixtureRow<'a> = (&'a str, &'a [(&'a str, &'a str)], &'a str, &'a [&'a str]);
+        let fixtures: &[FixtureRow<'_>] = &[
             (
                 "pytest",
                 &[

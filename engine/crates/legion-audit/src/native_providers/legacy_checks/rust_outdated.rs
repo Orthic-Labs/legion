@@ -403,6 +403,7 @@ pub(super) fn prepare(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn copied_files(
     root: &Path,
     deadline: Instant,

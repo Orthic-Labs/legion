@@ -129,7 +129,7 @@ fn svelte_component_parse_and_stub_pipeline() {
 
     let insert_stub = build_insert_variant_stub(1);
     assert!(insert_stub.contains("Insert variant 1"));
-    assert_eq!(build_props_script(&[]).contains("let {} = $props();"), true);
+    assert!(build_props_script(&[]).contains("let {} = $props();"));
 }
 
 #[test]

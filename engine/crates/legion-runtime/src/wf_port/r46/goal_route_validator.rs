@@ -936,7 +936,9 @@ pub fn validate_route(data: &Value) -> Vec<String> {
             if required.is_none() {
                 errors.push("alchemist must declare required boolean".to_string());
             } else {
-                let required = required.unwrap();
+                let Some(required) = required else {
+                    unreachable!("checked above");
+                };
                 if root.get("routine").and_then(Value::as_bool) == Some(false) && !required {
                     errors.push("non-routine route requires Alchemist".to_string());
                 }

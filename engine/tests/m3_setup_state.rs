@@ -565,6 +565,7 @@ fn host_mcp_registration_applies_repairs_idempotently_and_removes_cleanly() {
 }
 
 #[test]
+#[allow(clippy::permissions_set_readonly_false)]
 fn host_mcp_registration_mid_apply_failure_leaves_host_config_untouched() {
     let root = TempRoot::new("host-mcp-readonly");
     let state_root = root.path().join("state");

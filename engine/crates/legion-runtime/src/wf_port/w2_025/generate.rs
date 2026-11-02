@@ -95,11 +95,12 @@ pub fn resolve_api_key(
     google_ai_api_key: Option<&str>,
     google_api_key: Option<&str>,
 ) -> Option<String> {
-    for candidate in [flag, google_ai_api_key, google_api_key] {
-        if let Some(v) = candidate {
-            if !v.is_empty() {
-                return Some(v.to_string());
-            }
+    for v in [flag, google_ai_api_key, google_api_key]
+        .into_iter()
+        .flatten()
+    {
+        if !v.is_empty() {
+            return Some(v.to_string());
         }
     }
     None
@@ -289,13 +290,13 @@ pub struct GenerateResult {
     pub text: String,
 }
 
+type ParsedCandidates = Vec<(Option<String>, Vec<ResponsePart>)>;
+
 /// Parses the raw Gemini `generateContent` JSON response into the shape
 /// [`extract_image`] consumes, matching `result.get("candidates", [])`,
 /// each candidate's `content.parts` and `finishReason`, and
 /// `promptFeedback.blockReason`.
-pub fn parse_candidates(
-    body: &Value,
-) -> (Vec<(Option<String>, Vec<ResponsePart>)>, Option<String>) {
+pub fn parse_candidates(body: &Value) -> (ParsedCandidates, Option<String>) {
     let block_reason = body
         .get("promptFeedback")
         .and_then(|f| f.get("blockReason"))

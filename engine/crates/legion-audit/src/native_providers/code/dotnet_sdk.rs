@@ -231,6 +231,26 @@ fn enrollment() -> Result<(PathBuf, Value), String> {
 }
 
 /// v1 refuses dynamic/out-of-tree MSBuild behavior rather than rewriting project semantics.
+fn package_reference_shape_re() -> &'static Regex {
+    static CELL: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    CELL.get_or_init(|| {
+        Regex::new(r#"^Include="[A-Za-z0-9_.-]+" Version="[0-9]+\.[0-9]+\.[0-9]+(?:[.-][A-Za-z0-9.-]+)?"$"#)
+            .expect("constant regex")
+    })
+}
+
+fn fsproj_compile_shape_re() -> &'static Regex {
+    static CELL: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    CELL.get_or_init(|| Regex::new(r#"^Include="[A-Za-z0-9_./-]+\.fs"$"#).expect("constant regex"))
+}
+
+fn trx_passed_outcome_re() -> &'static Regex {
+    static CELL: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    CELL.get_or_init(|| {
+        Regex::new(r#"<UnitTestResult\b[^>]*\boutcome="Passed""#).expect("constant regex")
+    })
+}
+
 /// All unsupported original inputs remain counted gaps.
 fn project(value: &str, extension: &str) -> Result<(Vec<String>, bool), String> {
     if value.contains(['&', '$', '@']) || value.contains("<!--") || value.contains("<!") {
@@ -283,14 +303,13 @@ fn project(value: &str, extension: &str) -> Result<(Vec<String>, bool), String> 
         match name {
             "Project" if attributes == "Sdk=\"Microsoft.NET.Sdk\"" || attributes.is_empty() => {}
             "PackageReference" => {
-                let shape = Regex::new(r#"^Include="[A-Za-z0-9_.-]+" Version="[0-9]+\.[0-9]+\.[0-9]+(?:[.-][A-Za-z0-9.-]+)?"$"#).map_err(|_| "project-parser")?;
+                let shape = package_reference_shape_re();
                 if !shape.is_match(attributes) {
                     return Err("package-reference-unsupported".into());
                 }
             }
             "Compile" if extension == "fsproj" => {
-                let shape = Regex::new(r#"^Include="[A-Za-z0-9_./-]+\.fs"$"#)
-                    .map_err(|_| "project-parser")?;
+                let shape = fsproj_compile_shape_re();
                 if !shape.is_match(attributes)
                     || attributes.contains("..")
                     || attributes.contains(":")
@@ -814,9 +833,7 @@ fn test_counts(value: &Value) -> Result<(), String> {
         {
             return Err("test-not-nonempty-success".into());
         }
-        let units =
-            Regex::new(r#"<UnitTestResult\b[^>]*\boutcome="Passed""#).map_err(|_| "trx-parser")?;
-        if units.find_iter(content).count() as u64 != count("executed") {
+        if trx_passed_outcome_re().find_iter(content).count() as u64 != count("executed") {
             return Err("test-results-counter-mismatch".into());
         }
     }

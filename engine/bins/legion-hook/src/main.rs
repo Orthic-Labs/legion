@@ -623,7 +623,7 @@ fn valid_rfc3339_suffix(value: &[u8]) -> bool {
         true
     } else {
         value[0] == b'.'
-            && value[1..zone].len() >= 1
+            && !value[1..zone].is_empty()
             && value[1..zone].iter().all(u8::is_ascii_digit)
     };
     if !fraction_valid {
@@ -1341,7 +1341,7 @@ fn is_mcp_tool(tool_name: &str) -> bool {
 fn is_mcp_external_operation(value: &str) -> bool {
     let value = value.trim().to_ascii_lowercase();
     value
-        .split(|character| matches!(character, '_' | '-' | '/' | ' '))
+        .split(['_', '-', '/', ' '])
         .any(|part| matches!(part, "write" | "send" | "delete"))
 }
 
@@ -1406,7 +1406,7 @@ fn mcp_external_side_effect(
     tool_name: Option<&str>,
     operation: Option<&str>,
 ) -> Option<EffectClass> {
-    let tool_name = tool_name.filter(|name| is_mcp_tool(name))?;
+    tool_name.filter(|name| is_mcp_tool(name))?;
     // An explicit operation in the tool input outranks the name's leading
     // verb: `mcp__docs__query` asked to delete is still an external effect.
     operation
@@ -1491,7 +1491,7 @@ fn credential_path_kind(argument: &str) -> Option<CredentialPathKind> {
         .collect::<Vec<_>>();
     let (name, parents) = components.split_last()?;
     let name: &str = name;
-    let in_directory = |directory: &str| parents.iter().any(|parent| *parent == directory);
+    let in_directory = |directory: &str| parents.contains(&directory);
     if name == ".env" {
         return Some(CredentialPathKind::Secret);
     }
@@ -1791,14 +1791,13 @@ fn command_segments_with_context(command: &str) -> Vec<CommandSegment> {
         if let Some(index) = line.find("<<") {
             let before = line[..index].trim_end();
             let fed_to_shell = before
-                .rsplit(|character| matches!(character, ';' | '&' | '|'))
+                .rsplit([';', '&', '|'])
                 .next()
                 .and_then(|piece| strip_command_prefixes(piece).split_whitespace().next())
                 .map(|head| head.rsplit(['/', '\\']).next().unwrap_or(head))
                 .is_some_and(|head| SHELLS.contains(&head));
             let delimiter = line[index + 2..]
                 .trim_start_matches(['-', '<'].as_ref())
-                .trim_start()
                 .split_whitespace()
                 .next()
                 .unwrap_or("")
@@ -2300,7 +2299,7 @@ fn is_regenerable_relative_path(operand: &str) -> bool {
             }
         }
     }
-    count == 1 && name.map_or(false, |name| REGENERABLE_DIRECTORIES.contains(&name))
+    count == 1 && name.is_some_and(|name| REGENERABLE_DIRECTORIES.contains(&name))
 }
 
 /// Whether an `rm` option means "recurse": `-r`, `-rf`, `-fR`, or PowerShell's
@@ -3565,7 +3564,7 @@ fn route_trace_from_request(
     trace.validate().ok().map(|_| trace)
 }
 
-fn trace_source<'a>(payload: &'a Map<String, Value>) -> &'a Map<String, Value> {
+fn trace_source(payload: &Map<String, Value>) -> &Map<String, Value> {
     ["routeOutcomeTrace", "route_outcome_trace", "trace"]
         .iter()
         .find_map(|key| payload.get(*key).and_then(Value::as_object))
@@ -3934,7 +3933,7 @@ fn stop_evidence_reminder(request: &HookRequest, response: &HookResponse) -> Opt
     if message.trim().is_empty() || message_cites_evidence(&message) {
         return None;
     }
-    let edited = session_marker(&request.payload, "edited").map_or(false, |path| path.is_file())
+    let edited = session_marker(&request.payload, "edited").is_some_and(|path| path.is_file())
         || transcript_shows_edits(object);
     if !edited {
         return None;
@@ -3958,13 +3957,11 @@ fn stop_evidence_reminder(request: &HookRequest, response: &HookResponse) -> Opt
 fn error_response(error: HookError, input: &[u8], argv_event: Option<&str>) -> HookResponse {
     let event_type = if protocol::identifies_pre_tool_use(input, argv_event) {
         "PreToolUse"
-    } else if let Some(event) = argv_event
-        .map(str::trim)
-        .filter(|event| protocol::SUPPORTED_EVENT_TYPES.contains(event))
-    {
-        event
     } else {
-        "unknown"
+        argv_event
+            .map(str::trim)
+            .filter(|event| protocol::SUPPORTED_EVENT_TYPES.contains(event))
+            .unwrap_or("unknown")
     };
     response_for_error(event_type.into(), error)
 }
@@ -3986,11 +3983,10 @@ fn parse_arguments(arguments: &[String]) -> Option<(bool, Option<String>)> {
             let value = arguments.get(index + 1)?;
             event = Some(value.clone());
             index += 2;
-        } else if let Some(value) = argument.strip_prefix("--event=") {
+        } else {
+            let value = argument.strip_prefix("--event=")?;
             event = Some(value.to_owned());
             index += 1;
-        } else {
-            return None;
         }
     }
     Some((codex_host, event))

@@ -64,8 +64,7 @@ pub fn check_borders(tag: &str, sides: &BorderSides, radius: f64) -> Vec<Finding
     }
     let mut findings = vec![];
 
-    for i in 0..4 {
-        let w = sides.widths[i];
+    for (i, &w) in sides.widths.iter().enumerate() {
         if w < 1.0 || is_neutral_color(sides.colors[i]) {
             continue;
         }
@@ -437,7 +436,7 @@ pub fn check_hero_eyebrow(opts: &HeroEyebrowInput) -> Vec<Finding> {
 
     let text = opts.sibling_text.trim();
     let len = text.chars().count();
-    if len < 2 || len > 60 {
+    if !(2..=60).contains(&len) {
         return vec![];
     }
     if !(opts.sibling_font_size > 0.0 && opts.sibling_font_size <= 14.0) {

@@ -324,12 +324,6 @@ pub fn run_with_args(root: &Path, check: bool, requested: &[String]) -> bool {
     true
 }
 
-/// Compatibility entry point for callers that intentionally supply no bundle
-/// arguments. The CLI uses `run_with_args` so positional bundle ids are kept.
-pub fn run(root: &Path, check: bool) -> bool {
-    run_with_args(root, check, &[])
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
