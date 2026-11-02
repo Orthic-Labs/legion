@@ -9,6 +9,7 @@ pub mod catalog;
 pub mod completion;
 pub mod contract;
 pub mod coverage;
+pub mod daily;
 pub mod decision;
 pub mod doctor;
 pub mod engineering;

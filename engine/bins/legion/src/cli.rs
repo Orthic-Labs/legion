@@ -201,6 +201,12 @@ enum Command {
     Setup(commands::setup::SetupArgs),
     /// Dispatch to the Rust port of a `skills/**/scripts/**` CLI (`--list` to enumerate).
     Script(commands::script::ScriptArgs),
+    /// Scan the last day of failures and broker warmth on both machines, file or update issues, and write the daily digest.
+    ///
+    /// Usage: legion daily [--since 24h] [--dry-run | --apply] [--json]. Dry run is
+    /// the default; --apply writes issues and saves state. Never builds or changes
+    /// broker state.
+    Daily(commands::daily::DailyArgs),
 }
 #[derive(Debug, clap::Args)]
 struct AuditCommandArgs {
@@ -1773,6 +1779,12 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::State(args) => commands::state::run(args),
         Command::Minimize(args) => commands::minimize::run(args),
         Command::Script(args) => commands::script::run(args),
+        Command::Daily(mut args) => {
+            if root_json {
+                args.json = true;
+            }
+            commands::daily::run(args)
+        }
     };
     result
 }
