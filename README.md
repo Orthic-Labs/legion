@@ -34,7 +34,7 @@ One doctrine & kernel project into harness-native slots. Legion does not pretend
 |---|---|---|---|
 | Doctrine & routing | yes | yes | yes |
 | Native authority agents | yes | yes, via `.codex/agents` | no native subagents declared |
-| Guard pre-effect interception | yes, through blocking plugin hooks | no; lifecycle hooks only | no |
+| Guard pre-effect interception | yes, through blocking plugin hooks | yes for shell and `apply_patch`, through trust-gated plugin hooks | no |
 | Guard decisions & receipts | decision returned to host; persisted receipt future work | decision returned to host; no persisted effect receipt yet | CLI/boundary decisions; persisted receipt future work |
 | Council isolation | isolated seat agents | isolated seat agents | unavailable without subagents |
 | Oracle Completion Validation | yes | yes | yes |

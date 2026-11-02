@@ -170,9 +170,25 @@ pub struct HookResponse {
     pub code: Option<String>,
     pub reason: String,
     pub enforcement_health: &'static str,
+    /// On an allowed PreToolUse frame, the tool input the host runs instead of
+    /// the one the agent sent (Claude Code `updatedInput`).
+    pub updated_input: Option<Value>,
+    /// Model-facing text added to the conversation on SessionStart,
+    /// UserPromptSubmit or PostToolUse (Claude Code `additionalContext`).
+    pub additional_context: Option<String>,
 }
 
 impl HookResponse {
+    pub fn with_updated_input(mut self, input: Value) -> Self {
+        self.updated_input = Some(input);
+        self
+    }
+
+    pub fn with_additional_context(mut self, context: impl Into<String>) -> Self {
+        self.additional_context = Some(context.into());
+        self
+    }
+
     pub fn unsupported(event_type: impl Into<String>) -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
@@ -183,6 +199,8 @@ impl HookResponse {
             code: Some("ARC_NATIVE_POLICY_UNAVAILABLE".into()),
             reason: "native hook enforcement is unavailable; effect is refused".into(),
             enforcement_health: "unsupported",
+            updated_input: None,
+            additional_context: None,
         }
     }
 
@@ -196,6 +214,8 @@ impl HookResponse {
             code: None,
             reason: reason.into(),
             enforcement_health: "strong",
+            updated_input: None,
+            additional_context: None,
         }
     }
 
@@ -214,6 +234,8 @@ impl HookResponse {
             code: Some(code.into()),
             reason: reason.into(),
             enforcement_health: health,
+            updated_input: None,
+            additional_context: None,
         }
     }
 
@@ -264,6 +286,33 @@ impl HookResponse {
             object.insert("hookSpecificOutput".into(), Value::Object(specific));
         } else if !self.allowed && matches!(self.event_type.as_str(), "Stop" | "stop") {
             object.insert("decision".into(), Value::String("block".into()));
+        } else if self.allowed
+            && matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect")
+            && self.updated_input.is_some()
+        {
+            let mut specific = Map::new();
+            specific.insert("hookEventName".into(), Value::String("PreToolUse".into()));
+            specific.insert("permissionDecision".into(), Value::String("allow".into()));
+            specific.insert(
+                "permissionDecisionReason".into(),
+                Value::String(self.reason.clone()),
+            );
+            specific.insert(
+                "updatedInput".into(),
+                self.updated_input.clone().unwrap_or(Value::Null),
+            );
+            object.insert("hookSpecificOutput".into(), Value::Object(specific));
+        } else if let Some(context) = &self.additional_context {
+            let event = match self.event_type.as_str() {
+                "user-prompt-submit" => "UserPromptSubmit",
+                "post-effect" => "PostToolUse",
+                "session-start" => "SessionStart",
+                other => other,
+            };
+            let mut specific = Map::new();
+            specific.insert("hookEventName".into(), Value::String(event.into()));
+            specific.insert("additionalContext".into(), Value::String(context.clone()));
+            object.insert("hookSpecificOutput".into(), Value::Object(specific));
         }
         Value::Object(object)
     }

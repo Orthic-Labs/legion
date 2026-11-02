@@ -11,6 +11,8 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
+mod freshness;
+
 const QUALIFICATION_SCHEMA_VERSION: u32 = 2;
 const QUALIFICATION_MECHANISM: &str = "agent-plugins-bare-command";
 const QUALIFICATION_TOOL: &str = "legion_m1_status";
@@ -536,7 +538,7 @@ async fn status(
                 .as_ref()
                 .map(|path| path.join("current"))
                 .and_then(|path| std::fs::canonicalize(path).ok());
-            return Ok(json!({
+            let mut failed = json!({
                 "schemaVersion": 1,
                 "kind": "legion-setup-status",
                 "status": "failed",
@@ -550,7 +552,9 @@ async fn status(
                 "stableCurrent": evidence.stable_current,
                 "clients": [],
                 "remediation": [error.message],
-            }));
+            });
+            freshness::Freshness::default().merge_into(&mut failed);
+            return Ok(failed);
         }
     };
     let release = bound_release(&installed.manifest);
@@ -569,13 +573,17 @@ async fn status(
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let live_identity = inspect_live_identity(&host_integrations, None)?;
     let clients_value = enrich_client_statuses(clients_value, &live_identity);
-    let (status, remediation) = setup_health_for_action(
+    let (status, mut remediation) = setup_health_for_action(
         &clients_value,
         &host_integrations,
         &live_identity,
         &legion_host::SetupAction::Status,
     );
-    Ok(json!({
+    // An install older than the newest release or the development checkout is
+    // not "complete" (Orthic-Labs/legion#137). Unknown versions change nothing.
+    let freshness = freshness::observe(&installed.manifest.release_version).await;
+    let status = freshness.apply_to_health(status, &mut remediation);
+    let mut result = json!({
         "schemaVersion": 1,
         "kind": "legion-setup-status",
         "status": status,
@@ -593,7 +601,9 @@ async fn status(
         "authenticatedLiveQualification": authenticated_live_qualification,
         "hostIntegrations": host_integrations,
         "liveIdentity": live_identity,
-    }))
+    });
+    freshness.merge_into(&mut result);
+    Ok(result)
 }
 
 async fn qualify(
@@ -5435,7 +5445,7 @@ async fn development_status(
     let identity = inspect_live_identity(&integrations, request.development.as_ref())?;
     let clients_value = enrich_client_statuses(clients_value, &identity);
     let (status, remediation) = setup_health(&clients_value, &integrations, &identity);
-    Ok(json!({
+    let mut result = json!({
         "schemaVersion": 1, "kind": "legion-setup-status", "status": status,
         "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
         "executable": identity.get("executablePath"), "installRoot": Value::Null,
@@ -5443,7 +5453,10 @@ async fn development_status(
         "port": identity.get("port"), "processIdentity": identity.get("processIdentity"),
         "remediation": remediation, "recovery": recovery, "clients": clients_value,
         "hostIntegrations": integrations, "liveIdentity": identity,
-    }))
+    });
+    // A development process is not an installed release; nothing to compare.
+    freshness::Freshness::default().merge_into(&mut result);
+    Ok(result)
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(

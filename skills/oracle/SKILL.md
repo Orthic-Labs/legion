@@ -17,11 +17,13 @@ Use `/oracle` to review any work Legion did not produce itself, and for independ
 someone else's work; never for its own fix. Routine replies and read-only answers need no Oracle.
 
 PRIMARY_DELIVERABLE: Compact PASS or BLOCK Completion Validation result.
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 1
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: One independent Completion Validation result is returned per review pass, or an exact blocker is reported. A recheck after a repair (procedure step 6) is a new pass and returns its own result.
+
+Calling this skill launches the `legion:oracle` agent. Start it with `Agent` and `subagent_type` `legion:oracle`, and pass the caller input checklist below as its brief. The skill and the agent share a name: this skill is the entry point, and the agent performs the review.
 
 This entrypoint packages Oracle's ephemeral-packet Completion Validation procedure. It is
 read-only, semantic, source-first, and independent from the work that produced the result. It is

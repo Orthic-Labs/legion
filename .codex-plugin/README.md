@@ -5,8 +5,11 @@ plugin owns bundled skills, MCP, and lifecycle hooks. Codex copies the selected 
 native plugin cache; setup verifies installed identity and release digests before retiring legacy
 copies.
 
-Codex skips bundled hooks until the user trusts the current hook definition. Legion projects only
-`UserPromptSubmit` and `Stop`; Codex does not receive Legion pre-tool effect-enforcement hooks.
+Codex skips bundled hooks until the user trusts the current hook definition, and a changed
+definition needs trust again. Legion projects `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and
+`Stop`; the tool events match `Bash|apply_patch|exec_command|functions\.exec`. Codex has no ask
+outcome and no `PostToolUseFailure`, so a Guard confirmation request is a denial there and MCP tools
+are not matched (Codex keeps its own MCP approvals).
 Doctor reports cache, disabled state, hook-file presence, and recorded host trust independently.
 Host-agnostic Legion receipt traces do not prove Codex execution or current-definition trust.
 

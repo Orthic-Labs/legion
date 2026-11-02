@@ -17,11 +17,13 @@ hostRequirements:
 # Alchemist
 
 PRIMARY_DELIVERABLE: Requested repository state with declared checks passing.
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 1
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Worker returns bounded edits & blockers; root verifies declared checks before delivery.
+
+Calling this skill launches the `legion:alchemist` agent. Start it with `Agent` and `subagent_type` `legion:alchemist`, and pass the assignment that step 1 describes as its brief. The skill and the agent share a name: this skill is the entry point, and the agent performs the bounded edit. Launch `legion:alchemist-specialist` instead only for a bounded function where a mistake would still compile or pass but be wrong or unsafe, or after one failed attempt on `legion:alchemist`. Name that function and reason in the launch prompt.
 
 Contracts, events, and checkpoints apply only where the work is governed — a locked domain,
 an explicit contract, or a Sage freeze handoff. Ordinary bounded implementation runs ambient:

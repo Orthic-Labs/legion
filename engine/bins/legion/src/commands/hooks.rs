@@ -11,7 +11,10 @@ use tokio_util::sync::CancellationToken;
 /// the only code that registers Legion hooks in a host: Devin hook entries are
 /// written by the registry itself; Claude Code and Codex hooks ship inside the
 /// native plugin each lifecycle installs. Codex still requires user trust for
-/// bundled hooks, and the shipped Codex events do not provide pre-tool gating.
+/// bundled hooks, and a changed hook definition needs that trust again. The
+/// shipped Codex events cover prompt submission, shell and `apply_patch`
+/// pre/post tool events, and stop; Codex has no ask outcome, so a Guard
+/// confirmation request is a denial there.
 /// Mutation needs `--confirm`;
 /// without it the command previews through `setup --dry-run`.
 pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandResult {
@@ -375,10 +378,10 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
         .as_ref()
         .and_then(projected_legion_events);
     let codex_enforcement = enforcement_facts(
-        Some(&["UserPromptSubmit", "Stop"]),
+        Some(&["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"]),
         codex_events,
-        Some(false),
-        "Legion's Codex projection covers prompt submission and stop only; no pre-effect interception",
+        Some(true),
+        "Legion's Codex projection covers prompt submission, shell and apply_patch pre/post tool events, and stop; Codex has no ask outcome, so Guard confirmation requests are denied; registration does not prove host trust or delivery",
     );
     let mut devin_row = row("devin", devin);
     devin_row["enforcement"] = enforcement_facts(
@@ -566,7 +569,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             plugin.join("hooks/codex-hooks.json"),
-            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"legion-hook --host codex --event UserPromptSubmit"}]}],"Stop":[{"hooks":[{"command":"legion-hook --host codex --event Stop"}]}]}}"#,
+            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"legion-hook --host codex --event UserPromptSubmit"}]}],"PreToolUse":[{"matcher":"Bash|apply_patch|exec_command|functions\\.exec","hooks":[{"command":"legion-hook --host codex --event PreToolUse"}]}],"PostToolUse":[{"matcher":"Bash|apply_patch|exec_command|functions\\.exec","hooks":[{"command":"legion-hook --host codex --event PostToolUse"}]}],"Stop":[{"hooks":[{"command":"legion-hook --host codex --event Stop"}]}]}}"#,
         )
         .unwrap();
         std::fs::write(
@@ -589,15 +592,15 @@ mod tests {
         assert_eq!(source["trustState"], "not-recorded");
         assert_eq!(
             row["enforcement"]["supportedEvents"],
-            json!(["UserPromptSubmit", "Stop"])
+            json!(["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"])
         );
         assert_eq!(
             row["enforcement"]["projectedEvents"],
-            json!(["Stop", "UserPromptSubmit"])
+            json!(["PostToolUse", "PreToolUse", "Stop", "UserPromptSubmit"])
         );
         assert_eq!(
             row["enforcement"]["preEffectInterception"]["supported"],
-            false
+            true
         );
         assert_eq!(
             row["enforcement"]["activeRoleAuthentication"],
@@ -658,7 +661,7 @@ mod tests {
                 host["enforcement"]["preEffectInterception"]["observed"],
                 "unknown"
             );
-            if host["host"] == "claude-code" {
+            if host["host"] == "claude-code" || host["host"] == "codex" {
                 assert_eq!(
                     host["enforcement"]["preEffectInterception"]["supported"],
                     true

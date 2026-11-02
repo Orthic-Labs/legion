@@ -1,6 +1,6 @@
 ---
 name: qa
-description: "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks."
+description: "Write tests only for native, backend, or web behavior, or add, run, or audit web app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks. Desktop and Tauri app QA runs through RightKit QA on the real installed build."
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -70,7 +70,10 @@ evaluation coverage.
        - source-read
        - artifact-write
 
-Read `references/manual.md` for harness, rendered browser acceptance, native, or Tauri QA.
+Desktop and Tauri app QA runs headless and agent-driven through RightKit QA against the real installed build, with `kind = "functional"` or `kind = "visual"` scenarios. A dev server, a `?qa=1` route, a localhost URL, or a browser mock is never proof of a desktop or Tauri app, and the loopback runners in step 3 do not apply to it.
+
+Read `references/manual.md` for the web harness, rendered browser acceptance, or native checks. Desktop and Tauri QA follow the rule above, not the web harness.
+
 For an existing coverage, duplication or mutation report, use `references/quality-observations.md`
 and `legion quality summarize --input normalized.json --report original.json`. This interprets
 imported evidence without executing tools or turning unavailable measurements into passing scores.

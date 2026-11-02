@@ -210,14 +210,33 @@ fn codex_installed_plugin(mut manifest: Value, release_version: &str) -> Value {
     manifest
 }
 
-/// Codex has a distinct hook wire protocol and only the two lifecycle events
-/// below have a matching `legion-hook --host codex` adapter today.
+/// Tools Legion's Guard gates in Codex. Codex reports shell commands and
+/// unified exec as `Bash` and `apply_patch` under its own name; `exec_command`
+/// and `functions.exec` match builds that report the raw tool name. MCP tools
+/// stay out: Guard confirmation requests become denials in Codex, which has no
+/// ask outcome, and Codex has its own MCP approvals. Codex has no
+/// `PostToolUseFailure` event and does not hook hosted tools such as web search.
+const CODEX_TOOL_MATCHER: &str = "Bash|apply_patch|exec_command|functions\\.exec";
+
+/// Codex has a distinct hook wire protocol; every event below has a matching
+/// `legion-hook --host codex --event <name>` adapter. Keep in lockstep with the
+/// validator in `engine/bins/legion/src/cli.rs` (`expected_hooks`).
 fn codex_hook_projection() -> Value {
     json!({
         "hooks": {
             "UserPromptSubmit": [{ "hooks": [{
                 "type": "command",
                 "command": "legion-hook --host codex --event UserPromptSubmit",
+                "timeout": 10
+            }]}],
+            "PreToolUse": [{ "matcher": CODEX_TOOL_MATCHER, "hooks": [{
+                "type": "command",
+                "command": "legion-hook --host codex --event PreToolUse",
+                "timeout": 10
+            }]}],
+            "PostToolUse": [{ "matcher": CODEX_TOOL_MATCHER, "hooks": [{
+                "type": "command",
+                "command": "legion-hook --host codex --event PostToolUse",
                 "timeout": 10
             }]}],
             "Stop": [{ "hooks": [{
@@ -1033,21 +1052,37 @@ mod tests {
     fn codex_hook_projection_selects_only_supported_host_transport_events() {
         let hooks = codex_hook_projection();
         assert_eq!(hooks.as_object().unwrap().len(), 1);
-        let events = hooks["hooks"]
+        let mut events = hooks["hooks"]
             .as_object()
             .unwrap()
             .keys()
             .cloned()
             .collect::<Vec<_>>();
-        assert_eq!(events.len(), 2);
-        assert!(events.contains(&"Stop".to_string()));
-        assert!(events.contains(&"UserPromptSubmit".to_string()));
+        events.sort();
+        assert_eq!(
+            events,
+            ["PostToolUse", "PreToolUse", "Stop", "UserPromptSubmit"]
+        );
         for event in events {
             assert_eq!(
                 hooks["hooks"][&event][0]["hooks"][0]["command"],
                 format!("legion-hook --host codex --event {event}")
             );
+            let tool_event = matches!(event.as_str(), "PreToolUse" | "PostToolUse");
+            assert_eq!(
+                hooks["hooks"][&event][0].get("matcher").is_some(),
+                tool_event,
+                "{event}"
+            );
         }
+        assert_eq!(
+            hooks["hooks"]["PreToolUse"][0]["matcher"],
+            "Bash|apply_patch|exec_command|functions\\.exec"
+        );
+        assert_eq!(
+            hooks["hooks"]["PostToolUse"][0]["matcher"],
+            hooks["hooks"]["PreToolUse"][0]["matcher"]
+        );
     }
 
     #[test]

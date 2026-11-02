@@ -71,15 +71,15 @@ name the owner for each capability, integrate owners, and design only the gaps. 
 into the tasklist's RightKit Capabilities block. If the host
 declares no index, say so and proceed. Detail: `doctrine/architecture/workflow/01-frame.md`.
 
-## Prior art
+## Prior art (mandatory before any design or build plan)
 
-Before a design, bakeoff, export, or runtime change, name the open-source projects that already
-solve or attempt the same problem. For each, state its runtime, format, adoption numbers (dated),
-and licence, then either reuse it or state the reason not to. Record this under a mandatory
-"Prior art" section of the output. Run it as the second question after `rustright owns`. Research
-performs the lookup from fetched sources; Architect owns the reuse decision. A design without a
-Prior art record is incomplete; "none found" must name the searches run. Detail:
-`doctrine/architecture/workflow/01-frame.md`.
+Before any design, build plan, bakeoff, export, or runtime change, search open-source projects for
+prior art that already solves or attempts the same problem. For each project, give its link and state
+its runtime, format, adoption numbers (dated), and licence. Then either reuse it or state the reason
+not to. Record all of it under a mandatory "Prior art" section of the output. Run this as the second
+question after `rustright owns`. Research performs the lookup from fetched sources; Architect owns the
+reuse decision. A design without a Prior art record is incomplete. "None found" must name the searches
+run and the sources checked, with links. Detail: `doctrine/architecture/workflow/01-frame.md`.
 
 ## Current-state entrypoint
 

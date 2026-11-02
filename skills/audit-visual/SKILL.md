@@ -47,9 +47,13 @@ TERMINAL: visual.core reconciles its frozen matrix or reports typed UNPROVEN cov
    optional `blueprint-grounding` method in [route resources](references/route-resources.json).
 2. Use an explicit visual specification when comparing against baselines or asserting richer matrix
    dimensions; never invent evidence.
-3. Capture specified states through host browser tools, following `references/visual-qa-capture.md`.
+3. Capture specified web states through host browser tools, following `references/visual-qa-capture.md`.
    Run every capture as a `kind = "visual"` scenario (rightkit-qa 0.5.0 or later); functional checks
-   without screenshots belong to the `qa` skill.
+   without screenshots belong to the `qa` skill. Desktop, Tauri, and other native apps capture only
+   through RightKit QA against the real installed build, as `kind = "visual"` scenarios. Never start a
+   dev server, open a `?qa=1` route, capture a browser mock, or pass `--url` to a dev server for them.
+   The browser-capture steps in `references/visual-qa-capture.md` do not apply to them. A web product may
+   keep browser capture, recorded as `web` evidence only.
    When runtime & visual providers are both selected with `--url` and no explicit spec, the frozen plan
    orders runtime before visual & binds resulting PNGs as supplemental captures. They have no inferred
    baselines and remain review-required. Otherwise record unavailable captures as `UNPROVEN`.
