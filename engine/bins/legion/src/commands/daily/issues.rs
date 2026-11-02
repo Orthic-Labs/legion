@@ -1,1050 +1,404 @@
-//! Issue upsert for `legion daily`. Matching is by the `Fingerprint:
-//! <bucket>/<cause>` line in an issue body, never by title or by search, so a
-//! recurring failure finds its issue and never opens a second one. The plan is
-//! pure (it takes the issues already listed and the ledger) and the executor is
-//! thin; nothing is written without `--apply`.
-use super::{
-    buckets, clock,
-    ledger::{IssueNote, Ledger},
-    proc,
-    receipts::Flag,
-    text::clip,
-    transcripts::Failure,
-};
+//! The ledger (`~/.legion/daily/ledger.json`) and the GitHub side: match an open issue by its
+//! `Fingerprint:` line, comment with new occurrences, reopen a closed one that recurred, and
+//! create only for a fingerprint seen on 2 or more distinct days at least 12 hours apart.
+use super::{exec, time};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::RangeBounds, process::Command};
 
-pub const LEGION_REPO: &str = "Orthic-Labs/legion";
-/// A broad cause (keyword fallback, red builds) needs this many occurrences in
-/// the scan before it may open an issue, on top of repeating on two days.
-pub const CATCH_ALL_MIN_TODAY: usize = 3;
-/// Two dates only count as a recurrence when the first and last occurrence are
-/// at least this far apart, so one sitting across UTC midnight is not "two days".
-pub const MIN_SPAN_SECONDS: i64 = 12 * 3600;
-const LIST_LIMIT: &str = "1000";
-const OCCURRENCE_LINES: usize = 3;
+pub const LEGION: &str = "Orthic-Labs/legion";
+pub const MAX_CREATES: usize = 5;
 
-/// An issue read from GitHub that carries a fingerprint line.
-#[derive(Clone, Debug)]
+/// One run's counts per fingerprint: (events, first event, last event).
+type Run = BTreeMap<String, (u64, i64, i64)>;
+
+/// What each daily run saw (the day counts), the issue each fingerprint owns, and the end of
+/// the last saved run (events after it are new).
+#[derive(Default, Serialize, Deserialize)]
+pub struct Ledger {
+    pub runs: BTreeMap<String, Run>,
+    pub issues: BTreeMap<String, u64>,
+    pub last: i64,
+}
+
+impl Ledger {
+    fn hits<'a>(&'a self, fp: &'a str) -> impl Iterator<Item = &'a (u64, i64, i64)> {
+        self.runs.values().filter_map(move |run| run.get(fp))
+    }
+
+    /// Events of `fp` over all runs except the run dated `except`.
+    pub fn total(&self, fp: &str, except: &str) -> u64 {
+        let runs = self.runs.iter().filter(|(date, _)| date.as_str() != except);
+        runs.map(|(_, run)| run.get(fp).map_or(0, |hit| hit.0))
+            .sum()
+    }
+
+    pub fn days(&self, fp: &str) -> usize {
+        self.hits(fp).count()
+    }
+
+    /// Seen on 2 or more distinct days at least 12 hours apart.
+    pub fn qualifies(&self, fp: &str) -> bool {
+        let (last, first) = (
+            self.hits(fp).map(|hit| hit.2).max(),
+            self.hits(fp).map(|hit| hit.1).min(),
+        );
+        self.days(fp) >= 2
+            && last
+                .zip(first)
+                .is_some_and(|(last, first)| last - first >= 12 * 3600)
+    }
+
+    /// Save this run under its date (a same-day run replaces it) and prune old runs. A run
+    /// that missed a host is not saved as a day, so it can never show a false "no recurrence".
+    pub fn record(&mut self, date: &str, groups: &[Group], until: i64, complete: bool) {
+        self.last = until;
+        if complete {
+            let mut run = Run::new();
+            for g in groups.iter().filter(|g| !g.lines.is_empty()) {
+                let (first, last) = (g.lines[0].epoch, g.lines[g.lines.len() - 1].epoch);
+                run.insert(g.fp.clone(), (g.lines.len() as u64, first, last));
+            }
+            self.runs.insert(date.to_owned(), run);
+            let cutoff = time::date(until - 120 * time::DAY);
+            self.runs.retain(|run_date, _| *run_date >= cutoff);
+        }
+    }
+
+    /// The bucket's mean events per run over the runs dated in `dates`, and how many runs.
+    pub fn rate(&self, bucket: &str, dates: impl RangeBounds<String>) -> Option<(f64, usize)> {
+        let prefix = format!("{bucket}/");
+        let runs: Vec<&Run> = self.runs.range(dates).map(|(_, run)| run).collect();
+        let mut total = 0;
+        for run in &runs {
+            let hits = run.iter().filter(|(fp, _)| fp.starts_with(&prefix));
+            total += hits.map(|(_, hit)| hit.0).sum::<u64>();
+        }
+        (!runs.is_empty()).then(|| (total as f64 / runs.len() as f64, runs.len()))
+    }
+}
+
 pub struct Known {
-    pub repo: String,
     pub number: u64,
-    pub body: String,
     pub open: bool,
     pub closed_at: Option<i64>,
 }
 
-/// The `Fingerprint: <bucket>/<cause>` value in an issue body, if any.
-pub fn fingerprint_of(body: &str) -> Option<String> {
-    for line in body.lines() {
-        let trimmed = line
-            .trim()
-            .trim_start_matches(|character: char| matches!(character, '-' | '*' | '>' | ' '));
-        let Some(rest) = trimmed.strip_prefix("Fingerprint:") else {
-            continue;
-        };
-        let value = rest.trim().trim_matches(|character: char| {
-            character == '`' || character == '*' || character.is_whitespace()
-        });
-        if !value.is_empty() && value.contains('/') && !value.contains(char::is_whitespace) {
-            return Some(value.to_owned());
-        }
-    }
-    None
+/// Runs `gh` with the arguments, or in a dry run does nothing.
+pub type Gh<'a> = &'a mut dyn FnMut(&[&str]) -> Result<String, String>;
+
+pub fn gh(args: &[&str]) -> Result<String, String> {
+    exec(Command::new("gh").args(args).env("GH_PROMPT_DISABLED", "1"))
 }
 
-/// A fingerprint that was seen in the scan, ready to be matched to an issue.
-#[derive(Clone, Debug)]
-pub struct Candidate {
-    pub fingerprint: String,
-    pub repo: &'static str,
-    pub title: String,
-    pub summary: String,
-    pub origin: String,
-    /// Dates (ascending) the ledger holds this fingerprint, today included.
-    pub dates: Vec<String>,
-    /// Seconds from the earliest to the latest occurrence the ledger holds.
-    pub span_seconds: i64,
-    /// Whether a new issue may be opened for it. A fingerprint that names no
-    /// diagnosable cause (nothing matched, or a plain red build) is counted in
-    /// the digest and only ever commented on if an issue already exists.
-    pub files_issues: bool,
-    /// Occurrences in this scan.
-    pub today_count: usize,
-    /// Time of the earliest occurrence in this scan.
-    pub first_epoch: i64,
-    /// Time of the latest occurrence in this scan.
-    pub last_epoch: i64,
-    pub catch_all: bool,
-    pub hosts: Vec<String>,
-    pub lines: Vec<String>,
-}
-
-fn host_list(hosts: &[String]) -> String {
-    hosts.join(", ")
-}
-
-impl Candidate {
-    /// Held by the ledger on a date before this scan's first occurrence.
-    pub fn is_recurring(&self) -> bool {
-        self.dates
-            .first()
-            .is_some_and(|first| first.as_str() < clock::date_of(self.first_epoch).as_str())
-    }
-}
-
-/// Causes that carry no diagnosis: the keyword map found nothing, or it is a
-/// plain red build, which is a normal part of development.
-fn files_issues(cause: &str) -> bool {
-    cause != "unclassified" && !cause.ends_with("-red")
-}
-
-/// One candidate per failure fingerprint in this scan.
-pub fn candidates_from_failures(failures: &[Failure], ledger: &Ledger) -> Vec<Candidate> {
-    let mut groups: BTreeMap<String, Vec<&Failure>> = BTreeMap::new();
-    for failure in failures {
-        groups
-            .entry(failure.fingerprint())
-            .or_default()
-            .push(failure);
-    }
-    let mut out = Vec::new();
-    for (fingerprint, mut group) in groups {
-        group.sort_by(|left, right| right.epoch.cmp(&left.epoch));
-        let Some(first) = group.first() else {
-            continue;
-        };
-        let label = buckets::cause_label(&first.cause);
-        let mut hosts: Vec<String> = group.iter().map(|failure| failure.host.clone()).collect();
-        hosts.sort();
-        hosts.dedup();
-        let lines = group
-            .iter()
-            .take(OCCURRENCE_LINES)
-            .map(|failure| {
-                format!(
-                    "- {} {} {} session {}: \"{}\"",
-                    clock::date_of(failure.epoch),
-                    clock::clock_of(failure.epoch),
-                    failure.host,
-                    clip(&failure.session, 8),
-                    failure.quote
-                )
-            })
-            .collect();
-        out.push(Candidate {
-            dates: ledger.dates_for(&fingerprint),
-            span_seconds: ledger.span_seconds(&fingerprint),
-            files_issues: files_issues(&first.cause),
-            fingerprint,
-            repo: LEGION_REPO,
-            title: clip(
-                &format!("Daily: {} {} (recurring)", first.bucket, label),
-                120,
-            ),
-            summary: format!("The daily scan keeps finding this failure: {label}."),
-            origin: format!("{} {}", first.bucket, buckets::bucket_name(first.bucket)),
-            today_count: group.len(),
-            first_epoch: group.last().map_or(first.epoch, |failure| failure.epoch),
-            last_epoch: first.epoch,
-            catch_all: group.iter().all(|failure| failure.catch_all),
-            hosts,
-            lines,
-        });
-    }
-    out
-}
-
-/// One candidate per warmth flag.
-pub fn candidates_from_flags(
-    flags: &[Flag],
-    ledger: &Ledger,
-    today: &str,
-    now: i64,
-) -> Vec<Candidate> {
-    flags
-        .iter()
-        .map(|flag| {
-            let fingerprint = flag.fingerprint();
-            Candidate {
-                dates: ledger.dates_for(&fingerprint),
-                span_seconds: ledger.span_seconds(&fingerprint),
-                files_issues: true,
-                repo: flag.owner,
-                title: clip(
-                    &format!(
-                        "Broker warmth ({}, {}): {}",
-                        flag.host, flag.repo, flag.label
-                    ),
-                    120,
-                ),
-                summary: format!(
-                    "{} on {} for {}: {}.",
-                    flag.label, flag.host, flag.repo, flag.detail
-                ),
-                origin: "Broker warmth, read from the broker receipts (Orthic-Labs/legion#138)"
-                    .to_owned(),
-                today_count: 1,
-                first_epoch: now,
-                last_epoch: now,
-                catch_all: false,
-                hosts: vec![flag.host.clone()],
-                lines: vec![format!(
-                    "- {today} {} {}: {}",
-                    flag.host, flag.repo, flag.detail
-                )],
-                fingerprint,
-            }
-        })
-        .collect()
-}
-
-/// What the run will do for one fingerprint.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Action {
-    Create {
-        repo: String,
-        fingerprint: String,
-        title: String,
-        body: String,
-    },
-    Comment {
-        repo: String,
-        number: u64,
-        fingerprint: String,
-        body: String,
-    },
-    Reopen {
-        repo: String,
-        number: u64,
-        fingerprint: String,
-        body: String,
-    },
-    Skip {
-        fingerprint: String,
-        reason: String,
-    },
-}
-
-impl Action {
-    pub fn fingerprint(&self) -> &str {
-        match self {
-            Action::Create { fingerprint, .. }
-            | Action::Comment { fingerprint, .. }
-            | Action::Reopen { fingerprint, .. }
-            | Action::Skip { fingerprint, .. } => fingerprint,
-        }
-    }
-
-    pub fn verb(&self) -> &'static str {
-        match self {
-            Action::Create { .. } => "create",
-            Action::Comment { .. } => "comment",
-            Action::Reopen { .. } => "reopen",
-            Action::Skip { .. } => "skip",
-        }
-    }
-
-    /// One line for the digest and the console.
-    pub fn describe(&self) -> String {
-        match self {
-            Action::Create {
-                repo,
-                title,
-                fingerprint,
-                ..
-            } => {
-                format!("create in {repo}: {title} [{fingerprint}]")
-            }
-            Action::Comment {
-                repo,
-                number,
-                fingerprint,
-                ..
-            } => {
-                format!("comment on {repo}#{number} [{fingerprint}]")
-            }
-            Action::Reopen {
-                repo,
-                number,
-                fingerprint,
-                ..
-            } => {
-                format!("reopen {repo}#{number}, fix did not work [{fingerprint}]")
-            }
-            Action::Skip {
-                fingerprint,
-                reason,
-            } => format!("skip [{fingerprint}]: {reason}"),
-        }
-    }
-}
-
-pub struct PlanOptions {
-    pub min_days: usize,
-    pub max_new: usize,
-    pub today: String,
-    /// Repositories whose issues could not be listed: nothing is filed there.
-    pub unavailable: Vec<String>,
-}
-
-enum Existing<'a> {
-    Open(&'a Known),
-    Closed(&'a Known),
-    /// The ledger names an issue that is not in the listing.
-    Unresolved(u64),
-    Missing,
-}
-
-fn same(known: &Known, candidate: &Candidate) -> bool {
-    known.repo == candidate.repo
-        && fingerprint_of(&known.body).as_deref() == Some(candidate.fingerprint.as_str())
-}
-
-fn find_existing<'a>(candidate: &Candidate, known: &'a [Known], ledger: &Ledger) -> Existing<'a> {
-    let open = known
-        .iter()
-        .filter(|issue| issue.open && same(issue, candidate))
-        .min_by_key(|issue| issue.number);
-    if let Some(issue) = open {
-        return Existing::Open(issue);
-    }
-    let closed = known
-        .iter()
-        .filter(|issue| !issue.open && same(issue, candidate))
-        .max_by_key(|issue| issue.closed_at.unwrap_or(0));
-    if let Some(issue) = closed {
-        return Existing::Closed(issue);
-    }
-    if let Some(note) = ledger.issues.get(&candidate.fingerprint) {
-        let listed = known
-            .iter()
-            .find(|issue| issue.repo == note.repo && issue.number == note.number);
-        return match listed {
-            Some(issue) if issue.open => Existing::Open(issue),
-            Some(issue) => Existing::Closed(issue),
-            None => Existing::Unresolved(note.number),
-        };
-    }
-    Existing::Missing
-}
-
-/// Ledger-named issues that the listing did not return; the caller fetches
-/// each so a recurrence still finds its issue.
-pub fn unlisted_ledger_issues(
-    candidates: &[Candidate],
-    known: &[Known],
-    ledger: &Ledger,
-) -> Vec<(String, u64)> {
-    let mut out: Vec<(String, u64)> = Vec::new();
-    for candidate in candidates {
-        if let Existing::Unresolved(number) = find_existing(candidate, known, ledger) {
-            if number > 0 {
-                if let Some(note) = ledger.issues.get(&candidate.fingerprint) {
-                    out.push((note.repo.clone(), number));
-                }
-            }
-        }
-    }
-    out.sort();
-    out.dedup();
-    out
-}
-
-fn skip(fingerprint: &str, reason: impl Into<String>) -> Action {
-    Action::Skip {
-        fingerprint: fingerprint.to_owned(),
-        reason: reason.into(),
-    }
-}
-
-fn occurrence_text(candidate: &Candidate) -> String {
-    format!(
-        "{} occurrence(s) in the latest scan (hosts: {}).\n{}",
-        candidate.today_count,
-        host_list(&candidate.hosts),
-        candidate.lines.join("\n")
-    )
-}
-
-pub fn create_body(candidate: &Candidate) -> String {
-    format!(
-        "{summary}\n\n\
-         Fingerprint: {fp}\n\
-         Checked: none found (search \"Fingerprint: {fp}\")\n\
-         Source: {origin}\n\
-         Seen on: {dates}\n\n\
-         Latest occurrences:\n{occurrences}\n\n\
-         Filed by `legion daily` (the M9 daily closed loop, Orthic-Labs/legion#138). \
-         The job matches on the Fingerprint line: it comments here while the issue is open, \
-         reopens it as \"fix did not work\" if the fingerprint recurs after it closes, and \
-         files nothing new for it.",
-        summary = candidate.summary,
-        fp = candidate.fingerprint,
-        origin = candidate.origin,
-        dates = candidate.dates.join(", "),
-        occurrences = occurrence_text(candidate),
-    )
-}
-
-pub fn comment_body(candidate: &Candidate, today: &str) -> String {
-    format!(
-        "Daily scan {today}: `{}` again. Seen on {} day(s).\n{}",
-        candidate.fingerprint,
-        candidate.dates.len(),
-        occurrence_text(candidate)
-    )
-}
-
-pub fn reopen_body(candidate: &Candidate, closed_at: i64, today: &str) -> String {
-    format!(
-        "Fix did not work: `{}` recurred after this issue closed on {}. Daily scan {today}.\n{}",
-        candidate.fingerprint,
-        clock::date_of(closed_at),
-        occurrence_text(candidate)
-    )
-}
-
-/// Decide what to do for each candidate. Never creates when the fingerprint
-/// already has an issue, open or closed, or when the ledger names one.
-pub fn plan(
-    candidates: &[Candidate],
-    known: &[Known],
-    ledger: &Ledger,
-    options: &PlanOptions,
-) -> Vec<Action> {
-    let mut actions: Vec<Action> = Vec::new();
-    let mut creates = 0usize;
-    for candidate in candidates {
-        let fingerprint = candidate.fingerprint.as_str();
-        if options
-            .unavailable
-            .iter()
-            .any(|repo| repo.as_str() == candidate.repo)
-        {
-            actions.push(skip(
-                fingerprint,
-                format!(
-                    "issues in {} could not be listed; nothing filed",
-                    candidate.repo
-                ),
-            ));
-            continue;
-        }
-        let note = ledger.issues.get(fingerprint);
-        match find_existing(candidate, known, ledger) {
-            Existing::Open(issue) => {
-                let commented = note
-                    .is_some_and(|entry| entry.commented.iter().any(|date| date == &options.today));
-                if commented {
-                    actions.push(skip(
-                        fingerprint,
-                        format!("already commented on #{} today", issue.number),
-                    ));
-                } else {
-                    actions.push(Action::Comment {
-                        repo: issue.repo.clone(),
-                        number: issue.number,
-                        fingerprint: candidate.fingerprint.clone(),
-                        body: comment_body(candidate, &options.today),
-                    });
-                }
-            }
-            Existing::Closed(issue) => {
-                let closed_at = issue.closed_at.unwrap_or(0);
-                let reopened = note
-                    .is_some_and(|entry| entry.reopened.iter().any(|date| date == &options.today));
-                if candidate.last_epoch <= closed_at {
-                    actions.push(skip(
-                        fingerprint,
-                        format!(
-                            "occurrences predate the close of #{} on {}; the fix was not in effect yet",
-                            issue.number,
-                            clock::date_of(closed_at)
-                        ),
-                    ));
-                } else if reopened {
-                    actions.push(skip(
-                        fingerprint,
-                        format!("#{} already reopened today", issue.number),
-                    ));
-                } else {
-                    actions.push(Action::Reopen {
-                        repo: issue.repo.clone(),
-                        number: issue.number,
-                        fingerprint: candidate.fingerprint.clone(),
-                        body: reopen_body(candidate, closed_at, &options.today),
-                    });
-                }
-            }
-            Existing::Unresolved(number) => {
-                actions.push(skip(
-                    fingerprint,
-                    format!("the ledger names #{number} but it could not be read; not filing a duplicate"),
-                ));
-            }
-            Existing::Missing => {
-                if !candidate.files_issues {
-                    actions.push(skip(
-                        fingerprint,
-                        "no diagnosable cause; counted in the digest, not filed",
-                    ));
-                } else if candidate.dates.len() < options.min_days {
-                    actions.push(skip(
-                        fingerprint,
-                        format!(
-                            "seen on {} day(s); an issue needs {}",
-                            candidate.dates.len(),
-                            options.min_days
-                        ),
-                    ));
-                } else if candidate.span_seconds < MIN_SPAN_SECONDS {
-                    actions.push(skip(
-                        fingerprint,
-                        format!(
-                            "the occurrences are {:.1} h apart; an issue needs {} h",
-                            candidate.span_seconds as f64 / 3600.0,
-                            MIN_SPAN_SECONDS / 3600
-                        ),
-                    ));
-                } else if candidate.catch_all && candidate.today_count < CATCH_ALL_MIN_TODAY {
-                    actions.push(skip(
-                        fingerprint,
-                        format!(
-                            "broad cause with {} occurrence(s) in the scan; an issue needs {}",
-                            candidate.today_count, CATCH_ALL_MIN_TODAY
-                        ),
-                    ));
-                } else if creates >= options.max_new {
-                    actions.push(skip(
-                        fingerprint,
-                        format!(
-                            "new-issue cap of {} reached; it files on a later run",
-                            options.max_new
-                        ),
-                    ));
-                } else {
-                    creates += 1;
-                    actions.push(Action::Create {
-                        repo: candidate.repo.to_owned(),
-                        fingerprint: candidate.fingerprint.clone(),
-                        title: candidate.title.clone(),
-                        body: create_body(candidate),
-                    });
-                }
-            }
-        }
-    }
-    actions
-}
-
-// ---------------------------------------------------------------------------
-// GitHub (`gh`)
-// ---------------------------------------------------------------------------
-
-fn gh(args: &[&str]) -> Result<String, String> {
-    let mut command = proc::command("gh");
-    command.args(args);
-    command.env("GH_PROMPT_DISABLED", "1");
-    let ran = proc::run(command)?;
-    if ran.ok {
-        Ok(ran.stdout)
-    } else {
-        Err(proc::failure_text(&ran))
-    }
-}
-
-fn known_from_json(repo: &str, item: &Value) -> Option<Known> {
-    let number = item.get("number").and_then(Value::as_u64)?;
-    let state = item.get("state").and_then(Value::as_str).unwrap_or("OPEN");
-    Some(Known {
-        repo: repo.to_owned(),
-        number,
-        body: item
-            .get("body")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_owned(),
-        open: state.eq_ignore_ascii_case("OPEN"),
-        closed_at: item
-            .get("closedAt")
-            .and_then(Value::as_str)
-            .and_then(clock::parse_rfc3339),
-    })
-}
-
-/// Every issue in `repo` (open and closed) whose body has a fingerprint line.
-pub fn list_known(repo: &str) -> Result<Vec<Known>, String> {
-    let output = gh(&[
-        "issue",
-        "list",
-        "-R",
-        repo,
-        "--state",
-        "all",
-        "--limit",
-        LIST_LIMIT,
-        "--json",
-        "number,title,body,state,closedAt",
+/// Every issue of `repo` (open and closed) with a `Fingerprint:` line; an open one wins, else
+/// the newest.
+pub fn list(repo: &str) -> Result<BTreeMap<String, Known>, String> {
+    let fields = "number,state,closedAt,body";
+    let out = gh(&[
+        "issue", "list", "-R", repo, "--state", "all", "--limit", "1000", "--json", fields,
     ])?;
-    let value: Value = serde_json::from_str(&output)
-        .map_err(|error| format!("gh issue list returned invalid JSON: {error}"))?;
-    let items = value
-        .as_array()
-        .ok_or_else(|| "gh issue list did not return an array".to_owned())?;
-    Ok(items
-        .iter()
-        .filter_map(|item| known_from_json(repo, item))
-        .filter(|known| fingerprint_of(&known.body).is_some())
-        .collect())
-}
-
-/// One issue by number (a ledger-named issue the listing missed).
-pub fn view_known(repo: &str, number: u64) -> Result<Known, String> {
-    let number_text = number.to_string();
-    let output = gh(&[
-        "issue",
-        "view",
-        number_text.as_str(),
-        "-R",
-        repo,
-        "--json",
-        "number,title,body,state,closedAt",
-    ])?;
-    let value: Value = serde_json::from_str(&output)
-        .map_err(|error| format!("gh issue view returned invalid JSON: {error}"))?;
-    known_from_json(repo, &value).ok_or_else(|| "gh issue view returned no number".to_owned())
-}
-
-fn number_from_url(output: &str) -> Option<u64> {
-    let line = output.lines().rev().find(|line| !line.trim().is_empty())?;
-    line.trim().rsplit('/').next()?.parse::<u64>().ok()
-}
-
-/// Run one action and record it in the ledger. Returns what happened.
-pub fn apply(action: &Action, ledger: &mut Ledger, today: &str) -> Result<String, String> {
-    match action {
-        Action::Skip { reason, .. } => Ok(format!("skipped: {reason}")),
-        Action::Create {
-            repo,
-            fingerprint,
-            title,
-            body,
-        } => {
-            let output = gh(&[
-                "issue",
-                "create",
-                "-R",
-                repo.as_str(),
-                "--title",
-                title.as_str(),
-                "--body",
-                body.as_str(),
-            ])?;
-            let number = number_from_url(&output);
-            // Record the issue even when its number cannot be read, so the next
-            // run finds a note and never files a duplicate.
-            ledger.issues.insert(
-                fingerprint.clone(),
-                IssueNote {
-                    repo: repo.clone(),
-                    number: number.unwrap_or(0),
-                    created: Some(today.to_owned()),
-                    commented: Vec::new(),
-                    reopened: Vec::new(),
+    let items: Vec<Value> =
+        serde_json::from_str(&out).map_err(|e| format!("gh list {repo}: {e}"))?;
+    let mut found: BTreeMap<String, Known> = BTreeMap::new();
+    for item in &items {
+        let body = item["body"].as_str().unwrap_or("");
+        let line = body
+            .lines()
+            .find_map(|l| l.trim().strip_prefix("Fingerprint:"));
+        let Some(line) = line else { continue };
+        let fp = line.trim().trim_matches('`').to_owned();
+        let number = item["number"].as_u64().unwrap_or(0);
+        let open = item["state"] == "OPEN";
+        let old = found.get(&fp).map_or((false, 0), |k| (k.open, k.number));
+        if (open, number) > old {
+            let closed_at = item["closedAt"].as_str().and_then(time::parse);
+            found.insert(
+                fp,
+                Known {
+                    number,
+                    open,
+                    closed_at,
                 },
             );
-            match number {
-                Some(number) => Ok(format!("created {repo}#{number}")),
-                None => Err(format!(
-                    "created an issue but could not read its number from: {}",
-                    clip(&output, 120)
-                )),
-            }
-        }
-        Action::Comment {
-            repo,
-            number,
-            fingerprint,
-            body,
-        } => {
-            let number_text = number.to_string();
-            gh(&[
-                "issue",
-                "comment",
-                number_text.as_str(),
-                "-R",
-                repo.as_str(),
-                "--body",
-                body.as_str(),
-            ])?;
-            let note = ledger
-                .issues
-                .entry(fingerprint.clone())
-                .or_insert_with(|| IssueNote {
-                    repo: repo.clone(),
-                    number: *number,
-                    ..IssueNote::default()
-                });
-            note.commented.push(today.to_owned());
-            Ok(format!("commented on {repo}#{number}"))
-        }
-        Action::Reopen {
-            repo,
-            number,
-            fingerprint,
-            body,
-        } => {
-            let number_text = number.to_string();
-            gh(&[
-                "issue",
-                "reopen",
-                number_text.as_str(),
-                "-R",
-                repo.as_str(),
-                "--comment",
-                body.as_str(),
-            ])?;
-            let note = ledger
-                .issues
-                .entry(fingerprint.clone())
-                .or_insert_with(|| IssueNote {
-                    repo: repo.clone(),
-                    number: *number,
-                    ..IssueNote::default()
-                });
-            note.reopened.push(today.to_owned());
-            Ok(format!("reopened {repo}#{number}"))
         }
     }
+    Ok(found)
+}
+
+/// Closed issues of `repo` with 7 or more saved runs since the day they closed and no
+/// recurrence in any, as `repo#number fingerprint`.
+pub fn fixed(repo: &str, known: &BTreeMap<String, Known>, ledger: &Ledger) -> Vec<String> {
+    let mut fixed = Vec::new();
+    for (fp, issue) in known.iter().filter(|(_, issue)| !issue.open) {
+        let Some(closed) = issue.closed_at else {
+            continue;
+        };
+        let after = ledger.runs.range(time::date(closed + time::DAY)..);
+        let runs: Vec<&Run> = after.map(|(_, run)| run).collect();
+        if runs.len() >= 7 && runs.iter().all(|run| !run.contains_key(fp)) {
+            fixed.push(format!("{repo}#{} {fp}", issue.number));
+        }
+    }
+    fixed
+}
+
+pub struct Line {
+    pub epoch: i64,
+    pub new: bool,
+    pub text: String,
+}
+
+/// One fingerprint seen in this scan, and the repository that owns it.
+pub struct Group {
+    pub fp: String,
+    pub repo: &'static str,
+    pub title: String,
+    pub lines: Vec<Line>,
+    /// Occurrences in earlier runs; 0 means a new failure.
+    pub before: u64,
+}
+
+impl Group {
+    pub fn new(
+        fp: &str,
+        repo: &'static str,
+        title: String,
+        lines: impl IntoIterator<Item = (i64, bool, String)>,
+        ledger: &Ledger,
+        today: &str,
+    ) -> Group {
+        let lines = lines
+            .into_iter()
+            .map(|(epoch, new, text)| Line { epoch, new, text });
+        Group {
+            fp: fp.to_owned(),
+            repo,
+            title,
+            lines: lines.collect(),
+            before: ledger.total(fp, today),
+        }
+    }
+
+    /// The count of lines after `after` (or the new ones when `None`), and the newest 8 of
+    /// them as bullets. Lines are in time order.
+    fn quoted(&self, after: Option<i64>) -> (usize, String) {
+        let keep = |line: &&Line| after.map_or(line.new, |at| line.epoch > at);
+        let kept: Vec<&Line> = self.lines.iter().rev().filter(keep).collect();
+        let mut bullets = String::new();
+        for line in kept.iter().take(8) {
+            bullets += &format!("- {}\n", line.text);
+        }
+        (kept.len(), bullets)
+    }
+}
+
+/// `summary`, or `FAILED <summary>: <error>`.
+fn outcome(summary: String, result: &Result<String, String>) -> String {
+    match result {
+        Ok(_) => summary,
+        Err(e) => format!("FAILED {summary}: {e}"),
+    }
+}
+
+/// Comment on an open issue with its new occurrences, or reopen a closed one that recurred.
+fn follow_up(g: &Group, issue: &Known, gh: Gh) -> Option<String> {
+    let (count, quoted) = g.quoted(if issue.open {
+        None
+    } else {
+        Some(issue.closed_at.unwrap_or(0))
+    });
+    let (verb, flag, what) = match issue.open {
+        true => ("comment", "--body", "new occurrence(s) of"),
+        false => ("reopen", "--comment", "fix did not work: recurrence(s) of"),
+    };
+    let (number, body) = (
+        issue.number.to_string(),
+        format!("Daily scan: {count} {what} {}\n\n{quoted}", g.fp),
+    );
+    let args: [&str; 7] = ["issue", verb, &number, "-R", g.repo, flag, &body];
+    (count > 0).then(|| outcome(format!("{verb} {}#{number} ({})", g.repo, g.fp), &gh(&args)))
+}
+
+/// File a new issue and note it in the ledger.
+fn create(g: &Group, ledger: &mut Ledger, gh: Gh) -> String {
+    let body = format!(
+        "{}\n\nFingerprint: {}\n\
+         Checked: scanned Mac and Dell transcripts and broker receipts; {} events on {} days, \
+         no open or closed issue carries this fingerprint.\n\n\
+         Occurrences in the last run (newest first):\n{}\n\nFiled by `legion daily`.",
+        g.title,
+        g.fp,
+        ledger.total(&g.fp, ""),
+        ledger.days(&g.fp),
+        g.quoted(Some(i64::MIN)).1,
+    );
+    let args: [&str; 8] = [
+        "issue", "create", "-R", g.repo, "--title", &g.title, "--body", &body,
+    ];
+    let made = gh(&args);
+    let url = made.as_ref().map_or("", |url| url.trim());
+    if let Some(number) = url.rsplit('/').next().and_then(|n| n.parse().ok()) {
+        ledger.issues.insert(g.fp.clone(), number);
+    }
+    outcome(format!("create {}: {}", g.repo, g.title), &made)
+}
+
+/// Do what GitHub needs, one line per action. `known` holds a repo only when its listing
+/// worked; a repo without one is never written to. `ledger` already holds this run. An
+/// unclassified fingerprint is too broad to file, and one the ledger already filed is not
+/// filed twice (a fresh issue may not be in the listing yet).
+pub fn sync(
+    groups: &[Group],
+    known: &BTreeMap<&str, BTreeMap<String, Known>>,
+    ledger: &mut Ledger,
+    gh: Gh,
+) -> Vec<String> {
+    let (mut done, mut creates) = (Vec::new(), 0);
+    let mut order: Vec<&Group> = groups.iter().collect();
+    order.sort_by_key(|group| std::cmp::Reverse(group.lines.len()));
+    for g in order {
+        let fp = &g.fp;
+        match known.get(g.repo).map(|issues| issues.get(fp)) {
+            Some(Some(issue)) => done.extend(follow_up(g, issue, gh)),
+            Some(None) if !ledger.issues.contains_key(fp) && ledger.qualifies(fp) => {
+                if creates < MAX_CREATES && !fp.ends_with("/unclassified") {
+                    creates += 1;
+                    done.push(create(g, ledger, gh));
+                }
+            }
+            _ => {}
+        }
+    }
+    done
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const TODAY: &str = "2026-11-02";
-    const NOW: i64 = 1_793_628_394;
+    const D: i64 = time::DAY;
+    const FP: &str = "B3/ci-as-compiler";
+    type Listing = BTreeMap<&'static str, BTreeMap<String, Known>>;
 
-    fn candidate(
-        fingerprint: &str,
-        dates: &[&str],
-        today_count: usize,
-        catch_all: bool,
-    ) -> Candidate {
-        Candidate {
-            fingerprint: fingerprint.to_owned(),
-            repo: LEGION_REPO,
-            title: "Daily: test".to_owned(),
-            summary: "summary".to_owned(),
-            origin: "B3 Builds and CI".to_owned(),
-            dates: dates.iter().map(|date| (*date).to_owned()).collect(),
-            span_seconds: 86_400,
-            files_issues: true,
-            today_count,
-            first_epoch: NOW,
-            last_epoch: NOW,
-            catch_all,
-            hosts: vec!["mac".to_owned()],
-            lines: vec!["- line".to_owned()],
-        }
+    fn group(fp: &str, lines: &[(i64, bool)]) -> Group {
+        let lines = lines
+            .iter()
+            .map(|&(epoch, new)| (epoch, new, format!("t{epoch}")));
+        Group::new(fp, LEGION, "t".into(), lines, &Ledger::default(), "")
     }
 
-    fn known(number: u64, fingerprint: &str, open: bool, closed_at: Option<i64>) -> Known {
+    /// Save a run for `day` holding `groups`, as a daily run would.
+    fn run_day(ledger: &mut Ledger, day: i64, groups: &[Group]) {
+        ledger.record(&time::date(day * D), groups, (day + 1) * D, true);
+    }
+
+    /// A ledger where `FP` was seen at each of `at`, one run a day from day 1.
+    fn saved(at: &[i64]) -> Ledger {
+        let mut ledger = Ledger::default();
+        for (day, at) in at.iter().enumerate() {
+            run_day(&mut ledger, day as i64 + 1, &[group(FP, &[(*at, true)])]);
+        }
+        ledger
+    }
+
+    /// Issue 9 for `FP`: open, or closed at the time given.
+    fn known(closed_at: Option<i64>) -> Known {
         Known {
-            repo: LEGION_REPO.to_owned(),
-            number,
-            body: format!("text\n\nFingerprint: {fingerprint}\nChecked: none found (search \"x\")"),
-            open,
+            number: 9,
+            open: closed_at.is_none(),
             closed_at,
         }
     }
 
-    fn options(max_new: usize) -> PlanOptions {
-        PlanOptions {
-            min_days: 2,
-            max_new,
-            today: TODAY.to_owned(),
-            unavailable: Vec::new(),
-        }
+    fn listing(issues: Vec<Known>) -> Listing {
+        BTreeMap::from([(
+            LEGION,
+            issues.into_iter().map(|k| (FP.to_owned(), k)).collect(),
+        )])
     }
 
-    #[test]
-    fn reads_the_fingerprint_line() {
-        assert_eq!(
-            fingerprint_of("a\nFingerprint: B3/ci-as-compiler\nb").as_deref(),
-            Some("B3/ci-as-compiler")
-        );
-        assert_eq!(
-            fingerprint_of("- **Fingerprint:** `x/y`").as_deref(),
-            Some("x/y")
-        );
-        assert_eq!(
-            fingerprint_of("Fingerprint: `warmth/disk-low-mac-host`").as_deref(),
-            Some("warmth/disk-low-mac-host")
-        );
-        assert_eq!(fingerprint_of("Fingerprint: two words/here"), None);
-        assert_eq!(fingerprint_of("no fingerprint"), None);
-    }
-
-    #[test]
-    fn a_first_day_failure_creates_nothing() {
-        let actions = plan(
-            &[candidate("B5/ignored-request", &["2026-11-02"], 4, false)],
-            &[],
-            &Ledger::default(),
-            &options(5),
-        );
-        assert_eq!(actions.len(), 1);
-        assert!(matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("1 day")));
-    }
-
-    #[test]
-    fn a_failure_on_two_days_creates_one_issue_with_a_checked_line() {
-        let actions = plan(
-            &[candidate(
-                "B1/ignored-stop",
-                &["2026-11-01", "2026-11-02"],
-                2,
-                false,
-            )],
-            &[],
-            &Ledger::default(),
-            &options(5),
-        );
-        assert_eq!(actions.len(), 1);
-        match &actions[0] {
-            Action::Create {
-                repo,
-                body,
-                title,
-                fingerprint,
-            } => {
-                assert_eq!(repo, LEGION_REPO);
-                assert_eq!(fingerprint, "B1/ignored-stop");
-                assert!(title.starts_with("Daily"));
-                assert!(body.contains("Fingerprint: B1/ignored-stop\n"));
-                assert!(
-                    body.contains("Checked: none found (search \"Fingerprint: B1/ignored-stop\")")
-                );
-            }
-            other => panic!("expected create, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn an_existing_open_issue_gets_one_comment_a_day_and_no_duplicate() {
-        let candidates = [candidate(
-            "B1/ignored-stop",
-            &["2026-11-01", "2026-11-02"],
-            2,
-            false,
-        )];
-        let listed = [known(41, "B1/ignored-stop", true, None)];
-        let actions = plan(&candidates, &listed, &Ledger::default(), &options(5));
-        assert!(matches!(&actions[0], Action::Comment { number: 41, .. }));
-
-        let mut ledger = Ledger::default();
-        ledger.issues.insert(
-            "B1/ignored-stop".to_owned(),
-            IssueNote {
-                repo: LEGION_REPO.to_owned(),
-                number: 41,
-                commented: vec![TODAY.to_owned()],
-                ..IssueNote::default()
-            },
-        );
-        let again = plan(&candidates, &listed, &ledger, &options(5));
-        assert!(
-            matches!(&again[0], Action::Skip { reason, .. } if reason.contains("already commented"))
-        );
-    }
-
-    #[test]
-    fn a_closed_issue_reopens_only_for_an_occurrence_after_the_close() {
-        let candidates = [candidate(
-            "B3/ci-as-compiler",
-            &["2026-10-30", "2026-11-02"],
-            2,
-            false,
-        )];
-        let closed_before = [known(9, "B3/ci-as-compiler", false, Some(NOW - 3600))];
-        let actions = plan(&candidates, &closed_before, &Ledger::default(), &options(5));
-        match &actions[0] {
-            Action::Reopen { number, body, .. } => {
-                assert_eq!(*number, 9);
-                assert!(body.starts_with("Fix did not work"));
-            }
-            other => panic!("expected reopen, got {other:?}"),
-        }
-        let closed_after = [known(9, "B3/ci-as-compiler", false, Some(NOW + 3600))];
-        let actions = plan(&candidates, &closed_after, &Ledger::default(), &options(5));
-        assert!(matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("predate")));
-    }
-
-    #[test]
-    fn broad_causes_need_volume_and_new_issues_are_capped() {
-        let broad = candidate("B5/ignored-request", &["2026-11-01", "2026-11-02"], 2, true);
-        let actions = plan(&[broad], &[], &Ledger::default(), &options(5));
-        assert!(
-            matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("broad cause"))
-        );
-
-        let many: Vec<Candidate> = (0..4)
-            .map(|index| {
-                candidate(
-                    &format!("B2/cause-{index}"),
-                    &["2026-11-01", "2026-11-02"],
-                    2,
-                    false,
-                )
-            })
-            .collect();
-        let actions = plan(&many, &[], &Ledger::default(), &options(2));
-        let creates = actions
-            .iter()
-            .filter(|action| action.verb() == "create")
-            .count();
-        let capped = actions
-            .iter()
-            .filter(
-                |action| matches!(action, Action::Skip { reason, .. } if reason.contains("cap")),
-            )
-            .count();
-        assert_eq!(creates, 2);
-        assert_eq!(capped, 2);
-    }
-
-    #[test]
-    fn a_ledger_issue_missing_from_the_listing_blocks_a_duplicate() {
-        let candidates = [candidate(
-            "B4/ungrounded-cause",
-            &["2026-11-01", "2026-11-02"],
-            2,
-            false,
-        )];
-        let mut ledger = Ledger::default();
-        ledger.issues.insert(
-            "B4/ungrounded-cause".to_owned(),
-            IssueNote {
-                repo: LEGION_REPO.to_owned(),
-                number: 77,
-                ..IssueNote::default()
-            },
-        );
-        let actions = plan(&candidates, &[], &ledger, &options(5));
-        assert!(matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("#77")));
-        assert_eq!(
-            unlisted_ledger_issues(&candidates, &[], &ledger),
-            vec![(LEGION_REPO.to_owned(), 77)]
-        );
-        // Once the issue is fetched, the plan comments on it instead.
-        let fetched = [Known {
-            repo: LEGION_REPO.to_owned(),
-            number: 77,
-            body: "no fingerprint line".to_owned(),
-            open: true,
-            closed_at: None,
-        }];
-        let actions = plan(&candidates, &fetched, &ledger, &options(5));
-        assert!(matches!(&actions[0], Action::Comment { number: 77, .. }));
-    }
-
-    #[test]
-    fn an_unlistable_repository_files_nothing() {
-        let mut opts = options(5);
-        opts.unavailable.push(LEGION_REPO.to_owned());
-        let actions = plan(
-            &[candidate(
-                "B1/ignored-stop",
-                &["2026-11-01", "2026-11-02"],
-                2,
-                false,
-            )],
-            &[],
-            &Ledger::default(),
-            &opts,
-        );
-        assert!(
-            matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("could not be listed"))
-        );
-    }
-
-    #[test]
-    fn undiagnosable_causes_are_counted_but_never_filed() {
-        assert!(!files_issues("unclassified"));
-        assert!(!files_issues("cargo-red"));
-        assert!(files_issues("ignored-stop"));
-        assert!(files_issues("hook-arc-self-schedule"));
-        let mut unfiled = candidate("B3/cargo-red", &["2026-11-01", "2026-11-02"], 9, true);
-        unfiled.files_issues = false;
-        let actions = plan(&[unfiled], &[], &Ledger::default(), &options(5));
-        assert!(matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("not filed")));
-        // An issue that already exists is still commented on.
-        let mut unfiled = candidate("B3/cargo-red", &["2026-11-01", "2026-11-02"], 9, true);
-        unfiled.files_issues = false;
-        let listed = [known(5, "B3/cargo-red", true, None)];
-        let actions = plan(&[unfiled], &listed, &Ledger::default(), &options(5));
-        assert!(matches!(&actions[0], Action::Comment { number: 5, .. }));
-    }
-
-    #[test]
-    fn two_dates_less_than_half_a_day_apart_do_not_open_an_issue() {
-        let mut close = candidate("B1/ignored-stop", &["2026-11-01", "2026-11-02"], 2, false);
-        close.span_seconds = 3600;
-        let actions = plan(&[close], &[], &Ledger::default(), &options(5));
-        assert!(matches!(&actions[0], Action::Skip { reason, .. } if reason.contains("apart")));
-    }
-
-    #[test]
-    fn a_candidate_recurs_when_the_ledger_holds_an_earlier_date() {
-        assert!(candidate("B1/x", &["2026-11-01", TODAY], 1, false).is_recurring());
-        assert!(!candidate("B1/x", &[TODAY], 1, false).is_recurring());
-        assert!(!candidate("B1/x", &[], 1, false).is_recurring());
-    }
-
-    #[test]
-    fn parses_issue_numbers_from_gh_output() {
-        assert_eq!(
-            number_from_url("https://github.com/Orthic-Labs/legion/issues/139\n"),
-            Some(139)
-        );
-        assert_eq!(
-            number_from_url("warning\nhttps://github.com/o/r/issues/7"),
-            Some(7)
-        );
-        assert_eq!(number_from_url("no url here"), None);
-        assert_eq!(number_from_url(""), None);
-    }
-
-    #[test]
-    fn builds_candidates_from_failures_with_ledger_dates() {
-        use crate::commands::daily::transcripts::Kind;
-        let failure = |id: &str, epoch: i64| Failure {
-            id: id.to_owned(),
-            host: "mac".to_owned(),
-            kind: Kind::Correction,
-            epoch,
-            session: "26440622-40ce".to_owned(),
-            project: "p".to_owned(),
-            quote: "stop doing that".to_owned(),
-            context: String::new(),
-            bucket: "B1",
-            cause: "ignored-stop".to_owned(),
-            catch_all: false,
+    /// Run `sync` with a `gh` that records its calls and answers with an issue URL.
+    fn run(groups: &[Group], known: &Listing, ledger: &mut Ledger) -> Vec<Vec<String>> {
+        let mut calls = Vec::new();
+        let mut gh = |args: &[&str]| {
+            calls.push(args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>());
+            Ok::<String, String>("https://github.com/Orthic-Labs/legion/issues/41\n".to_owned())
         };
-        let failures = vec![failure("a", NOW), failure("b", NOW - 60)];
+        sync(groups, known, ledger, &mut gh);
+        calls
+    }
+
+    #[test]
+    fn creation_needs_two_days_twelve_hours_apart_and_stops_at_five_a_run() {
+        let mut ledger = saved(&[D + 100, 2 * D + 100]);
+        assert!(ledger.qualifies(FP) && !saved(&[D + 86_000, 2 * D + 100]).qualifies(FP));
+        let today = [group(FP, &[(2 * D, true)])];
+        let calls = run(&today, &listing(vec![]), &mut ledger);
+        assert_eq!(&calls[0][..2], ["issue", "create"]);
+        let body = calls[0].last().unwrap();
+        assert!(body.contains("\nFingerprint: B3/ci-as-compiler\nChecked: "));
+        assert_eq!(ledger.issues[FP], 41);
+        let fps: Vec<String> = (0..8).map(|n| format!("B3/c{n}")).collect();
+        let groups =
+            |at: i64| -> Vec<Group> { fps.iter().map(|fp| group(fp, &[(at, true)])).collect() };
+        let mut many = Ledger::default();
+        run_day(&mut many, 1, &groups(D + 100));
+        run_day(&mut many, 2, &groups(2 * D + 100));
+        let created = run(&groups(2 * D + 100), &listing(vec![]), &mut many);
+        assert_eq!(created.len(), MAX_CREATES);
+    }
+
+    #[test]
+    fn an_open_issue_gets_a_comment_for_new_occurrences_and_a_recurred_closed_one_reopens() {
         let mut ledger = Ledger::default();
-        for item in &failures {
-            ledger.add_failure(item);
-        }
-        let found = candidates_from_failures(&failures, &ledger);
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].fingerprint, "B1/ignored-stop");
-        assert_eq!(found[0].today_count, 2);
-        assert_eq!(found[0].last_epoch, NOW);
-        assert_eq!(found[0].dates, vec![TODAY.to_owned()]);
-        assert!(found[0].title.contains("kept working after a stop"));
-        assert!(found[0].lines[0].contains("stop doing that"));
+        let (open, closed) = (listing(vec![known(None)]), |at| {
+            listing(vec![known(Some(at))])
+        });
+        let both = [group(FP, &[(100, false), (200, true)])];
+        let calls = run(&both, &open, &mut ledger);
+        let comment = calls[0].last().unwrap();
+        assert!(
+            calls[0][1..3] == ["comment", "9"]
+                && comment.contains("t200")
+                && !comment.contains("t100")
+        );
+        assert!(run(&[group(FP, &[(100, false)])], &open, &mut ledger).is_empty());
+        let calls = run(&both, &closed(150), &mut ledger);
+        assert!(calls[0][1] == "reopen" && calls[0].last().unwrap().contains("fix did not work"));
+        assert!(run(&both, &closed(300), &mut ledger).is_empty());
+    }
+
+    #[test]
+    fn nothing_is_filed_without_a_listing_or_when_the_ledger_already_knows_an_issue() {
+        let mut ledger = saved(&[D + 100, 2 * D + 100]);
+        let groups = [group(FP, &[(2 * D, true)])];
+        assert!(run(&groups, &BTreeMap::new(), &mut ledger).is_empty());
+        ledger.issues.insert(FP.into(), 3);
+        assert!(run(&groups, &listing(vec![]), &mut ledger).is_empty());
+    }
+
+    #[test]
+    fn rates_and_fixes_come_from_saved_runs() {
+        let mut ledger = saved(&[D + 5, 2 * D + 9, 3 * D + 1]);
+        let from = time::date(2 * D);
+        assert_eq!(
+            (ledger.rate("B3", from.clone()..), ledger.rate("B4", from..)),
+            (Some((1.0, 2)), Some((0.0, 2)))
+        );
+        let closed = Known {
+            number: 2,
+            open: false,
+            closed_at: Some(3 * D + 50),
+        };
+        let closed = BTreeMap::from([(FP.to_owned(), closed)]);
+        assert!(fixed(LEGION, &closed, &ledger).is_empty());
+        (4..11).for_each(|day| run_day(&mut ledger, day, &[]));
+        assert_eq!(
+            fixed(LEGION, &closed, &ledger),
+            [format!("{LEGION}#2 {FP}")]
+        );
+        run_day(&mut ledger, 11, &[group(FP, &[(11 * D, true)])]);
+        assert!(fixed(LEGION, &closed, &ledger).is_empty());
     }
 }

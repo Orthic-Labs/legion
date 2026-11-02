@@ -203,8 +203,8 @@ enum Command {
     Script(commands::script::ScriptArgs),
     /// Scan the last day of failures and broker warmth on both machines, file or update issues, and write the daily digest.
     ///
-    /// Usage: legion daily [--since 24h] [--dry-run | --apply] [--json]. Dry run is
-    /// the default; --apply writes issues and saves state. Never builds or changes
+    /// Usage: legion daily [--since 24h] [--apply] [--json] [--no-dell]. A dry run
+    /// unless --apply, which writes issues and saves state. Never builds or changes
     /// broker state.
     Daily(commands::daily::DailyArgs),
 }
