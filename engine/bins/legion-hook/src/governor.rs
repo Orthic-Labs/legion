@@ -1,4 +1,4 @@
-//! Progress governor: sleep waits, run polling, self-made schedules and the subagent cap.
+//! Progress governor: sleep waits, run polling, self-made schedules, the subagent cap and new chats.
 
 use std::fs;
 use std::path::Path;
@@ -13,6 +13,24 @@ use crate::transcript::genuine_user_turns;
 const MSG_SLEEP: &str = "Use one background wait (gh run watch <id> --exit-status, or the gate's own wait); no sleep polling.";
 const MSG_POLL: &str = "Status checks on this run are capped at three. Use one background wait (gh run watch <id> --exit-status), not repeated gh run view or gh run list.";
 const MSG_CRON: &str = "Adrian has not asked for a schedule, wake, loop or watchdog. Do the work now, or state the blocker once and stop.";
+const MSG_CHAT: &str = "Starting a new chat needs Adrian's express approval (workspace rules); use the existing chat or ask him.";
+/// Words that make a `claude` or `codex` command a one-shot or an introspection, not a chat.
+const NOT_A_CHAT: [&str; 7] = ["-p", "--print", "exec", "--version", "-v", "--help", "-h"];
+
+/// True when a command line starts `claude` or `codex` as an interactive chat.
+fn starts_chat(command: &str, depth: u8) -> bool {
+    crate::command_segments(command).iter().any(|segment| {
+        let stripped = crate::strip_command_prefixes(segment);
+        let inner = crate::unwrap_shell_command(stripped);
+        if depth < 2 && inner != stripped {
+            return starts_chat(inner, depth + 1);
+        }
+        let words = crate::shell_words(stripped);
+        let program = words.first().map(|word| crate::program_name(word));
+        matches!(program, Some("claude" | "codex"))
+            && !words.iter().any(|word| NOT_A_CHAT.contains(&word.as_str()))
+    })
+}
 
 /// Seconds of one `sleep` argument (`30`, `2m`, `1h`); unknown text counts as 0.
 fn seconds(arg: &str) -> f64 {
@@ -152,6 +170,9 @@ fn verdict(payload: &Payload, tool: &str, session: &str) -> Option<(&'static str
         if !off("sleep") && !background && sleep_secs(&command, 0) > 30.0 {
             return Some(("ARC_SLEEP_WAIT", MSG_SLEEP.to_owned()));
         }
+        if !off("new-chat") && starts_chat(&command, 0) {
+            return Some(("ARC_NO_NEW_CHAT", MSG_CHAT.to_owned()));
+        }
         let polled = !off("poll") && polled_too_often(&command, session);
         return polled.then(|| ("ARC_POLL_LIMIT", MSG_POLL.to_owned()));
     }
@@ -242,6 +263,41 @@ mod tests {
         assert!(asks_for_schedule("run it every morning"));
         assert!(asks_for_schedule("set up a Watchdog"));
         assert!(!asks_for_schedule("fix the build, everything is red"));
+    }
+
+    #[test]
+    fn only_an_interactive_claude_or_codex_is_a_new_chat() {
+        for chat in [
+            "claude",
+            "codex --model x",
+            "env A=1 /usr/bin/claude",
+            "bash -c 'claude'",
+        ] {
+            assert!(starts_chat(chat, 0), "{chat}");
+        }
+        for fine in [
+            "claude -p 'hi'",
+            "codex exec fix",
+            "claude --version",
+            "echo claude",
+            "grep codex x",
+        ] {
+            assert!(!starts_chat(fine, 0), "{fine}");
+        }
+    }
+
+    #[test]
+    fn the_terminal_tools_are_held_to_the_same_rule() {
+        for (tool, command, denied) in [
+            ("mcp__terminal__run_in_terminal", "claude", true),
+            ("mcp__terminal__open_terminal_tab", "codex --model x", true),
+            ("mcp__terminal__run_in_terminal", "claude -p hi", false),
+        ] {
+            let payload = serde_json::json!({ "tool_input": { "command": command } });
+            let payload = payload.as_object().unwrap();
+            let got = verdict(payload, tool, "s").map(|(code, _)| code);
+            assert_eq!(got == Some("ARC_NO_NEW_CHAT"), denied, "{tool} {command}");
+        }
     }
 
     #[test]

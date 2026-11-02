@@ -47,6 +47,7 @@ pub mod script;
 pub mod setup;
 pub mod skills;
 pub mod state;
+pub mod sweep;
 pub mod topology;
 pub mod verify;
 use legion_audit::InventorySource as _;

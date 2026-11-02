@@ -207,6 +207,11 @@ enum Command {
     /// unless --apply, which writes issues and saves state. Never builds or changes
     /// broker state.
     Daily(commands::daily::DailyArgs),
+    /// Find tool calls and processes that have run for hours and ask the chat that owns each to decide.
+    ///
+    /// Usage: legion sweep [--notify] [--json] [--install-schedule]. A dry run unless --notify,
+    /// which messages the owning chat through Pulse. Never kills or signals anything.
+    Sweep(commands::sweep::SweepArgs),
 }
 #[derive(Debug, clap::Args)]
 struct AuditCommandArgs {
@@ -1784,6 +1789,12 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
                 args.json = true;
             }
             commands::daily::run(args)
+        }
+        Command::Sweep(mut args) => {
+            if root_json {
+                args.json = true;
+            }
+            commands::sweep::run(args)
         }
     };
     result

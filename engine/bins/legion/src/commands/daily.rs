@@ -12,7 +12,7 @@ mod dell;
 mod digest;
 mod issues;
 mod scan;
-mod time;
+pub(super) mod time;
 mod warmth;
 
 use super::{CommandError, CommandResult};
