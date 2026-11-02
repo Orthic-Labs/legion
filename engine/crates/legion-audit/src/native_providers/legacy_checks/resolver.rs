@@ -1472,7 +1472,7 @@ mod test_command_resolution_tests {
         let root = fixture_root();
         fs::write(
             root.join("package.json"),
-            r#"{"packageManager":"pnpm@11.24.0","scripts":{"build":"build"}}"#,
+            r#"{"packageManager":"pnpm@12.16.1","scripts":{"build":"build"}}"#,
         )
         .unwrap();
         fs::create_dir_all(root.join("node_modules/.bin")).unwrap();

@@ -17,7 +17,9 @@ import time
 import urllib.request
 
 LOCK = "scripts/ci/audit-javascript-sdk-inputs.json"
-LOCK_SHA = "sha256:58ba385af748a5765ae510609ca4cd876aa97375875aabe4b5072c5a0f70d0dc"
+LOCK_SHA = "sha256:1248f59f972350199c3e0a1e32c221582d8179a8d3089345a8586817a92cfa8b"
+# pnpm 12 is a native binary; the macOS arm64 package is the only runner platform that qualifies.
+PNPM_NATIVE = "@pnpm/exe.darwin-arm64/pnpm"
 MAX_BYTES = 512 * 1024 * 1024
 MAX_NODES = 60000
 
@@ -77,11 +79,7 @@ def expected_tree(lock):
             target = location + "/" + relative
             require(target not in files, "overlapping package files")
             files[target] = descriptor
-    links = {
-        "node_modules/.bin/tsc": "../typescript/bin/tsc",
-        "node_modules/.bin/eslint": "../eslint/bin/eslint.js",
-        "node_modules/.bin/pnpm": "../pnpm/bin/pnpm.mjs",
-    }
+    links = expected_tree_links()
     directories = {"node_modules"}
     for name in set(files) | set(links):
         directories.update(str(parent) for parent in PurePosixPath(name).parents if str(parent) != ".")
@@ -125,7 +123,7 @@ def snapshot(root):
 def expected_tree_links():
     return {"node_modules/.bin/tsc": "../typescript/bin/tsc",
             "node_modules/.bin/eslint": "../eslint/bin/eslint.js",
-            "node_modules/.bin/pnpm": "../pnpm/bin/pnpm.mjs"}
+            "node_modules/.bin/pnpm": "../" + PNPM_NATIVE}
 
 
 def load_lock(repository_root):
@@ -133,7 +131,7 @@ def load_lock(repository_root):
     require(digest(data) == LOCK_SHA, "input lock digest differs")
     lock = strict_json(data)
     require(lock["schema"] == "legion-javascript-sdk-inputs/1", "input schema")
-    require(lock["roots"] == {"typescript": "5.9.3", "eslint": "9.39.1", "@typescript-eslint/parser": "8.46.2", "pnpm": "11.24.0", "@types/node": "22.19.0"}, "root tool pins differ")
+    require(lock["roots"] == {"typescript": "5.9.3", "eslint": "9.39.1", "@typescript-eslint/parser": "8.46.2", "@pnpm/exe.darwin-arm64": "12.16.1", "@types/node": "22.19.0"}, "root tool pins differ")
     return lock
 
 
@@ -155,7 +153,7 @@ def verify_enrollment(repository_root, enrollment, live=False):
                 and archive["bytes"] == package["bytes"], "official archive source differs")
     tool_root = Path(enrollment["toolRoot"])
     require(tool_root.is_absolute() and Path(node["path"]).is_absolute(), "runtime paths must be absolute")
-    for name, relative in {"tsc": "typescript/bin/tsc", "eslint": "eslint/bin/eslint.js", "pnpm": "pnpm/bin/pnpm.mjs"}.items():
+    for name, relative in {"tsc": "typescript/bin/tsc", "eslint": "eslint/bin/eslint.js", "pnpm": PNPM_NATIVE}.items():
         require(enrollment["tools"][name] == str(tool_root / "node_modules" / relative), "tool path differs")
     if live:
         require(tool_root.resolve(strict=True) == tool_root, "tool root alias")
@@ -249,7 +247,7 @@ def main():
               "node": {"path": str(node), "digest": node_digest, "pinnedVersion": lock["nodeVersion"]},
               "tools": {"tsc": str(output / "node_modules/typescript/bin/tsc"),
                         "eslint": str(output / "node_modules/eslint/bin/eslint.js"),
-                        "pnpm": str(output / "node_modules/pnpm/bin/pnpm.mjs")}}
+                        "pnpm": str(output / "node_modules" / PNPM_NATIVE)}}
     record["runtimeDigest"] = digest(encoded(record["runtime"]))
     verify_enrollment(repository, record, live=True)
     (output / "enrollment.json").write_bytes(encoded(record) + b"\n")

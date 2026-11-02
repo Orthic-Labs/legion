@@ -337,7 +337,12 @@ pub(super) fn snapshot(
             "pnpm@{}",
             manifest["version"].as_str().ok_or("pnpm-version-missing")?
         );
-        if manifest["name"] != "pnpm" || declared["packageManager"] != expected {
+        // pnpm 12 is a native binary: `.bin/pnpm` may resolve into its platform
+        // package (`@pnpm/exe.<platform>`) instead of the `pnpm` wrapper package.
+        let name = manifest["name"].as_str().unwrap_or("");
+        if !(name == "pnpm" || name.starts_with("@pnpm/exe."))
+            || declared["packageManager"] != expected
+        {
             return Err("pnpm-declared-version-mismatch".into());
         }
         if ["dependencies", "optionalDependencies"].iter().any(|key| {
@@ -590,7 +595,7 @@ fn output_root(ctx: &ToolContext<'_>) -> PathBuf {
     ctx.scratch.cache_dir().join("javascript-build")
 }
 
-// Pinned pnpm 11.24.0 single-script/inherit mode writes `$ <script>`
+// Pinned pnpm 12.16.1 single-script/inherit mode writes `$ <script>`
 // to stderr; stdout stays the actual native compiler/test protocol. Frozen
 // script bytes + exact native lifecycle spelling are both required.
 fn lifecycle<'a>(script: &str, text: &'a str, stderr: &[u8]) -> Result<Vec<&'a str>, String> {
@@ -845,7 +850,7 @@ pub(super) fn operation(
         .as_str()
         .ok_or("operation-script-missing")?;
     let text = std::str::from_utf8(bytes).map_err(|_| "operation-output-not-utf8")?;
-    if manifest["packageManager"] != "pnpm@11.24.0" {
+    if manifest["packageManager"] != "pnpm@12.16.1" {
         return Err("operation-manager-protocol-unsupported".into());
     }
     let lines = lifecycle(script, text, stderr)?;

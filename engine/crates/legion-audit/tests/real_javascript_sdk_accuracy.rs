@@ -31,6 +31,8 @@ const SOURCE: &str = "engine/crates/legion-audit/tests/real_javascript_sdk_accur
 const FIXTURES: &str = "scripts/ci/fixtures/audit-javascript-sdk";
 const POLICY: &str = "legion-real-javascript-sdk-fixture-v1";
 const JS: &str = "code.javascript";
+// pnpm 12 is a native binary; macOS arm64 is the only qualifying runner platform.
+const PNPM_NATIVE: &str = "@pnpm/exe.darwin-arm64/pnpm";
 const EXTENSIONS: [&str; 8] = ["js", "cjs", "mjs", "ts", "cts", "mts", "jsx", "tsx"];
 const CONTROLS: [&str; 24] = [
     "nonempty-clean",
@@ -475,7 +477,7 @@ fn copy_runtime(enrollment: &Value, root: &Path) {
     for (relative, descriptor) in enrollment["runtime"]["files"].as_object().unwrap() {
         let rel = Path::new(relative);
         assert!(!rel.is_absolute() && rel.components().all(|p| matches!(p, Component::Normal(_))));
-        let bytes = bounded(&source.join(rel), 32 * 1024 * 1024);
+        let bytes = bounded(&source.join(rel), 64 * 1024 * 1024);
         assert_eq!(digest(&bytes), descriptor["digest"]);
         assert_eq!(bytes.len(), descriptor["bytes"].as_u64().unwrap() as usize);
         let target = root.join(rel);
@@ -500,10 +502,10 @@ fn copy_runtime(enrollment: &Value, root: &Path) {
 }
 fn install_fixture_dependencies(enrollment: &Value, root: &Path, config_root: &Path) -> Value {
     let node = PathBuf::from(enrollment["node"]["path"].as_str().unwrap());
-    let pnpm = root.join("node_modules/pnpm/bin/pnpm.mjs");
+    let pnpm = root.join("node_modules").join(PNPM_NATIVE);
     assert!(
         pnpm.is_file(),
-        "pinned pnpm entrypoint is absent from enrolled runtime"
+        "pinned native pnpm binary is absent from enrolled runtime"
     );
     fs::create_dir_all(config_root.parent().unwrap()).unwrap();
     fs::create_dir(config_root).unwrap();
@@ -555,8 +557,7 @@ fn install_fixture_dependencies(enrollment: &Value, root: &Path, config_root: &P
         "NPM_CONFIG_WORKSPACE_DIR".into(),
         root.to_str().unwrap().into(),
     );
-    let output = Command::new(&node)
-        .arg(pnpm)
+    let output = Command::new(&pnpm)
         .args([
             "install",
             "--offline",
@@ -580,10 +581,10 @@ fn install_fixture_dependencies(enrollment: &Value, root: &Path, config_root: &P
     }
     json!({
         "schema": "legion-javascript-pnpm-install/1",
-        "argv": [node, root.join("node_modules/pnpm/bin/pnpm.mjs"), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--public-hoist-pattern=*"],
+        "argv": [pnpm, "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--public-hoist-pattern=*"],
         "cwd": root,
         "nodeDigest": enrollment["node"]["digest"],
-        "pnpmDigest": enrollment["runtime"]["files"]["node_modules/pnpm/bin/pnpm.mjs"]["digest"],
+        "pnpmDigest": enrollment["runtime"]["files"][format!("node_modules/{PNPM_NATIVE}")]["digest"],
         "environmentCleared": true,
         "environment": environment,
         "configInputsBefore": config_inputs,
@@ -1245,7 +1246,7 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
                     match task {
                         "type" => "Version 5.9.3",
                         "lint" => "v9.39.1",
-                        _ => "11.24.0",
+                        _ => "12.16.1",
                     }
                 );
             }

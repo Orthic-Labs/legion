@@ -16,6 +16,8 @@ import runpy
 HARNESS = "engine/crates/legion-audit/tests/real_javascript_sdk_accuracy.rs"
 HELPER = "scripts/ci/audit-javascript-sdk-bootstrap.py"
 INPUTS = "scripts/ci/audit-javascript-sdk-inputs.json"
+PNPM_PACKAGE = "@pnpm/exe.darwin-arm64"
+PNPM_NATIVE = PNPM_PACKAGE + "/pnpm"
 SELF = "scripts/ci/audit-javascript-sdk-accuracy.py"
 FIXTURES = "scripts/ci/fixtures/audit-javascript-sdk"
 POLICY = "legion-real-javascript-sdk-fixture-v1"
@@ -309,9 +311,6 @@ GENERATED_INSTALL_FILES = {
     "node_modules/.bin/acorn": "node_modules/acorn/bin/acorn",
     "node_modules/.bin/js-yaml": "node_modules/js-yaml/bin/js-yaml.js",
     "node_modules/.bin/node-which": "node_modules/which/bin/node-which",
-    "node_modules/.bin/pn": "node_modules/pnpm/bin/pnpm.mjs",
-    "node_modules/.bin/pnpx": "node_modules/pnpm/bin/pnpx.mjs",
-    "node_modules/.bin/pnx": "node_modules/pnpm/bin/pnpx.mjs",
     "node_modules/.bin/semver": "node_modules/semver/bin/semver.js",
     "node_modules/.bin/tsserver": "node_modules/typescript/bin/tsserver",
     "node_modules/.package-map.json": None,
@@ -319,8 +318,9 @@ GENERATED_INSTALL_FILES = {
 }
 
 
-# Exact static prefix from enrolled pnpm 11.24.0 / @zkochan/cmd-shim 9.0.7.
-# Archive SHA256: d1eab2433172661cc36a18ec85fce93f771db1962717329cc01ec9c2824ca24f.
+# NEEDS THE CI QUALIFICATION RUN: this prefix and body are the pnpm 11.24.0 / @zkochan/cmd-shim 9.0.7
+# shim bytes. pnpm 12.16.1 is a Rust build with its own shim template (its binary embeds a different
+# prefix), so the shim check below fails until it is re-pinned from the retained install receipt.
 PINNED_SHIM_PREFIX = '#!/bin/sh\n# Resolve $0 through symlinks so basedir is the shim\'s real directory.\n# Cap hops at the kernel\'s ELOOP limit so a cycle cannot hang the shim.\nlink="$0"\nhops=0\nwhile [ -L "$link" ] && [ "$hops" -lt 40 ]; do\n  hops=$((hops+1))\n  target=$(readlink "$link")\n  case "$target" in\n    /*) link="$target" ;;\n    *)  link="$(dirname "$link")/$target" ;;\n  esac\ndone\nbasedir=$(dirname "$(echo "$link" | sed -e \'s,\\\\,/,g\')")\nbasedir_win="$basedir"\nexe=""\nmsys=""\n\ncase `uname -a` in\n  *CYGWIN*|*MINGW*|*MSYS*)\n    if command -v cygpath > /dev/null 2>&1; then\n      basedir_win=`cygpath -w "$basedir"`\n    fi\n    exe=".exe"\n    msys="true"\n  ;;\n  *WSL2*)\n    if command -v wslpath > /dev/null 2>&1; then\n      basedir_win="$(wslpath -w "$basedir" 2> /dev/null)"\n      if [ $? -ne 0 ] || [ -z "$basedir_win" ]; then\n        basedir_win="$basedir"\n      else\n        exe=".exe"\n      fi\n    fi\n  ;;\nesac\n\n'
 
 
@@ -364,7 +364,7 @@ def validate_preparation(case, enrollment, root, expected_files, control):
             and install["schema"] == "legion-javascript-pnpm-install/1", "install receipt schema differs")
     cwd = absolute(case["policyDefinition"]["cwd"])
     node = absolute(enrollment["node"]["path"])
-    pnpm = cwd / "node_modules/pnpm/bin/pnpm.mjs"
+    pnpm = cwd / "node_modules" / PNPM_NATIVE
     config_root = preparation_config_root(case)
     require(not config_root.is_relative_to(cwd), "install config escaped external preparation scope")
     environment = {"PATH": str(node.parent) + ":/usr/bin:/bin", "CI": "true",
@@ -381,9 +381,9 @@ def validate_preparation(case, enrollment, root, expected_files, control):
         configs[path] = {"path": str(config_root / path), "digest": digest(data), "bytes": len(data), "rawBytes": list(data)}
     same(install["configInputsBefore"], configs, "install config bytes differ from empty isolated inputs")
     same(install["configInputsAfter"], configs, "install changed isolated config inputs")
-    same(install["argv"], [str(node), str(pnpm), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--public-hoist-pattern=*"], "baseline installer argv differs")
+    same(install["argv"], [str(pnpm), "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--public-hoist-pattern=*"], "baseline installer argv differs")
     require(install["cwd"] == str(cwd) and install["nodeDigest"] == enrollment["node"]["digest"]
-            and install["pnpmDigest"] == enrollment["runtime"]["files"]["node_modules/pnpm/bin/pnpm.mjs"]["digest"]
+            and install["pnpmDigest"] == enrollment["runtime"]["files"]["node_modules/" + PNPM_NATIVE]["digest"]
             and install["exitCode"] == 0 and install["success"] is True, "pinned baseline install did not succeed")
     for key in ("stdout", "stderr"):
         raw_descriptor(install[key], "original install " + key)
@@ -400,7 +400,7 @@ def validate_preparation(case, enrollment, root, expected_files, control):
         name = package_id.rsplit("@", 1)[0]
         package_path = "node_modules/" + name
         for alias, target in bins.items():
-            if alias in {"acorn", "js-yaml", "node-which", "pn", "pnpx", "pnx", "semver", "tsserver"}:
+            if alias in {"acorn", "js-yaml", "node-which", "semver", "tsserver"}:
                 declared_bins["node_modules/.bin/" + alias] = package_path + "/" + target.removeprefix("./")
     same({p: GENERATED_INSTALL_FILES[p] for p in GENERATED_INSTALL_FILES if GENERATED_INSTALL_FILES[p] is not None}, declared_bins, "generated shim set/targets differ from enrolled package bin declarations")
     generated_raw = {}
@@ -540,7 +540,7 @@ def sdk(row, policy, expected_state=None, expected_allowed=True, sandbox=True):
         version = receipt["executable"]["version"]
         require(version["qualified"] is True and version["skippedByPolicy"] is False and version["exitCode"] == 0, "real version probe not qualified")
         same(version["args"], req["versionArgs"], "executed version args differ")
-        require(version["output"].strip() == {"type": "Version 5.9.3", "lint": "v9.39.1", "build": "11.24.0", "test": "11.24.0"}[task], "observed native version differs")
+        require(version["output"].strip() == {"type": "Version 5.9.3", "lint": "v9.39.1", "build": "12.16.1", "test": "12.16.1"}[task], "observed native version differs")
         require(receipt["sandbox"]["required"] is True and receipt["sandbox"]["receiptId"] == policy["profile"]["receiptId"] and receipt["sandbox"]["networkEnabled"] is True, "actual sandbox missing/network permitted")
         same(receipt["command"]["args"], req["args"], "executed argv differs")
         require(receipt["command"]["executable"] == req["executable"], "executed wrapper differs")
@@ -767,11 +767,11 @@ def validate_record(root, row, enrollment=None, live=False):
                 else:
                     require(snapshots["before"]["compiledInputs"] is None, "non-test snapshot incorrectly seals build output")
                 if receipt["tool"] in ("build", "test"):
-                    require(snapshots["before"]["packageManagerVersion"] == "11.24.0", "frozen package manager version differs")
+                    require(snapshots["before"]["packageManagerVersion"] == "12.16.1", "frozen package manager version differs")
                     manager = snapshots["before"]["projectManagerPackage"]
-                    expected_manager = {p.removeprefix("pnpm/"): v for p, v in expected_local_files.items() if p.startswith("pnpm/")}
+                    expected_manager = {p.removeprefix(PNPM_PACKAGE + "/"): v for p, v in expected_local_files.items() if p.startswith(PNPM_PACKAGE + "/")}
                     closure_bound(manager, "files", expected_manager, "pnpm runtime closure differs")
-                    require(manager["root"] == str(cwd / "node_modules/pnpm"), "pnpm runtime root differs")
+                    require(manager["root"] == str(cwd / "node_modules" / PNPM_PACKAGE), "pnpm runtime root differs")
                     closure_bound(manager, "links", {}, "pnpm runtime aliases differ")
                 require(snapshots["before"]["node"]["digest"] == enrollment["node"]["digest"], "production Node differs")
         if control == "nonempty-clean":
