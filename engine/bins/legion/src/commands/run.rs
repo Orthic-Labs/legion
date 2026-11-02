@@ -12,7 +12,8 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
-    time::{SystemTime, UNIX_EPOCH},
+    sync::mpsc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -446,6 +447,68 @@ fn open(a: &[String]) -> CommandResult {
         json!({"kind":"legion-run-binding","sessionId":s,"runId":stored["runId"],"taskId":stored["taskId"],"contractId":stored["contractId"],"contractVersion":stored["contractVersion"],"contractDigest":stored["contractDigest"],"delivery":stored["delivery"]}),
     )
 }
+/// Open `decision` issues that cite `contract` (Orthic-Labs/legion#136, part 4):
+/// `#<n> <title>` per issue. `listing` is the JSON of
+/// `gh issue list --json number,title,body`. `gh --search` matches loosely, so
+/// an issue counts only when a `Contract:` line of its body names the contract
+/// id as a whole word; a listing without bodies is trusted as searched.
+fn decision_issues_citing(listing: &str, contract: &str) -> Vec<String> {
+    let Ok(Value::Array(items)) = serde_json::from_str::<Value>(listing) else {
+        return Vec::new();
+    };
+    let names_contract = |line: &str| {
+        line.trim_start().starts_with("Contract:")
+            && line
+                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+                .any(|word| word.eq_ignore_ascii_case(contract))
+    };
+    items
+        .iter()
+        .filter(|item| match item["body"].as_str() {
+            Some(body) => body.lines().any(|line| names_contract(line)),
+            None => true,
+        })
+        .filter_map(|item| {
+            let number = item["number"].as_u64()?;
+            let title = item["title"].as_str().unwrap_or("");
+            Some(format!("#{number} {title}"))
+        })
+        .collect()
+}
+
+/// The open decision issues of `contract`, asked of GitHub through `gh`. This
+/// check fails open: no `gh`, no network, no remote, a timeout or unreadable
+/// output means no refusal, and `LEGION_HOOK_OFF` naming `decision-issues`
+/// turns it off.
+fn open_decision_issues(root: &Path, contract: &str) -> Vec<String> {
+    let off = std::env::var("LEGION_HOOK_OFF")
+        .map(|list| {
+            list.split(',')
+                .any(|id| id.trim().eq_ignore_ascii_case("decision-issues"))
+        })
+        .unwrap_or(false);
+    if off {
+        return Vec::new();
+    }
+    let mut command = Command::new("gh");
+    command
+        .current_dir(root)
+        .args(["issue", "list", "--state", "open", "--label", "decision"])
+        .args(["--search", &format!("Contract: {contract}")])
+        .args(["--json", "number,title,body", "--limit", "100"]);
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(command.output());
+    });
+    let Some(Ok(output)) = receiver.recv_timeout(Duration::from_secs(15)).ok() else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    decision_issues_citing(&String::from_utf8_lossy(&output.stdout), contract)
+}
+
 fn close(a: &[String]) -> CommandResult {
     let s = session(a)?;
     let root = cwd()?;
@@ -472,6 +535,15 @@ fn close(a: &[String]) -> CommandResult {
     // Set only when a complete close actually evaluated acceptance criteria.
     let mut acceptance_evaluated = 0usize;
     if disp == "complete" {
+        if let Some(contract) = b["contractId"].as_str().filter(|id| !id.is_empty()) {
+            let open = open_decision_issues(&root, contract);
+            if !open.is_empty() {
+                return Err(CommandError::incomplete(format!(
+                    "ARC_DECISION_ISSUES_OPEN: contract {contract} has open decision issues ({}); resolve them and write each into the contract, or close with --disposition archive",
+                    open.join("; ")
+                )));
+            }
+        }
         let criteria = sealed_acceptance_criteria(
             &root,
             b["contractId"].as_str().unwrap_or_default(),
@@ -613,7 +685,31 @@ fn now() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::enforcement_health_for;
+    use super::{decision_issues_citing, enforcement_health_for};
+
+    #[test]
+    fn decision_issues_are_matched_by_a_contract_line() {
+        let listing = r#"[
+            {"number": 5, "title": "Tests outside broker", "body": "Why.\nContract: EC-12 clause 3\n- [ ] written"},
+            {"number": 6, "title": "Other contract", "body": "Contract: EC-120 clause 1"},
+            {"number": 7, "title": "Mentions only", "body": "see EC-12 in passing"},
+            {"number": 8, "title": "Lower case", "body": "  Contract: ec-12"}
+        ]"#;
+        assert_eq!(
+            decision_issues_citing(listing, "EC-12"),
+            vec!["#5 Tests outside broker", "#8 Lower case"]
+        );
+        assert!(decision_issues_citing(listing, "EC-99").is_empty());
+    }
+
+    #[test]
+    fn a_listing_without_bodies_is_trusted_and_junk_is_ignored() {
+        let listing = r#"[{"number": 9, "title": "No body"}]"#;
+        assert_eq!(decision_issues_citing(listing, "EC-1"), vec!["#9 No body"]);
+        assert!(decision_issues_citing("not json", "EC-1").is_empty());
+        assert!(decision_issues_citing("{}", "EC-1").is_empty());
+        assert!(decision_issues_citing("[]", "EC-1").is_empty());
+    }
 
     #[test]
     fn a_complete_close_with_evaluated_criteria_is_strong() {

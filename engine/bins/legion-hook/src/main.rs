@@ -16,15 +16,19 @@ use legion_contracts::{
 };
 use serde_json::{Map, Value};
 
+mod approvals;
 mod codex;
 mod error;
 mod evidence;
+mod fmt_on_edit;
 mod governor;
 mod issue_gate;
 mod locks;
 mod protocol;
+mod red_gate;
 mod roles;
 mod skills_gate;
+mod words;
 
 use error::HookError;
 use protocol::{HookRequest, HookResponse};
@@ -70,8 +74,28 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
             request.event_type.as_str(),
             "UserPromptSubmit" | "user-prompt-submit"
         ) {
-            if let Some(response) = skills_gate::on_user_prompt(&request) {
+            words::on_user_prompt(&request);
+            let approval_note = approvals::on_user_prompt(&request)
+                .and_then(|response| response.additional_context);
+            let extra = match (approval_note, words::context_for_prompt(&request)) {
+                (Some(approval), Some(orders)) => Some(format!("{approval}\n\n{orders}")),
+                (approval, orders) => approval.or(orders),
+            };
+            if let Some(response) = words::attach_context(
+                skills_gate::on_user_prompt(&request),
+                extra,
+                &request.event_type,
+            ) {
                 return response;
+            }
+        }
+        if matches!(
+            request.event_type.as_str(),
+            "SessionStart" | "session-start"
+        ) {
+            if let Some(context) = words::context_for_session_start(&request) {
+                return HookResponse::allowed(request.event_type, "lifecycle observation accepted")
+                    .with_additional_context(context);
             }
         }
         if matches!(
@@ -84,7 +108,13 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
     }
     if request.is_post_effect() {
         locks::observe_edit(&request);
-        return HookResponse::allowed(request.event_type, "post-effect observation accepted");
+        let note = fmt_on_edit::observe_edit(&request);
+        let response =
+            HookResponse::allowed(request.event_type, "post-effect observation accepted");
+        return match note {
+            Some(note) => response.with_additional_context(note),
+            None => response,
+        };
     }
     if !request.is_pre_effect() {
         return HookResponse::denied(
@@ -128,11 +158,14 @@ fn pre_effect_response(request: HookRequest) -> HookResponse {
             "strong",
         );
     }
-    let checks: [fn(&HookRequest) -> Option<HookResponse>; 4] = [
+    let checks: [fn(&HookRequest) -> Option<HookResponse>; 7] = [
+        words::pre_tool,
         skills_gate::pre_tool,
+        approvals::pre_tool,
         issue_gate::pre_tool,
         locks::pre_edit,
         governor::check_pre_tool_use,
+        red_gate::pre_tool,
     ];
     for check in checks {
         if let Some(response) = check(&request) {
@@ -253,6 +286,9 @@ fn stop_response(request: &HookRequest) -> HookResponse {
     // edit may reopen the turn once (never while `stop_hook_active`); in shadow
     // mode the check only logs.
     if let Some(denied) = evidence::stop_check(request) {
+        return denied;
+    }
+    if let Some(denied) = approvals::stop_check(request) {
         return denied;
     }
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")
@@ -3725,12 +3761,16 @@ fn unix_nanos() -> u128 {
 fn response_value(response: &HookResponse) -> Value {
     let mut value = response.to_value();
     if response.allowed && response.event_type == "SessionStart" {
+        let context = match response.additional_context.as_deref() {
+            Some(extra) => format!("{SESSION_START_CONTEXT}\n\n{extra}"),
+            None => SESSION_START_CONTEXT.to_owned(),
+        };
         if let Some(object) = value.as_object_mut() {
             object.insert(
                 "hookSpecificOutput".into(),
                 serde_json::json!({
                     "hookEventName": "SessionStart",
-                    "additionalContext": SESSION_START_CONTEXT,
+                    "additionalContext": context,
                 }),
             );
             object.insert(
