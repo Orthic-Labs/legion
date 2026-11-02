@@ -22,8 +22,8 @@ importers:
         specifier: 0.1.8
         version: 0.1.8
       '@rightkit/release':
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.6.25
+        version: 0.6.25
 
 packages:
 
@@ -35,16 +35,25 @@ packages:
     resolution: {integrity: sha512-3QCp7TjbEPGrJTtOS8nBP5Y0vwfsCOhxapML7p4vK/rlOEM0LWrIMqqjwS8sSKUO7Nr32TcQ53DcKAQC5+JcIw==}
     hasBin: true
 
+  '@rightkit/ci@0.3.2':
+    resolution: {integrity: sha512-XZ+kvBRB8JSWVBpcqKQ0rr1WXCqK2q2g0Q4sYj/Nlp0HKhet3SZ35CJ0OvHCLi7Drj7EcmMdmMJNJ7cDwXSBfw==}
+    hasBin: true
+
   '@rightkit/hooks@0.1.2':
     resolution: {integrity: sha512-0Fl5URRectgZEoJ6XYKme1x+rb/+LmW96rN4M7vT+E3mdNfWhfNt3MZsxbDC/A2g7Toz28nJakYteogVo+GuYg==}
+    hasBin: true
+
+  '@rightkit/outdated@0.3.0':
+    resolution: {integrity: sha512-qg70+PBYR+sXuIaEaTmd6ddUaEGQbpMs0lqgG5Bqg/U42NW7b/4gEd9cVg+bDkLFIxeMBu85p3eF2WcqQuKK/g==}
+    engines: {node: '>=26.8.0'}
     hasBin: true
 
   '@rightkit/qa-chrome@0.1.8':
     resolution: {integrity: sha512-BzT5wD9CColpdlfwamHLlujOZ+yzre1ebWSsfzs//kphzG1jyYcghLZGJiJ3EblmNRJlYixVQ9yj0x8nAzxpvg==}
     hasBin: true
 
-  '@rightkit/release@0.3.0':
-    resolution: {integrity: sha512-f2MKQYwE/Vec6TGbGZEy9PoC4sg7t6+kKT9YO+pIVx5ri6g9CRCdz4qbHdWURyopxd92nuB+4CG0gd+l8/gr3A==}
+  '@rightkit/release@0.6.25':
+    resolution: {integrity: sha512-zZGlsWWsyyAWOb14weIV3iPJUrGhYnDjqIY42NkuM++vVi0C4pLjhxlioKQ1glMCDegVlU5wVEDvcOpRE3ywmg==}
     hasBin: true
 
   smol-toml@1.9.1:
@@ -57,12 +66,20 @@ snapshots:
 
   '@rightkit/ci@0.3.0': {}
 
+  '@rightkit/ci@0.3.2': {}
+
   '@rightkit/hooks@0.1.2': {}
+
+  '@rightkit/outdated@0.3.0':
+    dependencies:
+      '@rightkit/ci': 0.3.2
+      smol-toml: 1.9.1
 
   '@rightkit/qa-chrome@0.1.8': {}
 
-  '@rightkit/release@0.3.0':
+  '@rightkit/release@0.6.25':
     dependencies:
+      '@rightkit/outdated': 0.3.0
       smol-toml: 1.9.1
 
   smol-toml@1.9.1: {}
