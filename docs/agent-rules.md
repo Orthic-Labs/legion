@@ -11,7 +11,7 @@ Legion provides shared routing, execution, and independent semantic validation a
 - `docs/provenance/**` (including `docs/provenance/canon/` & `docs/provenance/pending/`) is frozen history that cites deleted code. It is not authoritative and not a pending-work index.
 
 ## Commands
-- Before local build/check/test admission, inspect managed RightKit inventory once, including past 30 minutes. If another build is queued, running, or was processed within that window, never start or queue local work: use GitHub CI. Missing inventory fails closed to CI; do not poll or wait for local capacity.
+- Compile, check and test locally through the gate, only with Adrian's approval (workspace rules); the broker queues builds, so never poll. GitHub CI qualifies; it never discovers compile errors.
 - Windows installer commands (native check, unsigned development build, CI route) live in `docs/reference/release/local-windows-development.md`. Read it before any installer work.
 
 ## Locked invariants
@@ -31,5 +31,4 @@ Legion provides shared routing, execution, and independent semantic validation a
 ## Verification
 - `legion-dev check-skill-evals` validates eval structure only; model-graded cases report `requires-model` and are not proof.
 - Run focused doctrine and routing tests after role changes.
-- Refresh `skills/manifests/*.json` with `cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests <bundle>...`
-  after editing any packaged skill file, so digests and consumers stay truthful.
+- After editing any packaged skill file, refresh `skills/manifests/*.json` with `legion-dev refresh-local-skill-manifests <bundle>...`, run through the gate with Adrian's approval, so digests and consumers stay truthful.
