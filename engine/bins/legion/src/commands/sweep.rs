@@ -224,11 +224,11 @@ fn read_calls(session: &str, lines: &str, now: i64) -> Vec<Call> {
 /// command line and it started within `SKEW` of the shell. None unless exactly one session
 /// matches, so an unmatched item is listed but never messaged.
 fn owner<'a>(shell: &Proc, calls: &'a [Call]) -> Option<&'a Call> {
-    let needle = |c: &Call| {
+    fn needle(c: &Call) -> Option<&str> {
         let head = c.cmd.lines().next()?.split('\'').next()?.trim();
         let end = head.char_indices().nth(40).map_or(head.len(), |(i, _)| i);
         Some(&head[..end]).filter(|n| n.len() >= 8)
-    };
+    }
     let hits: Vec<&Call> = calls
         .iter()
         .filter(|c| c.tool == "Bash" && c.age.abs_diff(shell.age) <= SKEW)

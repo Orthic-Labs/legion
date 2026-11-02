@@ -375,10 +375,8 @@ mod tests {
     #[test]
     fn a_red_build_needs_an_error_and_a_build_tool() {
         let tool = |command: &str| build_tool(command).unwrap_or_default();
-        assert_eq!(
-            (tool("cd x && cargo test"), tool("FOO=1 gh run view 5")),
-            ("cargo", "gh")
-        );
+        let (cargo, gh) = (tool("cd x && cargo test"), tool("FOO=1 gh run view 5"));
+        assert_eq!((cargo.as_str(), gh.as_str()), ("cargo", "gh"));
         assert_eq!(tool("grep cargo notes.md"), "");
         assert_eq!(run(&bash("pnpm test", "Exit 1", true)), ["B3/red-pnpm"]);
         assert!(run(&bash("pnpm test", "ok", false)).is_empty());
