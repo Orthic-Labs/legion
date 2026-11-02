@@ -18,5 +18,7 @@ fn codex_roles_and_plugin_surfaces_have_native_configuration() {
     assert!(descriptor["surfaces"]["hooks"]["note"]
         .as_str()
         .unwrap()
-        .contains("no pre-tool effect-enforcement hook is projected"));
+        .contains(
+            "the pre-tool effect-enforcement hook covers Bash, apply_patch and exec_command"
+        ));
 }

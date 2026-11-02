@@ -108,6 +108,7 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
     }
     if request.is_post_effect() {
         locks::observe_edit(&request);
+        governor::observe_subagent_stop(&request);
         let note = fmt_on_edit::observe_edit(&request);
         let response =
             HookResponse::allowed(request.event_type, "post-effect observation accepted");
@@ -1136,6 +1137,9 @@ fn is_host_control_tool(tool_name: &str) -> bool {
             | "Agent"
             | "Task"
             | "Skill"
+            | "Workflow"
+            | "RemoteTrigger"
+            | "CronCreate"
             | "Glob"
             | "Grep"
             | "Read"

@@ -84,7 +84,7 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|Skill|WebFetch|WebSearch|mcp__.*",
+        "matcher": "shell|shell_command|Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit|apply_patch|Skill|Agent|Task|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "command",

@@ -45,7 +45,6 @@ const EVIDENCE_DIRECTORY: &str = "evidence";
 const SHADOW_FILE: &str = "shadow.jsonl";
 const KILL_ENV: &str = "LEGION_HOOK_OFF";
 const MODE_ENV: &str = "LEGION_EVIDENCE_MODE";
-const STATE_ENV: &str = "LEGION_STATE_DIR";
 const COMMAND_LIMIT: usize = 500;
 const TAIL_LIMIT: usize = 300;
 const PROMPT_LIMIT: usize = 4000;
@@ -100,13 +99,7 @@ fn disabled() -> bool {
 }
 
 fn state_dir() -> Option<PathBuf> {
-    if let Some(dir) = std::env::var_os(STATE_ENV).filter(|value| !value.is_empty()) {
-        return Some(PathBuf::from(dir));
-    }
-    let home = std::env::var_os("HOME")
-        .filter(|value| !value.is_empty())
-        .or_else(|| std::env::var_os("USERPROFILE").filter(|value| !value.is_empty()))?;
-    Some(PathBuf::from(home).join(".legion"))
+    crate::skills_gate::state_root()
 }
 
 fn now_secs() -> u64 {

@@ -104,10 +104,14 @@ Those aliases are protocol support; they are not additional registrations in
 Lifecycle and post-effect acknowledgements are not effect authorization. The
 `Stop` path blocks at most once per turn, and only in two cases. The first is a
 completion claim (done, fixed, green, installed, live) with no matching
-successful command after the last edit in the evidence ledger. The second is a
-skill the user named that was not called. When `stop_hook_active` is set, Stop
-does not block again, so the path never loops. After the block, the turn may end
-with an `UNRESOLVED:` line that states what stays unproven. Arcane response
+successful command after the last edit in the evidence ledger. The second is an
+approval request that cites no Class A run after the last edit or carries no
+will-pass verdict. Both checks start in shadow mode (they log would-blocks) and
+block once switched to enforce. A skill the user named is enforced earlier, at
+PreToolUse: until it is called, only reads and the Skill tool run. When
+`stop_hook_active` is set, Stop does not block again, so the path never loops.
+After the block, the turn may end with an `UNRESOLVED:` line that states what
+stays unproven. Arcane response
 policy cannot create Stop re-prompt loops. Stop completion
 verification is proportional: it consults a typed verification requirement and
 checks the `oracle-completion-validation-v1` receipt only when that requirement

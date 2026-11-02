@@ -90,17 +90,9 @@ fn session_id(payload: &Map<String, Value>) -> Option<String> {
         .filter(|id| !id.is_empty())
 }
 
-fn env_nonempty(name: &str) -> Option<std::ffi::OsString> {
-    std::env::var_os(name).filter(|value| !value.is_empty())
-}
-
 /// `$LEGION_STATE_DIR`, else `~/.legion`.
 fn state_root() -> Option<PathBuf> {
-    if let Some(dir) = env_nonempty("LEGION_STATE_DIR") {
-        return Some(PathBuf::from(dir));
-    }
-    let home = env_nonempty("HOME").or_else(|| env_nonempty("USERPROFILE"))?;
-    Some(PathBuf::from(home).join(".legion"))
+    crate::skills_gate::state_root()
 }
 
 fn unix_now() -> u64 {
@@ -190,10 +182,22 @@ pub fn check_pre_tool_use(request: &HookRequest) -> Option<HookResponse> {
 /// Record that a subagent ended. The lead calls this for `SubagentStop`
 /// events; it never blocks and never fails.
 pub fn observe_subagent_stop(request: &HookRequest) {
-    if !matches!(
+    // A launch that failed after PreToolUse never starts, so its PostToolUseFailure
+    // frees its slot the same way a SubagentStop does.
+    let failed_launch = matches!(
         request.event_type.as_str(),
-        "SubagentStop" | "subagent-stop"
-    ) || kill_switch_on("agents")
+        "PostToolUseFailure" | "post-effect-failure"
+    ) && request
+        .payload
+        .get("tool_name")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|tool| matches!(tool, "Agent" | "Task"));
+    if !(failed_launch
+        || matches!(
+            request.event_type.as_str(),
+            "SubagentStop" | "subagent-stop"
+        ))
+        || kill_switch_on("agents")
     {
         return;
     }

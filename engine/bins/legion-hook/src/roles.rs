@@ -414,6 +414,11 @@ fn decide_role_model(roster: &Roster, spec: &RoleSpec, requested: Option<&str>) 
     if alias.as_deref() == Some(want) {
         return AgentDecision::Allow;
     }
+    // A frontier role keeps another frontier model the caller chose (Adrian
+    // may pick a reviewer, e.g. Fable for Oracle or Sage).
+    if spec.frontier && alias.as_deref().is_some_and(is_frontier_alias) {
+        return AgentDecision::Allow;
+    }
     let mut note = format!(
         "legion:{} runs on {want} (model-tiers.json): {} {want}.",
         spec.id,

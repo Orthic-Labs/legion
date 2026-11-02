@@ -78,10 +78,15 @@ pub(crate) fn kill_switch_names(list: Option<&str>, id: &str) -> bool {
     .unwrap_or(false)
 }
 
-/// `$LEGION_STATE_DIR`, else `~/.legion`.
+/// `$LEGION_STATE_DIR`, else `$LEGION_STATE_ROOT/hook-state` (the existing
+/// test and host isolation root), else `~/.legion`. Every hook check uses this
+/// one root so their state never splits.
 pub(crate) fn state_root() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("LEGION_STATE_DIR").filter(|value| !value.is_empty()) {
         return Some(PathBuf::from(dir));
+    }
+    if let Some(root) = std::env::var_os("LEGION_STATE_ROOT").filter(|value| !value.is_empty()) {
+        return Some(PathBuf::from(root).join("hook-state"));
     }
     Some(home_dir()?.join(".legion"))
 }
@@ -717,7 +722,24 @@ fn named_gate_in(
         return None;
     }
     let mut state = read_state(path);
-    let (outcome, changed) = named_decision(&mut state, tool, skill_arg.as_deref(), now);
+    let (mut outcome, mut changed) = named_decision(&mut state, tool, skill_arg.as_deref(), now);
+    // A Skill call the hook did not see (host matcher, earlier turn) still
+    // counts: when the transcript shows every pending skill loaded, clear it.
+    if let Named::Deny(names) = &outcome {
+        if let Some(transcript) = str_field(payload, &["transcript_path", "transcriptPath"]) {
+            let names = names.clone();
+            if names
+                .iter()
+                .all(|name| transcript_has_skill(Path::new(&transcript), name) == Some(true))
+            {
+                for name in &names {
+                    named_decision(&mut state, "Skill", Some(name), now);
+                }
+                outcome = Named::Allow;
+                changed = true;
+            }
+        }
+    }
     if changed {
         let _ = write_state(path, &state);
     }
@@ -913,6 +935,10 @@ fn event_gate(
     tool: &str,
 ) -> Option<HookResponse> {
     if check_disabled(CHECK_EVENT) || !matches!(tool, "Write" | "Edit" | "MultiEdit") {
+        return None;
+    }
+    // Codex has no Skill tool, so a Codex edit can never satisfy this gate.
+    if payload.get("legion_host").and_then(Value::as_str) == Some("codex") {
         return None;
     }
     let file = str_field(tool_input(payload)?, &["file_path", "path"])?;
