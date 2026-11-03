@@ -57,7 +57,7 @@ pub fn get_legacy_live_config_path(scripts_dir: &Path) -> PathBuf {
 }
 
 /// Mirrors `resolveLiveConfigPath({ cwd, scriptsDir, env, targetPath })`.
-/// `cwd` is used only to resolve a relative `IMPECCABLE_LIVE_CONFIG` env
+/// `cwd` is used only to resolve a relative explicit live-config
 /// value, matching the JS (`path.resolve(cwd, configured)`); it is
 /// independent of `root` (the project root used for the default path).
 pub fn resolve_live_config_path(
