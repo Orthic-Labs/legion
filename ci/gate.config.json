@@ -5,6 +5,7 @@
   "fixtures": [
     "engine/crates/legion-audit/tests/fixtures/cargo-deny",
     "engine/crates/legion-audit/tests/fixtures/cargo-geiger",
+    "engine/crates/legion-audit/tests/fixtures/xcode-targets",
     "scripts/ci/fixtures/audit-rust-code-sdk",
     "scripts/ci/fixtures/audit-code-python-sdk-accuracy"
   ]
