@@ -29,6 +29,7 @@ never hide independent changes inside broad serial lanes. Routine work may remai
 delegation adds no useful concurrency. Only conflicting shared writes, integration, commits,
 receipts, & pushes serialize within their owning repository. Constitution, authority, scope,
 acceptance, & completion semantics remain owned by canonical sources above.
+Every `git commit` routes through `legion:commit`; a plain `git commit` runs no review.
 
 At each lead turn, compare ready open issues with active assignments & dispatch missing work
 within those limits. Name concrete dependencies or capacity limits for any ready work left idle;
