@@ -4137,7 +4137,7 @@ fn projection_relative_is_under_unit(relative: &str, unit: &str) -> bool {
 /// product the single source it claims to be. Windows needs a junction here:
 /// `symlink_dir` requires privilege the installer does not have, while
 /// `mklink /J` does not.
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 fn windows_mklink_path(path: &Path) -> String {
     let text = path.to_string_lossy().into_owned();
     text.strip_prefix(r"\\?\")

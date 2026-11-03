@@ -465,7 +465,7 @@ fn decision_issues_citing(listing: &str, contract: &str) -> Vec<String> {
     items
         .iter()
         .filter(|item| match item["body"].as_str() {
-            Some(body) => body.lines().any(|line| names_contract(line)),
+            Some(body) => body.lines().any(names_contract),
             None => true,
         })
         .filter_map(|item| {

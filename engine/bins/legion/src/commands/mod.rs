@@ -179,6 +179,7 @@ pub fn io_error(error: impl std::fmt::Display) -> CommandError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use legion_audit::InventorySource as _;
 
     /// `audit_inventory_source` is Legion's sole inventory source: a local
     /// filesystem walk, with no packet, no fallback, and no degradation
