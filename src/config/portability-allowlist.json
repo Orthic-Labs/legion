@@ -475,6 +475,28 @@
       },
       "class": "qualification-capture-evidence",
       "reason": "retained raw output of the maintainer-host native reasoning capture; recorded paths are provenance of the run, bound by digest"
+    },
+    {
+      "path": "engine/bins/legion/src/commands/daily.rs",
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 1
+      },
+      "class": "maintainer-daily-job",
+      "reason": "the daily maintainer loop (M9) is run only on the maintainer hosts and names their fixed agent-volume paths"
+    },
+    {
+      "path": "engine/bins/legion/src/commands/daily/warmth.rs",
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 2
+      },
+      "class": "maintainer-daily-job",
+      "reason": "the daily maintainer loop (M9) reads the maintainer hosts' agent-volume layout and is run only there"
     }
   ]
 }
