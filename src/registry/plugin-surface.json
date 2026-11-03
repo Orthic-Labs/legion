@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.23",
-  "digest": "sha256:a6d1172fdd21d25b2c8de6077ec3a8c0d3febbc3934e159f20787822d81f2ca5",
+  "digest": "sha256:14a6ff70e244475fddb16dfa197642e2bc429711bf9dfc54038ebf35891dc94b",
   "counts": {
     "skills": 32,
     "agents": 6,
     "mcpServers": 1,
-    "hookEvents": 9
+    "hookEvents": 8
   },
   "surface": {
     "skills": [
@@ -86,7 +86,6 @@
         "PostCompact",
         "PostToolUse",
         "PostToolUseFailure",
-        "PreToolUse",
         "SessionStart",
         "Stop",
         "SubagentStart",

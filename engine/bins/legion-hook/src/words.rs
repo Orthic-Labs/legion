@@ -6,7 +6,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::protocol::{HookRequest, HookResponse};
+use crate::protocol::HookRequest;
 use crate::state::{append_line, now_secs, off, session_id, state_root, str_field, write_atomic};
 use crate::transcript::human;
 

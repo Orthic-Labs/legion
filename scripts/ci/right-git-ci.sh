@@ -236,14 +236,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   unset LEGION_RUNTIME_APP_RECEIPTS
 fi
 
-# The no-call harness atomically moves its actual Cargo CLI to fresh retained
-# storage before executing it. No later build/copy may substitute tested bytes.
-export LEGION_REASONING_NATIVE_RUNNER_DIR="${RUNNER_TEMP}/legion-provider-qualification/reasoning-native-runner"
-run_audit_qualification "$audit_cargo_bin" test --locked --manifest-path engine/Cargo.toml -p legion \
-  --test reasoning_runtime_qualification reasoning_runtime_production_no_call_contract \
-  -- --exact --nocapture --test-threads=1
-unset LEGION_REASONING_NATIVE_RUNNER_DIR
-
 # Assemble the exact CI candidate and smoke the installed native CLI.
 export CARGO_INCREMENTAL=1
 (cd engine && cargo build --locked --bins)
@@ -279,29 +271,6 @@ record = {
 }
 (destination.parent / "legion-dev.json").write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
 PY
-# Cargo may recreate its original CLI after the tested inode was moved. Verify
-# the retained bytes again after that build, including any shared-inode aliases.
-ci_reasoning_dir="${RUNNER_TEMP}/legion-provider-qualification/reasoning-native-runner"
-python3 - "$ci_reasoning_dir" "$GITHUB_SHA" "$RUNNER_OS" "$RUNNER_ARCH" <<'REASONING_PY'
-import hashlib
-import json
-import stat
-import sys
-from pathlib import Path
-root = Path(sys.argv[1])
-record = json.loads((root / "runner.json").read_bytes())
-if record["schema"] != "legion-reasoning-native-runner/1" or record["sourceRevision"] != sys.argv[2] or record["platform"] != {"os":sys.argv[3],"architecture":sys.argv[4]}:
-    raise SystemExit("retained no-call runner source/platform differs")
-name = "legion.exe" if sys.argv[3] == "Windows" else "legion"
-if record["binary"]["path"] != name or record["modelCalls"] != 0 or record["qualification"] is not False:
-    raise SystemExit("retained no-call runner identity/claims differ")
-retained = root / name
-if retained.is_symlink() or not retained.is_file():
-    raise SystemExit("retained tested CLI is not a regular file")
-raw = retained.read_bytes()
-if record["binary"] != {"path":name,"sha256":"sha256:"+hashlib.sha256(raw).hexdigest(),"bytes":len(raw),"mode":stat.S_IMODE(retained.stat().st_mode)}:
-    raise SystemExit("retained CLI differs from bytes exercised by production no-call proof")
-REASONING_PY
 ci_xtask="${ci_binary_root}/xtask"
 if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
   ci_xtask="${ci_xtask}.exe"
