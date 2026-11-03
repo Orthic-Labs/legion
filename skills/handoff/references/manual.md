@@ -65,6 +65,9 @@ Source has no prose channel, but may declare verified live facts in one typed JS
   Row: `{"id":"O1","item":"<what>","owner":"<who>","state":"pending|in_progress|blocked|waiting_on_user","next":"<exact next action>","blocker":"<text|none>","approval":{"needed":true,"from":"user"},"evidence":"<path or command>"}`.
   Fill it from the live task list, unanswered user requests, approvals issued but unfinished, background jobs, messages awaiting
   a reply, and follow-ups promised this session. Ids are unique; free text is secret-scanned.
+  The source reads each of these at handoff time, never recalls them: the live task list (`update_plan`/`TaskList`), open issues in
+  the owning repositories, `tasks/approvals/`, `git status` and unpushed commits per repository, background job lists, and pending
+  peer messages. A row is dropped only with a stated reason (done with evidence, superseded, or user-cancelled).
 - `procedures`: for each procedure in flight (a release, a migration, an install), the full remaining sequence:
   `{"name":"release","steps":["push","publish","install on every host","notify dependents","publish dependent packages"],"steps_source":"<repo doc path or the last completed run, cited>"}`.
   The source author takes the steps from the repo's runbook or the last completed run of the same procedure; the script
