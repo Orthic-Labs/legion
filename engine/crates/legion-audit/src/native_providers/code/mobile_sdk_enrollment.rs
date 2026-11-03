@@ -285,13 +285,7 @@ pub(super) fn source_snapshot(root: &Path) -> Result<Value, String> {
         Ok(())
     }
     let mut files = BTreeMap::new();
-    for name in [
-        "legion-audit",
-        "legion-effects",
-        "legion-provider-sdk",
-        "legion-contracts",
-        "legion-rules",
-    ] {
+    for name in ["legion-audit"] {
         visit(
             root,
             &root.join(format!("engine/crates/{name}/src")),

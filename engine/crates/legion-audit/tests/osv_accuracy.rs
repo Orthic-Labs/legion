@@ -254,19 +254,11 @@ fn source_binding(root: &Path) -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/Cargo.lock",
         "engine/Cargo.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         SOURCE,
         "engine/crates/legion-audit/tests/fixtures/osv",
     ] {

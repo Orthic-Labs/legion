@@ -311,10 +311,6 @@ fn source_binding_excludes_only_regular_generated_session_receipts() {
 fn source_binding(root: &Path) -> Value {
     let roots = [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/crates/legion-audit/tests/fixtures/ast-grep",
@@ -328,10 +324,6 @@ fn source_binding(root: &Path) -> Value {
         "engine/Cargo.toml",
         "engine/Cargo.lock",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
     ] {
         source_binding_walk(root, &root.join(path), &mut files);
     }

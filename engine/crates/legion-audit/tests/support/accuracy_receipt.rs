@@ -257,10 +257,6 @@ fn source_binding(provider_id: &str, fixture_paths: &[&str]) -> (Value, Value) {
     let implementation_roots = [
         "engine/crates/legion-audit/src",
         "engine/crates/legion-audit/tests",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
-        "engine/crates/legion-effects/src",
         "src/registry/rules",
         "src/registry/controls",
     ];
@@ -271,10 +267,6 @@ fn source_binding(provider_id: &str, fixture_paths: &[&str]) -> (Value, Value) {
         "engine/Cargo.lock",
         "engine/Cargo.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
     ] {
         implementation.push(bound_file(&root, &root.join(path)));
     }

@@ -142,10 +142,6 @@ fn source_binding() -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
     for relative in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         FIXTURES,
@@ -157,10 +153,6 @@ fn source_binding() -> BTreeMap<String, String> {
         "engine/Cargo.lock",
         "engine/rust-toolchain.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         "src/registry/providers.json",
     ] {
         source_binding_walk(&root, &root.join(relative), &mut files);

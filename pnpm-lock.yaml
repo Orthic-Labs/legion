@@ -16,11 +16,11 @@ importers:
         specifier: 0.3.2
         version: 0.3.2
       '@rightkit/ci':
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.3.2
+        version: 0.3.2
       '@rightkit/qa-chrome':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.12
+        version: 0.1.12
       '@rightkit/release':
         specifier: 0.6.29
         version: 0.6.29
@@ -29,10 +29,6 @@ packages:
 
   '@rightkit/ax@0.3.2':
     resolution: {integrity: sha512-1EHizjm7qz9oiv/M68Ro77iaX5BHUNJP3PcZasQ9b25nUbxS2GvhMMlSCUCk3vJIk4oGSNF80xEYsjr8zme1uA==}
-    hasBin: true
-
-  '@rightkit/ci@0.3.0':
-    resolution: {integrity: sha512-3QCp7TjbEPGrJTtOS8nBP5Y0vwfsCOhxapML7p4vK/rlOEM0LWrIMqqjwS8sSKUO7Nr32TcQ53DcKAQC5+JcIw==}
     hasBin: true
 
   '@rightkit/ci@0.3.2':
@@ -48,8 +44,8 @@ packages:
     engines: {node: '>=26.8.0'}
     hasBin: true
 
-  '@rightkit/qa-chrome@0.1.8':
-    resolution: {integrity: sha512-BzT5wD9CColpdlfwamHLlujOZ+yzre1ebWSsfzs//kphzG1jyYcghLZGJiJ3EblmNRJlYixVQ9yj0x8nAzxpvg==}
+  '@rightkit/qa-chrome@0.1.12':
+    resolution: {integrity: sha512-ZyjFSo3duHHLkshk40kvFYNJq6jwz5lcMEIL+TQsepHKh9Oz1mQ6uiybQTtJX64/bULtd7X4zA5kYYkWmaOI5w==}
     hasBin: true
 
   '@rightkit/release@0.6.29':
@@ -64,8 +60,6 @@ snapshots:
 
   '@rightkit/ax@0.3.2': {}
 
-  '@rightkit/ci@0.3.0': {}
-
   '@rightkit/ci@0.3.2': {}
 
   '@rightkit/hooks@0.1.2': {}
@@ -75,7 +69,7 @@ snapshots:
       '@rightkit/ci': 0.3.2
       smol-toml: 1.9.1
 
-  '@rightkit/qa-chrome@0.1.8': {}
+  '@rightkit/qa-chrome@0.1.12': {}
 
   '@rightkit/release@0.6.29':
     dependencies:
