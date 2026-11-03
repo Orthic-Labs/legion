@@ -172,15 +172,16 @@ fn rejects_duplicate_missing_self_and_cyclic_dependencies() {
 }
 
 #[test]
-fn concurrent_same_owner_cannot_bypass_exclusive_write_scope() {
+fn same_file_cannot_have_two_writers_even_when_ordered() {
     let mut plan = fixture();
     plan.units[1].owner = plan.units[0].owner.clone();
     plan.units[1].write_scopes = plan.units[0].write_scopes.clone();
     plan.units[1].completion[0].artifact.path = "src/feature.rs".into();
     assert_error(&plan, Code::ScopeConflict);
+    // One file has one owner for the whole plan: ordering the writers does not resolve it (#134).
     let dependency = plan.units[0].id.clone();
     plan.units[1].depends_on.push(dependency);
-    validate_work_plan(&plan).expect("a real dependency serializes shared writes");
+    assert_error(&plan, Code::ScopeConflict);
 }
 
 #[test]

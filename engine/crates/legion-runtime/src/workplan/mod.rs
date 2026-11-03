@@ -4,7 +4,7 @@
 //! check, reads an artifact, authenticates a person, grants effects, or issues an
 //! Oracle/Guard receipt. Hosts retain those responsibilities.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use rightkit_evidence_contracts::{AgentId, NodeId, Plan, PlanId, PlanNode, PlanNodeKind, TaskId};
 use serde::{Deserialize, Serialize};
@@ -270,24 +270,4 @@ fn ordered(plan: &WorkPlan) -> Result<Vec<TaskId>, WorkPlanValidationError> {
             })
         })
         .collect()
-}
-
-fn ancestors(plan: &WorkPlan, order: &[TaskId]) -> BTreeMap<TaskId, BTreeSet<TaskId>> {
-    let units: BTreeMap<_, _> = plan
-        .units
-        .iter()
-        .map(|unit| (unit.id.clone(), unit))
-        .collect();
-    let mut result: BTreeMap<TaskId, BTreeSet<TaskId>> = BTreeMap::new();
-    for id in order {
-        let mut dependencies = BTreeSet::new();
-        for dependency in &units[id].depends_on {
-            dependencies.insert(dependency.clone());
-            if let Some(transitive) = result.get(dependency) {
-                dependencies.extend(transitive.iter().cloned());
-            }
-        }
-        result.insert(id.clone(), dependencies);
-    }
-    result
 }

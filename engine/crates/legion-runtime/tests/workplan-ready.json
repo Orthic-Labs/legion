@@ -75,7 +75,7 @@
       "revision": "work-v1",
       "writeScopes": [
         {
-          "path": "src/feature.rs",
+          "path": "src/lib.rs",
           "kind": "file"
         }
       ],
@@ -88,7 +88,7 @@
           "id": "integrated",
           "description": "The integrated artifact satisfies the accepted behavior and documentation",
           "artifact": {
-            "path": "src/feature.rs",
+            "path": "src/lib.rs",
             "revision": "artifact-v2",
             "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
           }

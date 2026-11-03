@@ -388,18 +388,14 @@ pub fn validate_work_plan(plan: &WorkPlan) -> Result<WorkPlanAssessment, WorkPla
         }
     }
     let order = ordered(plan)?;
-    let ancestors = ancestors(plan, &order);
     for (index, left) in plan.units.iter().enumerate() {
         for right in plan.units.iter().skip(index + 1) {
-            if ancestors[&left.id].contains(&right.id) || ancestors[&right.id].contains(&left.id) {
-                continue;
-            }
             if left
                 .write_scopes
                 .iter()
                 .any(|a| right.write_scopes.iter().any(|b| overlaps(a, b)))
             {
-                return Err(failure(Code::ScopeConflict, "write_scopes", Some(left), "unordered units have overlapping exclusive scopes; add a real dependency or split ownership"));
+                return Err(failure(Code::ScopeConflict, "write_scopes", Some(left), "units have overlapping exclusive scopes; one file has one owner for the whole plan, so ordering writers does not resolve it: merge the work into one owner or split the files"));
             }
         }
     }

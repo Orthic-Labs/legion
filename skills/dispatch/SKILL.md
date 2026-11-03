@@ -38,8 +38,14 @@ ownership, & safety limits. At each lead turn, compare ready open issues with ac
 & dispatch missing work; name concrete dependencies or limits for ready work left idle. One
 integration owner per repository reconciles output, runs the sole root verification batch on the
 primary checkout after coding completes, & advances remaining work. Reads may overlap; write
-ownership may not. Continue independent edits while checks are deferred; no worker runs checks or
-builds.
+ownership may not. Each repository-relative file has exactly one implementation owner across the
+whole dispatch, and that owner makes every known change to it end to end; never hand a file from
+one issue-category lane to the next, and an ordering dependency between two writers of one file
+does not satisfy this. Other specialists give the owner read-only findings. Overlapping directory
+or glob scopes & path aliases count as the same file. After a failed check the original owner
+repairs; a replacement retires the prior assignment & records why. A review that accepts a plan
+checks this property explicitly; a structural PASS is not proof of it. Continue independent edits
+while checks are deferred; no worker runs checks or builds.
 3. Add contracts, receipts, recovery schemas, dependency waves, or strict return fields only for
 explicit/locked governed work. Load `references/manual.md` only for that path.
    When shared-repository units need executable ownership/dependency and evidence accounting, use
