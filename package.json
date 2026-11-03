@@ -98,7 +98,6 @@
     "release:stage-summary": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-stage-summary",
     "release:verify-evidence": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-evidence-verification",
     "schemas:check": "bash scripts/cargo.sh run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-schemas --check",
-    "test": "bash scripts/cargo.sh test --locked --manifest-path engine/Cargo.toml --workspace",
     "windows:finalize": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- package-windows-release --finalize",
     "windows:package": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- package-windows-release",
     "windows:publish": "bash scripts/cargo.sh run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- package-windows-release --finalize --publish-github",

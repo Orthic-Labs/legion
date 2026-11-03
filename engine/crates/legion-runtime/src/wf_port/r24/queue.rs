@@ -220,7 +220,7 @@ impl QueueState {
     pub fn poll_finished(&self) {
         let _ = self
             .active_polls
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
         self.broadcast_agent_polling_if_changed();
     }
 

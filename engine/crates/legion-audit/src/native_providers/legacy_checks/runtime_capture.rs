@@ -912,7 +912,7 @@ fn base_request(
         executable: RUNTIME_CAPTURE_TOOL.into(),
         args,
         cwd: cwd.to_string_lossy().into_owned(),
-        origin: rightkit_evidence_effects::ToolOrigin::LegionOwned,
+        origin: rightkit_evidence_effects::ToolOrigin::HostOwned,
         shell: false,
         accepted_exit_codes: [0].into_iter().collect(),
         timeout_ms: bound_u64(provider, "timeoutMs").unwrap_or(120_000),

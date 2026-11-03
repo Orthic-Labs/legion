@@ -23,7 +23,6 @@ use crate::{
     task::ContextRequest,
 };
 
-#[cfg(not(test))]
 const PROVIDER_CLEANUP_GRACE: Duration = Duration::from_millis(2500);
 
 #[derive(Clone, Copy)]

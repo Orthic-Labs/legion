@@ -689,6 +689,8 @@ fn parse_script_phases(text: &str) -> Vec<Value> {
         Regex::new(&format!(r"(?s){}\s*=\s*\((?P<body>.*?)\);", key))
             .expect("valid script list regex")
     };
+    let always_re =
+        Regex::new(r"alwaysOutOfDate\s*=\s*1\s*;").expect("valid always out-of-date regex");
     let mut phases = Vec::new();
     for caps in chunks.iter().filter_map(|chunk| phase_re.captures(chunk)) {
         let name = caps
@@ -701,9 +703,7 @@ fn parse_script_phases(text: &str) -> Vec<Value> {
             + script_list_count(body, &value_re("inputFileListPaths"));
         let outputs = script_list_count(body, &value_re("outputPaths"))
             + script_list_count(body, &value_re("outputFileListPaths"));
-        let always = Regex::new(r"alwaysOutOfDate\s*=\s*1\s*;")
-            .expect("valid always out-of-date regex")
-            .is_match(body);
+        let always = always_re.is_match(body);
         phases.push(json!({"name": name, "input_count": inputs, "output_count": outputs, "always_out_of_date": always, "has_shell_script": body.contains("shellScript") }));
     }
     phases

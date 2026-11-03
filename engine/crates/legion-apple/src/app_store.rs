@@ -455,7 +455,7 @@ fn append_query(url: &mut Url, query: Option<&Value>) -> Result<(), String> {
             _ => pairs.push((key.clone(), scalar_string(value)?)),
         }
     }
-    pairs.sort_by(|left, right| left.cmp(right));
+    pairs.sort();
     {
         let mut serializer = url.query_pairs_mut();
         for (key, value) in pairs {

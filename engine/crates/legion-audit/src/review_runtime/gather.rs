@@ -3,7 +3,7 @@
 use super::{invalid, model, tools, Controller};
 use crate::{
     error::AuditError,
-    native_providers::reasoning::{ingest, PendingLensWork, ReasoningInvocation},
+    native_providers::reasoning::{ingest, ReasoningInvocation},
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
