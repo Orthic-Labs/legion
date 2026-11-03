@@ -72,7 +72,7 @@ There are two layers. Keep them separate.
 
 ### Project QA Contract
 
-This is the safer SampleApp-style foundation. Each app should own scripts like:
+This is the safer SampleApp-style foundation for **web products**. Desktop and Tauri apps have no dev-server or browser-mock harness; they are QA'd through RightKit QA on the real installed build (see Native/Tauri Foreground QA). Each web app should own scripts like:
 
 ```text
 qa/browser.ps1       # Windows: start hidden QA app, write URL + PID
@@ -106,7 +106,7 @@ or Puppeteer. They are the Rust port `legion-runtime::wf_port::r54`; the former 
 must call `legion script ...` instead. `qa/browser.sh`, `qa/browser-stop.sh`, and their `.ps1`
 equivalents are not package files — they are project scripts a consuming app authors itself.
 
-## Best Implementation For A New App
+## Best Implementation For A New Web App
 
 Add four project scripts:
 
@@ -169,7 +169,10 @@ legion script qa/qa-functional --url "$(cat .cache/qa-browser/url.txt)" --action
 
 Purpose: "Does the app work?"
 
-Use hidden app QA:
+Web products only. Desktop and Tauri apps run functional checks through RightKit QA
+(`kind = "functional"`) against the real installed build, never through this hidden-browser route.
+
+Use hidden web app QA:
 
 - Start with `pnpm qa:browser`.
 - Drive `http://127.0.0.1:<port>/?qa=1`.
@@ -218,6 +221,9 @@ Supported actions:
 
 Purpose: prove declared functional, behavioral, browser, & runtime acceptance in rendered states.
 
+Web products only. Desktop and Tauri apps capture rendered states through RightKit QA
+(`kind = "visual"`) against the real installed build; `audit-visual` owns that route.
+
 Use SampleApp-style capture:
 
 - `--shot` captures only the app viewport: no desktop, wallpaper, other windows, or browser chrome.
@@ -227,7 +233,7 @@ Use SampleApp-style capture:
 - Refer rendered-state enumeration, regression comparison, & evidence coverage to Audit Visual (named as the owner; QA does not invoke it).
 - Refer subjective hierarchy, typography, spacing craft, density, theme fit, brand expression, & polish judgment or remediation to Designer (named as the owner; QA does not invoke it).
 
-Run (visual scenarios only):
+Run (web products, visual scenarios only):
 
 Windows:
 
@@ -251,9 +257,12 @@ Screenshot modes every app should support at the project wrapper level:
 The shared engine currently guarantees viewport screenshots. Add project-level selector/clip
 wrappers when the app has stable shell selectors.
 
-## Native/Tauri Foreground QA
+## Native/Tauri Foreground QA (installed build only)
 
-Opt in only when the issue genuinely requires native behavior:
+Desktop, Tauri, and other native apps are QA'd headless against the real installed build with
+RightKit QA. No dev server, `?qa=1` route, browser mock, or `--url` to a dev server is ever used for
+them, including for foreground work. Foreground work is an opt-in on the installed build only, and
+only when the issue genuinely requires native behavior:
 
 - installer lifecycle
 - file associations
@@ -332,6 +341,8 @@ Therefore, when QA/auditing any change whose tests can touch runtime-loaded stat
   completion.
 - QA is not Audit Visual's rendered-state audit and not Designer's qualitative craft, though QA
   viewport captures serve both as evidence.
-- Default to hidden browser QA. Use foreground/native work only for installer, file dialogs, OS
-  hotkeys, devices, tray/window-frame, or packaged WebView behavior. Never capture desktop,
-  wallpaper, another application, or browser chrome for routine QA.
+- Default to hidden browser QA for web products. Desktop and Tauri apps default to headless RightKit
+  QA against the real installed build, never a dev server or mocked browser. Use foreground/native
+  work only for installer, file dialogs, OS hotkeys, devices, tray/window-frame, or packaged WebView
+  behavior, and only against the installed build. Never capture desktop, wallpaper, another
+  application, or browser chrome for routine QA.

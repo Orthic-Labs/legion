@@ -23,12 +23,18 @@ decision the user reserved.
 1. Read the current user request, applicable workspace/repository rules, exact
    source inputs, relevant errors, & scoped Git status. Pass only the excerpts
    the worker needs; never write “use existing context” or “as discussed.”
-2. Assign one agent per ready repository or bounded change with bounded non-overlapping
-   file or module ownership, within real host capacity, budget, & safety limits. Never group
-   independent ready changes into broad serial lanes. Use exact file allowlists, one-touch ledgers, &
-   strict repair reassignment only when the governing contract requires them.
-   Put independent lanes together & add dependencies only for concrete data,
-   file, resource, or effect order.
+2. Assign one agent per ready repository or bounded change within real host capacity, budget,
+   & safety limits. Never group independent ready changes into broad serial lanes.
+   Each repository-relative file has exactly one implementation owner across the whole dispatch,
+   unconditionally. That owner makes every known change to it end to end, gathering every finding
+   for that file into its one bounded assignment. Never hand a file from one issue-category lane to
+   the next, and an ordering dependency between two writers of one file does not satisfy this.
+   Overlapping directory or glob scopes & path aliases count as the same file. Every assignment gets an
+   exact file allowlist, and every owned file gets a one-touch ledger entry. Other specialists give the
+   owner read-only findings. A failed check is repaired by the original owner; a replacement retires
+   the prior assignment and records why.
+   Put independent lanes together & add dependencies only for concrete data, resource, or effect
+   order. A dependency never permits a second writer to a file.
 3. State a repository-specific check policy. Workers inspect declared inputs &
    edit owned paths; they may run named focused checks when policy allows. Where
    policy makes workers edit-only, they do not run checks. In all cases workers

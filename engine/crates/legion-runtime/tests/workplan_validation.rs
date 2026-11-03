@@ -185,6 +185,42 @@ fn same_file_cannot_have_two_writers_even_when_ordered() {
 }
 
 #[test]
+fn three_writer_chain_on_one_file_is_rejected() {
+    // a -> b -> c, each writing the same file: an ordered handoff chain still gives the file
+    // three owners across the plan, so it must fail with ScopeConflict (#134).
+    let mut plan = fixture();
+    let shared = "src/feature.rs";
+    for index in [1, 2] {
+        let unit = &mut plan.units[index];
+        unit.write_scopes[0].path = shared.into();
+        unit.completion[0].artifact.path = shared.into();
+    }
+    let first = plan.units[0].id.clone();
+    let second = plan.units[1].id.clone();
+    plan.units[1].depends_on = vec![first];
+    plan.units[2].depends_on = vec![second];
+    assert_error(&plan, Code::ScopeConflict);
+}
+
+#[test]
+fn disjoint_writers_pass_and_stay_parallel() {
+    let plan = fixture();
+    // The two writers own different files and neither depends on the other.
+    assert_ne!(plan.units[0].write_scopes[0].path, plan.units[1].write_scopes[0].path);
+    assert!(plan.units[0].depends_on.is_empty());
+    assert!(plan.units[1].depends_on.is_empty());
+    let assessment = validate_work_plan(&plan).expect("disjoint write scopes are valid");
+    assert_eq!(
+        assessment
+            .ready_units
+            .iter()
+            .map(TaskId::as_str)
+            .collect::<Vec<_>>(),
+        ["documentation", "implementation"]
+    );
+}
+
+#[test]
 fn catches_directory_case_and_file_ancestor_conflicts() {
     for (left, right, kind) in [
         ("src", "src/feature.md", WriteScopeKind::Directory),
