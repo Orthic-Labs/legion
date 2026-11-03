@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
@@ -1475,10 +1475,7 @@ impl<C: ManualApplyCallbacks> ManualApplyController<C> {
     /// Exclusively owns the project while rolling back one timed-out apply.
     /// Unlike a new user mutation, this preserves the selected snapshot.
     pub(crate) fn try_begin_timeout_rollback(&self) -> Option<MutexGuard<'_, ()>> {
-        match self.mutation_gate.try_lock() {
-            Ok(guard) => Some(guard),
-            Err(TryLockError::WouldBlock | TryLockError::Poisoned(_)) => None,
-        }
+        self.mutation_gate.try_lock().ok()
     }
 
     fn tombstone_timed_out_apply_id(

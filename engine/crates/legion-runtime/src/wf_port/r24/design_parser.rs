@@ -27,8 +27,8 @@ fn cached_regex(pattern: &'static str) -> &'static regex::Regex {
     let mut cache = CACHE
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    if let Some((_, re)) = cache.iter().find(|(p, _)| *p == pattern) {
-        return *re;
+    if let Some(&(_, re)) = cache.iter().find(|(p, _)| *p == pattern) {
+        return re;
     }
     let re: &'static regex::Regex = Box::leak(Box::new(
         regex::Regex::new(pattern).expect("static design-parser pattern"),

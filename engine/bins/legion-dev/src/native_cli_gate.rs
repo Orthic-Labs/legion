@@ -718,11 +718,13 @@ fn mutation_diff(filesystem: &Value) -> Value {
     Value::Object(changed)
 }
 
+#[cfg(windows)]
 fn normalized_windows_path(value: &str) -> String {
     let stripped = value.strip_prefix(r"\\?\").unwrap_or(value);
     stripped.replace('/', "\\").to_lowercase()
 }
 
+#[cfg(windows)]
 pub fn validate_installed_skill_links(
     filesystem: &Value,
     installed_skills_root: &Path,

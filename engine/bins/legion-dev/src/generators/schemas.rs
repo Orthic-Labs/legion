@@ -10,9 +10,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-use rightkit_evidence_contracts::enums::{
-    EVIDENCE_STRENGTH, FACT_KINDS, PROVIDER_STATUS, SECURITY_VERDICTS,
-};
+use rightkit_evidence_contracts::enums::{EVIDENCE_STRENGTH, PROVIDER_STATUS, SECURITY_VERDICTS};
 
 fn enum_arr(values: &[&str]) -> Value {
     Value::Array(values.iter().map(|s| Value::from(*s)).collect())

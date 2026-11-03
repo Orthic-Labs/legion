@@ -271,7 +271,7 @@ impl ExternalProjectTool for MappingTool {
         assert_eq!(req.provider_id, ID);
         assert_eq!(req.plan_id, self.plan);
         assert_eq!(req.task_id.as_deref(), Some("runtime"));
-        assert_eq!(req.origin, ToolOrigin::LegionOwned);
+        assert_eq!(req.origin, ToolOrigin::HostOwned);
         assert!(!req.shell);
         assert!(!req.requires_network_sandbox);
         assert!(req.sandbox.is_none());

@@ -218,9 +218,18 @@ impl QueueState {
 
     /// Call when an agent long-poll stops waiting (answered or timed out).
     pub fn poll_finished(&self) {
-        let _ = self
-            .active_polls
-            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+        let mut current = self.active_polls.load(Ordering::SeqCst);
+        while let Some(next) = current.checked_sub(1) {
+            match self.active_polls.compare_exchange_weak(
+                current,
+                next,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
         self.broadcast_agent_polling_if_changed();
     }
 

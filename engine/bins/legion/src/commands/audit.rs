@@ -699,13 +699,6 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 inventory_filter.as_ref(),
             )?;
             (Arc::new(application), notices, None, false)
-        } else if native_application_configured {
-            (
-                super::native_application_for(&root.to_string_lossy())?,
-                Vec::new(),
-                None,
-                false,
-            )
         } else {
             let (application, notices, scratch) = native_registry_application(
                 &root,

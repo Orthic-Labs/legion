@@ -264,8 +264,7 @@ pub fn check_html_patterns(html: &str) -> Vec<Finding> {
         let start = html
             .char_indices()
             .map(|(i, _)| i)
-            .filter(|&i| i <= start)
-            .next_back()
+            .rfind(|&i| i <= start)
             .unwrap_or(0);
         let context = &html[start..end];
         if gradient_word_re().is_match(context) {

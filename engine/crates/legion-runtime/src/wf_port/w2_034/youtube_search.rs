@@ -781,10 +781,9 @@ pub fn run(
     let api_ref = api.as_deref();
 
     let mut stderr = String::new();
-    let stdout: String;
     let mut exit_code = 0;
 
-    match parsed.command.as_str() {
+    let stdout = match parsed.command.as_str() {
         "search" => {
             let result = search_videos(api_ref, &parsed.query, parsed.limit, &parsed.order);
             if let Some(err) = &result.error {
@@ -793,11 +792,11 @@ pub fn run(
                     exit_code = 1;
                 }
             }
-            stdout = if parsed.json {
+            if parsed.json {
                 serde_json::to_string_pretty(&result).unwrap_or_default() + "\n"
             } else {
                 format_search_text(&result)
-            };
+            }
         }
         "video" => {
             let result = get_video_details(api_ref, &parsed.query);
@@ -807,11 +806,11 @@ pub fn run(
                     exit_code = 1;
                 }
             }
-            stdout = if parsed.json {
+            if parsed.json {
                 serde_json::to_string_pretty(&result).unwrap_or_default() + "\n"
             } else {
                 format_video_text(&result)
-            };
+            }
         }
         "channel" => {
             let result = get_channel_info(api_ref, &parsed.query);
@@ -821,14 +820,14 @@ pub fn run(
                     exit_code = 1;
                 }
             }
-            stdout = if parsed.json {
+            if parsed.json {
                 serde_json::to_string_pretty(&result).unwrap_or_default() + "\n"
             } else {
                 format_channel_text(&result)
-            };
+            }
         }
         _ => unreachable!("validated by parse_cli_args"),
-    }
+    };
 
     CliOutcome {
         exit_code,

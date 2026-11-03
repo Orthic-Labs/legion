@@ -83,7 +83,7 @@ fn decision_ready(text: &str) -> bool {
     contract
         && ["written-in-contract", "enforced-in-code", "verified-by-run"]
             .iter()
-            .all(|name| boxed(*name))
+            .all(|name| boxed(name))
 }
 
 /// The denial for a command that files an issue (`gh issue create`, or a `gh api` POST to
