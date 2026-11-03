@@ -12,13 +12,20 @@ use serde_json::Value;
 use crate::protocol::{HookRequest, HookResponse};
 use crate::state::{ledger, off, session_id, state_dir, write_atomic, Payload};
 
+/// The frontmatter block of a SKILL.md (between the leading `---` lines), empty when there is none.
+fn frontmatter(text: &str) -> &str {
+    text.strip_prefix("---")
+        .and_then(|rest| rest.split("\n---").next())
+        .unwrap_or("")
+}
+
 /// Installed skills as `plugin:name`: the installed assets, and the legion, pulse and egm plugins.
 fn catalog() -> Vec<String> {
     let mut found = Vec::new();
     let mut add = |plugin: &str, skills: PathBuf| {
         for dir in fs::read_dir(skills).into_iter().flatten().flatten() {
             let text = fs::read_to_string(dir.path().join("SKILL.md")).unwrap_or_default();
-            if !text.is_empty() && !text.contains("disable-model-invocation: true") {
+            if !text.is_empty() && !frontmatter(&text).contains("disable-model-invocation: true") {
                 let name = dir.file_name().to_string_lossy().to_lowercase();
                 found.push(format!("{plugin}:{name}"));
             }
@@ -27,15 +34,29 @@ fn catalog() -> Vec<String> {
     if let Some(assets) = crate::installed_assets_root() {
         add("legion", assets.join("skills"));
     }
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
-    let cache = PathBuf::from(home.unwrap_or_default()).join(".claude/plugins/cache");
+    let config = std::env::var_os("CLAUDE_CONFIG_DIR")
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
+            PathBuf::from(home.unwrap_or_default()).join(".claude")
+        });
+    let cache = config.join("plugins/cache");
     for market in fs::read_dir(cache).into_iter().flatten().flatten() {
         for plugin in fs::read_dir(market.path()).into_iter().flatten().flatten() {
             let name = plugin.file_name().to_string_lossy().to_lowercase();
             if !["legion", "pulse", "egm"].contains(&name.as_str()) {
                 continue;
             }
-            for version in fs::read_dir(plugin.path()).into_iter().flatten().flatten() {
+            let newest = fs::read_dir(plugin.path())
+                .into_iter()
+                .flatten()
+                .flatten()
+                .max_by_key(|version| {
+                    let modified = version.metadata().and_then(|meta| meta.modified()).ok();
+                    (modified, version.file_name())
+                });
+            if let Some(version) = newest {
                 add(&name, version.path().join("skills"));
             }
         }
@@ -43,6 +64,17 @@ fn catalog() -> Vec<String> {
     found.sort();
     found.dedup();
     found
+}
+
+/// Words that turn a nearby skill mention into a refusal or an aside rather than a request.
+fn negated(words: &[String], index: usize) -> bool {
+    words[index.saturating_sub(3)..index].iter().any(|word| {
+        matches!(
+            word.as_str(),
+            "no" | "not" | "never" | "without" | "skip" | "stop" | "avoid"
+        ) || word.ends_with("n't")
+            || word.ends_with("n\u{2019}t")
+    })
 }
 
 /// Skills a prompt names: `/x`, `legion:x`, `pulse:x`, `egm:x`, or `x skill` for an installed `x`.
@@ -64,6 +96,9 @@ fn detect(prompt: &str, catalog: &[String]) -> Vec<String> {
             }
             None => continue,
         };
+        if negated(&words, index) {
+            continue;
+        }
         let exact = catalog.iter().find(|full| full.as_str() == spec);
         let named = catalog
             .iter()
@@ -125,6 +160,14 @@ pub fn stop_check(request: &HookRequest) -> Option<HookResponse> {
         .iter()
         .rposition(|entry| entry["marker"] == "turn")?;
     let marker = &entries[start];
+    // Record the evaluation of this turn marker on the first Stop that sees it, whether or not it blocks, so a
+    // later Stop without a new marker (a task-notification turn) never blocks for an earlier turn's skills.
+    let turn = marker["t"].to_string();
+    let blocked = state_dir("skills")?.join(format!("{session}.blocked"));
+    if fs::read_to_string(&blocked).is_ok_and(|seen| seen == turn) {
+        return None;
+    }
+    write_atomic(&blocked, turn.as_bytes())?;
     let names = marker["skills"]
         .as_array()?
         .iter()
@@ -135,14 +178,8 @@ pub fn stop_check(request: &HookRequest) -> Option<HookResponse> {
     if missing.is_empty() {
         return None;
     }
-    let turn = format!("{}:{}", marker["t"], missing.join(","));
-    let blocked = state_dir("skills")?.join(format!("{session}.blocked"));
-    if fs::read_to_string(&blocked).is_ok_and(|seen| seen == turn) {
-        return None;
-    }
-    write_atomic(&blocked, turn.as_bytes())?;
     let reason = format!(
-        "You named skill {}; call it with the Skill tool before finishing.",
+        "You named skill {}. If Adrian asked for it, call it with the Skill tool; if he only mentioned it, say so and finish.",
         missing.join(", ")
     );
     Some(HookResponse::denied(

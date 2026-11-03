@@ -139,6 +139,9 @@ fn claude_stop_blocks_once_for_a_named_skill_that_was_never_called() {
     let send = |payload: &Value| {
         let mut child = Command::new(env!("CARGO_BIN_EXE_legion-hook"))
             .env_remove("LEGION_M1_CONFIG")
+            .env_remove("LEGION_STATE_DIR")
+            .env_remove("LEGION_HOOK_OFF")
+            .env_remove("CLAUDE_CONFIG_DIR")
             .env("HOME", root.join("home"))
             .env("LEGION_STATE_ROOT", root.join("state"))
             .stdin(Stdio::piped())
@@ -166,5 +169,11 @@ fn claude_stop_blocks_once_for_a_named_skill_that_was_never_called() {
         "tool_input":{"skill":"legion:zzdemo"}}),
     );
     assert_eq!(send(&event("skill-b", "Stop"))["allowed"], true);
+    let negated = |name: &str| {
+        json!({"hook_event_name":name, "session_id":"skill-c", "prompt":"don't use the zzdemo skill",
+        "last_assistant_message":"Working."})
+    };
+    send(&negated("UserPromptSubmit"));
+    assert_eq!(send(&negated("Stop"))["allowed"], true);
     let _ = std::fs::remove_dir_all(&root);
 }

@@ -163,6 +163,11 @@ fn stop_response(request: &HookRequest) -> HookResponse {
         };
         return HookResponse::denied(request.event_type.clone(), code, reason, "strong");
     }
+    // A skill Adrian named this turn that was never called reopens the turn once. It runs first so it always
+    // records that this turn marker was evaluated; its result is kept only when it blocks.
+    if let Some(denied) = skills::stop_check(request) {
+        return denied;
+    }
     // A completion claim with no matching successful command after the last
     // edit may reopen the turn once (never while `stop_hook_active`); in shadow
     // mode the check only logs.
@@ -170,10 +175,6 @@ fn stop_response(request: &HookRequest) -> HookResponse {
         return denied;
     }
     if let Some(denied) = approvals::stop_check(request) {
-        return denied;
-    }
-    // A skill Adrian named this turn that was never called reopens the turn once.
-    if let Some(denied) = skills::stop_check(request) {
         return denied;
     }
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")
