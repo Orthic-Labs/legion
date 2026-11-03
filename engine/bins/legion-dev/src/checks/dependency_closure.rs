@@ -380,9 +380,11 @@ pub fn scan_host_command_references(
         for line in snippet.split(['\n']) {
             let line = line.trim_end_matches('\r');
             let trimmed = line.trim();
+            // `legion:oracle` is a plugin agent type, not a shell command.
             let command = start_re
                 .captures(trimmed)
                 .and_then(|c| c.get(1))
+                .filter(|m| !trimmed[m.end()..].starts_with(':'))
                 .map(|m| m.as_str().to_lowercase());
             let Some(command) = command else { continue };
             let Some(capability) = command_capabilities.get(&command) else {
