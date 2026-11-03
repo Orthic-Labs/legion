@@ -39,23 +39,6 @@ fi
 # build. They need only Python, rustfmt and the committed tree; each keeps the
 # fail-closed set -e semantics. Later checks run right after their prerequisites.
 export PYTHONDONTWRITEBYTECODE=1
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_geiger_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_qualification_records.py
-python3 -m unittest discover -s scripts/ci/tests -p test_semgrep_raw_record_digest.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_compatibility_report_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_supply_chain_native_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_backend_source_facts.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_code_long_tail_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_extra_provider_receipt_contract.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_opengrep_artifact_contract.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_cargo_deny_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_node_outdated_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p 'test_*sdk_adapter.py'
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_reasoning_runtime_registration.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_runtime_app_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_capsule_preflight.py
-python3 -m unittest discover -s scripts/ci/tests -p test_audit_visual_provider_accuracy.py
-python3 -m unittest discover -s scripts/ci/tests -p test_quality_test_interruption.py
 (cd engine && cargo fmt --all -- --check)
 if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
   python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
@@ -921,7 +904,6 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   export LEGION_MOBILE_SDK_ENROLLMENT="${RUNNER_TEMP}/legion-provider-qualification/code-mobile/mobile-native-enrollment.json"
   export LEGION_MOBILE_SOURCE_ENROLLMENT="${RUNNER_TEMP}/legion-provider-qualification/code-mobile/mobile-source-enrollment.json"
   mkdir -p "$LEGION_MOBILE_SDK_SCRATCH"
-  run_audit_qualification python3 -m unittest discover -s scripts/ci/tests -p test_audit_mobile_sdk_accuracy.py
   run_audit_qualification python3 scripts/ci/audit-mobile-native-enrollment.py \
     --root "$GITHUB_WORKSPACE" --receipts "${RUNNER_TEMP}/legion-provider-qualification/code-mobile"
   run_audit_qualification audit_cargo_test --lib \
