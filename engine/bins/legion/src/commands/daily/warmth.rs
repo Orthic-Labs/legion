@@ -111,19 +111,17 @@ fn refusal(receipt: &Value) -> Option<String> {
     }
 }
 
-/// True when the receipt proves that nothing it builds from moved: the input closure was
-/// verified with no changed, added, removed or extra input (source, `Cargo.lock` included), and
-/// Cargo named no changed source or dependency as a cause.
+/// True when the receipt names a positive cause for every rebuilt unit and none of them is a
+/// changed source or dependency: the cause evidence is complete, `causeCounts` is a non-empty
+/// object, and no key is `source-or-dependency-changed`. The input closure only compares a job's
+/// inputs before and after that one job, so it is not evidence about the previous build.
 fn inputs_unchanged(receipt: &Value) -> bool {
-    let closure = &receipt["inputClosure"];
-    let moved = ["changed", "added", "removed", "extrasChanged"]
-        .iter()
-        .any(|key| closure[*key].as_array().is_none_or(|list| !list.is_empty()));
-    let source_cause = receipt["freshness"]["causeCounts"]["source-or-dependency-changed"]
-        .as_u64()
-        .unwrap_or(0)
-        > 0;
-    closure["status"] == "verified" && !moved && !source_cause
+    let fresh = &receipt["freshness"];
+    let causes = fresh["causeCounts"].as_object();
+    fresh["causeEvidence"]["state"] == "complete"
+        && causes
+            .is_some_and(|map| !map.is_empty() && !map.contains_key("source-or-dependency-changed"))
+        && receipt["inputClosure"]["status"] == "verified"
 }
 
 /// Count one job receipt into its repository.
@@ -452,7 +450,8 @@ mod tests {
         // A rebuild of two units, with the given input verdict, changed inputs and causes.
         let rebuilt = |status: &str, changed: Value, causes: Value| {
             json!({
-                "freshness": {"notFresh": 2, "causeCounts": causes},
+                "freshness": {"notFresh": 2, "causeCounts": causes,
+                              "causeEvidence": {"state": "complete"}},
                 "inputClosure": {"status": status, "changed": changed, "added": [],
                                  "removed": [], "extrasChanged": []},
                 "cacheCohort": {"toolchain": "1.99.1", "profile": "release",
@@ -483,11 +482,14 @@ mod tests {
         let flag = [format!("not-fresh-without-change {RUSTRIGHT}")];
         let lockfile = rebuilt("verified", json!(["Cargo.lock"]), json!({}));
         let unproven = rebuilt("unrequested", json!([]), json!({}));
+        let mut incomplete = clean.clone();
+        incomplete["freshness"]["causeEvidence"] = json!({"state": "incomplete"});
         let source = json!({"source-or-dependency-changed": 2});
         let source = rebuilt("verified", json!([]), source);
         assert_eq!(flagged(std::slice::from_ref(&clean), &same, 500), flag);
         assert!(flagged(&[lockfile], &same, 500).is_empty());
         assert!(flagged(&[unproven], &same, 500).is_empty());
+        assert!(flagged(&[incomplete], &same, 500).is_empty());
         assert!(flagged(&[source], &same, 500).is_empty());
         assert!(flagged(std::slice::from_ref(&clean), &State::new(), 500).is_empty());
         assert!(flagged(std::slice::from_ref(&clean), &other, 500).is_empty());

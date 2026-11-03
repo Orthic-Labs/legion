@@ -196,16 +196,24 @@ fn governance_judgment_advisory_query_requires_key_dir() {
 
 #[test]
 fn budget_inspect_requires_arcane_key_dir() {
-    let output = legion(&[
-        "budget",
-        "inspect",
-        "--contract",
-        "EC-1",
-        "--version",
-        "1",
-        "--task",
-        "T-1",
-    ]);
+    // No ARCANE_KEY_DIR and a home with no key ring, so the shared resolver finds none.
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "budget",
+            "inspect",
+            "--contract",
+            "EC-1",
+            "--version",
+            "1",
+            "--task",
+            "T-1",
+        ])
+        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
+        .env_remove("ARCANE_KEY_DIR")
+        .env("HOME", env!("CARGO_TARGET_TMPDIR"))
+        .env("USERPROFILE", env!("CARGO_TARGET_TMPDIR"))
+        .output()
+        .expect("native Legion CLI must execute");
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("ARC_AUTH_KEY_UNAVAILABLE"));

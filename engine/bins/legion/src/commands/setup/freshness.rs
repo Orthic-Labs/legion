@@ -361,8 +361,9 @@ impl Lookup {
 }
 
 /// The source commit recorded in the installed generation's release manifest.
-/// The manifest is read raw: `ReleaseManifest` rejects unknown fields, and the
-/// commit is not part of its schema.
+/// The manifest is re-read raw so a value the typed `source_revision` field
+/// rejects or lacks (an older release, a short id) stays "unknown" instead of
+/// failing the whole status.
 fn installed_source_commit() -> Option<String> {
     let installed = legion_runtime::release_binding::load_installed_release().ok()?;
     let bytes = std::fs::read(&installed.manifest_path).ok()?;
