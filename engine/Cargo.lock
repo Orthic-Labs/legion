@@ -2409,6 +2409,7 @@ version = "0.3.23"
 dependencies = [
  "legion-identity",
  "rightkit-evidence-contracts",
+ "rightkit-http",
  "serde_json",
  "tokio",
 ]
@@ -3830,6 +3831,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rightkit-http"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5011b57437a3c15b47b969b62dbbb018a13b935f48043dc0910be330f64214bd"
+dependencies = [
+ "getrandom 0.4.3",
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "rightkit-ownership"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5060,6 +5073,7 @@ dependencies = [
  "percent-encoding",
  "rustls",
  "rustls-pki-types",
+ "rustls-platform-verifier",
  "ureq-proto",
  "utf8-zero",
  "webpki-roots",

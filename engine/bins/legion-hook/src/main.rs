@@ -15,6 +15,8 @@ use rightkit_evidence_contracts::{
 use serde_json::{Map, Value};
 
 mod approvals;
+#[allow(dead_code)] // not wired into stop_response yet
+mod classify;
 mod codex;
 mod error;
 mod evidence;
