@@ -29,28 +29,13 @@ pub const FETCH_TIMEOUT_MS: u64 = 1200;
 
 const DEFAULT_UPDATE_HOST: &str = "https://designer.style";
 
-/// The update-check host. The host override is a test seam compiled out of
-/// release builds (Orthic-Labs/legion#127): release always asks the default.
+/// The update-check host: always the default.
 pub fn default_update_host() -> String {
-    #[cfg(debug_assertions)]
-    let host =
-        std::env::var("IMPECCABLE_UPDATE_HOST").unwrap_or_else(|_| DEFAULT_UPDATE_HOST.to_string());
-    #[cfg(not(debug_assertions))]
-    let host = DEFAULT_UPDATE_HOST.to_string();
-    host.trim_end_matches('/').to_string()
+    DEFAULT_UPDATE_HOST.trim_end_matches('/').to_string()
 }
 
-/// The update-check cache file. The path override is a test seam compiled out
-/// of release builds (Orthic-Labs/legion#127).
+/// The update-check cache file.
 pub fn default_update_cache_path() -> PathBuf {
-    #[cfg(debug_assertions)]
-    {
-        if let Ok(p) = std::env::var("IMPECCABLE_UPDATE_CACHE") {
-            if !p.trim().is_empty() {
-                return PathBuf::from(p);
-            }
-        }
-    }
     dirs_home().join(".impeccable").join("update-check.json")
 }
 

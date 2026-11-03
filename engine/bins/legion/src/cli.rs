@@ -29,35 +29,11 @@ enum Command {
     Apple(commands::apple::AppleArgs),
     /// Report the native M1 installed-release status.
     ///
-    // The environment variable is a development seam compiled out of release
-    // builds, so the release help text must not name it (Orthic-Labs/legion#127).
-    #[cfg_attr(
-        debug_assertions,
-        doc = " The composition comes from --config, else the LEGION_M1_CONFIG"
-    )]
-    #[cfg_attr(
-        debug_assertions,
-        doc = " environment variable, else the installed release."
-    )]
-    #[cfg_attr(
-        not(debug_assertions),
-        doc = " The composition comes from --config, else the installed release."
-    )]
+    /// The composition comes from --config, else the installed release.
     Status(M1ConfigArgs),
     /// Serve the Legion MCP server over stdio for a plugin host.
     ///
-    #[cfg_attr(
-        debug_assertions,
-        doc = " The composition comes from --config, else the LEGION_M1_CONFIG"
-    )]
-    #[cfg_attr(
-        debug_assertions,
-        doc = " environment variable, else the installed release."
-    )]
-    #[cfg_attr(
-        not(debug_assertions),
-        doc = " The composition comes from --config, else the installed release."
-    )]
+    /// The composition comes from --config, else the installed release.
     Serve(ServeArgs),
     /// Initialize Legion evidence scaffolding in a repository.
     Init(commands::init::InitArgs),
@@ -447,31 +423,10 @@ impl M1CompositionConfig {
     }
 }
 
-/// The composition path named by the environment. It selects the development
-/// runtime origin, so it exists only in builds with debug assertions and is
-/// compiled out of release builds (Orthic-Labs/legion#127).
-#[cfg(debug_assertions)]
-fn m1_config_from_environment() -> Option<PathBuf> {
-    std::env::var_os("LEGION_M1_CONFIG")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-}
-
-#[cfg(not(debug_assertions))]
-fn m1_config_from_environment() -> Option<PathBuf> {
-    None
-}
-
 fn load_m1_application(
     args: &M1ConfigArgs,
 ) -> Result<Arc<legion_application::M1Application>, commands::CommandError> {
     let (config_path, origin) = if let Some(config) = args.config.clone() {
-        let executable = std::env::current_exe().map_err(commands::io_error)?;
-        (
-            config,
-            legion_runtime::release_binding::RuntimeOriginEvidence::development(executable),
-        )
-    } else if let Some(config) = m1_config_from_environment() {
         let executable = std::env::current_exe().map_err(commands::io_error)?;
         (
             config,
@@ -546,9 +501,8 @@ pub(crate) fn resolve_installed_m1_command(
         })
 }
 
-/// True when `legion serve` (without `--config`) can bind a release: the
-/// installed release, or (builds with debug assertions only) `LEGION_M1_CONFIG`.
-/// Same binding path `serve` uses.
+/// True when `legion serve` (without `--config`) can bind the installed
+/// release. Same binding path `serve` uses.
 pub(crate) fn serve_binding_available() -> bool {
     load_m1_application(&M1ConfigArgs { config: None }).is_ok()
 }

@@ -123,27 +123,12 @@ fn absent(path: &Path) -> Result<(), String> {
     }
 }
 
-/// Qualification inputs: the official advisory subset and the pinned
-/// `cargo-audit` executable. Supplying either through the environment is a
-/// qualification seam that exists only in builds with debug assertions and is
-/// compiled out of release builds, where both read as unavailable
-/// (Orthic-Labs/legion#127).
-#[cfg(debug_assertions)]
-fn advisory_database_from_environment() -> Option<std::ffi::OsString> {
-    std::env::var_os("LEGION_RUST_CODE_ADVISORY_DB")
-}
-
-#[cfg(not(debug_assertions))]
+/// The official advisory subset and the pinned `cargo-audit` executable are
+/// not installed, so both read as unavailable (Orthic-Labs/legion#127).
 fn advisory_database_from_environment() -> Option<std::ffi::OsString> {
     None
 }
 
-#[cfg(debug_assertions)]
-fn pinned_cargo_audit_from_environment() -> Option<std::ffi::OsString> {
-    std::env::var_os("LEGION_CARGO_AUDIT_BIN")
-}
-
-#[cfg(not(debug_assertions))]
 fn pinned_cargo_audit_from_environment() -> Option<std::ffi::OsString> {
     None
 }

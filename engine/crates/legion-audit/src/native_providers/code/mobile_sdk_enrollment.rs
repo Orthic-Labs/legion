@@ -3,22 +3,10 @@
 use super::*;
 use std::io::Read;
 
-/// Supplying the enrollment through the environment is a qualification seam
-/// that exists only in builds with debug assertions (and test builds) and is
-/// compiled out of release builds, where no enrollment exists
-/// (Orthic-Labs/legion#127).
-#[cfg(any(test, debug_assertions))]
+/// Name the qualification test uses for its enrollment file location. Nothing
+/// outside the test reads it (Orthic-Labs/legion#127).
+#[cfg(test)]
 pub(super) const ENV: &str = "LEGION_MOBILE_SDK_ENROLLMENT";
-
-#[cfg(debug_assertions)]
-fn enrollment_path_from_environment() -> Option<PathBuf> {
-    std::env::var_os(ENV).map(PathBuf::from)
-}
-
-#[cfg(not(debug_assertions))]
-fn enrollment_path_from_environment() -> Option<PathBuf> {
-    None
-}
 
 const MAX_NODES: usize = 500_000;
 const MAX_BYTES: u64 = 32 * 1024 * 1024 * 1024;
@@ -190,8 +178,11 @@ pub(super) fn capture(sdk: &Path, swiftlint: &Path, audited_root: &Path) -> Resu
     )
 }
 
-pub(super) fn descriptor(audited_root: &Path) -> Result<Option<Value>, String> {
-    let Some(path) = enrollment_path_from_environment() else {
+pub(super) fn descriptor(
+    audited_root: &Path,
+    enrollment_path: Option<PathBuf>,
+) -> Result<Option<Value>, String> {
+    let Some(path) = enrollment_path else {
         return Ok(None);
     };
     let path = path
@@ -220,7 +211,7 @@ pub(super) fn descriptor(audited_root: &Path) -> Result<Option<Value>, String> {
 }
 
 pub(super) fn verify(audited_root: &Path, sdk: &Path) -> Result<Option<Value>, String> {
-    let Some(descriptor) = descriptor(audited_root)? else {
+    let Some(descriptor) = descriptor(audited_root, None)? else {
         return Ok(None);
     };
     let value: Value = serde_json::from_slice(

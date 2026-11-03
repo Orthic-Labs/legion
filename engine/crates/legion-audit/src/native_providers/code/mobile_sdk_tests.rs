@@ -521,7 +521,7 @@ mod native {
         let source_enrollment_digest = sha256_text(&source_enrollment_bytes);
         let enrollment_digest = sha256_text(&enrollment_bytes);
         assert_eq!(std::fs::read(&enrollment_path).unwrap(), enrollment_bytes);
-        let before = enrollment::descriptor(&base)
+        let before = enrollment::descriptor(&base, Some(enrollment_path.clone()))
             .expect("initial native tree verification")
             .expect("enrollment required");
         let mut cases = Vec::new();
@@ -766,7 +766,7 @@ mod native {
         let observed_after = enrollment::capture(&sdk, &swiftlint, &base)
             .expect("observed complete native closure after matrix");
         assert_eq!(observed_after, enrolled);
-        let after = enrollment::descriptor(&base)
+        let after = enrollment::descriptor(&base, Some(enrollment_path.clone()))
             .expect("final native tree verification")
             .expect("enrollment retained");
         assert_eq!(

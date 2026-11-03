@@ -312,7 +312,8 @@ fn start_stdio(plugin_root: &Path, config: &Path) -> (Child, ChildStdin, BufRead
             "--plugin-root",
             plugin_root.to_str().expect("plugin root UTF-8"),
         ])
-        .env("LEGION_M1_CONFIG", config)
+        .arg("--config")
+        .arg(config)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -338,7 +339,8 @@ fn serve_output(plugin_root: &Path, config: &Path) -> std::process::Output {
             "--plugin-root",
             plugin_root.to_str().expect("plugin root UTF-8"),
         ])
-        .env("LEGION_M1_CONFIG", config)
+        .arg("--config")
+        .arg(config)
         .output()
         .expect("native Legion CLI must execute")
 }

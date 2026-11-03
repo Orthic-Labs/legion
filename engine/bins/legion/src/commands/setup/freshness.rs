@@ -21,16 +21,6 @@ use tokio_util::sync::CancellationToken;
 const RELEASE_REPOSITORY: &str = "Orthic-Labs/legion";
 /// Each lookup (git tag listing, `gh release view`) gets this long.
 const LOOKUP_TIMEOUT: Duration = Duration::from_secs(5);
-/// `LEGION_RELEASE_CHECK=off` skips every lookup (tests, offline hosts).
-/// `LEGION_DEV_CHECKOUT=<path>` names the development checkout when the
-/// command is not run from inside it. Both are environment seams: they exist
-/// only in builds with debug assertions and are compiled out of release builds
-/// (Orthic-Labs/legion#127), where lookups always run and the checkout is the
-/// nearest Legion git checkout above the working directory.
-#[cfg(debug_assertions)]
-const SWITCH_ENV: &str = "LEGION_RELEASE_CHECK";
-#[cfg(debug_assertions)]
-const CHECKOUT_ENV: &str = "LEGION_DEV_CHECKOUT";
 const CHECKOUT_MANIFESTS: [&str; 2] = [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"];
 
 /// What was observed about the installed release and what is newer.
@@ -293,16 +283,6 @@ fn read_checkout_version(root: &Path) -> Option<String> {
     })
 }
 
-#[cfg(any(debug_assertions, test))]
-fn release_check_disabled(value: Option<&str>) -> bool {
-    value.is_some_and(|value| {
-        matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "off" | "0" | "false" | "no"
-        )
-    })
-}
-
 /// Run `git` or `gh` once with a short timeout and no console. `None` on any
 /// failure: a missing tool, a timeout, a non-zero exit or unreadable output.
 async fn run_tool(command: &str, args: Vec<String>, cwd: &Path) -> Option<String> {
@@ -351,14 +331,13 @@ pub(super) struct Lookup {
 
 impl Lookup {
     pub(super) fn from_environment() -> Self {
-        let (enabled, checkout) = environment_seams();
         Self {
-            enabled,
-            checkout,
+            enabled: true,
+            checkout: None,
             cwd: std::env::current_dir().ok(),
             use_git: true,
             use_gh: true,
-            installed_commit: enabled.then(installed_source_commit).flatten(),
+            installed_commit: installed_source_commit(),
         }
     }
 }
@@ -393,21 +372,6 @@ async fn commits_behind(lookup: &Lookup, checkout: Option<&Path>) -> Option<u64>
     run_tool("git", args, root)
         .await
         .and_then(|output| parse_commit_count(&output))
-}
-
-#[cfg(debug_assertions)]
-fn environment_seams() -> (bool, Option<PathBuf>) {
-    (
-        !release_check_disabled(std::env::var(SWITCH_ENV).ok().as_deref()),
-        std::env::var_os(CHECKOUT_ENV)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from),
-    )
-}
-
-#[cfg(not(debug_assertions))]
-fn environment_seams() -> (bool, Option<PathBuf>) {
-    (true, None)
 }
 
 /// Observe the installed version against the newest release and the checkout.
@@ -822,17 +786,6 @@ mod tests {
         assert_eq!(read_checkout_version(&elsewhere), None);
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&elsewhere);
-    }
-
-    #[test]
-    fn switch_values_that_disable_the_check() {
-        for off in ["off", "OFF", "0", "false", " no "] {
-            assert!(release_check_disabled(Some(off)), "{off}");
-        }
-        for on in ["", "on", "1", "true"] {
-            assert!(!release_check_disabled(Some(on)), "{on}");
-        }
-        assert!(!release_check_disabled(None));
     }
 
     #[tokio::test]

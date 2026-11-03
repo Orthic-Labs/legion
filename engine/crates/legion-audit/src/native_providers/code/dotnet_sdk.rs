@@ -193,16 +193,8 @@ fn locked_cache(bytes: &[u8], packages: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-/// The SDK enrollment file location. Supplying it through the environment is a
-/// qualification seam that exists only in builds with debug assertions and is
-/// compiled out of release builds, where no enrollment exists
-/// (Orthic-Labs/legion#127).
-#[cfg(debug_assertions)]
-fn enrollment_path_from_environment() -> Option<std::ffi::OsString> {
-    std::env::var_os("LEGION_DOTNET_ENROLLMENT")
-}
-
-#[cfg(not(debug_assertions))]
+/// The SDK enrollment file location. No enrollment is installed, so the
+/// provider reports `sdk-enrollment-missing` (Orthic-Labs/legion#127).
 fn enrollment_path_from_environment() -> Option<std::ffi::OsString> {
     None
 }

@@ -232,7 +232,8 @@ fn write_body(root: &std::path::Path, body: &str) {
 fn legion(arguments: &[&str], config: &std::path::Path) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_legion"))
         .args(arguments)
-        .env("LEGION_M1_CONFIG", config)
+        .arg("--config")
+        .arg(config)
         .output()
         .expect("native Legion CLI must execute")
 }
@@ -240,7 +241,8 @@ fn legion(arguments: &[&str], config: &std::path::Path) -> std::process::Output 
 fn start_stdio(config: &std::path::Path) -> (Child, ChildStdin, BufReader<ChildStdout>) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args(["serve", "--stdio"])
-        .env("LEGION_M1_CONFIG", config)
+        .arg("--config")
+        .arg(config)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

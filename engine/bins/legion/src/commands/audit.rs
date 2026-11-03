@@ -863,13 +863,8 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
             "assurance profiles require the native provider registry route; --provider-plan, --provider-result and --native-rule-manifest cannot carry a frozen denominator",
         ));
     }
-    let native_application_configured = super::native_application_config_is_injected();
     if args.rightkit_trust.is_some()
-        && !rightkit_trust_route_is_supported(
-            direct,
-            args.native_rule_manifest.is_some(),
-            native_application_configured,
-        )
+        && !rightkit_trust_route_is_supported(direct, args.native_rule_manifest.is_some())
     {
         return Err(CommandError::usage(
             "--rightkit-trust is supported only by the native provider registry route",
@@ -4584,16 +4579,15 @@ fn native_rule_diagnostic_application(
     Ok((application, Vec::new()))
 }
 
-/// Application for operating on an existing audit run (e.g. `verify`): honours
-/// `LEGION_NATIVE_APPLICATION_CONFIG` (builds with debug assertions only),
-/// otherwise builds the same canonical provider registry `legion audit` builds
-/// for `repository_id` (its root).
+/// Application for operating on an existing audit run (e.g. `verify`): builds
+/// the same canonical provider registry `legion audit` builds for
+/// `repository_id` (its root).
 pub(super) fn audit_application_for(
     repository_id: &str,
     only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<Arc<legion_application::NativeApplication>, CommandError> {
     let root = std::path::Path::new(repository_id);
-    if super::native_application_config_is_injected() || !root.is_dir() {
+    if !root.is_dir() {
         return super::native_application_for(repository_id);
     }
     native_registry_application(root, None, only_paths, None)
@@ -4761,19 +4755,14 @@ mod rightkit_trust_cli_tests {
 
     #[test]
     fn rightkit_trust_rejects_alternate_provider_routes() {
-        assert!(rightkit_trust_route_is_supported(false, false, false));
-        assert!(!rightkit_trust_route_is_supported(true, false, false));
-        assert!(!rightkit_trust_route_is_supported(false, true, false));
-        assert!(!rightkit_trust_route_is_supported(false, false, true));
+        assert!(rightkit_trust_route_is_supported(false, false));
+        assert!(!rightkit_trust_route_is_supported(true, false));
+        assert!(!rightkit_trust_route_is_supported(false, true));
     }
 }
 
-fn rightkit_trust_route_is_supported(
-    direct: bool,
-    native_rule_manifest: bool,
-    native_application_configured: bool,
-) -> bool {
-    !direct && !native_rule_manifest && !native_application_configured
+fn rightkit_trust_route_is_supported(direct: bool, native_rule_manifest: bool) -> bool {
+    !direct && !native_rule_manifest
 }
 
 // Match existing continuation/trust path boundaries without creating output.
@@ -5035,18 +5024,6 @@ fn host_owned_external_tool(
 }
 
 fn native_provider_registry_path() -> Option<std::path::PathBuf> {
-    // The registry override is a test seam: it exists only in builds with
-    // debug assertions and is compiled out of release builds, which always use
-    // the installed registry (Orthic-Labs/legion#127).
-    #[cfg(debug_assertions)]
-    {
-        if let Some(path) = std::env::var_os("LEGION_PROVIDER_REGISTRY") {
-            let path = std::path::PathBuf::from(path);
-            if path.is_file() {
-                return Some(path);
-            }
-        }
-    }
     let composition = crate::cli::installed_m1_composition().ok()?;
     let share = composition.parent()?;
     let path = share.join("assets/registry/providers.json");
