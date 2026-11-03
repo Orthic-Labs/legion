@@ -5,6 +5,14 @@ Maintainers must first retrieve CI evidence through authenticated GitHub access 
 commit a separate verification object. Its source ownership is the trust boundary;
 a run number, record assertion, or this checksum check is not authentication.
 External adapters validate retained native semantics, not installed tool bytes.
+
+Retained fixture evidence (since 2026-11-03): the unit tests and CI lanes these records
+were produced by were deleted by the end-to-end-only ruling, so the records are no longer
+re-run. `--check` verifies what is still true: index schema/version, record files present
+with matching recorded digests, provenance verification objects, registry digests, and no
+duplicate entries. It does not require source-closure files (including right-git-ci.sh) to
+exist or match; `source_closure` is retained evidence and is only probed to count entries
+whose closure no longer resolves (`staleClosureEntries`), never to gate.
 """
 
 import argparse
@@ -738,6 +746,51 @@ def provenance(root, entry, row, validated):
     # This maintainer-owned attestation is required even when every CI id exists.
     # Root populates it only after authenticated retrieval; the gate creates none.
     same(verified, expected, "missing/unverified/source-unbound authenticated CI retrieval")
+    return {proof["log"]["path"], entry["provenanceVerification"]["path"]}
+
+
+def retained_references(root, value, seen=None):
+    """Walk a retained record for {path, sha256} references into the archive and verify each file's digest.
+    Replaces the reasoning-runtime semantic validator, retired with the deleted sources."""
+    seen = set() if seen is None else seen
+    found = set()
+    if isinstance(value, dict):
+        ref_path = value.get("path")
+        if isinstance(ref_path, str) and ref_path.startswith(ARCHIVE + "/") and is_digest(value.get("sha256")):
+            raw = relative_file(root, ref_path).read_bytes()
+            require(digest(raw) == value["sha256"], "retained reference digest differs")
+            found.add(ref_path)
+            if ref_path.endswith(".json") and ref_path not in seen:
+                seen.add(ref_path)
+                try:
+                    nested = json.loads(raw)
+                except ValueError:
+                    nested = None
+                found |= retained_references(root, nested, seen)
+        for item in value.values():
+            found |= retained_references(root, item, seen)
+    elif isinstance(value, list):
+        for item in value:
+            found |= retained_references(root, item, seen)
+    return found
+
+
+def retained_provenance(root, entry):
+    """Retained-evidence provenance: archive files exist with recorded digests and the committed
+    verification object binds this entry's record, provenance, log and closure digests. The
+    native-validator re-derivation (`provenance`, `record_binding`) is retired with the deleted sources."""
+    proof, record = entry["provenance"], entry["record"]
+    log = reference(root, proof["log"], "logs")
+    require(log.is_file(), "retained CI log missing")
+    verified = load(reference(root, entry["provenanceVerification"], "verification"))
+    for key, want in {"schema": VERIFY_VERSION, "method": "authenticated-github-retrieval", "verified": True,
+                      "repository": proof["repository"], "runId": proof["runId"], "runAttempt": proof["runAttempt"],
+                      "jobId": proof["jobId"], "workflow": proof["workflow"], "commit": proof["commit"],
+                      "platform": proof["platform"], "jobConclusion": proof["jobConclusion"],
+                      "qualificationConclusion": "success", "recordSha256": record["sha256"],
+                      "provenanceDigest": digest(encoded(proof)), "logSha256": proof["log"]["sha256"],
+                      "sourceClosureDigest": entry["sourceClosure"]["digest"]}.items():
+        require(verified.get(key) == want, "retained provenance verification object differs: " + key)
     return {proof["log"]["path"], entry["provenanceVerification"]["path"]}
 
 
@@ -1597,7 +1650,7 @@ def python_sdk_evidence(root, entry, row):
     for key, filename in PYTHON_SDK_EVIDENCE.items():
         require(refs[key].get("path") == directory + filename, "Python SDK original retained layout differs")
         paths[key] = reference(root, refs[key], "records")
-    helper("audit-python-code-sdk-accuracy.py")["validate_retained"](root, row, paths)
+    # native semantic revalidation retired with the deleted sources
     return {ref["path"] for ref in refs.values()}
 
 
@@ -1609,7 +1662,7 @@ def dotnet_sdk_evidence(root, entry, row):
     for key, filename in DOTNET_SDK_EVIDENCE.items():
         require(refs[key].get("path") == directory + filename, ".NET SDK original retained layout differs")
         paths[key] = reference(root, refs[key], "records")
-    helper("audit-dotnet-sdk-accuracy.py")["validate_retained"](root, row, paths)
+    # native semantic revalidation retired with the deleted sources
     return {ref["path"] for ref in refs.values()}
 
 
@@ -1633,12 +1686,25 @@ def runtime_app_evidence(root, entry, row):
     require(bool(paths), "runtime app retained native evidence missing")
     for relative in paths:
         relative_file(root, relative)
-    api["validate_record"](root, row, live=False, retained=root / directory)
+    # native semantic revalidation retired with the deleted sources
     return paths
+
+
+RETAINED_SINCE = "2026-11-03"
+
+
+def closure_resolves(root, entry):
+    """Retained-evidence probe: True when the recorded source closure still matches; never gates."""
+    try:
+        source_closure(root, entry)
+        return True
+    except Exception:
+        return False
 
 
 def check(root):
     root = Path(root).resolve()
+    stale_closures = 0
     index = load(relative_file(root, INDEX))
     keys(index, {"schema", "entries"})
     require(index["schema"] == VERSION and isinstance(index["entries"], list), "index schema differs")
@@ -1654,7 +1720,7 @@ def check(root):
     retained = {INDEX, SCHEMA}
     for provider, entry in entries.items():
         require(entry["stage"] in ("candidate", "finding", "fact-output", "outcome") and isinstance(entry["scope"], str) and 0 < len(entry["scope"]) <= 1000, "missing corpus claim/stage")
-        source_closure(root, entry)
+        stale_closures += 0 if closure_resolves(root, entry) else 1
         path = reference(root, entry["record"], "records", original=True)
         require(path.parent.name == provider, "record directory must name provider")
         raw_record = path.read_bytes() if entry["family"] == "semgrep-sdk" else None
@@ -1673,7 +1739,8 @@ def check(root):
             require(claimed == entry["record"]["qualificationDigest"] == digest(encoded(row, mode)), "original qualification digest changed")
             row["qualificationDigest"] = claimed
         if entry["family"] == "reasoning-runtime":
-            retained.update(helper("audit-reasoning-runtime-registration.py")["validate"](root, entry, row))
+            retained.update(retained_references(root, row))
+            retained.update(retained_references(root, entry))
             retained.add(entry["record"]["path"])
             benchmark = specs[provider]["benchmark"]
             require(benchmark["status"] == "qualified", "indexed reasoning provider not registered")
@@ -1700,9 +1767,9 @@ def check(root):
             retained.update(python_sdk_evidence(root, entry, row))
         controls(row, entry)
         require(row.get("claimScope") == entry["scope"] if entry["family"] in ("quality-test-native", "dotnet-sdk", "code-rust-sdk", "javascript-sdk", "code-python-sdk", "bench-known-answer", "harness-quality", "harness-ast-grep", "harness-machete", "secrets-history", "harness-rust-outdated") else row["scope"] == entry["scope"], "corpus claim differs from original")
-        validated = record_binding(root, entry, path, row, specs, raw_record=raw_record)
+        # record_binding (native semantic revalidation) is retired with the deleted sources.
         retained.add(entry["record"]["path"])
-        retained.update(provenance(root, entry, row, validated))
+        retained.update(retained_provenance(root, entry))
         benchmark = specs[provider]["benchmark"]
         require(benchmark["status"] == "qualified", "indexed provider not registered")
         same(benchmark["qualification"], qualification(entry), "registry qualification reference differs")
@@ -1729,7 +1796,10 @@ def check(root):
         if path.is_file():
             actual.add(path.relative_to(root).as_posix())
     require(actual == retained, "qualification archive inventory differs")
-    return {"registeredRecords": len(entries), "legacyBenchRecords": sum(row["id"] in BENCH and row["id"] not in entries for row in registry), "promotions": 0}
+    return {"registeredRecords": len(entries), "legacyBenchRecords": sum(row["id"] in BENCH and row["id"] not in entries for row in registry), "promotions": 0,
+            "evidence": "retained-fixture-evidence-not-rerun", "retainedSince": RETAINED_SINCE,
+            "staleClosureEntries": stale_closures,
+            "semanticRevalidation": "retired-with-deleted-sources"}
 
 
 if __name__ == "__main__":
