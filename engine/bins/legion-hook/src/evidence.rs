@@ -158,7 +158,7 @@ fn claims(message: &str) -> Vec<(&'static str, &'static [&'static str])> {
 }
 
 /// Does this ledger row show a successful run (not an edit) that matches the evidence words?
-fn counts(row: &Value, words: &[&str]) -> bool {
+pub fn counts(row: &Value, words: &[&str]) -> bool {
     let tool = row["tool"].as_str().unwrap_or("");
     if row["failed"] == true || row["edit"] == true {
         return false;

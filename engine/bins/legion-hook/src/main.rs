@@ -18,6 +18,7 @@ mod approvals;
 mod codex;
 mod error;
 mod evidence;
+mod progress;
 mod protocol;
 mod skills;
 mod state;
@@ -175,6 +176,10 @@ fn stop_response(request: &HookRequest) -> HookResponse {
         return denied;
     }
     if let Some(denied) = approvals::stop_check(request) {
+        return denied;
+    }
+    // Tier 0 triage: a stalled session, open task items, or "ready" with no read-back reopens the turn once.
+    if let Some(denied) = progress::stop_check(request) {
         return denied;
     }
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")
@@ -1624,6 +1629,7 @@ fn main() {
                     codex::normalize_request(&mut request);
                 }
                 evidence::observe_post_tool(&request);
+                progress::observe_post_tool(&request);
                 evidence::mark_turn_start(&request);
                 parsed_request = Some(request.clone());
                 dispatch(request)
