@@ -111,16 +111,21 @@ fn refusal(receipt: &Value) -> Option<String> {
     }
 }
 
-/// True when the receipt names a positive cause for every rebuilt unit and none of them is a
-/// changed source or dependency: the cause evidence is complete, `causeCounts` is a non-empty
-/// object, and no key is `source-or-dependency-changed`. The input closure only compares a job's
+/// True when every rebuilt unit's cause is unexplained: the cause evidence is complete,
+/// `causeCounts` is a non-empty object, and every key is `fingerprint-missing` or `unexplained`.
+/// A toolchain, feature, profile, rustflags, source or dependency change is an explanation, and
+/// so are first builds, generation changes and evictions. The input closure only compares a job's
 /// inputs before and after that one job, so it is not evidence about the previous build.
 fn inputs_unchanged(receipt: &Value) -> bool {
     let fresh = &receipt["freshness"];
     let causes = fresh["causeCounts"].as_object();
     fresh["causeEvidence"]["state"] == "complete"
-        && causes
-            .is_some_and(|map| !map.is_empty() && !map.contains_key("source-or-dependency-changed"))
+        && causes.is_some_and(|map| {
+            !map.is_empty()
+                && map
+                    .keys()
+                    .all(|key| matches!(key.as_str(), "fingerprint-missing" | "unexplained"))
+        })
         && receipt["inputClosure"]["status"] == "verified"
 }
 
@@ -480,8 +485,17 @@ mod tests {
             },
         )]);
         let flag = [format!("not-fresh-without-change {RUSTRIGHT}")];
-        let lockfile = rebuilt("verified", json!(["Cargo.lock"]), json!({}));
-        let unproven = rebuilt("unrequested", json!([]), json!({}));
+        let lockfile = rebuilt(
+            "verified",
+            json!(["Cargo.lock"]),
+            json!({"source-or-dependency-changed": 2}),
+        );
+        let unproven = rebuilt("unrequested", json!([]), json!({"fingerprint-missing": 2}));
+        let profile = rebuilt(
+            "verified",
+            json!([]),
+            json!({"env-rustflags-profile-features-or-target-changed": 2}),
+        );
         let mut incomplete = clean.clone();
         incomplete["freshness"]["causeEvidence"] = json!({"state": "incomplete"});
         let source = json!({"source-or-dependency-changed": 2});
@@ -489,6 +503,7 @@ mod tests {
         assert_eq!(flagged(std::slice::from_ref(&clean), &same, 500), flag);
         assert!(flagged(&[lockfile], &same, 500).is_empty());
         assert!(flagged(&[unproven], &same, 500).is_empty());
+        assert!(flagged(&[profile], &same, 500).is_empty());
         assert!(flagged(&[incomplete], &same, 500).is_empty());
         assert!(flagged(&[source], &same, 500).is_empty());
         assert!(flagged(std::slice::from_ref(&clean), &State::new(), 500).is_empty());
