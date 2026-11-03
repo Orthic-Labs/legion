@@ -708,18 +708,15 @@ fn verify_codex(
             "current observed Codex Legion or Sage host event required",
         ));
     }
-    let cur = rs
-        .iter()
-        .filter(|r| {
-            r["adapter"] == adapter
-                && r["sessionId"] == session
-                && matches!(
-                    r["eventType"].as_str(),
-                    Some("SessionStart" | "SubagentStart")
-                )
-                && matches!(r["observedAuthority"].as_str(), Some("legion" | "sage"))
-        })
-        .next_back();
+    let cur = rs.iter().rfind(|r| {
+        r["adapter"] == adapter
+            && r["sessionId"] == session
+            && matches!(
+                r["eventType"].as_str(),
+                Some("SessionStart" | "SubagentStart")
+            )
+            && matches!(r["observedAuthority"].as_str(), Some("legion" | "sage"))
+    });
     if cur.and_then(|x| x.get("eventId")) != b.get("observedEventId") {
         return Err(issue(
             "ARC_AUTHORITY_NOT_ASSERTED",

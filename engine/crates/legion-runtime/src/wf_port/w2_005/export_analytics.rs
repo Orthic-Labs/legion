@@ -2,7 +2,7 @@
 //! request-only Foundation coverage and sole-provider analytics from a validated canon table and
 //! one or more mechanism-card tables.
 //!
-//! [`export`] is pure over the injected table text. [`run_paths`] is the thin filesystem wrapper
+//! `export` is pure over the injected table text. `run_paths` is the thin filesystem wrapper
 //! behind `legion script foundation/export-analytics`. CSV output follows Python's `csv` writer
 //! defaults: `,` delimiter, `"` quoting only for fields holding `,`, `"`, CR or LF (quotes doubled),
 //! and `\r\n` record terminators.
@@ -280,7 +280,7 @@ pub fn export(canon_text: &str, card_texts: &[&str]) -> Result<Analytics, String
 }
 
 /// Filesystem wrapper for `legion script foundation/export-analytics`: reads the canon and card
-/// tables, runs [`export`], writes the three CSV files into `out_dir`, and prints the Python
+/// tables, runs `export`, writes the three CSV files into `out_dir`, and prints the Python
 /// `PASS:` line. Returns the process exit code (0 success, 1 failure).
 pub fn run_paths(canon: &Path, cards: &[PathBuf], out_dir: &Path) -> i32 {
     let canon_text = match std::fs::read_to_string(canon) {

@@ -162,7 +162,7 @@ enum Command {
     /// Semantic validation is `legion script handoff/validate-handoff`.
     Handoff(commands::handoff::HandoffArgs),
     /// Route an evidence research request.
-    Research(commands::research::ResearchArgs),
+    Research(Box<commands::research::ResearchArgs>),
     /// Run an independent completion-validation review.
     Review(commands::review::ReviewArgs),
     /// Validate bounded work ownership, dependencies, and declared completion evidence.
@@ -1694,7 +1694,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Host(args) => commands::host_runtime::run(args),
         Command::Decision(args) => commands::decision::run(args),
         Command::Handoff(args) => commands::handoff::run(args),
-        Command::Research(args) => commands::research::run(args, cancellation.clone()),
+        Command::Research(args) => commands::research::run(*args, cancellation.clone()),
         Command::Review(args) => commands::review::run(args, cancellation.clone()).await,
         Command::WorkPlan(args) => commands::engineering::work_plan(args),
         Command::ReviewLoop(args) => commands::engineering::review_loop(args),

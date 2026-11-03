@@ -9,7 +9,7 @@
 //!
 //! All filesystem access (reading the report/manifest, checking evidence
 //! files exist, hashing files for the PASS receipt, the clock) is behind
-//! [`ReportFs`] so [`validate`] itself stays pure and unit-testable; only
+//! `ReportFs` so `validate` itself stays pure and unit-testable; only
 //! [`run`] touches the trait.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -895,7 +895,7 @@ fn split_on_semicolon_boundaries(cell: &str) -> Vec<&str> {
 
 /// Modes ported from the historical validator (`267bae38`) that run through
 /// [`validate_table_mode`]. `final` takes that path only for the historical 11-column shape
-/// (see [`effective_header`]); the current 8-column form keeps the [`validate`] path.
+/// (see [`effective_header`]); the current 8-column form keeps the `validate` path.
 pub fn is_table_mode(mode: &str) -> bool {
     matches!(
         mode,
@@ -1784,7 +1784,7 @@ fn bind_report_revisions(
     binding
 }
 
-/// Port of `main()`: parse the report, run [`validate`], and format the
+/// Port of `main()`: parse the report, run `validate`, and format the
 /// `FAIL: N issue(s)` / `PASS: ...` output. Receipt writing (`--write-receipt`)
 /// is left to the caller (it needs sha256 + an isolated-clock timestamp,
 /// which belong at the process boundary, not in this pure module).
