@@ -129,7 +129,7 @@ fn command(binary: &Path, cwd: &Path) -> OwnedCommand {
 pub(super) fn admit_host(host: &str) -> Result<(), AuditError> {
     match host {
         "claude-code" => Ok(()),
-        // Locked rightkit-agents 0.1.0 exposes Codex app-server protocol only.
+        // Locked rightkit-agents 0.2.0 exposes Codex app-server protocol only.
         // It cannot establish Audit's no-settings/plugins/tools/persistence,
         // schema & hard output-token boundary. Never substitute Claude or guess
         // Codex flags/config; refusal precedes probe, budget admission & spawn.
