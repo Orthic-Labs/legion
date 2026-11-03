@@ -1,4 +1,4 @@
-use legion_research::{ResearchNumber, ResearchPatient, ResearchRoute, ResearchValue};
+use rightkit_research::{ResearchNumber, ResearchPatient, ResearchRoute, ResearchValue};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, process::Command};
 
@@ -869,7 +869,7 @@ fn explicit_personal_medical_routes_still_require_confirmation_receipts() {
         route.subject.patient = Some(ResearchPatient {
             kind: kind.into(),
             history_available: Some(true),
-            history_source: Some(legion_research::NullableString::Value(
+            history_source: Some(rightkit_research::NullableString::Value(
                 "fixture-source-record".into(),
             )),
             ..ResearchPatient::default()

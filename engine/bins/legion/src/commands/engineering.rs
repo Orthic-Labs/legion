@@ -2,7 +2,7 @@
 use super::{CommandError, CommandResult};
 use clap::{Args, Subcommand, ValueEnum};
 use legion_audit::quality_observation::{summarize_quality, QualityObservationInput};
-use legion_review::rounds::{assess_review_loop, ReviewLoopInput};
+use rightkit_review::code_review::rounds::{assess_review_loop, ReviewLoopInput};
 use legion_runtime::{
     delivery::{assess_delivery, DeliveryAssessmentRequest, TerminalGoal},
     workplan::{parse_work_plan_json, validate_work_plan},

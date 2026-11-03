@@ -2217,9 +2217,6 @@ dependencies = [
  "legion-host",
  "legion-identity",
  "legion-mcp",
- "legion-minimize",
- "legion-research",
- "legion-review",
  "legion-runtime",
  "legion-topology",
  "reqwest",
@@ -2232,6 +2229,8 @@ dependencies = [
  "rightkit-evidence-governance",
  "rightkit-evidence-report",
  "rightkit-policy-rules",
+ "rightkit-research",
+ "rightkit-review",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2412,55 +2411,6 @@ dependencies = [
  "rightkit-evidence-contracts",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "legion-minimize"
-version = "0.3.23"
-dependencies = [
- "hex",
- "legion-runtime",
- "regex",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "legion-research"
-version = "0.3.23"
-dependencies = [
- "hex",
- "hmac 0.13.0",
- "legion-runtime",
- "regex",
- "reqwest",
- "rightkit-code-audit-provider-sdk",
- "rightkit-evidence-contracts",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2 0.11.1",
- "zip",
-]
-
-[[package]]
-name = "legion-review"
-version = "0.3.23"
-dependencies = [
- "hex",
- "icu_normalizer",
- "legion-runtime",
- "regex",
- "reqwest",
- "rightkit-code-audit-provider-sdk",
- "rightkit-evidence-contracts",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2 0.11.1",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3881,6 +3831,42 @@ checksum = "8d078d64a90919ff310f2e855a9a48dcba76ee6c3fae285bc342ecb65398586a"
 dependencies = [
  "hex",
  "regex",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-research"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc2c4f65e8ad474377ccfb7f1b7ca1f55f62a13d0f7c759a3423decfcbfe2de5"
+dependencies = [
+ "hex",
+ "hmac 0.13.0",
+ "regex",
+ "reqwest",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2 0.11.1",
+ "zip",
+]
+
+[[package]]
+name = "rightkit-review"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a49fb7d8d009050adcc02c1c77fad3ed653735effbaae02ca3c8f3b1ed10001"
+dependencies = [
+ "hex",
+ "icu_normalizer",
+ "regex",
+ "rightkit-code-audit-provider-sdk",
  "rightkit-evidence-contracts",
  "serde",
  "serde_json",

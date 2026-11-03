@@ -42,7 +42,7 @@ pub async fn run(args: ReviewArgs, cancellation: CancellationToken) -> CommandRe
         .input
         .ok_or_else(|| super::CommandError::usage("review requires --input <request.json>"))?;
     let bytes = fs::read(&input).map_err(super::io_error)?;
-    let mut request: legion_review::AdjudicationRequest = serde_json::from_slice(&bytes)
+    let mut request: rightkit_review::code_review::AdjudicationRequest = serde_json::from_slice(&bytes)
         .map_err(|error| super::CommandError::usage(format!("invalid review request: {error}")))?;
     let mut credential_receipt = None;
     if let Some(endpoint) = args.provider_endpoint {
@@ -75,7 +75,7 @@ pub async fn run(args: ReviewArgs, cancellation: CancellationToken) -> CommandRe
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
         let provider = ProviderId::new(provider_id.clone())
             .map_err(|error| super::CommandError::usage(error.to_string()))?;
-        let metadata = legion_review::ReviewProviderMetadata {
+        let metadata = rightkit_review::code_review::ReviewProviderMetadata {
             provider,
             provider_version: "http-v1".into(),
             model: model.clone(),
@@ -101,7 +101,7 @@ pub async fn run(args: ReviewArgs, cancellation: CancellationToken) -> CommandRe
             )
             .with_attribution(request.candidates.review_id.clone(), candidate.candidate_id.to_string());
             inference.cancellation = cancellation.clone();
-            let outcome = legion_review::infer_outcome(
+            let outcome = rightkit_review::code_review::infer_outcome(
                 &client,
                 inference,
                 provider_id.clone(),
@@ -122,7 +122,7 @@ pub async fn run(args: ReviewArgs, cancellation: CancellationToken) -> CommandRe
             "--provider-id and --provider-model require --provider-endpoint",
         ));
     }
-    let (normalized, receipt) = legion_review::review(request, Vec::new())
+    let (normalized, receipt) = rightkit_review::code_review::review(request, Vec::new())
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
     if cancellation.is_cancelled() {
         return Err(super::CommandError::cancelled());

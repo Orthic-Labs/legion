@@ -1,11 +1,36 @@
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_minimize::{
-    build_receipt, build_review, decision_receipt, file_exists, read_json, resolve_minimize_paths,
-    validate_decision, verify_decision, verify_receipt, write_json, GitContext, MinimizeError,
+use rightkit_review::minimize::{
+    build_receipt, build_review, decision_receipt, file_exists, read_json,
+    resolve_minimize_paths as resolve_paths_in, validate_decision, verify_decision, verify_receipt,
+    write_json, GitContext, MinimizeError, MinimizePaths,
 };
 use serde_json::json;
 use std::path::{Path, PathBuf};
+
+/// Roots that may hold the minimize policy asset: the installed release, else
+/// this source checkout.
+fn release_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Ok(installed) = legion_runtime::release_binding::load_installed_release() {
+        if let Some(parent) = installed.manifest_path.parent() {
+            roots.push(parent.to_path_buf());
+            roots.push(parent.join("share").join("legion"));
+            roots.push(parent.join("assets"));
+        }
+        return roots;
+    }
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    if let Some(repo_root) = manifest_dir.ancestors().nth(3) {
+        roots.push(repo_root.join("src"));
+        roots.push(repo_root.to_path_buf());
+    }
+    roots
+}
+
+pub(super) fn resolve_minimize_paths() -> Result<MinimizePaths, MinimizeError> {
+    resolve_paths_in(&release_roots())
+}
 
 pub fn run(args: CommonArgs) -> CommandResult {
     let argv = args
@@ -34,7 +59,7 @@ fn run_decision(
     action: Option<&str>,
     rest: &[String],
     cwd: &Path,
-    paths: &legion_minimize::MinimizePaths,
+    paths: &rightkit_review::minimize::MinimizePaths,
 ) -> CommandResult {
     let positionals = rest
         .iter()
@@ -88,7 +113,7 @@ fn run_commit(
     rest: &[String],
     cwd: &Path,
     git: &GitContext,
-    paths: &legion_minimize::MinimizePaths,
+    paths: &rightkit_review::minimize::MinimizePaths,
 ) -> CommandResult {
     let positionals = rest
         .iter()

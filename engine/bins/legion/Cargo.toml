@@ -28,12 +28,11 @@ rightkit-agent-orchestration-handoff = "=0.1.0"
 legion-mcp = { path = "../legion-mcp" }
 legion-host = { path = "../../crates/legion-host" }
 legion-harness = { path = "../../crates/legion-harness" }
-legion-minimize = { path = "../../crates/legion-minimize" }
+rightkit-review = { version = "=0.4.1", features = ["code", "minimize"] }
 rightkit-policy-rules = "=0.1.0"
 rightkit-code-audit-provider-sdk = "=0.1.0"
 rightkit-evidence-report = "=0.1.0"
-legion-research = { path = "../../crates/legion-research" }
-legion-review = { path = "../../crates/legion-review" }
+rightkit-research = "=0.1.1"
 legion-runtime = { path = "../../crates/legion-runtime" }
 legion-topology = { path = "../../crates/legion-topology" }
 reqwest.workspace = true
