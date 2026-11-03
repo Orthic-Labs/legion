@@ -7,7 +7,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 
@@ -62,9 +61,6 @@ pub fn native_tool(command: &str, args: &[String], options: &CommandOptions) -> 
         },
     }
 }
-
-#[allow(dead_code)]
-pub const COMMAND_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Mirrors `safeArchiveEntry`.
 pub fn safe_archive_entry(name: &str) -> bool {

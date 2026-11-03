@@ -231,34 +231,6 @@ fn repo_root() -> PathBuf {
         })
 }
 
-#[allow(dead_code)]
-fn delegate_to_node(script_rel: &str, args: &[String]) -> ExitCode {
-    let root = repo_root();
-    let script = root.join(script_rel);
-    eprintln!(
-        "xtask: {script_rel} is not yet ported to Rust; delegating to Node ({}).",
-        script.display()
-    );
-    let status = Command::new("node")
-        .arg(&script)
-        .args(args)
-        .current_dir(&root)
-        .status();
-    match status {
-        Ok(status) => {
-            if status.success() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::from(status.code().unwrap_or(1) as u8)
-            }
-        }
-        Err(err) => {
-            eprintln!("xtask: failed to launch node for {script_rel}: {err}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
 fn main() -> ExitCode {
     // `pnpm <script> -- --flag` forwards the separator; the JS tools skipped it.
     let mut argv: Vec<std::ffi::OsString> = std::env::args_os().collect();

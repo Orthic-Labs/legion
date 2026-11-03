@@ -83,8 +83,8 @@ fn default_true() -> bool {
 // ------------------------------------------------------------------ corpus
 
 // `language`, `base`, `lens`, `severity`, `ruling` and `summary` are corpus
-// documentation read by humans and by `deny_unknown_fields`, not by the scorer.
-#[allow(dead_code)]
+// documentation read by humans and by `deny_unknown_fields`, not by the scorer;
+// they are kept as `_`-prefixed fields that still deserialize from the JSON key.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CaseFile {
@@ -92,10 +92,10 @@ pub struct CaseFile {
     pub fixture: String,
     #[serde(default)]
     pub split: Option<FixtureSplit>,
-    #[serde(default)]
-    pub language: String,
-    #[serde(default)]
-    pub base: String,
+    #[serde(default, rename = "language")]
+    pub _language: String,
+    #[serde(default, rename = "base")]
+    pub _base: String,
     pub cases: Vec<Case>,
 }
 
@@ -152,16 +152,15 @@ pub struct Site {
     pub line_range: [u32; 2],
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Expected {
     pub path: String,
     pub line_range: [u32; 2],
-    #[serde(default)]
-    pub lens: String,
-    #[serde(default)]
-    pub severity: String,
+    #[serde(default, rename = "lens")]
+    pub _lens: String,
+    #[serde(default, rename = "severity")]
+    pub _severity: String,
     /// Other locations that also count as finding this item.
     #[serde(default)]
     pub alt: Vec<Site>,
@@ -176,7 +175,6 @@ pub struct Ruling {
     pub verdict: Verdict,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Case {
@@ -188,10 +186,10 @@ pub struct Case {
     /// Rows without a ruling are never scored.
     #[serde(default = "default_true")]
     pub ruled: bool,
-    #[serde(default)]
-    pub ruling: Option<String>,
-    #[serde(default)]
-    pub summary: String,
+    #[serde(default, rename = "ruling")]
+    pub _ruling: Option<String>,
+    #[serde(default, rename = "summary")]
+    pub _summary: String,
     #[serde(default)]
     pub expected: Vec<Expected>,
     #[serde(default)]
@@ -2549,13 +2547,13 @@ mod tests {
             scope: format!("range:base..{id}"),
             category: Some(category),
             ruled: true,
-            ruling: None,
-            summary: String::new(),
+            _ruling: None,
+            _summary: String::new(),
             expected: vec![Expected {
                 path: path.into(),
                 line_range: range,
-                lens: String::new(),
-                severity: String::new(),
+                _lens: String::new(),
+                _severity: String::new(),
                 alt: Vec::new(),
             }],
             rulings: Vec::new(),
@@ -2569,8 +2567,8 @@ mod tests {
             scope: format!("range:base..{id}"),
             category: None,
             ruled: true,
-            ruling: None,
-            summary: String::new(),
+            _ruling: None,
+            _summary: String::new(),
             expected: Vec::new(),
             rulings: Vec::new(),
         }
@@ -3068,8 +3066,8 @@ mod tests {
             schema: CASES_SCHEMA.into(),
             fixture: "f".into(),
             split: None,
-            language: String::new(),
-            base: String::new(),
+            _language: String::new(),
+            _base: String::new(),
             cases: vec![
                 planted("p1", Category::Security, "a.rs", [1, 2]),
                 clean("k1"),

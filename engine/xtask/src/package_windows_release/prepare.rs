@@ -98,8 +98,6 @@ pub fn source_revision(repository_root: &Path, supplied: Option<&str>) -> Result
 
 pub struct AssembledRelease {
     pub identity: Value,
-    #[allow(dead_code)]
-    pub metadata: Value,
     pub runtime_sha256: String,
     pub generation: String,
 }
@@ -165,7 +163,6 @@ pub fn assembled_release(
     let generation = release_generation(&metadata, version, &runtime_sha256);
     Ok(AssembledRelease {
         identity,
-        metadata,
         runtime_sha256,
         generation,
     })

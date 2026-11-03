@@ -230,8 +230,6 @@ fn rand_suffix() -> u64 {
 
 struct StepOutcome {
     stdout: String,
-    #[allow(dead_code)]
-    stderr: String,
     evidence: Value,
 }
 
@@ -252,7 +250,6 @@ fn execute(
     let evidence = serde_json::to_value(command_evidence(&result)).unwrap();
     Ok(StepOutcome {
         stdout: result.stdout.unwrap_or_default().trim().to_string(),
-        stderr: result.stderr.unwrap_or_default().trim().to_string(),
         evidence,
     })
 }
@@ -277,7 +274,6 @@ fn execute_expected_failure(
     let evidence = serde_json::to_value(command_evidence(&result)).unwrap();
     Ok(StepOutcome {
         stdout: result.stdout.unwrap_or_default().trim().to_string(),
-        stderr: result.stderr.unwrap_or_default().trim().to_string(),
         evidence,
     })
 }
@@ -421,7 +417,6 @@ fn probe_plugin_root_transport(
     let summary = json!({"mode":"plugin-root", "responses":responses.len(), "tools":names.into_iter().collect::<Vec<_>>()});
     Ok(StepOutcome {
         stdout: summary.to_string(),
-        stderr: stderr_text.trim().to_string(),
         evidence: json!({"status":0, "stdout":summary, "stderr":stderr_text.trim()}),
     })
 }

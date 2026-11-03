@@ -12,12 +12,6 @@ pub struct LiveCommand {
     pub icon: &'static str,
 }
 
-const ICON_ATTRS: &str = r#"width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block""#;
-
-fn svg(inner: &str) -> String {
-    format!("<svg {} >{}</svg>", ICON_ATTRS, inner)
-}
-
 /// `LIVE_COMMANDS` in vocabulary.mjs, in palette order.
 pub fn live_commands() -> Vec<LiveCommand> {
     vec![
@@ -87,14 +81,6 @@ pub fn live_commands() -> Vec<LiveCommand> {
 /// `VISUAL_ACTIONS` in vocabulary.mjs: action values in palette order.
 pub fn visual_actions() -> Vec<&'static str> {
     live_commands().into_iter().map(|c| c.value).collect()
-}
-
-// Silence the unused-helper warning when the verbose `svg()` builder is not
-// used directly (icons above are written out in full to stay byte-faithful
-// to the JS source, which the tests assert against).
-#[allow(dead_code)]
-fn _unused_svg_helper_reference() -> String {
-    svg("")
 }
 
 #[cfg(test)]

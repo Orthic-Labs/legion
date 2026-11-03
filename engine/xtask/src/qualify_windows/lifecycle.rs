@@ -4,7 +4,6 @@
 //! proves install/command-resolution/client-integration/update/rollback/
 //! uninstall, and writes the qualification receipt plus integration journal.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -132,8 +131,6 @@ fn assert_stable_install_paths(paths: StablePaths) -> Result<StablePaths, String
 pub struct ReleaseInfo {
     pub release_version: String,
     pub runtime_sha256: String,
-    #[allow(dead_code)]
-    pub release_path: PathBuf,
     pub generation: String,
 }
 
@@ -194,7 +191,6 @@ fn release_metadata(root: &Path, architecture: &str, label: &str) -> Result<Rele
     Ok(ReleaseInfo {
         release_version,
         runtime_sha256,
-        release_path,
         generation,
     })
 }
@@ -1284,9 +1280,4 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
         obj.insert("receiptPath".to_string(), json!(receipt_path));
     }
     Ok(receipt)
-}
-
-#[allow(dead_code)]
-fn unused_env_map() -> BTreeMap<String, String> {
-    BTreeMap::new()
 }

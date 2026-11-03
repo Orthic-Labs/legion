@@ -25,7 +25,7 @@ use super::evidence::{
     assert_publication_policy, candidate_signature_evidence, finalization_provenance_evidence,
     qualification_evidence, CandidateSignatureArgs, QualificationEvidenceArgs,
 };
-use super::prepare::{file_record, release_version, source_revision, windows_target_identity};
+use super::prepare::{file_record, release_version, windows_target_identity};
 
 fn call_node_function(
     repository_root: &Path,
@@ -377,7 +377,3 @@ pub fn finalize_windows_direct_release(options: FinalizeOptions) -> Result<Value
     }))
 }
 
-#[allow(dead_code)]
-fn resolve_source_revision_default(repository_root: &Path) -> Result<String, String> {
-    source_revision(repository_root, None)
-}

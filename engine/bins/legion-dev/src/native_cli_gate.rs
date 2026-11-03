@@ -78,8 +78,6 @@ pub struct ManifestRow {
 }
 
 pub struct Manifest {
-    #[allow(dead_code)]
-    pub path: PathBuf,
     pub manifest_sha256: String,
     pub row_count: usize,
     pub row_ids: Vec<String>,
@@ -126,7 +124,6 @@ pub fn load_manifest(manifest_path: &Path) -> Result<Manifest, String> {
         });
     }
     Ok(Manifest {
-        path: manifest_path.to_path_buf(),
         manifest_sha256: sha256(&bytes),
         row_count: rows.len(),
         row_ids: rows.iter().map(|r| r.id.clone()).collect(),
@@ -210,8 +207,6 @@ pub fn source_identity(root: &Path) -> Result<SourceIdentity, String> {
 
 #[cfg(windows)]
 pub struct InstalledExecutable {
-    #[allow(dead_code)]
-    pub install_root: PathBuf,
     pub current_root: PathBuf,
     pub executable: PathBuf,
 }
@@ -237,7 +232,6 @@ pub fn installed_executable_path(
         ));
     }
     Ok(InstalledExecutable {
-        install_root: root,
         current_root: current,
         executable,
     })
@@ -292,7 +286,6 @@ fn get_field<'a>(value: &'a Value, paths: &[&str]) -> Option<&'a str> {
 pub struct Evidence {
     pub path: PathBuf,
     pub value: Value,
-    pub sha256: String,
 }
 
 pub fn read_evidence(path: Option<&Path>) -> Result<Evidence, String> {
@@ -318,20 +311,11 @@ pub fn read_evidence(path: Option<&Path>) -> Result<Evidence, String> {
     Ok(Evidence {
         path: path.to_path_buf(),
         value,
-        sha256: sha256(&bytes),
     })
 }
 
 pub struct Provenance {
     pub path: PathBuf,
-    #[allow(dead_code)]
-    pub receipt_sha256: String,
-    #[allow(dead_code)]
-    pub source_revision: String,
-    #[allow(dead_code)]
-    pub source_tree_sha256: String,
-    #[allow(dead_code)]
-    pub manifest_sha256: String,
     pub executable_sha256: String,
     pub executable: PathBuf,
     pub mode: String,
@@ -412,7 +396,7 @@ pub fn validate_executable_provenance(
     let source_tree_sha256 = source_tree_sha256
         .filter(|s| is_sha256(s))
         .ok_or("qualification evidence is missing sourceTreeSha256")?;
-    let recorded_manifest = recorded_manifest
+    recorded_manifest
         .filter(|m| m.to_lowercase() == manifest_sha256.to_lowercase())
         .ok_or("qualification evidence manifest SHA-256 does not match frozen manifest")?;
     let recorded_executable = recorded_executable
@@ -489,10 +473,6 @@ pub fn validate_executable_provenance(
 
     Ok(Provenance {
         path: evidence.path,
-        receipt_sha256: evidence.sha256,
-        source_revision: source_revision.to_lowercase(),
-        source_tree_sha256: source_tree_sha256.to_lowercase(),
-        manifest_sha256: recorded_manifest.to_lowercase(),
         executable_sha256: actual_executable,
         executable: normalized_executable,
         mode: mode.to_string(),
@@ -584,7 +564,6 @@ pub struct Observation {
     pub stdout: String,
     pub stderr: String,
     pub error: Option<String>,
-    #[allow(dead_code)]
     pub signal: Option<String>,
     pub timed_out: bool,
     pub output_limit_exceeded: bool,
@@ -1385,11 +1364,8 @@ fn walk_snapshot(
 
 pub struct Sandbox {
     pub cwd: PathBuf,
-    #[allow(dead_code)]
     pub home: PathBuf,
-    #[allow(dead_code)]
     pub local_app_data: PathBuf,
-    #[allow(dead_code)]
     pub state_root: PathBuf,
     pub env: std::collections::HashMap<String, String>,
     pub temp_roots: Vec<String>,
