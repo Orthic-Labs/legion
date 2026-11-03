@@ -2,7 +2,7 @@
 //! Graph metadata never establishes source review or exhaustive coverage.
 use std::collections::BTreeSet;
 
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
 
 use crate::{

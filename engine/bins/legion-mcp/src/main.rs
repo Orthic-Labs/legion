@@ -24,6 +24,7 @@ async fn run_binary(application: Arc<NativeApplication>) -> std::io::Result<()> 
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    legion_identity::declare();
     let input = std::env::var("LEGION_NATIVE_APPLICATION_CONFIG").map_err(|_| {
         std::io::Error::new(
             std::io::ErrorKind::NotFound,

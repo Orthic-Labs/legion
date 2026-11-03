@@ -16,7 +16,7 @@ pub fn run(args: HandoffArgs) -> CommandResult {
         );
     };
     let bytes = std::fs::read(path).map_err(super::io_error)?;
-    let packet: legion_handoff::HandoffPacket =
+    let packet: rightkit_agent_orchestration_handoff::HandoffPacket =
         serde_json::from_slice(&bytes).map_err(super::io_error)?;
     // Only the JSON structure is checked here. Semantic validation lives in the
     // `handoff/validate-handoff` script.

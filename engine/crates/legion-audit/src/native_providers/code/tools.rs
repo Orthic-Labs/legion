@@ -51,7 +51,7 @@ use crate::{
         security::producer::SandboxPolicy,
     },
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use regex::Regex;
@@ -844,7 +844,7 @@ struct Diag {
 
 pub(super) fn read_artifact(
     scratch: &AuditScratch,
-    record: &legion_effects::ArtifactRecord,
+    record: &rightkit_evidence_effects::ArtifactRecord,
 ) -> Option<Vec<u8>> {
     if !record.immutable {
         return None;
@@ -1012,7 +1012,7 @@ async fn run_one(
         ),
         SandboxPolicy::Required => {
             let authenticate = || {
-                legion_effects::authenticate_sandbox(
+                rightkit_evidence_effects::authenticate_sandbox(
                     &executable_text,
                     &command.args,
                     if ctx.provider_id == "code.python" {
@@ -1021,9 +1021,9 @@ async fn run_one(
                         &cwd_text
                     },
                     if ctx.provider_id == "code.python" {
-                        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+                        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite
                     } else {
-                        legion_effects::SandboxMode::DenyNetwork
+                        rightkit_evidence_effects::SandboxMode::DenyNetwork
                     },
                     &ctx.scratch.sandbox_dir(),
                 )
@@ -1059,7 +1059,7 @@ async fn run_one(
                     (
                         auth.wrapped_executable,
                         auth.wrapped_args,
-                        Some(legion_effects::SandboxReceipt {
+                        Some(rightkit_evidence_effects::SandboxReceipt {
                             id: auth.id,
                             network: auth.network,
                             filesystem_scope: auth.filesystem_scope,

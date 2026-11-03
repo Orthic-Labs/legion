@@ -8,7 +8,7 @@ use std::{
 };
 
 use legion_application::{NativeApplication, NativeApplicationConfig};
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ChildLifecycleEvent,
     ChildLifecycleObservation, ComputePosture, ContextUsage, CostUsage, EffectClass, EffectRequest,
     HookActorContext, OutcomeResult, RequestId, RoleDecision, Route, RouteOutcomeTrace,
@@ -980,7 +980,7 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
 fn typed_id<T>(
     value: Option<String>,
     fallback: &str,
-    constructor: fn(String) -> Result<T, legion_contracts::ContractError>,
+    constructor: fn(String) -> Result<T, rightkit_evidence_contracts::ContractError>,
 ) -> Result<T, String> {
     constructor(value.unwrap_or_else(|| fallback.to_owned()))
         .map_err(|error| format!("invalid hook identity: {error}"))
@@ -2616,7 +2616,7 @@ fn resolve_source_revision(payload: &Map<String, Value>) -> Option<String> {
 
 fn source_revision_for_workspace(workspace: &Path) -> Option<String> {
     revision_for_workspace(workspace).or_else(|| {
-        legion_contracts::canonical_digest(&workspace.to_string_lossy().as_ref())
+        rightkit_evidence_contracts::canonical_digest(&workspace.to_string_lossy().as_ref())
             .ok()
             .map(|digest| format!("unversioned-workspace:{digest}"))
     })
@@ -2797,7 +2797,7 @@ impl SessionProvenance {
 fn pinned_session_provenance(request: &HookRequest) -> Option<SessionProvenance> {
     let payload = request.payload.as_object()?;
     let session_id = first_string(payload, &["session_id", "sessionId", "conversation_id"])?;
-    let session_id_digest = legion_contracts::canonical_digest(&session_id).ok()?;
+    let session_id_digest = rightkit_evidence_contracts::canonical_digest(&session_id).ok()?;
     let path = receipt_root(&request.payload)?
         .join(SESSION_PROVENANCE_DIRECTORY)
         .join(format!(
@@ -2843,13 +2843,13 @@ fn automatic_session_provenance(payload: &Map<String, Value>) -> SessionProvenan
     let file_digest = |path: &Path| {
         fs::read(path)
             .ok()
-            .and_then(|bytes| legion_contracts::canonical_digest(&bytes).ok())
+            .and_then(|bytes| rightkit_evidence_contracts::canonical_digest(&bytes).ok())
     };
     let legion_canon_digest = repository
         .as_ref()
         .and_then(|root| file_digest(&root.join("AGENTS.md")))
         .or_else(|| {
-            legion_contracts::canonical_digest(&serde_json::json!({
+            rightkit_evidence_contracts::canonical_digest(&serde_json::json!({
                 "owner": "legion-routing",
                 "embeddedSessionContext": SESSION_START_CONTEXT,
             }))
@@ -2864,7 +2864,7 @@ fn automatic_session_provenance(payload: &Map<String, Value>) -> SessionProvenan
                 .and_then(|root| file_digest(&root.join("registry/index.json")))
         });
     SessionProvenance {
-        arcane_profile_digest: legion_contracts::canonical_digest(&serde_json::json!({
+        arcane_profile_digest: rightkit_evidence_contracts::canonical_digest(&serde_json::json!({
             "owner": "arcane-profile",
             "embeddedSessionContext": SESSION_START_CONTEXT,
         }))
@@ -2879,13 +2879,13 @@ fn active_guard_policy_digest() -> Option<String> {
     match std::env::var("LEGION_NATIVE_APPLICATION_CONFIG") {
         Ok(source) if source.trim_start().starts_with('{') => {
             let value: Value = serde_json::from_str(&source).ok()?;
-            legion_contracts::canonical_digest(&value).ok()
+            rightkit_evidence_contracts::canonical_digest(&value).ok()
         }
         Ok(source) if !source.trim().is_empty() => fs::read(source)
             .ok()
-            .and_then(|bytes| legion_contracts::canonical_digest(&bytes).ok()),
+            .and_then(|bytes| rightkit_evidence_contracts::canonical_digest(&bytes).ok()),
         Ok(_) => None,
-        Err(std::env::VarError::NotPresent) => legion_contracts::canonical_default_policy_pack()
+        Err(std::env::VarError::NotPresent) => rightkit_evidence_contracts::canonical_default_policy_pack()
             .digest()
             .ok(),
         Err(_) => None,
@@ -3003,19 +3003,19 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
     let l1_invoked = traces
         .iter()
         .filter(|trace| {
-            trace.challenge.invoked && trace.challenge.level == legion_contracts::ChallengeLevel::L1
+            trace.challenge.invoked && trace.challenge.level == rightkit_evidence_contracts::ChallengeLevel::L1
         })
         .count();
     let l1_improved = traces
         .iter()
         .filter(|trace| {
             trace.challenge.invoked
-                && trace.challenge.level == legion_contracts::ChallengeLevel::L1
+                && trace.challenge.level == rightkit_evidence_contracts::ChallengeLevel::L1
                 && matches!(
                     trace.challenge.outcome,
                     Some(
-                        legion_contracts::ChallengeOutcome::Narrow
-                            | legion_contracts::ChallengeOutcome::Revise
+                        rightkit_evidence_contracts::ChallengeOutcome::Narrow
+                            | rightkit_evidence_contracts::ChallengeOutcome::Revise
                     )
                 )
         })
@@ -3032,13 +3032,13 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
                 && matches!(
                     trace.challenge.outcome,
                     Some(
-                        legion_contracts::ChallengeOutcome::Narrow
-                            | legion_contracts::ChallengeOutcome::Revise
+                        rightkit_evidence_contracts::ChallengeOutcome::Narrow
+                            | rightkit_evidence_contracts::ChallengeOutcome::Revise
                     )
                 )
         })
         .count();
-    let declarations = legion_contracts::fold_role_decision_declarations(traces);
+    let declarations = rightkit_evidence_contracts::fold_role_decision_declarations(traces);
 
     TraceMetrics {
         sage_dispatch_rate: MetricValue::ratio(sage_dispatches, traces.len()),
@@ -3277,7 +3277,7 @@ pub fn fold_child_launch_counters(
     let mut latest: Vec<(
         &RequestId,
         AuthorityKind,
-        legion_contracts::RoleDecisionState,
+        rightkit_evidence_contracts::RoleDecisionState,
     )> = Vec::new();
     for trace in traces {
         let Some(decisions) = trace.role_decisions.as_ref() else {
@@ -3295,7 +3295,7 @@ pub fn fold_child_launch_counters(
     }
     let skipped = latest
         .iter()
-        .filter(|(_, _, state)| *state == legion_contracts::RoleDecisionState::Skipped)
+        .filter(|(_, _, state)| *state == rightkit_evidence_contracts::RoleDecisionState::Skipped)
         .count();
     ChildLaunchCounters {
         selected_declarations: latest.len() - skipped,
@@ -3380,7 +3380,7 @@ fn route_trace_from_request(
         trace_id,
         request_id,
         task_id,
-        arcane_profile_digest: provenance
+        cognitive_profile_digest: provenance
             .and_then(|value| value.arcane_profile_digest.clone())
             .or_else(|| {
                 trace_string(
@@ -3389,7 +3389,7 @@ fn route_trace_from_request(
                     &["arcaneProfileDigest", "arcane_profile_digest"],
                 )
             }),
-        legion_canon_digest: provenance
+        canon_digest: provenance
             .and_then(|value| value.legion_canon_digest.clone())
             .or_else(|| {
                 trace_string(
@@ -3616,7 +3616,7 @@ fn receipt_root(payload: &Value) -> Option<PathBuf> {
             .ok()
             .map(|dir| dir.to_string_lossy().into_owned())
     })?;
-    legion_contracts::state_root::per_user_repository_receipts_root(&identity)
+    rightkit_evidence_contracts::state_root::per_user_repository_receipts_root(&identity)
 }
 
 fn append_trace(path: &Path, trace: &RouteOutcomeTrace) -> Result<(), ()> {
@@ -3698,7 +3698,7 @@ const EDIT_TOOLS: [&str; 5] = ["Write", "Edit", "MultiEdit", "NotebookEdit", "ap
 fn session_marker(payload: &Value, suffix: &str) -> Option<PathBuf> {
     let object = payload.as_object()?;
     let session_id = first_string(object, &["session_id", "sessionId", "conversation_id"])?;
-    let digest = legion_contracts::canonical_digest(&session_id).ok()?;
+    let digest = rightkit_evidence_contracts::canonical_digest(&session_id).ok()?;
     Some(
         receipt_root(payload)?
             .join(SESSION_EDIT_DIRECTORY)
@@ -3879,6 +3879,7 @@ fn parse_arguments(arguments: &[String]) -> Option<(bool, Option<String>)> {
 }
 
 fn main() {
+    legion_identity::declare();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let Some((codex_host, argv_event)) = parse_arguments(&arguments) else {
         eprintln!("usage: legion-hook [--host codex] [--event NAME]");
@@ -3921,7 +3922,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use legion_contracts::state_root::user_state_receipts_root;
+    use rightkit_evidence_contracts::state_root::user_state_receipts_root;
     use serde_json::json;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -3978,7 +3979,7 @@ mod tests {
             },
             challenge: ChallengePass {
                 invoked: false,
-                level: legion_contracts::ChallengeLevel::L0,
+                level: rightkit_evidence_contracts::ChallengeLevel::L0,
                 trigger: None,
                 outcome: None,
                 assumption_dependent_conclusion: false,

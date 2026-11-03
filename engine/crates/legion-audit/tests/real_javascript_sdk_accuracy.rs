@@ -9,12 +9,12 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
     ArtifactRecord, ExecutionReceipt, ExternalToolRequest, PolicyAuthorizer, PolicyDecision,
     ToolOrigin,
 };
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -1104,15 +1104,15 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     let rows = Arc::new(Mutex::new(Vec::new()));
     let requests = Arc::new(Mutex::new(Vec::new()));
     let actual: Arc<dyn ExternalProjectTool> = if control == "rejected-admission" {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             legion_audit::execution_policy::OwnerAdmissionRequired,
         ))
     } else {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             SharedPolicy(policy.clone()),
         ))
     };
@@ -1429,7 +1429,7 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
                 .block_on(recorder.execute(request, tokio_util::sync::CancellationToken::new()));
             assert_eq!(
                 receipt.state,
-                legion_provider_sdk::ExecutionState::UnauthorizedEffect
+                rightkit_code_audit_provider_sdk::ExecutionState::UnauthorizedEffect
             );
             assert!(!receipt.process_tree.started);
             mutations.push(json!({"mutation":kind,"matched":true,"execution":recorder.rows.lock().unwrap().last().unwrap().clone()}));

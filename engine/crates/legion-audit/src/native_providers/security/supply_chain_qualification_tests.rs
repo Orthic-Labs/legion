@@ -4,7 +4,7 @@
 use super::super::{supply_chain, supply_chain_documents as documents};
 use super::*;
 use crate::{FilesystemInventorySource, InventorySource};
-use legion_effects::{PolicyAuthorizer, PolicyDecision};
+use rightkit_evidence_effects::{PolicyAuthorizer, PolicyDecision};
 use std::sync::Mutex;
 
 const ID: &str = "supply-chain.license-sbom-provenance";

@@ -108,9 +108,9 @@ fn plan_for(
 
 /// Real effect executor & Unix backend with explicit in-process SDK fixture
 /// admission; this proves parser behavior, not production admission.
-fn real_external_tool(scratch: &AuditScratch) -> Arc<dyn legion_provider_sdk::ExternalProjectTool> {
-    let policy = legion_effects::StaticPolicy {
-        decision: legion_effects::PolicyDecision {
+fn real_external_tool(scratch: &AuditScratch) -> Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
+    let policy = rightkit_evidence_effects::StaticPolicy {
+        decision: rightkit_evidence_effects::PolicyDecision {
             allowed: true,
             policy_id: "report-source-test-v1".into(),
             policy_version: 1,
@@ -118,10 +118,10 @@ fn real_external_tool(scratch: &AuditScratch) -> Arc<dyn legion_provider_sdk::Ex
             reason: None,
         },
     };
-    let process = legion_effects::platform::unix::UnixProcess::new();
-    let effects = legion_effects::EffectExecutor::new(
+    let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
         process,
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         policy,
     );
     Arc::new(legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects))
@@ -198,7 +198,7 @@ fn cargo_deny_diagnostics_are_read_from_stderr() {
     let receipt = &result.details["executionReceipt"];
     if receipt["state"] == "sandbox_missing" {
         // `cargo_deny` is in `sandbox_required_check`, and
-        // `legion_effects::sandbox::authenticate` (sandbox.rs:68) is gated
+        // `rightkit_evidence_effects::sandbox::authenticate` (sandbox.rs:68) is gated
         // `#[cfg(target_os = "macos")]` with no other-platform authenticator:
         // on a non-macOS host it always returns Err, so
         // `NativeLegacyCheckExecutor` deliberately leaves the sandbox unset

@@ -41,10 +41,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
-use legion_provider_sdk::{ExternalProjectTool, ExternalToolRequest};
+use rightkit_code_audit_provider_sdk::{ExternalProjectTool, ExternalToolRequest};
 use registry::AbsenceOutcome;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -85,16 +85,16 @@ where
         &self,
         mut request: ExternalToolRequest,
         cancellation: CancellationToken,
-    ) -> legion_provider_sdk::ExecutionReceipt {
+    ) -> rightkit_code_audit_provider_sdk::ExecutionReceipt {
         // Owner-admitted requests carry the host policy's pin and an already
         // resolved canonical executable/cwd: nothing here may re-resolve or
         // re-pin them. Only the artifact location is rewritten; a request that
         // claims the owner policy without a pin fails closed.
         if request.policy_id == crate::execution_policy::OWNER_POLICY_ID {
             if request.expected_digest.is_none() || !Path::new(&request.executable).is_absolute() {
-                return legion_provider_sdk::ExecutionReceipt::failure(
+                return rightkit_code_audit_provider_sdk::ExecutionReceipt::failure(
                     &request,
-                    legion_provider_sdk::ExecutionState::UnauthorizedEffect,
+                    rightkit_code_audit_provider_sdk::ExecutionState::UnauthorizedEffect,
                     "owner-backed request must carry an absolute executable and the host policy pin",
                 );
             }
@@ -114,11 +114,11 @@ where
                     // script/linter/type checker): surfaced as an absent
                     // tool, not an internal failure.
                     ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_) => {
-                        legion_provider_sdk::ExecutionState::MissingExecutable
+                        rightkit_code_audit_provider_sdk::ExecutionState::MissingExecutable
                     }
-                    ResolveError::Unavailable(_) => legion_provider_sdk::ExecutionState::Internal,
+                    ResolveError::Unavailable(_) => rightkit_code_audit_provider_sdk::ExecutionState::Internal,
                 };
-                return legion_provider_sdk::ExecutionReceipt::failure(
+                return rightkit_code_audit_provider_sdk::ExecutionReceipt::failure(
                     &request,
                     state,
                     error.message(),
@@ -130,9 +130,9 @@ where
             .as_deref()
             .is_some_and(|expected| expected != resolved.digest)
         {
-            return legion_provider_sdk::ExecutionReceipt::failure(
+            return rightkit_code_audit_provider_sdk::ExecutionReceipt::failure(
                 &request,
-                legion_provider_sdk::ExecutionState::Internal,
+                rightkit_code_audit_provider_sdk::ExecutionState::Internal,
                 "external-project-tool resolved executable does not match caller digest pin",
             );
         }
@@ -293,7 +293,7 @@ pub struct AuditScratch {
     owner: OnceLock<Arc<crate::host_owner::OwnerRequestContext>>,
     /// Set once by the host alongside `owner`: the owner-backed authorizer
     /// that decides the attested-run preparation request.
-    owner_authorizer: OnceLock<Arc<dyn legion_effects::PolicyAuthorizer>>,
+    owner_authorizer: OnceLock<Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>>,
 }
 
 impl std::fmt::Debug for AuditScratch {
@@ -407,12 +407,12 @@ impl AuditScratch {
     /// owner context but no authorizer, preparation keeps denying.
     pub fn set_owner_authorizer(
         &self,
-        authorizer: Arc<dyn legion_effects::PolicyAuthorizer>,
+        authorizer: Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>,
     ) -> bool {
         self.owner_authorizer.set(authorizer).is_ok()
     }
 
-    pub(crate) fn owner_authorizer(&self) -> Option<Arc<dyn legion_effects::PolicyAuthorizer>> {
+    pub(crate) fn owner_authorizer(&self) -> Option<Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>> {
         self.owner_authorizer.get().cloned()
     }
 
@@ -931,7 +931,7 @@ impl LegacyCheckDispatcher {
 pub struct NativeLegacyCheckExecutor {
     root: PathBuf,
     external_project_tool: Option<Arc<dyn ExternalProjectTool>>,
-    fixture_policy_authorizer: Option<Arc<dyn legion_effects::PolicyAuthorizer>>,
+    fixture_policy_authorizer: Option<Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>>,
     attested_runs: Option<Arc<AttestedRunsEnrollment>>,
     /// Shared across clones; created lazily under the system temp dir unless
     /// the host supplied one with `with_scratch`.
@@ -992,7 +992,7 @@ impl NativeLegacyCheckExecutor {
     /// never exposed by CLI/MCP.
     pub fn with_fixture_policy_authorizer(
         mut self,
-        authorizer: Arc<dyn legion_effects::PolicyAuthorizer>,
+        authorizer: Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>,
     ) -> Self {
         self.fixture_policy_authorizer = Some(authorizer);
         self
@@ -1406,7 +1406,7 @@ impl NativeLegacyCheckExecutor {
                     Some((executable.to_string(), args.clone()))
                 };
                 let authenticated = wrap_target.map(|(resolved_executable, resolved_args)| {
-                    legion_effects::authenticate_sandbox(
+                    rightkit_evidence_effects::authenticate_sandbox(
                         &resolved_executable,
                         &resolved_args,
                         &self.root.to_string_lossy(),
@@ -1427,7 +1427,7 @@ impl NativeLegacyCheckExecutor {
                         // probe through the same wrapper prefix so it actually
                         // exercises the real tool's `--version`.
                         // `wrapped_args` is `["-f", profile, "--", executable,
-                        // ...check_args]` (see `legion_effects::sandbox`); keep
+                        // ...check_args]` (see `rightkit_evidence_effects::sandbox`); keep
                         // only the fixed sandbox-invocation prefix (the first
                         // four elements) plus the real executable, so the probe
                         // asks the actual tool for its version rather than
@@ -1439,7 +1439,7 @@ impl NativeLegacyCheckExecutor {
                         (
                             auth.wrapped_executable,
                             auth.wrapped_args,
-                            Some(legion_effects::SandboxReceipt {
+                            Some(rightkit_evidence_effects::SandboxReceipt {
                                 id: auth.id,
                                 network: auth.network,
                                 filesystem_scope: auth.filesystem_scope,
@@ -1598,7 +1598,7 @@ impl NativeLegacyCheckExecutor {
             environment,
             environment_allowlist,
             // Checks in `sandbox_required_check` now carry an authenticated
-            // `sandbox-exec` receipt on macOS (see `legion_effects::sandbox`).
+            // `sandbox-exec` receipt on macOS (see `rightkit_evidence_effects::sandbox`).
             // On hosts/platforms without an authenticator, `sandbox_receipt`
             // stays `None` and the effects executor refuses the check as
             // typed degradation. Safe read-only git and gitleaks checks
@@ -1821,16 +1821,16 @@ fn sandbox_required_check(check: &str) -> bool {
 /// under the project root so they cannot execute or mutate project code.
 /// Every other sandboxed check executes target-project code, so network is
 /// denied instead. Tests also deny writes beneath the audited root.
-fn sandbox_mode_for_check(check: &str) -> legion_effects::SandboxMode {
+fn sandbox_mode_for_check(check: &str) -> rightkit_evidence_effects::SandboxMode {
     if check == "test" {
-        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite
     } else if matches!(
         check,
         "deps_cve" | "py_deps_cve" | "cargo_audit" | "cargo_deny" | "outdated" | "cargo_outdated"
     ) {
-        legion_effects::SandboxMode::AllowNetworkDenyProjectWrite
+        rightkit_evidence_effects::SandboxMode::AllowNetworkDenyProjectWrite
     } else {
-        legion_effects::SandboxMode::DenyNetwork
+        rightkit_evidence_effects::SandboxMode::DenyNetwork
     }
 }
 
@@ -1842,7 +1842,7 @@ mod sandbox_policy_tests {
     fn project_tests_use_read_only_network_denied_sandbox() {
         assert_eq!(
             sandbox_mode_for_check("test"),
-            legion_effects::SandboxMode::DenyNetworkDenyProjectWrite
+            rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite
         );
         assert!(sandbox_required_check("test"));
     }
@@ -1976,29 +1976,29 @@ fn execution_from_receipt(
     input: &LegacyCheckInput,
     command: CommandShape,
     roots: &[&Path],
-    receipt: legion_provider_sdk::ExecutionReceipt,
+    receipt: rightkit_code_audit_provider_sdk::ExecutionReceipt,
     report_source: ReportSource,
     report_artifact: Option<ReportArtifact>,
     test_command_source: Option<Value>,
 ) -> LegacyCheckExecution {
     let state = match receipt.state {
-        legion_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
-        legion_provider_sdk::ExecutionState::MissingExecutable => {
+        rightkit_code_audit_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
+        rightkit_code_audit_provider_sdk::ExecutionState::MissingExecutable => {
             LegacyCheckProcessState::MissingExecutable
         }
-        legion_provider_sdk::ExecutionState::UnauthorizedEffect
-        | legion_provider_sdk::ExecutionState::Blocked
-        | legion_provider_sdk::ExecutionState::SandboxMissing
-        | legion_provider_sdk::ExecutionState::UnsealedExecutable => {
+        rightkit_code_audit_provider_sdk::ExecutionState::UnauthorizedEffect
+        | rightkit_code_audit_provider_sdk::ExecutionState::Blocked
+        | rightkit_code_audit_provider_sdk::ExecutionState::SandboxMissing
+        | rightkit_code_audit_provider_sdk::ExecutionState::UnsealedExecutable => {
             LegacyCheckProcessState::Unauthorized
         }
-        legion_provider_sdk::ExecutionState::Timeout => LegacyCheckProcessState::Timeout,
-        legion_provider_sdk::ExecutionState::Cancelled => LegacyCheckProcessState::Cancelled,
-        legion_provider_sdk::ExecutionState::OutputLimited => {
+        rightkit_code_audit_provider_sdk::ExecutionState::Timeout => LegacyCheckProcessState::Timeout,
+        rightkit_code_audit_provider_sdk::ExecutionState::Cancelled => LegacyCheckProcessState::Cancelled,
+        rightkit_code_audit_provider_sdk::ExecutionState::OutputLimited => {
             LegacyCheckProcessState::OutputLimited
         }
-        legion_provider_sdk::ExecutionState::KillFailed
-        | legion_provider_sdk::ExecutionState::ArtifactFailed => {
+        rightkit_code_audit_provider_sdk::ExecutionState::KillFailed
+        | rightkit_code_audit_provider_sdk::ExecutionState::ArtifactFailed => {
             LegacyCheckProcessState::CleanupUnconfirmed
         }
         _ => LegacyCheckProcessState::Failed,
@@ -2359,7 +2359,7 @@ fn json_document_required(check: &str, empty: bool, exit_code: Option<i32>) -> b
 
 fn readable_artifact(
     roots: &[&Path],
-    artifact: &legion_effects::artifact::ArtifactRecord,
+    artifact: &rightkit_evidence_effects::artifact::ArtifactRecord,
 ) -> Option<Vec<u8>> {
     if !artifact.immutable {
         return None;

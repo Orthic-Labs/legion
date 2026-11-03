@@ -16,7 +16,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use legion_contracts::ProviderStatus;
+use rightkit_evidence_contracts::ProviderStatus;
 use serde_json::{json, Value};
 
 use super::{
@@ -872,7 +872,7 @@ fn projected_findings(
     analysis: &Value,
     spec_digest: &str,
 ) -> (
-    Vec<legion_contracts::FindingRef>,
+    Vec<rightkit_evidence_contracts::FindingRef>,
     BTreeMap<String, Value>,
     BTreeMap<String, Value>,
     BTreeMap<String, Value>,
@@ -927,7 +927,7 @@ pub fn verify_explicit_visual_execution(
     root: &Path,
     provider: &AuditProvider,
     generation: &str,
-    stored: &legion_contracts::ProviderResult,
+    stored: &rightkit_evidence_contracts::ProviderResult,
 ) -> Result<(), String> {
     let visual = provider
         .configuration
@@ -1018,7 +1018,7 @@ fn unavailable(
     input: &ProviderInput<'_>,
     selected: &InventoryDenominator,
     reason: &str,
-) -> Result<legion_contracts::ProviderResult, crate::error::AuditError> {
+) -> Result<rightkit_evidence_contracts::ProviderResult, crate::error::AuditError> {
     let mut result = super::common::result(
         input,
         ProviderStatus::Partial,
@@ -1036,7 +1036,7 @@ fn unavailable(
 
 pub fn execute(
     input: &ProviderInput<'_>,
-) -> Result<legion_contracts::ProviderResult, crate::error::AuditError> {
+) -> Result<rightkit_evidence_contracts::ProviderResult, crate::error::AuditError> {
     let selected = denominator(input)?;
     let Some(spec) = input.artifacts.get("visualSpec") else {
         let capture_source = input
@@ -1155,7 +1155,7 @@ mod tests {
         plan::ProviderKind,
     };
     use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
-    use legion_contracts::{ProviderId, ProviderResult};
+    use rightkit_evidence_contracts::{ProviderId, ProviderResult};
     use std::io::Cursor;
 
     fn scratch(name: &str) -> PathBuf {
@@ -1217,7 +1217,7 @@ mod tests {
         plan_digest: &str,
         inventory_digest: &str,
         surface_count: usize,
-        findings: Vec<legion_contracts::FindingRef>,
+        findings: Vec<rightkit_evidence_contracts::FindingRef>,
     ) -> ProviderExecution {
         let mut surfaces = Vec::new();
         let mut receipts = Vec::new();
@@ -1337,7 +1337,7 @@ mod tests {
         json!({"kind": "runtime-script", "module": VISUAL_PROVIDER_ID, "visual": visual})
     }
 
-    fn run(root: &Path, runner: Value) -> legion_contracts::ProviderResult {
+    fn run(root: &Path, runner: Value) -> rightkit_evidence_contracts::ProviderResult {
         ProviderExecutorAdapter::new(root.to_path_buf())
             .execute(&provider(runner), &inventory())
             .unwrap()

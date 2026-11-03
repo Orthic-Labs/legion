@@ -10,7 +10,7 @@ use legion_audit::{
     canonical_report, execute, verify_execution, verify_source_diagnostic, AuditError, AuditPlan,
     AuditProvider, FrozenPlan, InventoryEntry, InventoryEnvelope, ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus, ReportStatus,
 };
 use serde_json::{json, Value};

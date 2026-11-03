@@ -22,7 +22,7 @@
 
 use super::evidence;
 use crate::{inventory::InventoryEntry, AuditError};
-use legion_contracts::{ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderId, ProviderResult, ProviderStatus};
 use serde_json::json;
 use std::collections::BTreeMap;
 

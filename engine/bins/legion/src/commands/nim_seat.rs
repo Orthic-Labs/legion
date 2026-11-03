@@ -175,7 +175,7 @@ fn resolve_key() -> Option<String> {
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
         })
-        .or_else(|| legion_effects::credential::read_generic_secret(KEY_NAME))
+        .or_else(|| rightkit_evidence_effects::credential::read_generic_secret(KEY_NAME))
 }
 
 fn redact(text: &str, key: &str) -> String {

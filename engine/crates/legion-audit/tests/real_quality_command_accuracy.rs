@@ -7,8 +7,8 @@ use legion_audit::{
     native_providers::legacy_checks::{resolve_request, AuditExternalProjectTool, AuditScratch},
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -584,9 +584,9 @@ fn case(base: &Path, id: &str, control: &str) -> Value {
         },
         decisions: Mutex::new(Vec::new()),
     });
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         SharedPolicy(policy.clone()),
     );
     let mut native = NativeProviderRegistry::new(&root)
@@ -716,7 +716,7 @@ fn case(base: &Path, id: &str, control: &str) -> Value {
         assert!(result.coverage_gaps.is_empty() && result.degradation.is_empty());
         assert!(matches!(
             result.status,
-            legion_contracts::ProviderStatus::Ok | legion_contracts::ProviderStatus::Complete
+            rightkit_evidence_contracts::ProviderStatus::Ok | rightkit_evidence_contracts::ProviderStatus::Complete
         ));
         let coverage = result.coverage.as_ref().unwrap();
         assert_eq!(

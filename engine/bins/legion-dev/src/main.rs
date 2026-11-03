@@ -304,6 +304,7 @@ enum Command {
 }
 
 fn main() -> ExitCode {
+    legion_identity::declare();
     // `pnpm <script> -- --flag` forwards a literal `--` separator; drop it so clap sees the flags.
     let mut argv: Vec<std::ffi::OsString> = std::env::args_os().collect();
     if argv.len() > 2 && argv[2] == "--" {

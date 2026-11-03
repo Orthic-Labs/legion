@@ -10,7 +10,7 @@
 
 use serde_json::{json, Value};
 
-use legion_contracts::{canonical_digest_hex, canonical_json_bytes};
+use rightkit_evidence_contracts::{canonical_digest_hex, canonical_json_bytes};
 
 fn get<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
     value.get(key).filter(|v| !v.is_null())

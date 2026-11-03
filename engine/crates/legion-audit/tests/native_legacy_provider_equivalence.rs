@@ -24,7 +24,7 @@ use legion_audit::{
     AuditPlan, AuditProvider, InventoryEntry, InventoryEnvelope, NativeProviderRegistry,
     ProviderExecutor, ProviderKind,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use serde_json::{json, Value};
@@ -468,7 +468,7 @@ fn plan_for(records: &[Value], inventory: &InventoryEnvelope) -> legion_audit::F
     let specs = records
         .iter()
         .map(|record| serde_json::from_value(record.clone()).unwrap())
-        .collect::<Vec<legion_contracts::ProviderSpec>>();
+        .collect::<Vec<rightkit_evidence_contracts::ProviderSpec>>();
     AuditPlan::compile(inventory, &specs)
         .unwrap()
         .freeze(Some(b"equivalence-key"))
@@ -572,7 +572,7 @@ impl ExternalProjectTool for FakeTool {
                 };
                 let path = artifacts.join("provider-result.json");
                 fs::write(&path, body).unwrap();
-                receipt.stdout = Some(legion_effects::ArtifactRecord {
+                receipt.stdout = Some(rightkit_evidence_effects::ArtifactRecord {
                     path: if cargo_resolution {
                         path.to_string_lossy().into_owned()
                     } else {
@@ -596,7 +596,7 @@ impl ExternalProjectTool for FakeTool {
                 };
                 let err_path = artifacts.join("provider-result.stderr.json");
                 fs::write(&err_path, stderr).unwrap();
-                receipt.stderr = Some(legion_effects::ArtifactRecord {
+                receipt.stderr = Some(rightkit_evidence_effects::ArtifactRecord {
                     path: if cargo_resolution {
                         err_path.to_string_lossy().into_owned()
                     } else {
@@ -850,7 +850,7 @@ fn every_provider_binds_exact_selector_denominator_and_correct_route() {
                 "{id} no process"
             );
             if id == "legacy.quality.test" {
-                assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+                assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
                 assert!(result.coverage.as_ref().unwrap().expected > 0);
                 assert_eq!(
                     result.details["executionReceipt"]["state"],
@@ -899,7 +899,7 @@ fn invalid_runner_identity_is_rejected_for_each_frozen_provider() {
 // This mixed fixture deliberately selects unsupported pyproject input as well
 // as requirements.txt. Preserve both paths: it must refuse before any tool call.
 fn assert_python_input_refused(
-    result: &legion_contracts::ProviderResult,
+    result: &rightkit_evidence_contracts::ProviderResult,
     provider: &AuditProvider,
 ) {
     assert!(result.applicable && !result.complete);
@@ -933,7 +933,7 @@ fn assert_python_input_refused(
 // This mixed source fixture has no frozen source digests. Preserve all five
 // selected paths: SAST must refuse before a tool or parser attempt.
 fn assert_sast_source_input_refused(
-    result: &legion_contracts::ProviderResult,
+    result: &rightkit_evidence_contracts::ProviderResult,
     provider: &AuditProvider,
     inventory: &InventoryEnvelope,
 ) {
@@ -1039,7 +1039,7 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
                 .unwrap();
             let coverage = result.coverage.as_ref().unwrap();
             assert!(!result.complete, "managed tests need enrolled trust");
-            assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+            assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
             assert!(coverage.expected > 0);
             assert_eq!(coverage.examined, 0);
             assert_eq!(

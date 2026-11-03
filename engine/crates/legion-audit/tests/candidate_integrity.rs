@@ -12,7 +12,7 @@ use legion_audit::native_providers::{
         ScannerCandidate, SecurityAdjudicationError, TriageContext,
     },
 };
-use legion_contracts::{ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderId, ProviderResult, ProviderStatus};
 use serde_json::{json, Value};
 
 fn fixture() -> PathBuf {
@@ -419,7 +419,7 @@ fn observed_batch_fixture() -> (
     Value,
     Value,
 ) {
-    use legion_contracts::canonical_digest;
+    use rightkit_evidence_contracts::canonical_digest;
     let rows = vec![candidate("observed")];
     let plan = build_adjudication_plan(&rows, &TriageContext::default(), "sha256:observed-parent")
         .unwrap();
@@ -476,7 +476,7 @@ fn source_delivery_never_counts_unread_ranges_or_skeleton_placeholders() {
     let stage = json!({"schemaVersion":1,"kind":"legion-audit-adjudication-seat","stage":"batch","round":1,
         "batchId":batch.batch_id,"itemId":batch.item_id,"contextId":batch.context_id,"parentPacketDigest":plan.parent_packet_digest,"packet":batch.packet});
     let verdict = json!({"candidateId":"observed","stage":"batch","workItemId":batch.item_id,
-        "workPacketDigest":legion_contracts::canonical_digest(&batch.packet).unwrap(),"contextId":batch.context_id});
+        "workPacketDigest":rightkit_evidence_contracts::canonical_digest(&batch.packet).unwrap(),"contextId":batch.context_id});
     host["deliveredExcerpts"] = json!([{"path":"src/handler.ts","mode":"skeleton","startLine":1,"endLine":100,"content":"{ ... }","anchors":["src/handler.ts:1-100"]}]);
     let observation = stage_observation(&stage, &[verdict.clone()], &host, &rows).unwrap();
     let gaps =

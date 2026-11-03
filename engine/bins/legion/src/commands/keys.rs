@@ -1,7 +1,7 @@
 //! `legion keys init`: provision the host key ring the Arcane protocol loads.
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_arcane::key_ring::{resolve_key_dir, KeyDirSource, KeyRing};
+use rightkit_evidence_governance::key_ring::{resolve_key_dir, KeyDirSource, KeyRing};
 use serde_json::json;
 use std::path::PathBuf;
 

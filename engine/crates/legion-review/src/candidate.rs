@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{BudgetCeiling, FindingId};
+use rightkit_evidence_contracts::{BudgetCeiling, FindingId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

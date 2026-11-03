@@ -213,8 +213,8 @@ fn provider() -> AuditProvider {
 }
 
 fn producer(root: &Path, search: Vec<PathBuf>) -> ArtifactProducer {
-    let policy = legion_effects::StaticPolicy {
-        decision: legion_effects::PolicyDecision {
+    let policy = rightkit_evidence_effects::StaticPolicy {
+        decision: rightkit_evidence_effects::PolicyDecision {
             allowed: true,
             policy_id: "sqlfluff-fixture".into(),
             policy_version: 1,

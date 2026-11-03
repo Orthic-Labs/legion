@@ -84,7 +84,7 @@ pub(super) fn digest_bytes(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 pub(super) fn digest(value: &Value) -> Result<String, AuditError> {
-    legion_contracts::canonical_digest(value).map_err(|error| invalid(error.to_string()))
+    rightkit_evidence_contracts::canonical_digest(value).map_err(|error| invalid(error.to_string()))
 }
 pub(super) fn read_json(path: &Path) -> Result<Value, AuditError> {
     read_bounded_json(path, MAX_RUNTIME_JSON_BYTES)
@@ -709,7 +709,7 @@ fn model_visible_input_bytes(
     system: &str,
     schema: &Value,
 ) -> Result<u64, AuditError> {
-    let prompt_bytes = legion_contracts::canonical_json_bytes(prompt)
+    let prompt_bytes = rightkit_evidence_contracts::canonical_json_bytes(prompt)
         .map_err(|error| invalid(error.to_string()))?;
     (prompt_bytes.len() as u64)
         .checked_add(system.len() as u64)
@@ -1120,7 +1120,7 @@ impl Controller<'_> {
         let (frame, rendered) = rendered_request(&prompt, system, schema, execution)?;
         let bytes = request_bytes(&rendered)?;
         let model_input_bytes = model_visible_input_bytes(&prompt, system, schema)?;
-        let request_accounting = json!({"basis":"serialized-host-envelope","modelVisibleInputBasis":"canonical-prompt-utf8+system-utf8+schema-json-utf8-once","modelVisibleInputBytes":model_input_bytes,"nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null,"stdinFrameBytes":frame.len(),"systemPromptBytes":system.len(),"schemaArgumentBytes":schema.to_string().len(),"promptBytes":legion_contracts::canonical_json_bytes(&prompt).map_err(|error|invalid(error.to_string()))?.len()});
+        let request_accounting = json!({"basis":"serialized-host-envelope","modelVisibleInputBasis":"canonical-prompt-utf8+system-utf8+schema-json-utf8-once","modelVisibleInputBytes":model_input_bytes,"nativeFramingIncluded":false,"providerInputTokenCountBeforeSend":null,"stdinFrameBytes":frame.len(),"systemPromptBytes":system.len(),"schemaArgumentBytes":schema.to_string().len(),"promptBytes":rightkit_evidence_contracts::canonical_json_bytes(&prompt).map_err(|error|invalid(error.to_string()))?.len()});
         if bytes > MAX_REQUEST_BYTES as u64 {
             return Err(AuditError::BoundExceeded(
                 "complete reviewer request exceeds byte cap".into(),
@@ -1383,7 +1383,7 @@ fn extend_conversation(
     let limit = physical_input_limit(seat);
     let max_bytes = match limit {
         Some(limit) => {
-            let action_bytes = legion_contracts::canonical_json_bytes(model_action)
+            let action_bytes = rightkit_evidence_contracts::canonical_json_bytes(model_action)
                 .map_err(|error| invalid(error.to_string()))?
                 .len() as u64;
             let available = limit
@@ -2118,7 +2118,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
     let complete = final_status == "done"
         && matches!(
             recomputed.report.status,
-            legion_contracts::ReportStatus::Clean | legion_contracts::ReportStatus::Findings
+            rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
         )
         && recomputed.report.gaps.is_empty()
         && controller.snapshot.manifest.gaps.is_empty();
@@ -2317,7 +2317,7 @@ mod tests {
         let work = estimate_work("reasoning.correctness", "correctness", "source");
         let execution = model::test_largest_planning_execution(&[work]).unwrap();
         let (frame, mut envelope) = rendered_request(&prompt, SYSTEM, &schema, &execution).unwrap();
-        let canonical = legion_contracts::canonical_json_bytes(&prompt).unwrap();
+        let canonical = rightkit_evidence_contracts::canonical_json_bytes(&prompt).unwrap();
         let turn: Value = serde_json::from_str(&frame).unwrap();
         assert_eq!(
             turn["message"]["content"].as_str().unwrap().as_bytes(),
@@ -2629,7 +2629,7 @@ mod tests {
         assert!(projected["packet"].get("binding").is_none());
         assert_eq!(
             projected["logicalReference"]["invocationDigest"],
-            legion_contracts::canonical_digest(&original).unwrap()
+            rightkit_evidence_contracts::canonical_digest(&original).unwrap()
         );
         assert_eq!(work.request, original);
         let mut proof = projection::evidence(&original).unwrap();
@@ -2731,19 +2731,19 @@ mod tests {
         for (row, item) in batch["lenses"].as_array().unwrap().iter().zip(&works) {
             assert_eq!(
                 row["logicalReference"]["invocationDigest"],
-                legion_contracts::canonical_digest(&item.request).unwrap()
+                rightkit_evidence_contracts::canonical_digest(&item.request).unwrap()
             );
             let mut projected_request = item.request.clone();
             projected_request.packet = projection::packet(&item.request).unwrap().0;
             assert_ne!(
                 row["logicalReference"]["invocationDigest"],
-                legion_contracts::canonical_digest(&projected_request).unwrap()
+                rightkit_evidence_contracts::canonical_digest(&projected_request).unwrap()
             );
         }
         let mut shared_proof = proof.clone();
         shared_proof["transportEncoding"] = json!("shared-audit-packet-reference-v1");
         shared_proof["reconstructedPacketBytes"] =
-            json!(legion_contracts::canonical_json_bytes(&projected)
+            json!(rightkit_evidence_contracts::canonical_json_bytes(&projected)
                 .unwrap()
                 .len());
         shared_proof["sharedContextDigest"] = batch["sharedContextDigest"].clone();
@@ -2788,7 +2788,7 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 reference["invocationDigest"],
-                legion_contracts::canonical_digest(&works[index].request).unwrap()
+                rightkit_evidence_contracts::canonical_digest(&works[index].request).unwrap()
             );
             assert_eq!(
                 reference,
@@ -2867,7 +2867,7 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 reference["invocationDigest"],
-                legion_contracts::canonical_digest(&works[index].request).unwrap()
+                rightkit_evidence_contracts::canonical_digest(&works[index].request).unwrap()
             );
             assert_eq!(
                 reference,

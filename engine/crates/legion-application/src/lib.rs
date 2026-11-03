@@ -14,27 +14,27 @@ use legion_audit::{
     FrozenPlan, InventoryEnvelope, InventorySource, ProviderExecutor,
 };
 use legion_catalog::{Catalog, CatalogError};
-use legion_contracts::task::RequestEnvelope;
-use legion_contracts::{
+use rightkit_evidence_contracts::task::RequestEnvelope;
+use rightkit_evidence_contracts::{
     AgentDefinition, AgentId, BudgetCeiling, Coverage, EffectRequest, HookActorContext,
     InvocationGrant, InvocationId, Latitude, PolicyPack, ProviderId, ProviderResult, ProviderSpec,
     ProviderStatus, ReportId, ReportStatus, ReportV1, RequestId, RoutingCeiling, TaskSpec,
     TaskStatus, ToolCeiling,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     EffectInterface, ExternalProjectTool, ImplementationRegistry, Provider, ProviderContext,
     ProviderDefinition, ProviderError, ProviderErrorKind, ProviderRegistry,
     ProviderRegistryDocument, SourceInterface,
 };
-use legion_report::ReportError;
+use rightkit_evidence_report::ReportError;
 use legion_runtime::{
     ContextRequest, EffectPolicy, EngineOutcome, Invocation, LegionEngine, RouteCandidate,
     RuntimeError,
 };
 use thiserror::Error;
 
-use legion_policy::{PolicyEvaluation, PolicyEvaluator, PolicyReceipt};
-use legion_policy_model::{DecisionOutcome, PolicyContext, PolicyPack as ArcanePolicyPack};
+use rightkit_policy_rules::rules::{PolicyEvaluation, PolicyEvaluator, PolicyReceipt};
+use rightkit_policy_rules::model::{DecisionOutcome, PolicyContext, PolicyPack as ArcanePolicyPack};
 
 /// Read-only catalog access supplied by the composition owner.
 pub trait CatalogSource: Send + Sync {
@@ -290,7 +290,7 @@ pub struct M1InvocationResult {
     pub capability: DeterministicCapabilityResult,
     pub policy_evaluation: PolicyEvaluation,
     pub policy_receipt: PolicyReceipt,
-    pub invocation_receipt: legion_contracts::InvocationReceipt,
+    pub invocation_receipt: rightkit_evidence_contracts::InvocationReceipt,
     pub resolved_command: Option<legion_catalog::ResolvedExplicitCommand>,
 }
 
@@ -303,11 +303,11 @@ pub enum M1ApplicationError {
     #[error("catalog operation failed: {0}")]
     Catalog(#[from] legion_catalog::CatalogError),
     #[error("Arcane policy pack failed validation: {0}")]
-    Policy(#[from] legion_policy::PolicyEvaluationError),
+    Policy(#[from] rightkit_policy_rules::rules::PolicyEvaluationError),
     #[error("typed invocation receipt could not be constructed: {0}")]
-    Contract(#[from] legion_contracts::ContractError),
+    Contract(#[from] rightkit_evidence_contracts::ContractError),
     #[error("canonical invocation identity could not be encoded: {0}")]
-    Canonical(#[from] legion_contracts::canonical::CanonicalError),
+    Canonical(#[from] rightkit_evidence_contracts::canonical::CanonicalError),
 }
 
 /// Native M1 API shared by standalone CLI and reusable stdio MCP transports.
@@ -663,13 +663,13 @@ impl M1Application {
         capability: &DeterministicCapabilityResult,
         evaluation: &PolicyEvaluation,
         resolved_command: Option<&legion_catalog::ResolvedExplicitCommand>,
-    ) -> Result<legion_contracts::InvocationReceipt, M1ApplicationError> {
+    ) -> Result<rightkit_evidence_contracts::InvocationReceipt, M1ApplicationError> {
         #[derive(serde::Serialize)]
         #[serde(rename_all = "camelCase")]
         struct Identity<'a> {
             release_version: &'a str,
             capability: &'a DeterministicCapabilityResult,
-            policy: &'a legion_policy_model::PolicyDecision,
+            policy: &'a rightkit_policy_rules::model::PolicyDecision,
             #[serde(skip_serializing_if = "Option::is_none")]
             resolved_command: Option<&'a legion_catalog::ResolvedExplicitCommand>,
         }
@@ -683,13 +683,13 @@ impl M1Application {
                     || !command.arguments.is_empty()
             }),
         };
-        let bytes = legion_contracts::canonical_json_bytes(&identity)?;
+        let bytes = rightkit_evidence_contracts::canonical_json_bytes(&identity)?;
         let status = if evaluation.decision.outcome == DecisionOutcome::Allow {
-            legion_contracts::InvocationStatus::Ok
+            rightkit_evidence_contracts::InvocationStatus::Ok
         } else {
-            legion_contracts::InvocationStatus::Failed
+            rightkit_evidence_contracts::InvocationStatus::Failed
         };
-        let complete = status == legion_contracts::InvocationStatus::Ok;
+        let complete = status == rightkit_evidence_contracts::InvocationStatus::Ok;
         let mut artifacts = BTreeMap::new();
         artifacts.insert(
             "capabilityBodySha256".into(),
@@ -700,14 +700,14 @@ impl M1Application {
             "releaseVersion".into(),
             self.binding.release_version().into(),
         );
-        let receipt = legion_contracts::InvocationReceipt {
+        let receipt = rightkit_evidence_contracts::InvocationReceipt {
             schema_version: 1,
-            receipt_id: legion_contracts::derived_id(&bytes)?,
-            invocation_id: legion_contracts::derived_id(&bytes)?,
-            request_id: legion_contracts::derived_id(&bytes)?,
-            task_id: legion_contracts::derived_id(&bytes)?,
-            plan_id: legion_contracts::derived_id(&bytes)?,
-            provider: legion_contracts::ProviderId::new("m1-native-capability")?,
+            receipt_id: rightkit_evidence_contracts::derived_id(&bytes)?,
+            invocation_id: rightkit_evidence_contracts::derived_id(&bytes)?,
+            request_id: rightkit_evidence_contracts::derived_id(&bytes)?,
+            task_id: rightkit_evidence_contracts::derived_id(&bytes)?,
+            plan_id: rightkit_evidence_contracts::derived_id(&bytes)?,
+            provider: rightkit_evidence_contracts::ProviderId::new("m1-native-capability")?,
             status,
             complete,
             findings: Vec::new(),
@@ -1047,7 +1047,7 @@ impl NativeApplicationConfig {
             .with_registry(Arc::new(registry))
             .with_policy(Arc::new(CanonicalEffectPolicy {
                 pack: {
-                    let pack = legion_contracts::canonical_default_policy_pack();
+                    let pack = rightkit_evidence_contracts::canonical_default_policy_pack();
                     pack.validate().map_err(|error| {
                         NativeApplicationError::Configuration(format!(
                             "canonical default policy pack failed validation: {error}"
@@ -1789,9 +1789,9 @@ fn validate_verify_artifacts(
             "verify facts and plan bindings do not match".into(),
         ));
     }
-    legion_contracts::canonical_digest_hex(facts)
+    rightkit_evidence_contracts::canonical_digest_hex(facts)
         .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
-    legion_contracts::canonical_digest_hex(plan)
+    rightkit_evidence_contracts::canonical_digest_hex(plan)
         .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
     Ok(())
 }
@@ -1870,7 +1870,7 @@ impl RunSource for DefaultRunSource {
         let request_id = RequestId::new("native-run")
             .map_err(|error| RuntimeError::InvalidTask(error.to_string()))?;
         let task_id = "native-run"
-            .parse::<legion_contracts::TaskId>()
+            .parse::<rightkit_evidence_contracts::TaskId>()
             .map_err(|error| RuntimeError::InvalidTask(error.to_string()))?;
         let invocation_id = InvocationId::new("native-run")
             .map_err(|error| RuntimeError::InvalidTask(error.to_string()))?;
@@ -1992,7 +1992,7 @@ impl EffectPolicy for CanonicalEffectPolicy {
         };
         if !matches!(
             rule.approval,
-            legion_contracts::policy::ApprovalRequirement::None
+            rightkit_evidence_contracts::policy::ApprovalRequirement::None
         ) || request.approval_required
         {
             return Err(RuntimeError::Policy(
@@ -2011,10 +2011,10 @@ impl EffectPolicy for CanonicalEffectPolicy {
 #[cfg(test)]
 mod canonical_effect_policy_tests {
     use super::*;
-    use legion_contracts::policy::{
+    use rightkit_evidence_contracts::policy::{
         canonical_default_policy_pack, ApprovalRequirement, EffectClass, PolicyRule,
     };
-    use legion_contracts::{AgentId, RequestId, TaskId};
+    use rightkit_evidence_contracts::{AgentId, RequestId, TaskId};
 
     fn request(effect_class: EffectClass, target: &str, operation: &str) -> EffectRequest {
         EffectRequest {
@@ -2381,10 +2381,10 @@ impl NativeApplication {
             NativeOperation::Report(format) => {
                 let report = self.report_source.report()?;
                 let rendered = match format {
-                    ReportFormat::Json => legion_report::render_json(&report)?,
-                    ReportFormat::Sarif => legion_report::render_sarif(&report)?,
-                    ReportFormat::Markdown => legion_report::render_markdown(&report)?,
-                    ReportFormat::Html => legion_report::render_html(&report)?,
+                    ReportFormat::Json => rightkit_evidence_report::render_json(&report)?,
+                    ReportFormat::Sarif => rightkit_evidence_report::render_sarif(&report)?,
+                    ReportFormat::Markdown => rightkit_evidence_report::render_markdown(&report)?,
+                    ReportFormat::Html => rightkit_evidence_report::render_html(&report)?,
                 };
                 Ok(NativeOperationResult::Report(rendered))
             }
@@ -2472,7 +2472,7 @@ impl NativeApplication {
 #[cfg(test)]
 mod m1_tests {
     use super::*;
-    use legion_policy_model::{
+    use rightkit_policy_rules::model::{
         ApprovalState, CanonicalPath, CapabilityCeiling, CapabilityGrant, ContractVersion,
         EffectClass as ArcaneEffectClass, EnforcementLevel, HostEnforcement, LeasePolicy,
         LeaseState, PathOperation, PathScope, PolicyRule as ArcanePolicyRule, ReceiptRequirements,

@@ -1295,19 +1295,19 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     .collect::<Vec<_>>();
     // One resolution (--key-dir is not applicable here): ARCANE_KEY_DIR, else
     // the canonical `$HOME/.codex/arcane-keys`; shared with keys init, seal and run open.
-    let (canonical_key_dir, key_dir_source) = legion_arcane::key_ring::resolve_key_dir(None)
+    let (canonical_key_dir, key_dir_source) = rightkit_evidence_governance::key_ring::resolve_key_dir(None)
         .unwrap_or_else(|_| {
             (
                 codex_home_dir(&home).join("arcane-keys"),
-                legion_arcane::key_ring::KeyDirSource::Canonical,
+                rightkit_evidence_governance::key_ring::KeyDirSource::Canonical,
             )
         });
-    let key_ring_state = match legion_arcane::KeyRing::load_dir(&canonical_key_dir) {
+    let key_ring_state = match rightkit_evidence_governance::KeyRing::load_dir(&canonical_key_dir) {
         Ok(_) => json!({"loadable":true,"missing":Value::Null,"remediation":Value::Null}),
         Err(error) => json!({
             "loadable":false,
             "missing":error.to_string(),
-            "remediation":legion_arcane::key_ring::KEYS_INIT_COMMAND,
+            "remediation":rightkit_evidence_governance::key_ring::keys_init_command(),
         }),
     };
     let key_ids = std::fs::read_dir(&canonical_key_dir)
@@ -1378,7 +1378,7 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
         gaps.push(json!({
             "kind":"host-key-ring-unavailable",
             "detail":host.pointer("/guard/canonicalVerificationKeyring/state/missing").cloned().unwrap_or(Value::Null),
-            "remediation":format!("run `{}`", legion_arcane::key_ring::KEYS_INIT_COMMAND),
+            "remediation":format!("run `{}`", rightkit_evidence_governance::key_ring::keys_init_command()),
         }));
     }
     if naming["status"] == "fail" {

@@ -1123,11 +1123,11 @@ mod gradle_owner {
             gradle_model::{extract_android_model, GradlePins, WRAPPER_JAR, WRAPPER_PROPERTIES},
         },
     };
-    use legion_effects::{
+    use rightkit_evidence_effects::{
         platform::ProcessFuture, receipt::ProcessTreeEvidence, PlatformProcess, ProcessLaunch,
         ProcessOutput,
     };
-    use legion_provider_sdk::{
+    use rightkit_code_audit_provider_sdk::{
         ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
     };
     use std::{

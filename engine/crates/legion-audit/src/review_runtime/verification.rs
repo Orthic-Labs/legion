@@ -808,7 +808,7 @@ mod tests {
             "sha256:fixture",
         );
         let schema = batch_schema();
-        let expected = (legion_contracts::canonical_json_bytes(&prompt)
+        let expected = (rightkit_evidence_contracts::canonical_json_bytes(&prompt)
             .unwrap()
             .len()
             + SYSTEM.len()

@@ -18,27 +18,26 @@ hmac.workspace = true
 hex.workspace = true
 legion-audit = { path = "../../crates/legion-audit" }
 legion-application = { path = "../../crates/legion-application" }
-legion-arcane = { path = "../../crates/legion-arcane" }
+rightkit-evidence-governance = "=0.1.0"
 legion-catalog = { path = "../../crates/legion-catalog" }
-legion-contracts = { path = "../../crates/legion-contracts" }
-legion-decisions = { path = "../../crates/legion-decisions" }
-legion-effects = { path = "../../crates/legion-effects" }
-legion-handoff = { path = "../../crates/legion-handoff" }
+rightkit-evidence-contracts = "=0.1.0"
+legion-identity = { path = "../../crates/legion-identity" }
+rightkit-evidence-decisions = "=0.1.0"
+rightkit-evidence-effects = "=0.1.0"
+rightkit-agent-orchestration-handoff = "=0.1.0"
 legion-mcp = { path = "../legion-mcp" }
 legion-host = { path = "../../crates/legion-host" }
 legion-harness = { path = "../../crates/legion-harness" }
 legion-minimize = { path = "../../crates/legion-minimize" }
-legion-policy = { path = "../../crates/legion-policy" }
-legion-policy-model = { path = "../../crates/legion-policy-model" }
-legion-provider-sdk = { path = "../../crates/legion-provider-sdk" }
-legion-report = { path = "../../crates/legion-report" }
+rightkit-policy-rules = "=0.1.0"
+rightkit-code-audit-provider-sdk = "=0.1.0"
+rightkit-evidence-report = "=0.1.0"
 legion-research = { path = "../../crates/legion-research" }
 legion-review = { path = "../../crates/legion-review" }
-legion-rules = { path = "../../crates/legion-rules" }
 legion-runtime = { path = "../../crates/legion-runtime" }
 legion-topology = { path = "../../crates/legion-topology" }
 reqwest.workspace = true
-rightkit-child-process = "=0.5.6"
+rightkit-child-process = "=0.5.7"
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

@@ -1,7 +1,7 @@
 //! Fixed native-owner transaction, never a command runner or transferable grant.
 //! Only protected enrollment selects adapters. Native owner retains its record
 //! lock & immutable prepared inputs until commit/complete on this same pipe.
-use legion_policy::frozen_scope::{self as policy, Operation};
+use rightkit_policy_rules::rules::frozen_scope::{self as policy, Operation};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::Instant};
 

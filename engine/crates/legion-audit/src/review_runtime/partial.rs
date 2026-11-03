@@ -5,7 +5,7 @@ use crate::{
     error::AuditError,
     native_providers::reasoning::{ingest, PendingLensWork, ReasoningInvocation},
 };
-use legion_contracts::{Finding, FindingId, ReportStatus};
+use rightkit_evidence_contracts::{Finding, FindingId, ReportStatus};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, fs, path::Path};
 

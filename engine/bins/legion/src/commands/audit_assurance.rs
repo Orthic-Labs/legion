@@ -480,7 +480,7 @@ fn cell(value: &str) -> String {
 
 /// `report --report assurance`: projection of the saved assurance extension.
 pub fn assurance_projection(
-    report: &legion_contracts::ReportV2,
+    report: &rightkit_evidence_contracts::ReportV2,
     format: &str,
 ) -> Result<String, CommandError> {
     let extension = report.assurance_extension().ok_or_else(|| {
@@ -548,7 +548,7 @@ pub fn store_root(path: &Path) -> Result<PathBuf, CommandError> {
     }
     let value: Value = serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
         .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
-    let view = legion_contracts::Report::read_any(&value)
+    let view = rightkit_evidence_contracts::Report::read_any(&value)
         .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
     view.targets
         .first()
@@ -574,7 +574,7 @@ fn mtime_rfc3339(path: &Path) -> Option<String> {
 /// store. Order is by report file modification time (reports carry no clock);
 /// that basis is stated in the output.
 pub fn trend_projection(root: &Path, format: &str) -> Result<String, CommandError> {
-    use legion_report::trend::{build, render_markdown, to_value, Cohort, TrendPoint};
+    use rightkit_evidence_report::trend::{build, render_markdown, to_value, Cohort, TrendPoint};
     let (index, _) = legion_audit::finding_history::load_or_rebuild(root)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let dir = root.join(".audit/state/reports");
@@ -587,7 +587,7 @@ pub fn trend_projection(root: &Path, format: &str) -> Result<String, CommandErro
         let Ok(value) = serde_json::from_slice::<Value>(&bytes) else {
             continue;
         };
-        let Ok(view) = legion_contracts::Report::read_any(&value) else {
+        let Ok(view) = rightkit_evidence_contracts::Report::read_any(&value) else {
             continue;
         };
         let assurance = view

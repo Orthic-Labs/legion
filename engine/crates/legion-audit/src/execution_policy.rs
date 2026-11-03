@@ -4,7 +4,7 @@ use crate::profiles::{
     validate_runtime_closure, LaunchStep, LaunchStepKind, RuntimeClass, RuntimeClosure,
     RuntimeConstraint, RuntimeViolation,
 };
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision};
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision};
 use serde_json::{json, Value};
 use std::{io::Read, path::Path};
 
@@ -102,7 +102,7 @@ pub fn project_binding(receipt: &mut Value) {
 }
 
 /// Retain effect evidence without replacing a denial with an analyzer summary.
-pub(crate) fn receipt_json(receipt: &legion_effects::ExecutionReceipt) -> Value {
+pub(crate) fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt) -> Value {
     let mut value = json!({
         "schemaVersion": receipt.schema_version,
         "receiptId": receipt.receipt_id, "requestId": receipt.request_id,
@@ -127,24 +127,24 @@ pub(crate) fn receipt_json(receipt: &legion_effects::ExecutionReceipt) -> Value 
 }
 
 /// Obtain an actual policy decision receipt for a blocked native operation.
-pub(crate) async fn deny(request: &ExternalToolRequest) -> legion_effects::ExecutionReceipt {
+pub(crate) async fn deny(request: &ExternalToolRequest) -> rightkit_evidence_effects::ExecutionReceipt {
     struct NoArtifacts;
-    impl legion_effects::ArtifactSink for NoArtifacts {
+    impl rightkit_evidence_effects::ArtifactSink for NoArtifacts {
         fn write(
             &self,
             _: &str,
             _: &[u8],
-        ) -> Result<legion_effects::ArtifactRecord, legion_effects::EffectError> {
-            Err(legion_effects::EffectError::ArtifactFailed(
+        ) -> Result<rightkit_evidence_effects::ArtifactRecord, rightkit_evidence_effects::EffectError> {
+            Err(rightkit_evidence_effects::EffectError::ArtifactFailed(
                 "denied operation has no process artifacts".into(),
             ))
         }
     }
     #[cfg(unix)]
-    let process = legion_effects::platform::unix::UnixProcess::new();
+    let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
     #[cfg(windows)]
-    let process = legion_effects::platform::windows::WindowsProcess::default();
-    legion_effects::EffectExecutor::new(process, NoArtifacts, OwnerAdmissionRequired)
+    let process = rightkit_evidence_effects::platform::windows::WindowsProcess::default();
+    rightkit_evidence_effects::EffectExecutor::new(process, NoArtifacts, OwnerAdmissionRequired)
         .execute(request)
         .await
 }
@@ -301,21 +301,21 @@ mod tests {
     use super::*;
 
     struct NeverRun;
-    impl legion_effects::PlatformProcess for NeverRun {
+    impl rightkit_evidence_effects::PlatformProcess for NeverRun {
         fn run<'a>(
             &'a self,
-            _: legion_effects::ProcessLaunch,
-        ) -> legion_effects::platform::ProcessFuture<'a> {
+            _: rightkit_evidence_effects::ProcessLaunch,
+        ) -> rightkit_evidence_effects::platform::ProcessFuture<'a> {
             panic!("denied admission must precede version probe & target spawn")
         }
     }
     struct NeverWrite;
-    impl legion_effects::ArtifactSink for NeverWrite {
+    impl rightkit_evidence_effects::ArtifactSink for NeverWrite {
         fn write(
             &self,
             _: &str,
             _: &[u8],
-        ) -> Result<legion_effects::ArtifactRecord, legion_effects::EffectError> {
+        ) -> Result<rightkit_evidence_effects::ArtifactRecord, rightkit_evidence_effects::EffectError> {
             panic!("denied admission must not produce process artifacts")
         }
     }
@@ -335,12 +335,12 @@ mod tests {
             ..ExternalToolRequest::default()
         };
         let receipt =
-            legion_effects::EffectExecutor::new(NeverRun, NeverWrite, OwnerAdmissionRequired)
+            rightkit_evidence_effects::EffectExecutor::new(NeverRun, NeverWrite, OwnerAdmissionRequired)
                 .execute(&request)
                 .await;
         assert_eq!(
             receipt.state,
-            legion_effects::ExecutionState::UnauthorizedEffect
+            rightkit_evidence_effects::ExecutionState::UnauthorizedEffect
         );
         assert!(!receipt.complete);
         assert!(!receipt.process_tree.started);

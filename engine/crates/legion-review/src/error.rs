@@ -33,14 +33,14 @@ impl fmt::Display for ReviewError {
 
 impl std::error::Error for ReviewError {}
 
-impl From<legion_contracts::ContractError> for ReviewError {
-    fn from(error: legion_contracts::ContractError) -> Self {
+impl From<rightkit_evidence_contracts::ContractError> for ReviewError {
+    fn from(error: rightkit_evidence_contracts::ContractError) -> Self {
         Self::Invalid(error.to_string())
     }
 }
 
-impl From<legion_provider_sdk::ProviderError> for ReviewError {
-    fn from(error: legion_provider_sdk::ProviderError) -> Self {
+impl From<rightkit_code_audit_provider_sdk::ProviderError> for ReviewError {
+    fn from(error: rightkit_code_audit_provider_sdk::ProviderError) -> Self {
         Self::Provider(error.to_string())
     }
 }

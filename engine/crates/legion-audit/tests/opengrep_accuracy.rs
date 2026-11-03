@@ -10,9 +10,9 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -266,7 +266,7 @@ impl PolicyAuthorizer for SharedPolicy {
         self.0.authorize(request)
     }
 }
-fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
+fn retained(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -> Value {
     let bytes = fs::read(root.join(&artifact.path)).unwrap();
     assert!(artifact.immutable);
     assert_eq!(digest(&bytes), artifact.digest);
@@ -274,10 +274,10 @@ fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
     json!({"path": artifact.path, "digest": artifact.digest, "bytes": artifact.bytes, "immutable": artifact.immutable, "raw": String::from_utf8(bytes).unwrap()})
 }
 /// Exact field projection of actual EffectExecutor receipt; no inferred process proof.
-fn artifact_metadata(artifact: &legion_effects::ArtifactRecord) -> Value {
+fn artifact_metadata(artifact: &rightkit_evidence_effects::ArtifactRecord) -> Value {
     json!({"path":artifact.path,"digest":artifact.digest,"bytes":artifact.bytes,"immutable":artifact.immutable})
 }
-fn receipt_json(receipt: &legion_effects::ExecutionReceipt, artifacts: &Path, raw: bool) -> Value {
+fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt, artifacts: &Path, raw: bool) -> Value {
     json!({"schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id, "planId": receipt.plan_id,
         "policyId": receipt.policy_id, "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),
@@ -299,7 +299,7 @@ fn retain_execution_diagnostics(
     id: &str,
     fixture: &Path,
     artifacts: &Path,
-    receipt: &legion_effects::ExecutionReceipt,
+    receipt: &rightkit_evidence_effects::ExecutionReceipt,
     policy: &ScopedPolicy,
 ) {
     let directory = PathBuf::from(
@@ -328,7 +328,7 @@ fn retain_execution_diagnostics(
     ));
     let target = diagnostics.join(format!("{id}-{}", &request_digest[7..]));
     fs::create_dir(&target).unwrap();
-    let writer = legion_effects::ArtifactWriter::new(&target);
+    let writer = rightkit_evidence_effects::ArtifactWriter::new(&target);
     let mut streams = serde_json::Map::new();
     for (name, artifact) in [
         ("stdout", receipt.stdout.as_ref()),
@@ -465,11 +465,11 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
         environment: environment.clone(),
         decisions: Mutex::new(vec![]),
     });
-    let auth = legion_effects::authenticate_sandbox(
+    let auth = rightkit_evidence_effects::authenticate_sandbox(
         &contract.executable,
         &contract.args,
         &contract.cwd,
-        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite,
         &run.join("sandbox"),
     )
     .unwrap();
@@ -491,7 +491,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
         environment_allowlist: environment.keys().cloned().collect(),
         environment,
         requires_network_sandbox: true,
-        sandbox: Some(legion_effects::SandboxReceipt {
+        sandbox: Some(rightkit_evidence_effects::SandboxReceipt {
             id: auth.id,
             network: auth.network,
             filesystem_scope: auth.filesystem_scope,
@@ -502,9 +502,9 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
         ..ExternalToolRequest::default()
     };
     let artifacts = run.join("artifacts");
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(&artifacts),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(&artifacts),
         SharedPolicy(policy.clone()),
     );
     let receipt = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -514,7 +514,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
     retain_execution_diagnostics(id, &fixture.0, &artifacts, &receipt, &policy);
     assert_eq!(
         receipt.state,
-        legion_effects::ExecutionState::Completed,
+        rightkit_evidence_effects::ExecutionState::Completed,
         "{:?}",
         receipt.gaps
     );
@@ -532,7 +532,7 @@ fn case(id: &str, source: &str, expected: &[&str]) -> Value {
     let sarif_bytes =
         fs::read(run.join("output.sarif")).expect("actual native SARIF output required");
     // Seal actual tool-written streams after successful native process termination.
-    let writer = legion_effects::ArtifactWriter::new(run.join("retained-output"));
+    let writer = rightkit_evidence_effects::ArtifactWriter::new(run.join("retained-output"));
     let output_record = writer
         .write_immutable("output.json", &output_bytes)
         .unwrap();

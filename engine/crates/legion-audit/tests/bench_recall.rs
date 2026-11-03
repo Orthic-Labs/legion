@@ -19,7 +19,7 @@ use legion_audit::{
     AuditPlan, AuditProvider, FrozenPlan, InventoryEntry, InventoryEnvelope,
     NativeProviderRegistry, ProviderExecutor,
 };
-use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
@@ -77,9 +77,9 @@ fn implementation_binding(spec: &ProviderSpec) -> Value {
     definition.as_object_mut().unwrap().remove("benchmark");
     json!({
         "providerDefinition": definition,
-        "providerDefinitionDigest": legion_contracts::canonical_digest(&definition).unwrap(),
+        "providerDefinitionDigest": rightkit_evidence_contracts::canonical_digest(&definition).unwrap(),
         "sourceBindings": source_bindings(),
-        "sourceBindingsDigest": legion_contracts::canonical_digest(source_bindings()).unwrap()
+        "sourceBindingsDigest": rightkit_evidence_contracts::canonical_digest(source_bindings()).unwrap()
     })
 }
 
@@ -131,7 +131,7 @@ fn collect_source_bindings(
                     .expect("provider definition")
                     .remove("benchmark");
             }
-            legion_contracts::canonical_digest(&registry)
+            rightkit_evidence_contracts::canonical_digest(&registry)
                 .expect("sanitized provider registry digest")
         } else {
             digest(&bytes)
@@ -381,17 +381,17 @@ fn inventory(paths: &[String]) -> InventoryEnvelope {
 /// production provider removes its report directory. Execution and parsing
 /// still belong to the real adapter and EffectExecutor.
 struct RecordingTool {
-    inner: std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool>,
+    inner: std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool>,
     report: std::sync::Arc<std::sync::Mutex<Option<Vec<u8>>>>,
 }
 
 #[async_trait::async_trait]
-impl legion_provider_sdk::ExternalProjectTool for RecordingTool {
+impl rightkit_code_audit_provider_sdk::ExternalProjectTool for RecordingTool {
     async fn execute(
         &self,
-        request: legion_provider_sdk::ExternalToolRequest,
+        request: rightkit_code_audit_provider_sdk::ExternalToolRequest,
         cancellation: CancellationToken,
-    ) -> legion_provider_sdk::ExecutionReceipt {
+    ) -> rightkit_code_audit_provider_sdk::ExecutionReceipt {
         let report_dir = request
             .args
             .windows(2)
@@ -409,9 +409,9 @@ impl legion_provider_sdk::ExternalProjectTool for RecordingTool {
     }
 }
 
-fn real_external_tool(root: &Path) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
-    let policy = legion_effects::StaticPolicy {
-        decision: legion_effects::PolicyDecision {
+fn real_external_tool(root: &Path) -> std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
+    let policy = rightkit_evidence_effects::StaticPolicy {
+        decision: rightkit_evidence_effects::PolicyDecision {
             allowed: true,
             policy_id: "bench-recall-external-tools-v1".into(),
             policy_version: 1,
@@ -420,12 +420,12 @@ fn real_external_tool(root: &Path) -> std::sync::Arc<dyn legion_provider_sdk::Ex
         },
     };
     #[cfg(windows)]
-    let process = legion_effects::platform::windows::WindowsProcess;
+    let process = rightkit_evidence_effects::platform::windows::WindowsProcess;
     #[cfg(unix)]
-    let process = legion_effects::platform::unix::UnixProcess::new();
-    let effects = legion_effects::EffectExecutor::new(
+    let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
         process,
-        legion_effects::ArtifactWriter::new(root),
+        rightkit_evidence_effects::ArtifactWriter::new(root),
         policy,
     );
     std::sync::Arc::new(
@@ -873,7 +873,7 @@ fn run_class(class: &str) -> ClassRun {
         cases.push(json!({
             "caseId": entry.id, "planted": entry.planted, "fixture": entry.file,
             "manifestDigest": digest(MANIFEST.as_bytes()), "fixtureFiles": fixtures,
-            "fixtureFilesDigest": legion_contracts::canonical_digest(&fixtures).unwrap(),
+            "fixtureFilesDigest": rightkit_evidence_contracts::canonical_digest(&fixtures).unwrap(),
             "implementationBinding": implementation_binding(&spec),
             "shippedProviderSpec": spec, "frozenPlan": plan.plan(),
             "expectedDetection": expected, "providerResult": result_value,
@@ -1499,7 +1499,7 @@ fn bench_recall_qualification_receipt() {
             "productionQualification": false, "cases": run.cases});
         if class != "drift" {
             projection["projectionDigest"] =
-                json!(legion_contracts::canonical_digest(&projection).unwrap());
+                json!(rightkit_evidence_contracts::canonical_digest(&projection).unwrap());
         }
         results.push(projection);
     }
@@ -1514,7 +1514,7 @@ fn bench_recall_qualification_receipt() {
         "measuredAtUnixMs": SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock").as_millis(),
         "results": results,
     });
-    receipt["qualificationDigest"] = json!(legion_contracts::canonical_digest(&receipt).unwrap());
+    receipt["qualificationDigest"] = json!(rightkit_evidence_contracts::canonical_digest(&receipt).unwrap());
     // One original JSON envelope in harness stdout, before any all-class
     // assertion. Consumers still require this entire test's terminal success.
     println!(

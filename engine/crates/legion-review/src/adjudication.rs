@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use legion_contracts::{FindingId, RequestId};
+use rightkit_evidence_contracts::{FindingId, RequestId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -228,7 +228,7 @@ mod tests {
     use super::*;
     use crate::candidate::CandidateClass;
     use crate::provider::ReviewProviderMetadata;
-    use legion_contracts::BudgetCeiling;
+    use rightkit_evidence_contracts::BudgetCeiling;
     use serde_json::Value;
     use std::collections::BTreeMap;
 
@@ -248,7 +248,7 @@ mod tests {
 
     fn metadata(provider: &str) -> ReviewProviderMetadata {
         ReviewProviderMetadata {
-            provider: legion_contracts::ProviderId::new(provider).unwrap(),
+            provider: rightkit_evidence_contracts::ProviderId::new(provider).unwrap(),
             provider_version: "1".into(),
             model: "review-model".into(),
             model_version: Some("1".into()),

@@ -1,6 +1,6 @@
 //! Native owner admission: authored for root verification (not run by workers).
 //! Requires root to export `legion_audit::owner_admission` and
-//! `legion_effects::owner_process`, and to register this test target.
+//! `rightkit_evidence_effects::owner_process`, and to register this test target.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -18,7 +18,7 @@ use legion_audit::{
         OwnerQuery, OwnerVerdict, TrustedOwner,
     },
 };
-use legion_effects::{
+use rightkit_evidence_effects::{
     owner_process::InvocationClass, ArtifactWriter, EffectExecutor, ExecutionState,
     ExternalToolRequest, PlatformProcess, PolicyAuthorizer, ProcessLaunch, ProcessOutput,
     ProcessTreeEvidence,
@@ -203,7 +203,7 @@ fn backed(owner: &Arc<FakeOwner>, f: &Fixture) -> legion_audit::owner_admission:
         .with_clock(clock)
 }
 
-fn denied_with(decision: &legion_effects::PolicyDecision, code: &str) {
+fn denied_with(decision: &rightkit_evidence_effects::PolicyDecision, code: &str) {
     assert!(!decision.allowed, "expected denial {code}");
     assert_eq!(
         decision.reason.as_deref(),
@@ -495,7 +495,7 @@ fn symlink_escapes_are_denied() {
 
 struct CountingPlatform(Arc<AtomicUsize>);
 impl PlatformProcess for CountingPlatform {
-    fn run<'a>(&'a self, _: ProcessLaunch) -> legion_effects::platform::ProcessFuture<'a> {
+    fn run<'a>(&'a self, _: ProcessLaunch) -> rightkit_evidence_effects::platform::ProcessFuture<'a> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Box::pin(async {
             Ok(ProcessOutput {

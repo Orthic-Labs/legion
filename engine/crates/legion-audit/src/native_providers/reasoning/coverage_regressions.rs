@@ -1,7 +1,7 @@
 //! Source-level regressions for frozen trigger coverage & transport accounting.
 use super::*;
 use crate::{AuditPlan, FilesystemInventorySource, InventorySource};
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 
 struct Fixture(PathBuf);
 

@@ -231,13 +231,12 @@ audit_compatibility_report_qualification() {
     --no-run --message-format=json > "$metadata") &&
     audit_native_command python3 scripts/ci/audit-compatibility-report-accuracy.py --build-messages "$metadata" --output "$output"
 }
-audit_effects_test() { (cd engine && audit_native_command "$audit_cargo_bin" test --locked -p legion-effects "$@"); }
 # Full JVM/v1 proof uses shared owner's native profile & lifecycle controls first.
 # A failed native prerequisite stops JVM commands; no network relaxation occurs.
 audit_jvm_qualification() {
-  audit_effects_test --lib gradle_sandbox::tests::gradle_bind_only_native_confinement \
-    -- --ignored --exact --nocapture --test-threads=1 &&
-    audit_cargo_test --test real_jvm_sdk_accuracy real_jvm_sdk_accuracy \
+  # The native confinement record (RIGHTKIT_JVM_CONFINEMENT_RECORD) is produced by
+  # the rightkit-evidence-effects qualification; this step consumes it.
+  audit_cargo_test --test real_jvm_sdk_accuracy real_jvm_sdk_accuracy \
       -- --ignored --exact --nocapture --test-threads=1
 }
 provision_jvm_sdk() {
@@ -882,7 +881,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   run_audit_qualification provision_jvm_sdk
   export LEGION_JVM_SDK_SCRATCH="${LEGION_CI_IPC_STORAGE}/jvm-sdk-fixtures"
   export LEGION_JVM_SDK_OUTPUT="${LEGION_CI_IPC_STORAGE}/legion-provider-qualification/code-jvm-sdk"
-  export LEGION_JVM_CONFINEMENT_RECORD="${LEGION_CI_IPC_STORAGE}/jvm-confinement/confinement.json"
+  export RIGHTKIT_JVM_CONFINEMENT_RECORD="${LEGION_CI_IPC_STORAGE}/jvm-confinement/confinement.json"
   mkdir -p "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${LEGION_CI_IPC_STORAGE}/legion-provider-qualification"
   run_audit_qualification audit_jvm_qualification
   run_audit_qualification python3 scripts/ci/audit-jvm-sdk-accuracy.py \
@@ -895,7 +894,7 @@ if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
   if [[ -d "${LEGION_CI_IPC_STORAGE}/jvm-confinement" ]]; then
     cp -R "${LEGION_CI_IPC_STORAGE}/jvm-confinement" "${RUNNER_TEMP}/legion-provider-qualification/jvm-confinement"
   fi
-  unset LEGION_JVM_SDK_SCRATCH LEGION_JVM_SDK_OUTPUT LEGION_JVM_CONFINEMENT_RECORD LEGION_JVM_SDK_ENROLLMENT_JSON
+  unset LEGION_JVM_SDK_SCRATCH LEGION_JVM_SDK_OUTPUT RIGHTKIT_JVM_CONFINEMENT_RECORD LEGION_JVM_SDK_ENROLLMENT_JSON
   export LEGION_RUNTIME_APP_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/runtime-app"
   mkdir -p "$LEGION_RUNTIME_APP_RECEIPTS"
   run_audit_qualification audit_runtime_app_qualification

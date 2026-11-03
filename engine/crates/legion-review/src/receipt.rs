@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use legion_contracts::{derived_id, ReceiptId, RequestId};
+use rightkit_evidence_contracts::{derived_id, ReceiptId, RequestId};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::ReviewError, normalize::NormalizedReview, provider::ReviewProviderMetadata};
@@ -74,7 +74,7 @@ impl ReviewReceipt {
     }
 
     pub fn digest(&self) -> Result<String, ReviewError> {
-        legion_contracts::canonical_digest(self)
+        rightkit_evidence_contracts::canonical_digest(self)
             .map_err(|error| ReviewError::Receipt(error.to_string()))
     }
 }
@@ -134,7 +134,7 @@ pub fn emit_receipt(
         providers: recorded,
         gaps: gaps.into_iter().collect(),
     };
-    let bytes = legion_contracts::canonical_json_bytes(&draft)
+    let bytes = rightkit_evidence_contracts::canonical_json_bytes(&draft)
         .map_err(|error| ReviewError::Receipt(error.to_string()))?;
     let id =
         derived_id::<ReceiptId>(&bytes).map_err(|error| ReviewError::Receipt(error.to_string()))?;
@@ -152,7 +152,7 @@ mod tests {
     use crate::adjudication::AdjudicatedResult;
     use crate::candidate::{CandidateClass, CandidateEvidence};
     use crate::provider::ReviewProviderMetadata;
-    use legion_contracts::{BudgetCeiling, FindingId, ProviderId, RequestId};
+    use rightkit_evidence_contracts::{BudgetCeiling, FindingId, ProviderId, RequestId};
     use std::collections::BTreeMap;
 
     fn provider() -> ReviewProviderMetadata {

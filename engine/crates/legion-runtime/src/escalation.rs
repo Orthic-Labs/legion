@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use legion_contracts::{AgentDefinition, AgentId};
+use rightkit_evidence_contracts::{AgentDefinition, AgentId};
 
 use crate::error::RuntimeError;
 

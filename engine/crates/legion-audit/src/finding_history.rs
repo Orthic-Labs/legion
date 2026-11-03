@@ -946,7 +946,7 @@ pub fn open_history_blockers(
 /// `incomplete`. A missing store is a no-op; an unreadable one fails closed.
 pub fn apply_history_gate(
     root: &Path,
-    report: &mut legion_contracts::ReportV1,
+    report: &mut rightkit_evidence_contracts::ReportV1,
 ) -> Result<(), AuditError> {
     let custody = history_custody_gaps(root);
     if !custody.is_empty() {
@@ -970,7 +970,7 @@ pub fn apply_history_gate(
         .collect();
     let complete = matches!(
         report.status,
-        legion_contracts::ReportStatus::Clean | legion_contracts::ReportStatus::Findings
+        rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
     ) && report.gaps.is_empty();
     let digest = sha256_value(&json!({"id": report.report_id.as_str(), "findings": present}));
     let digest = if digest.starts_with("sha256:") {
@@ -999,12 +999,12 @@ pub fn apply_history_gate(
     Ok(())
 }
 
-fn downgrade(report: &mut legion_contracts::ReportV1) {
+fn downgrade(report: &mut rightkit_evidence_contracts::ReportV1) {
     if matches!(
         report.status,
-        legion_contracts::ReportStatus::Clean | legion_contracts::ReportStatus::Findings
+        rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
     ) {
-        report.status = legion_contracts::ReportStatus::Incomplete;
+        report.status = rightkit_evidence_contracts::ReportStatus::Incomplete;
     }
 }
 
@@ -1272,7 +1272,7 @@ fn load_host_ledger(path: &Path) -> Result<Option<HostLedger>, AuditError> {
     #[cfg(unix)]
     let bytes = {
         use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
-        let uid = legion_effects::sandbox_runtime::effective_uid();
+        let uid = rightkit_evidence_effects::sandbox_runtime::effective_uid();
         let parent = path
             .parent()
             .ok_or_else(|| invalid("ledger has no parent"))?;
@@ -1284,7 +1284,7 @@ fn load_host_ledger(path: &Path) -> Result<Option<HostLedger>, AuditError> {
         }
         let mut file = std::fs::OpenOptions::new()
             .read(true)
-            .custom_flags(legion_effects::sandbox_runtime::o_nofollow())
+            .custom_flags(rightkit_evidence_effects::sandbox_runtime::o_nofollow())
             .open(path)
             .map_err(|e| invalid(e.to_string()))?;
         let meta = file.metadata().map_err(|e| invalid(e.to_string()))?;

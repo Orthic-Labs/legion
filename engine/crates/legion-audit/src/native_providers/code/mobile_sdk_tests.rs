@@ -173,7 +173,7 @@ fn mobile_sdk_metadata_drift_and_nonzero_test_exit_are_not_passes() {
 #[cfg(target_os = "macos")]
 mod native {
     use super::*;
-    use legion_effects::{PolicyAuthorizer, PolicyDecision};
+    use rightkit_evidence_effects::{PolicyAuthorizer, PolicyDecision};
     use std::{io::Write, sync::Mutex};
 
     fn source_binding() -> BTreeMap<&'static str, String> {
@@ -256,9 +256,9 @@ mod native {
             let receipt = if self.refused {
                 crate::execution_policy::deny(&request).await
             } else {
-                let executor = legion_effects::EffectExecutor::new(
-                    legion_effects::platform::unix::UnixProcess::new(),
-                    legion_effects::ArtifactWriter::new(self.scratch.artifacts_dir()),
+                let executor = rightkit_evidence_effects::EffectExecutor::new(
+                    rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+                    rightkit_evidence_effects::ArtifactWriter::new(self.scratch.artifacts_dir()),
                     ExactPolicy {
                         expected: if self.absent_sandbox {
                             request.clone()
@@ -271,7 +271,7 @@ mod native {
                     .execute_with_cancellation(&request, cancellation)
                     .await
             };
-            let stream = |record: Option<&legion_effects::ArtifactRecord>| -> Value {
+            let stream = |record: Option<&rightkit_evidence_effects::ArtifactRecord>| -> Value {
                 record.map(|record| {
                     let bytes = read_artifact(self.scratch, record).expect("retained immutable stream digest");
                     json!({"path":record.path,"digest":record.digest,"bytes":record.bytes,"rawBytes":bytes})
@@ -298,11 +298,11 @@ mod native {
                     .resolve(command, cwd)
                     .expect("native tool installed by managed CI");
                 let executable_text = executable.to_str().unwrap();
-                let auth = legion_effects::authenticate_sandbox(
+                let auth = rightkit_evidence_effects::authenticate_sandbox(
                     executable_text,
                     &command.args,
                     cwd.to_str().unwrap(),
-                    legion_effects::SandboxMode::DenyNetwork,
+                    rightkit_evidence_effects::SandboxMode::DenyNetwork,
                     &ctx.scratch.sandbox_dir(),
                 )
                 .unwrap();
@@ -351,7 +351,7 @@ mod native {
                     environment,
                     environment_allowlist: allowlist,
                     requires_network_sandbox: true,
-                    sandbox: Some(legion_effects::SandboxReceipt {
+                    sandbox: Some(rightkit_evidence_effects::SandboxReceipt {
                         id: auth.id,
                         network: auth.network,
                         filesystem_scope: auth.filesystem_scope,

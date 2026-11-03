@@ -68,13 +68,13 @@ pub fn event_digest(event: &AuditEvent) -> Result<String, AuditError> {
     if let Value::Object(map) = &mut value {
         map.remove("digest");
     }
-    legion_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
+    rightkit_evidence_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
 }
 
 /// Digest used as the payload of the failure event that closes a provider
 /// that was started but never finished before a crash and is rerun.
 pub fn interrupted_payload_digest(provider: &str) -> String {
-    legion_contracts::canonical_digest(&serde_json::json!({"interrupted": provider}))
+    rightkit_evidence_contracts::canonical_digest(&serde_json::json!({"interrupted": provider}))
         .unwrap_or_else(|_| "sha256:invalid".to_owned())
 }
 
@@ -148,7 +148,7 @@ impl JournalAnchor {
         sequence: u64,
         digest: &str,
     ) -> Result<Vec<u8>, AuditError> {
-        legion_contracts::canonical_json_bytes(&serde_json::json!({
+        rightkit_evidence_contracts::canonical_json_bytes(&serde_json::json!({
             "format": ANCHOR_FORMAT,
             "planDigest": plan_digest,
             "effectivePlanDigest": effective_plan_digest,
@@ -309,7 +309,7 @@ pub fn clear_finalized_run(dir: &Path) -> Result<(), AuditError> {
 
 /// Digest used as the payload of the failure event that closes a gap.
 pub fn gap_payload_digest(provider: &str) -> String {
-    legion_contracts::canonical_digest(&serde_json::json!({"gap": provider}))
+    rightkit_evidence_contracts::canonical_digest(&serde_json::json!({"gap": provider}))
         .unwrap_or_else(|_| "sha256:invalid".to_owned())
 }
 

@@ -12,7 +12,7 @@ use legion_audit::{
     FilesystemInventorySource, FrozenPlan, InventoryEnvelope, InventorySource,
     NativeProviderRegistry,
 };
-use legion_contracts::{ProviderResult, ProviderSpec};
+use rightkit_evidence_contracts::{ProviderResult, ProviderSpec};
 use serde_json::{json, Value};
 use std::{
     fs,

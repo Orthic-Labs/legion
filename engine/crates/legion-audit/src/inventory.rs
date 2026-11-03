@@ -229,7 +229,7 @@ impl InventorySource for FilesystemInventorySource {
             }
         }
         entries.sort_by(|left, right| left.path.cmp(&right.path));
-        let content_digest = legion_contracts::canonical_digest(&entries)
+        let content_digest = rightkit_evidence_contracts::canonical_digest(&entries)
             .map_err(|error| AuditError::Invalid(error.to_string()))?;
         InventoryEnvelope::new(
             repository_id,

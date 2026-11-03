@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 
 use crate::{
     assurance::{AuditAssuranceV1, SelectionScope, ASSURANCE_BOUND, SELECTION_SCOPE_BOUND},
@@ -1100,7 +1100,7 @@ impl AuditPlan {
                         ))
                     })?;
                 let listed: Vec<&String> = frozen.review_set.iter().collect();
-                let digest = legion_contracts::canonical_digest(&listed)
+                let digest = rightkit_evidence_contracts::canonical_digest(&listed)
                     .map_err(|error| AuditError::Invalid(error.to_string()))?;
                 let count = provider
                     .configuration

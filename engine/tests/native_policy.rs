@@ -1,6 +1,6 @@
 //! LEG-I01 policy differential and fail-closed acceptance corpus.
 
-use legion_policy_model::{
+use rightkit_policy_rules::model::{
     intersect, CapabilityCeiling, EffectClass, EnforcementLevel, PolicyPack, TrustLevel,
 };
 use serde_json::Value;
@@ -68,25 +68,25 @@ fn policy_pack_rejects_invalid_schema_and_zero_ceilings() {
         policy_id: "fixture".into(),
         version: 1,
         contract_versions: Vec::new(),
-        unclassified_effect: legion_policy_model::UnclassifiedEffect::Deny,
+        unclassified_effect: rightkit_policy_rules::model::UnclassifiedEffect::Deny,
         effect_rules: Vec::new(),
         capability: Default::default(),
-        leases: legion_policy_model::LeasePolicy {
+        leases: rightkit_policy_rules::model::LeasePolicy {
             max_ttl_seconds: 0,
             max_uses: 0,
             delegable: false,
         },
-        trust_minima: legion_policy_model::TrustMinima {
+        trust_minima: rightkit_policy_rules::model::TrustMinima {
             mutation: TrustLevel::Unauthenticated,
             read_only: TrustLevel::Unauthenticated,
             claim_release: TrustLevel::Unauthenticated,
             legacy_import: TrustLevel::Unauthenticated,
         },
-        host_enforcement: legion_policy_model::HostEnforcement {
+        host_enforcement: rightkit_policy_rules::model::HostEnforcement {
             required_for_mutation: EnforcementLevel::ReadOnly,
             required_for_read_only: EnforcementLevel::ReadOnly,
         },
-        receipt_requirements: legion_policy_model::ReceiptRequirements {
+        receipt_requirements: rightkit_policy_rules::model::ReceiptRequirements {
             effect_receipt: true,
             bind_policy_digest: true,
             bind_capability_id: true,

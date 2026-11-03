@@ -15,7 +15,7 @@ use legion_audit::{
     owner_admission::{NativeAuthorizer, OwnerPolicyConfig, PlanBinding},
     profiles::RuntimeConstraint,
 };
-use legion_effects::{
+use rightkit_evidence_effects::{
     owner_process::InvocationClass, ArtifactWriter, EffectExecutor, ExecutionReceipt,
     ExecutionState, ExternalToolRequest, PolicyAuthorizer,
 };

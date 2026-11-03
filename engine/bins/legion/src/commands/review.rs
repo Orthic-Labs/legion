@@ -1,7 +1,7 @@
 use super::CommandResult;
 use clap::Args;
-use legion_contracts::{BudgetCeiling, ProviderId};
-use legion_provider_sdk::{
+use rightkit_evidence_contracts::{BudgetCeiling, ProviderId};
+use rightkit_code_audit_provider_sdk::{
     http_client::{HttpInferenceClient, HttpInferenceConfig},
     EnvironmentSecretProvider, InferenceRequest, ScopedCredentialAuthorizer,
 };

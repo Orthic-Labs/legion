@@ -1,6 +1,6 @@
 //! LEG-I01 effect-boundary, receipt, and process-cleanup acceptance corpus.
 
-use legion_effects::{ExternalToolRequest, Sensitivity, ToolOrigin};
+use rightkit_evidence_effects::{ExternalToolRequest, Sensitivity, ToolOrigin};
 use serde_json::Value;
 use std::collections::BTreeMap;
 

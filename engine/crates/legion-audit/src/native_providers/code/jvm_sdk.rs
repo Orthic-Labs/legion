@@ -3,7 +3,7 @@
 use super::tools::{self, Outcome, ToolContext, ToolEvidence};
 use crate::inventory::InventoryEntry;
 use crate::native_providers::security::producer::SandboxPolicy;
-use legion_provider_sdk::ExternalToolRequest;
+use rightkit_code_audit_provider_sdk::ExternalToolRequest;
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -202,7 +202,7 @@ struct Inputs {
     build: PathBuf,
     java: PathBuf,
     roots: BTreeMap<String, PathBuf>,
-    confinement: legion_effects::GradleBindOnlySandbox,
+    confinement: rightkit_evidence_effects::GradleBindOnlySandbox,
 }
 impl Inputs {
     fn load(
@@ -364,7 +364,7 @@ impl Inputs {
             return Err(error("stage-drift"));
         }
         let mut confinement =
-            legion_effects::GradleBindOnlySandbox::create(&ctx.scratch.cache_dir(), &stage)
+            rightkit_evidence_effects::GradleBindOnlySandbox::create(&ctx.scratch.cache_dir(), &stage)
                 .map_err(|e| error(&e.as_str()))?;
         fs::create_dir_all(confinement.path().join("tmp")).map_err(|_| error("owned-temp"))?;
         let installed = home.join(DIST).join("gradle-9.2.1");
@@ -467,7 +467,7 @@ fn fail_all(evidence: &mut ToolEvidence, reason: &str) {
 }
 fn raw(
     ctx: &ToolContext<'_>,
-    record: Option<&legion_effects::ArtifactRecord>,
+    record: Option<&rightkit_evidence_effects::ArtifactRecord>,
 ) -> Result<Vec<u8>, String> {
     let record = record.ok_or_else(|| error("output-absent"))?;
     tools::read_artifact(ctx.scratch, record).ok_or_else(|| error("output-digest"))
@@ -750,7 +750,7 @@ pub(super) async fn run(
             environment,
             environment_allowlist: allowed,
             requires_network_sandbox: true,
-            sandbox: Some(legion_effects::SandboxReceipt {
+            sandbox: Some(rightkit_evidence_effects::SandboxReceipt {
                 id: auth.id,
                 network: auth.network,
                 filesystem_scope: auth.filesystem_scope,

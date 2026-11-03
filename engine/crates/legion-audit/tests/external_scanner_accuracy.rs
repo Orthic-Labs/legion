@@ -10,9 +10,9 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -440,7 +440,7 @@ impl PolicyAuthorizer for ScopedPolicy {
     }
 }
 
-fn receipt_json(receipt: &legion_effects::ExecutionReceipt) -> Value {
+fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt) -> Value {
     json!({"receiptId": receipt.receipt_id, "requestId": receipt.request_id, "providerId": receipt.provider_id,
         "planId": receipt.plan_id, "policyId": receipt.policy_id, "state": receipt.state.as_str(), "complete": receipt.complete,
         "policy": receipt.policy.as_ref().map(|policy| json!({"id": policy.id, "version": policy.version, "digest": policy.digest, "allowed": policy.allowed})),
@@ -454,11 +454,11 @@ fn receipt_json(receipt: &legion_effects::ExecutionReceipt) -> Value {
 }
 
 fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
-    let auth = legion_effects::authenticate_sandbox(
+    let auth = rightkit_evidence_effects::authenticate_sandbox(
         &policy.tool.to_string_lossy(),
         &["--version".into()],
         &policy.root.to_string_lossy(),
-        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite,
         &policy.run.join("version-sandbox"),
     )
     .unwrap();
@@ -474,7 +474,7 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
         cwd: policy.root.to_string_lossy().into_owned(),
         origin: ToolOrigin::System,
         requires_network_sandbox: true,
-        sandbox: Some(legion_effects::SandboxReceipt {
+        sandbox: Some(rightkit_evidence_effects::SandboxReceipt {
             id: auth.id,
             network: auth.network,
             filesystem_scope: auth.filesystem_scope,
@@ -484,9 +484,9 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
         stderr_limit: LIMIT,
         ..ExternalToolRequest::default()
     };
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(policy.run.join("version-artifacts")),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(policy.run.join("version-artifacts")),
         SharedPolicy(policy.clone()),
     );
     let tool = AuditExternalProjectTool::new(effects);
@@ -495,7 +495,7 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
         .block_on(tool.execute(request, tokio_util::sync::CancellationToken::new()));
     assert_eq!(
         receipt.state,
-        legion_effects::ExecutionState::Completed,
+        rightkit_evidence_effects::ExecutionState::Completed,
         "{:?}",
         receipt.gaps
     );

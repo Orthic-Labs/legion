@@ -8,7 +8,7 @@
 //! a coverage gap (so the verdict stays incomplete), a typed `availability`
 //! detail, and a report coverage note naming the provider and the reason.
 
-use legion_contracts::{ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderResult, ProviderStatus};
 use serde_json::{json, Value};
 
 /// Detail key carrying `{"state":"unavailable","reason":...}`.
@@ -56,7 +56,7 @@ pub fn unavailable_reason(result: &ProviderResult) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use legion_contracts::{Coverage, ProviderId};
+    use rightkit_evidence_contracts::{Coverage, ProviderId};
     use std::collections::BTreeMap;
 
     fn result(status: ProviderStatus, complete: bool) -> ProviderResult {

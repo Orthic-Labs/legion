@@ -118,7 +118,7 @@ fn binding(path: &Path) -> Result<Value, String> {
 fn complete_provider<'a>(
     run: &'a Recomputed,
     id: &str,
-) -> Result<&'a legion_contracts::ProviderResult, String> {
+) -> Result<&'a rightkit_evidence_contracts::ProviderResult, String> {
     if !run.ingested.iter().any(|value| value == id) || run.pending.iter().any(|value| value == id)
     {
         return Err(format!(

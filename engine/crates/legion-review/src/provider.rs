@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{BudgetCeiling, FindingId, ProviderId};
-use legion_provider_sdk::{HostInference, InferenceClient, InferenceRequest, InferenceResponse};
+use rightkit_evidence_contracts::{BudgetCeiling, FindingId, ProviderId};
+use rightkit_code_audit_provider_sdk::{HostInference, InferenceClient, InferenceRequest, InferenceResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -346,7 +346,7 @@ mod tests {
             text: r#"{"verdict":"confirmed"}"#.into(),
             model: "model".into(),
             finish_reason: None,
-            usage: legion_provider_sdk::inference::InferenceUsage::default(),
+            usage: rightkit_code_audit_provider_sdk::inference::InferenceUsage::default(),
         };
         let result = ProviderJudgment::from_response(
             "reviewer",

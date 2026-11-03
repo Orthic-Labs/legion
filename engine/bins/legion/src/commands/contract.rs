@@ -2,12 +2,12 @@
 
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_arcane::{
+use rightkit_evidence_governance::{
     sign_record, state_paths::state_file, state_root, BudgetGovernanceStore, KeyRing,
     TaskBudgetSealStore, AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS,
     BUDGET_BOUND_FIELDS,
 };
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
 use std::{
     fs,
@@ -682,7 +682,7 @@ fn verify_codex(
     ];
     let mut prior = None;
     for (i, r) in rs.iter().enumerate() {
-        let v = legion_arcane::receipt_auth::verify_record(
+        let v = rightkit_evidence_governance::receipt_auth::verify_record(
             r,
             r.get("authentication"),
             ring,
@@ -759,7 +759,7 @@ fn seal_record(
         Ok(mut f) => {
             use std::io::Write;
             let bytes = [
-                legion_contracts::canonical_json_bytes(&r)
+                rightkit_evidence_contracts::canonical_json_bytes(&r)
                     .map_err(|e| CommandError::integrity(e.to_string()))?,
                 vec![b'\n'],
             ]
@@ -831,7 +831,7 @@ fn verify_event(event: &Value, ring: &KeyRing) -> Result<(), CommandError> {
         "payloadDigest",
         "observedAt",
     ];
-    let result = legion_arcane::receipt_auth::verify_record(
+    let result = rightkit_evidence_governance::receipt_auth::verify_record(
         event,
         event.get("authentication"),
         ring,
@@ -1023,7 +1023,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
     };
     let cwd = std::env::current_dir().map_err(super::io_error)?;
     let kd = option(tail, "--key-dir")?;
-    let ring = legion_arcane::key_ring::resolve_key_dir(kd.as_deref().map(Path::new))
+    let ring = rightkit_evidence_governance::key_ring::resolve_key_dir(kd.as_deref().map(Path::new))
         .and_then(|(dir, _)| KeyRing::load_dir(&dir))
         .map_err(|e| {
             issue(

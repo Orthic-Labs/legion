@@ -8,6 +8,7 @@ mod commands;
 const CLI_STACK_BYTES: usize = 16 * 1024 * 1024;
 
 fn main() {
+    legion_identity::declare();
     let code = std::thread::Builder::new()
         .name("legion-cli".into())
         .stack_size(CLI_STACK_BYTES)

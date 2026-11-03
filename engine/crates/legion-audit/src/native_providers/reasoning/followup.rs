@@ -26,7 +26,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use legion_contracts::{canonical_digest, Finding};
+use rightkit_evidence_contracts::{canonical_digest, Finding};
 use serde_json::{json, Value};
 
 use super::{
@@ -1092,7 +1092,7 @@ fn parts_pending_reason(missing: &[u32], total: usize) -> String {
 /// that does not is regenerated from scratch.
 pub fn compile_followup(
     parent_run: &Path,
-    variant_spec: &legion_contracts::ProviderSpec,
+    variant_spec: &rightkit_evidence_contracts::ProviderSpec,
 ) -> Result<Option<FollowupPlanned>, AuditError> {
     if variant_spec.id.to_string() != VARIANT_PROVIDER_ID {
         return Err(invalid(format!(
@@ -1354,7 +1354,7 @@ pub fn compile_followup(
         &to_bytes(
             &crate::report::lift_report_v2(
                 &report,
-                legion_contracts::ReportScope {
+                rightkit_evidence_contracts::ReportScope {
                     spec: "whole".into(),
                     base_ref_oid: None,
                     merge_base_oid: None,
@@ -1363,7 +1363,7 @@ pub fn compile_followup(
                     index_schema_version: None,
                 },
             )?
-            .to_value_for_schema(legion_contracts::REPORT_SCHEMA_V2)
+            .to_value_for_schema(rightkit_evidence_contracts::REPORT_SCHEMA_V2)
             .map_err(|error| invalid(error.to_string()))?,
         )?,
     )?;

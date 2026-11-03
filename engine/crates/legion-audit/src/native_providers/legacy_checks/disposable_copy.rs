@@ -15,8 +15,8 @@ use std::{
 };
 
 use super::attested_runs::{self, AdapterEnrollment, AttestedRunsEnrollment};
-use legion_contracts::{Coverage, FindingId, FindingRef, ProviderStatus};
-use legion_provider_sdk::{
+use rightkit_evidence_contracts::{Coverage, FindingId, FindingRef, ProviderStatus};
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use serde_json::{json, Value};
@@ -1321,7 +1321,7 @@ fn copied_request(
 pub(super) async fn execute(
     tool: &dyn ExternalProjectTool,
     plan_digest: &str,
-    preparation_authorizer: Option<&dyn legion_effects::PolicyAuthorizer>,
+    preparation_authorizer: Option<&dyn rightkit_evidence_effects::PolicyAuthorizer>,
     root: &Path,
     command: &ResolvedCommand,
     source: &Value,
@@ -1471,13 +1471,13 @@ pub(super) async fn execute(
     );
     if !decision.allowed {
         #[cfg(unix)]
-        let process = legion_effects::platform::unix::UnixProcess::new();
+        let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
         #[cfg(windows)]
-        let process = legion_effects::platform::windows::WindowsProcess::default();
-        let effects = legion_effects::EffectExecutor::new(
+        let process = rightkit_evidence_effects::platform::windows::WindowsProcess::default();
+        let effects = rightkit_evidence_effects::EffectExecutor::new(
             process,
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
-            legion_effects::StaticPolicy { decision },
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+            rightkit_evidence_effects::StaticPolicy { decision },
         );
         let receipt = effects
             .execute_with_cancellation(&preparation, cancellation)

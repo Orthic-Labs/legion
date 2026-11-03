@@ -4,8 +4,8 @@
 //! adapters remain deliberately unaware of host policy; every execute request
 //! therefore crosses this gate before reaching `legion_apple`.
 
-use legion_policy::{PolicyEvaluator, PolicyPack};
-use legion_policy_model::{
+use rightkit_policy_rules::rules::{PolicyEvaluator, PolicyPack};
+use rightkit_policy_rules::model::{
     CanonicalPath, DecisionOutcome, EffectClass, PathOperation, PolicyContext, SymlinkState,
 };
 use legion_runtime::RuntimeError;
@@ -1025,7 +1025,7 @@ mod tests {
         let root = env::current_dir().unwrap();
         let base = CanonicalPath::new(
             "root",
-            legion_policy_model::PathScope {
+            rightkit_policy_rules::model::PathScope {
                 repository: "repo".into(),
                 worktree: "main".into(),
             },

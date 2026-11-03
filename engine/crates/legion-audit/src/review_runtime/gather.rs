@@ -218,7 +218,7 @@ mod tests {
         );
         let sizes = initial_request_sizes(std::slice::from_ref(&work)).unwrap();
         let prompt = prompt(&[&work.request], "sha256:fixture");
-        let expected = (legion_contracts::canonical_json_bytes(&prompt)
+        let expected = (rightkit_evidence_contracts::canonical_json_bytes(&prompt)
             .unwrap()
             .len()
             + GATHER_SYSTEM.len()

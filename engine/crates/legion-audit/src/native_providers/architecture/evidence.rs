@@ -440,7 +440,7 @@ pub fn authority(
 mod source_tests {
     use super::*;
     use crate::{AuditPlan, FilesystemInventorySource, InventorySource};
-    use legion_contracts::ProviderSpec;
+    use rightkit_evidence_contracts::ProviderSpec;
     use serde_json::json;
     use std::sync::atomic::{AtomicU64, Ordering};
 

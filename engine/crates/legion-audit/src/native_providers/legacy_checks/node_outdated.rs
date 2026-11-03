@@ -246,7 +246,7 @@ async fn probe(
     let owner_ctx = scratch.owner_context();
     if cfg!(target_os = "macos") && owner_ctx.is_none() {
         if let Ok(resolved) = resolve_request(&executor.root, "npm", &args) {
-            if let Ok(auth) = legion_effects::authenticate_sandbox(
+            if let Ok(auth) = rightkit_evidence_effects::authenticate_sandbox(
                 &resolved.executable.to_string_lossy(),
                 &resolved.args,
                 &executor.root.to_string_lossy(),
@@ -261,7 +261,7 @@ async fn probe(
                     .cloned()
                     .chain(["--version".into()])
                     .collect();
-                sandbox = Some(legion_effects::SandboxReceipt {
+                sandbox = Some(rightkit_evidence_effects::SandboxReceipt {
                     id: auth.id,
                     network: auth.network,
                     filesystem_scope: auth.filesystem_scope,
@@ -347,19 +347,19 @@ async fn probe(
         .as_ref()
         .and_then(|a| readable_artifact(&[roots[0].as_path(), roots[1].as_path()], a));
     let state = match receipt.state {
-        legion_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
-        legion_provider_sdk::ExecutionState::MissingExecutable => {
+        rightkit_code_audit_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
+        rightkit_code_audit_provider_sdk::ExecutionState::MissingExecutable => {
             LegacyCheckProcessState::MissingExecutable
         }
-        legion_provider_sdk::ExecutionState::UnauthorizedEffect
-        | legion_provider_sdk::ExecutionState::Blocked
-        | legion_provider_sdk::ExecutionState::SandboxMissing
-        | legion_provider_sdk::ExecutionState::UnsealedExecutable => {
+        rightkit_code_audit_provider_sdk::ExecutionState::UnauthorizedEffect
+        | rightkit_code_audit_provider_sdk::ExecutionState::Blocked
+        | rightkit_code_audit_provider_sdk::ExecutionState::SandboxMissing
+        | rightkit_code_audit_provider_sdk::ExecutionState::UnsealedExecutable => {
             LegacyCheckProcessState::Unauthorized
         }
-        legion_provider_sdk::ExecutionState::Timeout => LegacyCheckProcessState::Timeout,
-        legion_provider_sdk::ExecutionState::Cancelled => LegacyCheckProcessState::Cancelled,
-        legion_provider_sdk::ExecutionState::OutputLimited => {
+        rightkit_code_audit_provider_sdk::ExecutionState::Timeout => LegacyCheckProcessState::Timeout,
+        rightkit_code_audit_provider_sdk::ExecutionState::Cancelled => LegacyCheckProcessState::Cancelled,
+        rightkit_code_audit_provider_sdk::ExecutionState::OutputLimited => {
             LegacyCheckProcessState::OutputLimited
         }
         _ => LegacyCheckProcessState::Failed,

@@ -6,7 +6,7 @@ use std::{
     task::Poll,
 };
 
-use legion_contracts::{ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderId, ProviderResult, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
@@ -2059,7 +2059,7 @@ mod tests {
     use super::*;
     use crate::plan::ProviderKind;
     use crate::{inventory::InventoryEntry, plan::AuditPlan};
-    use legion_contracts::{Coverage, FindingId, FindingRef, ProviderSpec};
+    use rightkit_evidence_contracts::{Coverage, FindingId, FindingRef, ProviderSpec};
     use serde_json::json;
     use std::sync::Mutex;
 
@@ -2463,7 +2463,7 @@ mod tests {
 #[cfg(test)]
 mod declared_capability_tests {
     use super::*;
-    use legion_contracts::ProviderId;
+    use rightkit_evidence_contracts::ProviderId;
     use std::collections::BTreeMap;
 
     fn incomplete_with_absence(tool: &str, blocking: bool, note: &str) -> ProviderResult {

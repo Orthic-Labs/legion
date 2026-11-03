@@ -50,8 +50,8 @@ impl fmt::Display for ResearchError {
 
 impl std::error::Error for ResearchError {}
 
-impl From<legion_provider_sdk::ProviderError> for ResearchError {
-    fn from(error: legion_provider_sdk::ProviderError) -> Self {
+impl From<rightkit_code_audit_provider_sdk::ProviderError> for ResearchError {
+    fn from(error: rightkit_code_audit_provider_sdk::ProviderError) -> Self {
         Self::Provider(error.to_string())
     }
 }

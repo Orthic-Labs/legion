@@ -329,16 +329,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
 dependencies = [
- "bit-vec 0.8.0",
-]
-
-[[package]]
-name = "bit-set"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56d87354e4229f54a44f7bf2435906a4656dba36026ab6eaca629a2c436a691c"
-dependencies = [
- "bit-vec 0.10.1",
+ "bit-vec",
 ]
 
 [[package]]
@@ -346,16 +337,6 @@ name = "bit-vec"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
-
-[[package]]
-name = "bit-vec"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5727b15fa97d4f4fee0a3b7c3d550ed0269f54329207b86388de918604e31269"
-dependencies = [
- "borsh",
- "serde",
-]
 
 [[package]]
 name = "bit_field"
@@ -410,30 +391,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "710f1dd022ef4e93f8a438b4ba958de7f64308434fa6a87104481645cc30068b"
 dependencies = [
  "hybrid-array",
-]
-
-[[package]]
-name = "borsh"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "553c5d846a6ba5150c65e3b1b8ec073bcf1abc20f9b7220de384a4443ea4e20a"
-dependencies = [
- "borsh-derive",
- "bytes",
- "cfg_aliases 0.2.2",
-]
-
-[[package]]
-name = "borsh-derive"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12cdfe656708a01f89b451a7d36466e6fe6c414de0aa18fc54f864f6f9ca9f56"
-dependencies = [
- "once_cell",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
 ]
 
 [[package]]
@@ -1372,7 +1329,18 @@ version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912"
 dependencies = [
- "bit-set 0.8.0",
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "fancy-regex"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20ed7f62ce0ae0da1a8b93c3c7104ab7e0760a74491e097c701fff966e945390"
+dependencies = [
+ "bit-set",
  "regex-automata",
  "regex-syntax",
 ]
@@ -2057,7 +2025,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "525e9ff3e1a4be2fbea1fdf0e98686a6d98b4d8f937e1bf7402245af1909e8c3"
 dependencies = [
  "byteorder-lite",
- "quick-error 2.0.1",
+ "quick-error",
 ]
 
 [[package]]
@@ -2243,34 +2211,33 @@ dependencies = [
  "hmac 0.13.0",
  "legion-apple",
  "legion-application",
- "legion-arcane",
  "legion-audit",
  "legion-catalog",
- "legion-contracts",
- "legion-decisions",
- "legion-effects",
- "legion-handoff",
  "legion-harness",
  "legion-host",
+ "legion-identity",
  "legion-mcp",
  "legion-minimize",
- "legion-policy",
- "legion-policy-model",
- "legion-provider-sdk",
- "legion-report",
  "legion-research",
  "legion-review",
- "legion-rules",
  "legion-runtime",
  "legion-topology",
  "reqwest",
- "rightkit-child-process 0.5.6",
+ "rightkit-agent-orchestration-handoff",
+ "rightkit-child-process",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-decisions",
+ "rightkit-evidence-effects",
+ "rightkit-evidence-governance",
+ "rightkit-evidence-report",
+ "rightkit-policy-rules",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "tokio",
  "tokio-util",
- "toml 1.1.8+spec-1.1.0",
+ "toml",
 ]
 
 [[package]]
@@ -2299,31 +2266,16 @@ dependencies = [
  "async-trait",
  "legion-audit",
  "legion-catalog",
- "legion-contracts",
- "legion-policy",
- "legion-policy-model",
- "legion-provider-sdk",
- "legion-report",
  "legion-runtime",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-report",
+ "rightkit-policy-rules",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "legion-arcane"
-version = "0.3.23"
-dependencies = [
- "hex",
- "hmac 0.13.0",
- "legion-contracts",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "subtle",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -2337,20 +2289,21 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "image",
- "legion-contracts",
- "legion-effects",
  "legion-host",
- "legion-provider-sdk",
- "legion-report",
- "legion-rules",
+ "legion-identity",
  "regex",
  "rightkit-agent-tools",
  "rightkit-agents",
  "rightkit-browser",
  "rightkit-cache",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-effects",
+ "rightkit-evidence-report",
  "rightkit-fs",
  "rightkit-ownership",
+ "rightkit-policy-rules",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2359,7 +2312,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tokio-util",
- "toml 1.1.8+spec-1.1.0",
+ "toml",
  "walkdir",
 ]
 
@@ -2367,36 +2320,13 @@ dependencies = [
 name = "legion-catalog"
 version = "0.3.23"
 dependencies = [
- "legion-contracts",
+ "rightkit-evidence-contracts",
  "serde",
  "serde_json",
  "serde_yaml",
  "sha2 0.11.1",
  "thiserror 2.0.21",
  "walkdir",
-]
-
-[[package]]
-name = "legion-contracts"
-version = "0.3.23"
-dependencies = [
- "hex",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "legion-decisions"
-version = "0.3.23"
-dependencies = [
- "legion-contracts",
- "regex",
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -2409,50 +2339,17 @@ dependencies = [
  "flate2",
  "hex",
  "legion-audit",
- "legion-contracts",
+ "legion-identity",
  "regex",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process",
+ "rightkit-evidence-contracts",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "tar",
- "toml 1.1.8+spec-1.1.0",
+ "toml",
  "walkdir",
  "zip",
-]
-
-[[package]]
-name = "legion-effects"
-version = "0.3.23"
-dependencies = [
- "hex",
- "legion-contracts",
- "legion-policy",
- "libc 1.0.0-alpha.5",
- "rightkit-sandbox 0.6.1",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "legion-handoff"
-version = "0.3.23"
-dependencies = [
- "async-trait",
- "hex",
- "legion-contracts",
- "legion-runtime",
- "regex",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "thiserror 2.0.21",
- "tiktoken-rs",
 ]
 
 [[package]]
@@ -2472,8 +2369,9 @@ name = "legion-hook"
 version = "0.3.23"
 dependencies = [
  "legion-application",
- "legion-contracts",
+ "legion-identity",
  "legion-runtime",
+ "rightkit-evidence-contracts",
  "serde_json",
  "tokio",
  "tokio-util",
@@ -2486,12 +2384,22 @@ dependencies = [
  "directories-next",
  "hex",
  "legion-catalog",
- "legion-contracts",
- "legion-policy-model",
+ "rightkit-evidence-contracts",
+ "rightkit-policy-rules",
  "serde",
  "serde_json",
  "sha2 0.11.1",
- "toml 1.1.8+spec-1.1.0",
+ "toml",
+]
+
+[[package]]
+name = "legion-identity"
+version = "0.3.23"
+dependencies = [
+ "rightkit-agent-orchestration-handoff",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-governance",
+ "rightkit-evidence-report",
 ]
 
 [[package]]
@@ -2499,8 +2407,9 @@ name = "legion-mcp"
 version = "0.3.23"
 dependencies = [
  "legion-application",
- "legion-contracts",
+ "legion-identity",
  "legion-runtime",
+ "rightkit-evidence-contracts",
  "serde_json",
  "tokio",
 ]
@@ -2519,68 +2428,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-policy"
-version = "0.3.23"
-dependencies = [
- "hex",
- "legion-contracts",
- "legion-policy-model",
- "proptest",
- "regex",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "legion-policy-model"
-version = "0.3.23"
-dependencies = [
- "legion-contracts",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "legion-provider-sdk"
-version = "0.3.23"
-dependencies = [
- "async-trait",
- "futures-util",
- "hex",
- "legion-contracts",
- "legion-effects",
- "regex",
- "reqwest",
- "secrecy",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "legion-report"
-version = "0.3.23"
-dependencies = [
- "legion-contracts",
- "serde_json",
-]
-
-[[package]]
 name = "legion-research"
 version = "0.3.23"
 dependencies = [
  "hex",
  "hmac 0.13.0",
- "legion-contracts",
- "legion-provider-sdk",
  "legion-runtime",
  "regex",
  "reqwest",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2594,29 +2451,14 @@ version = "0.3.23"
 dependencies = [
  "hex",
  "icu_normalizer",
- "legion-contracts",
- "legion-provider-sdk",
  "legion-runtime",
  "regex",
  "reqwest",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
  "serde",
  "serde_json",
  "serde_yaml",
- "sha2 0.11.1",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "legion-rules"
-version = "0.3.23"
-dependencies = [
- "hex",
- "legion-contracts",
- "legion-policy-model",
- "legion-provider-sdk",
- "regex",
- "serde",
- "serde_json",
  "sha2 0.11.1",
  "thiserror 2.0.21",
 ]
@@ -2633,13 +2475,13 @@ dependencies = [
  "image",
  "jsonwebtoken",
  "legion-catalog",
- "legion-contracts",
- "legion-policy",
- "legion-provider-sdk",
  "libc 1.0.0-alpha.5",
  "lopdf",
  "regex",
  "reqwest",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "rightkit-policy-rules",
  "scraper",
  "serde",
  "serde_json",
@@ -2666,10 +2508,10 @@ dependencies = [
 name = "legion-workspace-tests"
 version = "0.3.23"
 dependencies = [
- "legion-contracts",
- "legion-effects",
  "legion-host",
- "legion-policy-model",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-effects",
+ "rightkit-policy-rules",
  "serde_json",
 ]
 
@@ -3369,15 +3211,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc-macro-crate"
-version = "3.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
-dependencies = [
- "toml_edit",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3403,26 +3236,6 @@ checksum = "4488a4a36b9a4ba6b9334a32a39971f77c1436ec82c38707bce707699cc3bbcb"
 dependencies = [
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "proptest"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8530004ccb15eae51c7e40009fbe317f341f804db54dc033eec1c50be28cfa0"
-dependencies = [
- "bit-set 0.11.1",
- "bit-vec 0.10.1",
- "bitflags 2.13.2",
- "chacha20",
- "core_detect",
- "num-traits",
- "rand 0.10.3",
- "rand_xorshift",
- "regex-syntax",
- "rusty-fork",
- "tempfile",
- "unarray",
 ]
 
 [[package]]
@@ -3462,12 +3275,6 @@ checksum = "7f6d64c71eb498fe9eae14ce4ec935c555749aef511cca85b5568910d6e48001"
 dependencies = [
  "bytemuck",
 ]
-
-[[package]]
-name = "quick-error"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick-error"
@@ -3639,15 +3446,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_xorshift"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60aa6af80be32871323012e02e6e65f8a7cc7890931ae421d217ad8fe0df2ccf"
-dependencies = [
- "rand_core 0.10.1",
-]
-
-[[package]]
 name = "rangemap"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3697,7 +3495,7 @@ dependencies = [
  "avif-serialize",
  "imgref",
  "loop9",
- "quick-error 2.0.1",
+ "quick-error",
  "rav1e",
  "rayon",
  "rgb",
@@ -3856,10 +3654,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
 
 [[package]]
-name = "rightkit-agent-tools"
-version = "0.1.2"
+name = "rightkit-agent-orchestration-handoff"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "568c86c8e68c6d26604a1867a7d4a3c356452c04edb0235b74466419393f56b9"
+checksum = "22f1810f1dffa1feecd473eb602f6475fd0a1d57f2387096eeff006ee7a35ed1"
+dependencies = [
+ "async-trait",
+ "hex",
+ "regex",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "tiktoken-rs",
+]
+
+[[package]]
+name = "rightkit-agent-tools"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30bc0fa579c8b707fddf9768bde4c6e1df74a699afb8011e4d79cea0e7f7a051"
 dependencies = [
  "rightkit-daemon",
  "serde",
@@ -3868,29 +3683,30 @@ dependencies = [
 
 [[package]]
 name = "rightkit-agents"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89d3cb9c04229026fcb4ac816e6bc2149d6729d2d0abe51d01fbcec2ead75378"
+checksum = "82acf0e2445d01be59bd552f5865810b7900b6c70967f8c89d5fef0e9164679e"
 dependencies = [
+ "rightkit-child-process",
  "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "rightkit-browser"
-version = "0.3.1"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70b05c3287450f39797504dd8313b38f0529c5679c445458aa2bc29d93c0b61d"
+checksum = "90c9d958a799c3d5db15b3d08748b1c8aa4d727a562a2985f5338095e704b281"
 dependencies = [
  "async-tungstenite",
  "chromiumoxide",
  "futures",
  "getrandom 0.3.4",
- "rightkit-child-process 0.4.0",
- "rightkit-sandbox 0.4.0",
+ "rightkit-child-process",
+ "rightkit-sandbox",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.1",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
@@ -3899,54 +3715,137 @@ dependencies = [
 
 [[package]]
 name = "rightkit-cache"
-version = "0.2.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65998aa0a37a7b392880aae6bd63d7d0a77b52f07e7d2a6c7ca500fc50b32c68"
+checksum = "897692f1677298e6bd20b62db14b436dd1e676b2c8b75bf7ae91a0670e2e8ab0"
 dependencies = [
- "rightkit-child-process 0.4.0",
+ "rightkit-child-process",
  "rightkit-fs",
  "sha2 0.11.1",
 ]
 
 [[package]]
 name = "rightkit-child-process"
-version = "0.4.0"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb25fdec9f62f2bcd642913f0a360444d8090b6258956f9cc80cdc0881777f5b"
+checksum = "e0f7d6f9418044bbcb4f53c7cca46abcb10626621aa678ba924fd19035aa94db"
 dependencies = [
  "libc 0.2.190",
  "windows",
 ]
 
 [[package]]
-name = "rightkit-child-process"
-version = "0.5.6"
+name = "rightkit-code-audit-provider-sdk"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed35d3576ea81808f548e345b0cb51a76e9ef0b16bf39b43da1dbf8355aa4193"
+checksum = "65080760f571bb6154b0e62e816cbda94001475b7c168db085474828ff4fa7bc"
 dependencies = [
- "libc 0.2.190",
- "windows",
+ "async-trait",
+ "futures-util",
+ "hex",
+ "regex",
+ "reqwest",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-effects",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
 name = "rightkit-daemon"
-version = "0.2.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "654016e0cda8f4919831e7ebf5002fd9318acd4f3d24729d9ad4c02b84f83346"
+checksum = "fd54a499fc9f757d00e69106b36a51564d0c8473e6e75f46cae27bafbdb7d19d"
 dependencies = [
- "rightkit-child-process 0.4.0",
+ "getrandom 0.4.3",
+ "rightkit-child-process",
  "rightkit-fs",
  "rightkit-sidecar",
  "serde",
  "serde_json",
+ "subtle",
  "windows",
 ]
 
 [[package]]
-name = "rightkit-fs"
-version = "0.4.3"
+name = "rightkit-evidence-contracts"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbcfbcc92a12ccbd38ed67b825d5ca54e925b9b5bc9ab96cce807ca76415ecf0"
+checksum = "ba806ca20a44a0118deff8ee1ba6af3f64b80670868629162577ec18714a538a"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-evidence-decisions"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "911c20a18d6734cd40eceadff758e867a7499b66567b3bc3b4288180827caea2"
+dependencies = [
+ "regex",
+ "rightkit-evidence-contracts",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-evidence-effects"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a9ef2d68e1b6300a7172771c8ded8f4a812eb5aaa26bc7eaef7d1a9bf4fcc76"
+dependencies = [
+ "hex",
+ "libc 1.0.0-alpha.5",
+ "rightkit-evidence-contracts",
+ "rightkit-sandbox",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rightkit-evidence-governance"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba19b4563b0386797e3218a2bcdc93fb4a4d075a41ad5fd5abf93e684f3bedc0"
+dependencies = [
+ "hex",
+ "hmac 0.13.0",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "subtle",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-evidence-report"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e872a8b8b5cb0c1916bace4a7ecf1b888e9db36ce961cf04162847f428db3bf6"
+dependencies = [
+ "rightkit-evidence-contracts",
+ "serde_json",
+]
+
+[[package]]
+name = "rightkit-fs"
+version = "0.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8acdea81e5e8a8bad23b5ce97821890e1c958cc488d2eefec7cc781a030eb06"
 dependencies = [
  "libc 0.2.190",
  "serde",
@@ -3956,12 +3855,12 @@ dependencies = [
 
 [[package]]
 name = "rightkit-ownership"
-version = "0.3.1"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5abab90a43c37d46e3b7bab97f20b63e7730a8b82f3f0514646293faa21af7d4"
+checksum = "3a60ee16f761fbd17e128fcd17f6c92438fd568bd5cc23c078a7467d1c9ac3f0"
 dependencies = [
  "base64 0.23.1",
- "fancy-regex",
+ "fancy-regex 0.20.0",
  "hex",
  "p256 0.14.0",
  "rsa",
@@ -3970,38 +3869,42 @@ dependencies = [
  "sha2 0.10.9",
  "sha2 0.11.1",
  "spki 0.8.1",
- "toml 0.9.12+spec-1.1.0",
+ "toml",
  "url",
 ]
 
 [[package]]
-name = "rightkit-sandbox"
-version = "0.4.0"
+name = "rightkit-policy-rules"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a33953ea0a1f5ec75172c1fb10a324f09b93d534dad0dc7b02d9163599c2c30"
+checksum = "8d078d64a90919ff310f2e855a9a48dcba76ee6c3fae285bc342ecb65398586a"
 dependencies = [
- "libc 0.2.190",
- "rightkit-child-process 0.4.0",
- "windows",
+ "hex",
+ "regex",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "rightkit-sandbox"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc88dcb8ce6b88b80a715edc73a889b082b732abccdf419d2e2b76d7bc677976"
+checksum = "48d0491b5e878fe9d0a16fdd3c08cbd40ca1d7419b1f24e83b2a4f35ebc68b70"
 dependencies = [
  "libc 0.2.190",
  "portable-pty",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process",
  "windows",
 ]
 
 [[package]]
 name = "rightkit-sidecar"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e76b9fb669976682ed646d003c07fee688d9e22af8afc5b92cda578b011ec9eb"
+checksum = "b9f3646e8bf0c6828f3476502ab83e92ecab1d299e3fe0a4995c6a85a8f8e956"
 dependencies = [
  "libc 0.2.190",
  "serde",
@@ -4179,18 +4082,6 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
-
-[[package]]
-name = "rusty-fork"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc6bf79ff24e648f6da1f8d1f011e9cac26491b619e6b9280f2b47f1774e6ee2"
-dependencies = [
- "fnv",
- "quick-error 1.2.3",
- "tempfile",
- "wait-timeout",
-]
 
 [[package]]
 name = "ryu"
@@ -4760,7 +4651,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -4824,7 +4715,7 @@ dependencies = [
  "fax",
  "flate2",
  "half",
- "quick-error 2.0.1",
+ "quick-error",
  "weezl 0.1.12",
  "zune-jpeg",
 ]
@@ -4838,7 +4729,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bstr",
- "fancy-regex",
+ "fancy-regex 0.19.2",
  "regex",
  "rustc-hash",
 ]
@@ -4944,21 +4835,6 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.12+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
-dependencies = [
- "indexmap",
- "serde_core",
- "serde_spanned",
- "toml_datetime 0.7.5+spec-1.1.0",
- "toml_parser",
- "toml_writer",
- "winnow 0.7.15",
-]
-
-[[package]]
-name = "toml"
 version = "1.1.8+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20489e00e4d8741d6be680764cc12e270655e375a20d1011e844a9c3379e678d"
@@ -4966,19 +4842,10 @@ dependencies = [
  "indexmap",
  "serde_core",
  "serde_spanned",
- "toml_datetime 1.1.2+spec-1.1.0",
+ "toml_datetime",
  "toml_parser",
  "toml_writer",
- "winnow 1.0.4",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "0.7.5+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
-dependencies = [
- "serde_core",
+ "winnow",
 ]
 
 [[package]]
@@ -4991,24 +4858,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml_edit"
-version = "0.25.17+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3641d5bbb5349a79e1020a242d251efbc546ad8048d133958323ce9c40a9c9c"
-dependencies = [
- "indexmap",
- "toml_datetime 1.1.2+spec-1.1.0",
- "toml_parser",
- "winnow 1.0.4",
-]
-
-[[package]]
 name = "toml_parser"
 version = "1.1.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
 dependencies = [
- "winnow 1.0.4",
+ "winnow",
 ]
 
 [[package]]
@@ -5143,12 +4998,6 @@ name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
-
-[[package]]
-name = "unarray"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94"
 
 [[package]]
 name = "unicode-bidi"
@@ -5289,15 +5138,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "wait-timeout"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
-dependencies = [
- "libc 0.2.190",
-]
 
 [[package]]
 name = "walkdir"
@@ -5709,18 +5549,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winnow"
-version = "0.7.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
-
-[[package]]
-name = "winnow"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
-dependencies = [
- "memchr",
-]
 
 [[package]]
 name = "winreg"
@@ -5782,7 +5613,7 @@ dependencies = [
  "clap",
  "hex",
  "regex",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process",
  "serde",
  "serde_json",
  "sha2 0.11.1",

@@ -8,7 +8,7 @@
 //! ledger under Legion platform state.
 
 use crate::HostError;
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},

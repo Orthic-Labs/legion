@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{AgentId, NodeId, Plan, PlanId, PlanNode, PlanNodeKind, TaskId};
+use rightkit_evidence_contracts::{AgentId, NodeId, Plan, PlanId, PlanNode, PlanNodeKind, TaskId};
 use serde::{Deserialize, Serialize};
 
 mod validation;

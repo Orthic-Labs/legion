@@ -15,7 +15,7 @@ use legion_audit::native_providers::reasoning::{
     REASONING_MAC_DOMAIN, REASONING_PROVIDER_IDS, REASONING_RECEIPT_BOUND_FIELDS,
 };
 use legion_audit::{AuditPlan, InventoryEntry, InventoryEnvelope, ProviderExecutor};
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     canonical_digest, canonical_json_bytes, Coverage, ProviderId, ProviderResult, ProviderSpec,
     ProviderStatus,
 };
@@ -331,7 +331,7 @@ fn signed_host_result_is_bound_and_reaches_report_execution() {
         .details
         .contains_key("executionReceipt"));
     let rendered = legion_audit::canonical_report("fixture-repository", &report).unwrap();
-    assert_eq!(rendered.status, legion_contracts::ReportStatus::Clean);
+    assert_eq!(rendered.status, rightkit_evidence_contracts::ReportStatus::Clean);
     assert_eq!(report.lenses_ran, vec!["fixture-lens"]);
 }
 

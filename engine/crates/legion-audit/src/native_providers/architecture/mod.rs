@@ -22,7 +22,7 @@ pub mod test_quality;
 pub use common::Analysis;
 
 use crate::{AuditError, AuditProvider, InventoryEntry, InventoryEnvelope, ProviderExecutor};
-use legion_contracts::ProviderResult;
+use rightkit_evidence_contracts::ProviderResult;
 use serde_json::Value;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 

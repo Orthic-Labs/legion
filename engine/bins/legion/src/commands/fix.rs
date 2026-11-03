@@ -349,7 +349,7 @@ fn validate_remediation_plan(plan: &Value) -> Result<(), CommandError> {
     if let Some(object) = subject.as_object_mut() {
         object.remove("planDigest");
     }
-    let expected = legion_contracts::canonical_digest(&subject)
+    let expected = rightkit_evidence_contracts::canonical_digest(&subject)
         .map_err(|error| CommandError::usage(error.to_string()))?;
     if digest != expected {
         return Err(CommandError::usage("remediation plan digest mismatch"));

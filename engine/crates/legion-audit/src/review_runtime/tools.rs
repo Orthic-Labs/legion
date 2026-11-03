@@ -249,7 +249,7 @@ pub(super) fn bounded_reply_within(mut reply: Value, max_bytes: usize) -> Value 
             reply["resumeStartLine"] = json!(line + 1);
         }
     }
-    if let Ok(digest) = legion_contracts::canonical_digest(&reply) {
+    if let Ok(digest) = rightkit_evidence_contracts::canonical_digest(&reply) {
         reply["replyDigest"] = json!(digest);
     }
     reply
@@ -390,7 +390,7 @@ impl Tool for SnapshotTool {
             _ => return Err(denied("tool outside context allowlist")),
         }
         let mut reply = json!({"snapshotKey":self.snapshot.manifest.key,"tool":self.spec.name,"rows":rows,"truncated":truncated,"nextOffset":next_offset,"gaps":gaps,"semanticCallGraph":false});
-        let digest = legion_contracts::canonical_digest(&reply)
+        let digest = rightkit_evidence_contracts::canonical_digest(&reply)
             .map_err(|error| denied(error.to_string()))?;
         reply["replyDigest"] = json!(digest);
         Ok(reply)

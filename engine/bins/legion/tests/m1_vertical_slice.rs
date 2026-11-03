@@ -8,7 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_policy_model::{
+use rightkit_policy_rules::model::{
     ApprovalState, CanonicalPath, CapabilityCeiling, CapabilityGrant, ContractVersion, EffectClass,
     EnforcementLevel, HostEnforcement, LeasePolicy, LeaseState, PathOperation, PathScope,
     PolicyContext, PolicyPack, PolicyRule, ReceiptRequirements, ReceiptState, RuleDecision,

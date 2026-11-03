@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
 use serde_json::{json, Value};
 
 use crate::{

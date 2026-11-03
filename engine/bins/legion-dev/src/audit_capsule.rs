@@ -2,7 +2,7 @@
 use crate::audit_bench::{self, Options};
 use legion_audit::native_providers::reasoning::{ingest, PendingLensWork, ReasoningInvocation};
 use legion_audit::snapshot::{FrozenSnapshot, SnapshotSide};
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};

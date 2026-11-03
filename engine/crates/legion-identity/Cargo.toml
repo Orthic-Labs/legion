@@ -1,0 +1,12 @@
+[package]
+name = "legion-identity"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rightkit-agent-orchestration-handoff = "=0.1.0"
+rightkit-evidence-contracts = "=0.1.0"
+rightkit-evidence-governance = "=0.1.0"
+rightkit-evidence-report = "=0.1.0"

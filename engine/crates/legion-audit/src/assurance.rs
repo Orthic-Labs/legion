@@ -12,7 +12,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{Coverage, ReportStatus, ReportV1, ReportV2};
+use rightkit_evidence_contracts::{Coverage, ReportStatus, ReportV1, ReportV2};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -23,7 +23,7 @@ use crate::profiles::{AuditProfile, FrozenProfile, RuntimeConstraint};
 
 /// Report extension key (`ReportV1.extensions` / projected ReportV2); the
 /// canonical constant lives with the report contract.
-pub use legion_contracts::report::AUDIT_ASSURANCE_EXTENSION_KEY;
+pub use rightkit_evidence_contracts::report::AUDIT_ASSURANCE_EXTENSION_KEY;
 
 /// The frozen plan form (profile, runtime constraint, obligations). At
 /// freeze every applicable obligation is `unmet`; the same type, reconciled,
@@ -2208,7 +2208,7 @@ pub fn gate_run(
             );
         }
     }
-    let report = legion_contracts::Report::read_any(&report_value)
+    let report = rightkit_evidence_contracts::Report::read_any(&report_value)
         .map_err(|error| integrity(format!("report.json is invalid: {error}")))?;
 
     // Receipts: signed, bound to this plan and to a journal settle event.

@@ -12,7 +12,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct NormalizedReview {
     pub schema_version: u32,
-    pub request_id: legion_contracts::RequestId,
+    pub request_id: rightkit_evidence_contracts::RequestId,
     pub review_id: String,
     pub candidates: Vec<crate::candidate::CandidateEvidence>,
     pub results: Vec<AdjudicatedResult>,
@@ -23,7 +23,7 @@ pub struct NormalizedReview {
 
 impl NormalizedReview {
     pub fn digest(&self) -> Result<String, ReviewError> {
-        legion_contracts::canonical_digest(self)
+        rightkit_evidence_contracts::canonical_digest(self)
             .map_err(|error| ReviewError::Receipt(error.to_string()))
     }
 
@@ -209,7 +209,7 @@ mod tests {
     use super::*;
     use crate::candidate::{CandidateClass, CandidateEvidence};
     use crate::provider::ReviewProviderMetadata;
-    use legion_contracts::{BudgetCeiling, FindingId, ProviderId, RequestId};
+    use rightkit_evidence_contracts::{BudgetCeiling, FindingId, ProviderId, RequestId};
     use serde_json::Value;
     use std::collections::BTreeMap;
 

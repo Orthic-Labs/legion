@@ -49,7 +49,7 @@ use crate::{
     profiles::AuditProfile,
     AuditError, AuditProvider, InventoryEnvelope,
 };
-use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -60,7 +60,7 @@ use std::{
 };
 
 use crate::host_owner::OwnerRequestContext;
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 
 /// Result of one owner-contained Gradle model extraction (cached per plan).
 pub(super) type ModelExtraction = Result<ExtractedAndroidModel, Vec<String>>;

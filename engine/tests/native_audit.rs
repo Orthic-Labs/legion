@@ -1,7 +1,7 @@
 //! LEG-I01 frozen-plan, provider-gap, and finding-identity acceptance corpus.
 
 use legion_audit::{execute, topological, AuditProvider, ProviderExecutor, ProviderKind};
-use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -31,8 +31,8 @@ fn provider(id: &str, dependencies: &[&str]) -> AuditProvider {
     }
 }
 
-fn spec(id: &str, role: &str, runner: &str, selector: Value) -> legion_contracts::ProviderSpec {
-    legion_contracts::ProviderSpec {
+fn spec(id: &str, role: &str, runner: &str, selector: Value) -> rightkit_evidence_contracts::ProviderSpec {
+    rightkit_evidence_contracts::ProviderSpec {
         schema_version: 2,
         id: ProviderId::new(id).unwrap(),
         provider_version: "1".into(),
@@ -110,7 +110,7 @@ fn native_class_a_pack_manifest_compiles_exactly() {
             .join("../../../packs/native/manifest.v1.json"),
     )
     .unwrap();
-    let compiled = legion_rules::RuleCompiler::compile_manifest_json(&manifest).unwrap();
+    let compiled = rightkit_policy_rules::analysis::RuleCompiler::compile_manifest_json(&manifest).unwrap();
     assert_eq!(compiled.len(), 11);
     assert_eq!(
         compiled
@@ -127,7 +127,7 @@ fn plan_requires_provider_and_signature() {
         .expect("fixture inventory");
     assert!(legion_audit::AuditPlan::compile(&inventory, &[]).is_err());
 
-    let spec = legion_contracts::ProviderSpec {
+    let spec = rightkit_evidence_contracts::ProviderSpec {
         schema_version: 2,
         id: ProviderId::new("fixture-provider").unwrap(),
         provider_version: "1".into(),
@@ -202,7 +202,7 @@ impl ProviderExecutor for FixtureExecutor {
 fn selected_lenses_must_reconcile_with_completed_providers() {
     let inventory = legion_audit::InventoryEnvelope::new("fixture", "generation", Vec::new())
         .expect("fixture inventory");
-    let spec = legion_contracts::ProviderSpec {
+    let spec = rightkit_evidence_contracts::ProviderSpec {
         schema_version: 2,
         id: ProviderId::new("fixture-provider").unwrap(),
         provider_version: "1".into(),
@@ -721,7 +721,7 @@ fn unsigned_diagnostic_runs_providers_but_never_certifies() {
     assert!(legion_audit::verify_source_diagnostic(&report, &plan).is_ok());
     assert!(legion_audit::verify_execution(&report).is_err());
     let rendered = legion_audit::canonical_report("fixture", &report).unwrap();
-    assert_eq!(rendered.status, legion_contracts::ReportStatus::Incomplete);
+    assert_eq!(rendered.status, rightkit_evidence_contracts::ReportStatus::Incomplete);
     let mut drifted = report.clone();
     drifted.generation = "forged".into();
     assert!(legion_audit::verify_source_diagnostic(&drifted, &plan).is_err());

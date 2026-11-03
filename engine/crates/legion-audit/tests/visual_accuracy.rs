@@ -10,7 +10,7 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::{ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderSpec, ProviderStatus};
 use rightkit_browser::{
     chrome_for_testing_path, ActionKind, AdmissionHook, BrowserPage, BrowserRequest,
     BrowserSession, Decision, LaunchOptions, NetworkPolicy, PolicyDecision, ProfileSpec,

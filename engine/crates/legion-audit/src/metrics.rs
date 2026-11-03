@@ -173,7 +173,7 @@ pub fn derive(events: &[AuditEvent], input: &MetricsInput) -> Result<RunMetrics,
 
 /// Canonical JSON text for `run-metrics.json` (stable key order).
 pub fn to_json(metrics: &RunMetrics) -> Result<String, AuditError> {
-    let bytes = legion_contracts::canonical_json_bytes(metrics)
+    let bytes = rightkit_evidence_contracts::canonical_json_bytes(metrics)
         .map_err(|e| AuditError::Invalid(e.to_string()))?;
     String::from_utf8(bytes).map_err(|e| AuditError::Invalid(e.to_string()))
 }

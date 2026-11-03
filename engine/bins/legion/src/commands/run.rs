@@ -1,11 +1,11 @@
 //! Native, filesystem-backed `legion run` implementation.
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_arcane::{
+use rightkit_evidence_governance::{
     BudgetGovernanceStore, ContractLifecycle, KeyRing, ReceiptStore, SessionBindingStore,
     TaskBudgetSealStore,
 };
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -29,7 +29,7 @@ fn cwd() -> Result<PathBuf, CommandError> {
     std::env::current_dir().map_err(super::io_error)
 }
 fn ring() -> Result<KeyRing, CommandError> {
-    let (dir, _) = legion_arcane::key_ring::resolve_key_dir(None)
+    let (dir, _) = rightkit_evidence_governance::key_ring::resolve_key_dir(None)
         .map_err(|e| CommandError::integrity(e.to_string()))?;
     KeyRing::load_dir(&dir).map_err(|e| CommandError::integrity(e.to_string()))
 }
@@ -102,7 +102,7 @@ fn hash(s: &str) -> String {
     hex::encode(h.finalize())
 }
 fn seal(root: &Path, id: &str, v: u64) -> Result<Value, CommandError> {
-    let p = legion_arcane::state_paths::state_file(
+    let p = rightkit_evidence_governance::state_paths::state_file(
         &root.join(".audit/arcane/contract-seals"),
         "arcane.contract-seal.key.v1",
         &[id.into(), v.to_string()],
@@ -119,7 +119,7 @@ fn seal(root: &Path, id: &str, v: u64) -> Result<Value, CommandError> {
 /// unreadable or unparseable seal is an error naming its path: treating it as
 /// "no criteria" would let a complete close skip the evidence check.
 fn sealed_acceptance_criteria(root: &Path, id: &str, v: u64) -> Result<Vec<Value>, CommandError> {
-    let p = legion_arcane::state_paths::state_file(
+    let p = rightkit_evidence_governance::state_paths::state_file(
         &root.join(".audit/arcane/contract-seals"),
         "arcane.contract-seal.key.v1",
         &[id.into(), v.to_string()],
@@ -352,7 +352,7 @@ fn open(a: &[String]) -> CommandResult {
     let task = t.as_deref().ok_or_else(|| {
         CommandError::incomplete("ARC_BINDING_MISMATCH: contracted run requires a task budget")
     })?;
-    let (key_dir, _) = legion_arcane::key_ring::resolve_key_dir(None)
+    let (key_dir, _) = rightkit_evidence_governance::key_ring::resolve_key_dir(None)
         .map_err(|e| CommandError::incomplete(e.to_string()))?;
     let budget_ring = KeyRing::load_dir(&key_dir).map_err(|e| {
         CommandError::incomplete(format!(

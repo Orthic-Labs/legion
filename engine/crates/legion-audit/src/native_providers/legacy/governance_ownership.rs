@@ -19,7 +19,7 @@
 
 use std::collections::BTreeMap;
 
-use legion_contracts::{FindingRef, ProviderStatus};
+use rightkit_evidence_contracts::{FindingRef, ProviderStatus};
 use serde_json::{json, Value};
 
 use super::common::{denominator, digest_text, finding, result, ProviderInput};
@@ -51,7 +51,7 @@ fn run_scan(
     plan_digest: &str,
     details: &mut BTreeMap<String, Value>,
 ) -> Result<String, String> {
-    let request = legion_effects::ExternalToolRequest {
+    let request = rightkit_evidence_effects::ExternalToolRequest {
         request_id: format!("audit:{provider_id}:{plan_digest}:ownership-scan"),
         provider_id: provider_id.into(),
         plan_id: plan_digest.into(),
@@ -61,7 +61,7 @@ fn run_scan(
         args: argv[1..].to_vec(),
         cwd: root.to_string_lossy().into_owned(),
         timeout_ms: 120_000,
-        ..legion_effects::ExternalToolRequest::default()
+        ..rightkit_evidence_effects::ExternalToolRequest::default()
     };
     // A dedicated thread also supports synchronous SDK callers from within an
     // existing Tokio runtime. No declared command, version probe, or artifact
@@ -79,7 +79,7 @@ fn run_scan(
         "executionReceipt".into(),
         crate::execution_policy::receipt_json(&receipt),
     );
-    if receipt.state == legion_effects::ExecutionState::UnauthorizedEffect
+    if receipt.state == rightkit_evidence_effects::ExecutionState::UnauthorizedEffect
         && !receipt.process_tree.started
         && receipt.policy.as_ref().is_some_and(|policy| {
             !policy.allowed
@@ -128,14 +128,14 @@ fn finding_message(message: Option<&str>, capability: Option<&str>, owner: Optio
 }
 
 /// ProviderExecutor-facing entrypoint.
-pub fn execute(input: &ProviderInput<'_>) -> Result<legion_contracts::ProviderResult, AuditError> {
+pub fn execute(input: &ProviderInput<'_>) -> Result<rightkit_evidence_contracts::ProviderResult, AuditError> {
     execute_bound(input, "unbound-sdk:ownership-scan")
 }
 
 pub(crate) fn execute_bound(
     input: &ProviderInput<'_>,
     plan_digest: &str,
-) -> Result<legion_contracts::ProviderResult, AuditError> {
+) -> Result<rightkit_evidence_contracts::ProviderResult, AuditError> {
     let denominator = denominator(input)?;
     let mut gaps: Vec<String> = Vec::new();
     let mut findings: Vec<FindingRef> = Vec::new();

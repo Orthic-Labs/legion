@@ -45,7 +45,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use regex::Regex;
@@ -118,7 +118,7 @@ pub struct ArtifactProducer {
     snapshot_manifest: Option<PathBuf>,
     timeout_ms: u64,
     output_limit: usize,
-    authorizer: Option<Arc<dyn legion_effects::PolicyAuthorizer>>,
+    authorizer: Option<Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>>,
     // Private ownership survives Scratch::drop; raw streams never enter public findings.
     retained_secret_runs: Arc<std::sync::Mutex<Vec<ToolRun>>>,
 }
@@ -132,11 +132,11 @@ impl std::fmt::Debug for ArtifactProducer {
 }
 
 struct ProducerAuthorizer<'a>(&'a ArtifactProducer);
-impl legion_effects::PolicyAuthorizer for ProducerAuthorizer<'_> {
-    fn authorize(&self, request: &ExternalToolRequest) -> legion_effects::PolicyDecision {
+impl rightkit_evidence_effects::PolicyAuthorizer for ProducerAuthorizer<'_> {
+    fn authorize(&self, request: &ExternalToolRequest) -> rightkit_evidence_effects::PolicyDecision {
         match &self.0.authorizer {
             Some(authorizer) => authorizer.authorize(request),
-            None => legion_effects::PolicyAuthorizer::authorize(
+            None => rightkit_evidence_effects::PolicyAuthorizer::authorize(
                 &crate::execution_policy::OwnerAdmissionRequired,
                 request,
             ),
@@ -189,7 +189,7 @@ impl ArtifactProducer {
     /// Public CLI/MCP composition never accepts a caller-supplied authorizer.
     pub fn with_policy_authorizer(
         mut self,
-        authorizer: Arc<dyn legion_effects::PolicyAuthorizer>,
+        authorizer: Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>,
     ) -> Self {
         self.authorizer = Some(authorizer);
         self
@@ -533,12 +533,12 @@ impl<'a> Run<'a> {
         {
             SandboxPolicy::Disabled => (executable_text.clone(), args.clone(), None, None, false),
             SandboxPolicy::Required => {
-                let authenticated = legion_effects::authenticate_sandbox(
+                let authenticated = rightkit_evidence_effects::authenticate_sandbox(
                     &executable_text,
                     &args,
                     &root_text,
                     // Source scanners never need to write into their project.
-                    legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+                    rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite,
                     &self.scratch.path.join("sandbox"),
                 );
                 match authenticated {
@@ -549,7 +549,7 @@ impl<'a> Run<'a> {
                         (
                             auth.wrapped_executable,
                             auth.wrapped_args,
-                            Some(legion_effects::SandboxReceipt {
+                            Some(rightkit_evidence_effects::SandboxReceipt {
                                 id: auth.id,
                                 network: auth.network,
                                 filesystem_scope: auth.filesystem_scope,
@@ -600,7 +600,7 @@ impl<'a> Run<'a> {
             executable: launch_executable,
             args: launch_args,
             cwd: root_text.clone(),
-            origin: legion_effects::ToolOrigin::System,
+            origin: rightkit_evidence_effects::ToolOrigin::System,
             shell: false,
             expected_digest: Some(launch_digest),
             accepted_exit_codes: accepted.iter().copied().collect(),
@@ -716,7 +716,7 @@ impl<'a> Run<'a> {
         if scratch.parent() != Some(parent.as_path()) || parent.starts_with(&project) {
             return Err(invalid());
         }
-        let stream = |record: Option<&legion_effects::ArtifactRecord>| -> Result<Value, String> {
+        let stream = |record: Option<&rightkit_evidence_effects::ArtifactRecord>| -> Result<Value, String> {
             let Some(record) = record else {
                 return Ok(Value::Null);
             };
@@ -776,7 +776,7 @@ impl<'a> Run<'a> {
             self.provider.id,
             digest(&bytes).trim_start_matches("sha256:")
         );
-        legion_effects::ArtifactWriter::new(&directory)
+        rightkit_evidence_effects::ArtifactWriter::new(&directory)
             .write_immutable(&filename, &bytes)
             .map_err(|_| invalid())?;
         Ok(())
@@ -786,12 +786,12 @@ impl<'a> Run<'a> {
     /// dedicated thread so it never nests inside a caller's runtime.
     fn execute(&self, request: ExternalToolRequest) -> Result<ExecutionReceipt, String> {
         #[cfg(unix)]
-        let process = legion_effects::platform::unix::UnixProcess::new();
+        let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
         #[cfg(windows)]
-        let process = legion_effects::platform::windows::WindowsProcess::default();
-        let effects = legion_effects::EffectExecutor::new(
+        let process = rightkit_evidence_effects::platform::windows::WindowsProcess::default();
+        let effects = rightkit_evidence_effects::EffectExecutor::new(
             process,
-            legion_effects::ArtifactWriter::new(&self.scratch.path),
+            rightkit_evidence_effects::ArtifactWriter::new(&self.scratch.path),
             ProducerAuthorizer(self.producer),
         );
         let explicit_authorizer = self.producer.authorizer.is_some();
@@ -1782,7 +1782,7 @@ impl<'a> Run<'a> {
     }
 }
 
-fn read_artifact(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Option<Vec<u8>> {
+fn read_artifact(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -> Option<Vec<u8>> {
     if !artifact.immutable {
         return None;
     }
@@ -2297,7 +2297,7 @@ mod tests {
         };
         let stdout_bytes = [0xff, 0x00, b'X'];
         let stderr_bytes = b"actual fixture failure\n";
-        let writer = legion_effects::ArtifactWriter::new(&run.scratch.path);
+        let writer = rightkit_evidence_effects::ArtifactWriter::new(&run.scratch.path);
         let stdout = writer.write_immutable("stdout.bin", &stdout_bytes).unwrap();
         let stderr = writer.write_immutable("stderr.bin", stderr_bytes).unwrap();
         let request = ExternalToolRequest {

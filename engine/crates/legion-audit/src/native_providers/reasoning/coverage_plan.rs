@@ -29,7 +29,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 

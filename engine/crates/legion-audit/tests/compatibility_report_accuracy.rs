@@ -5,7 +5,7 @@ use legion_audit::native_providers::architecture::{
 use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry, ProviderExecutor,
 };
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 use serde_json::{json, Value};
 use std::{
     fs::{self, OpenOptions},

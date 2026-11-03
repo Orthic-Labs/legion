@@ -526,7 +526,7 @@ impl ResearchRoute {
 
     pub fn digest(&self) -> Result<String, ResearchError> {
         self.validate()?;
-        legion_contracts::canonical_digest(self)
+        rightkit_evidence_contracts::canonical_digest(self)
             .map_err(|error| ResearchError::Report(error.to_string()))
     }
 
@@ -1750,7 +1750,7 @@ mod tests {
             )]),
             ..ResearchPatient::default()
         });
-        let bytes = legion_contracts::canonical_json_bytes(&route).unwrap();
+        let bytes = rightkit_evidence_contracts::canonical_json_bytes(&route).unwrap();
         let wire = String::from_utf8(bytes).unwrap();
         assert!(wire.contains("subject_extension"));
         assert!(wire.contains("patient_extension"));

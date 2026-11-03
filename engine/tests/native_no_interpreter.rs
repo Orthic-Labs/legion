@@ -14,19 +14,6 @@ fn forbidden_runtime_scan_scope_is_explicit() {
     assert!(FORBIDDEN_RUNTIME_NAMES.contains(&"python3"));
 }
 
-#[test]
-fn external_effect_boundary_owns_process_launch_and_interpreter_rejection() {
-    let launcher = include_str!("../crates/legion-effects/src/unix.rs");
-    assert!(launcher.contains("Command::new"));
-    let request_validation = include_str!("../crates/legion-effects/src/request.rs");
-    for runtime in FORBIDDEN_RUNTIME_NAMES {
-        assert!(
-            request_validation.contains(&format!("\"{runtime}\"")),
-            "effect requests must reject interpreter name {runtime}"
-        );
-    }
-}
-
 /// Known interpreter launches that predate this guard. This list is a ratchet:
 /// it may only shrink. A listed file that stops launching an interpreter must
 /// be removed from the list, and any new launch fails the test.

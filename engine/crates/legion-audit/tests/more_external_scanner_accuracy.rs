@@ -10,9 +10,9 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -339,7 +339,7 @@ impl PolicyAuthorizer for SharedPolicy {
     }
 }
 
-fn artifact_json(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
+fn artifact_json(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -> Value {
     let bytes = fs::read(root.join(&artifact.path)).unwrap();
     assert!(artifact.immutable);
     assert_eq!(digest(&bytes), artifact.digest);
@@ -349,11 +349,11 @@ fn artifact_json(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Valu
 }
 
 fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
-    let auth = legion_effects::authenticate_sandbox(
+    let auth = rightkit_evidence_effects::authenticate_sandbox(
         &policy.tool.to_string_lossy(),
         &["--version".into()],
         &policy.root.to_string_lossy(),
-        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite,
         &policy.run.join("version-sandbox"),
     )
     .unwrap();
@@ -369,7 +369,7 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
         cwd: policy.root.to_string_lossy().into_owned(),
         origin: ToolOrigin::System,
         requires_network_sandbox: true,
-        sandbox: Some(legion_effects::SandboxReceipt {
+        sandbox: Some(rightkit_evidence_effects::SandboxReceipt {
             id: auth.id,
             network: auth.network,
             filesystem_scope: auth.filesystem_scope,
@@ -380,9 +380,9 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
         ..ExternalToolRequest::default()
     };
     let artifacts = policy.run.join("version-artifacts");
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(&artifacts),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(&artifacts),
         SharedPolicy(policy.clone()),
     );
     let receipt = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -391,7 +391,7 @@ fn version_probe(policy: Arc<ScopedPolicy>) -> Value {
     );
     assert_eq!(
         receipt.state,
-        legion_effects::ExecutionState::Completed,
+        rightkit_evidence_effects::ExecutionState::Completed,
         "{:?}",
         receipt.gaps
     );

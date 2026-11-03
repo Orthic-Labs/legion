@@ -23,7 +23,7 @@ use legion_audit::{
     review_runtime::{probe_host_executable, validate_host_executable, RuntimeOptions},
     FilesystemInventorySource, InventorySource,
 };
-use legion_effects::{owner_process::InvocationClass, ExternalToolRequest, PolicyAuthorizer};
+use rightkit_evidence_effects::{owner_process::InvocationClass, ExternalToolRequest, PolicyAuthorizer};
 use sha2::{Digest, Sha256};
 
 static SEQ: AtomicU64 = AtomicU64::new(0);
@@ -265,7 +265,7 @@ fn request(
     }
 }
 
-fn denied(decision: &legion_effects::PolicyDecision, code: &str) {
+fn denied(decision: &rightkit_evidence_effects::PolicyDecision, code: &str) {
     assert!(!decision.allowed, "expected denial {code}: {decision:?}");
     assert_eq!(
         decision.reason.as_deref(),

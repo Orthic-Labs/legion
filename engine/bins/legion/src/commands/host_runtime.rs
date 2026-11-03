@@ -258,7 +258,7 @@ fn verify_ledger(
         }
         let expected_parent = previous
             .as_ref()
-            .map(legion_contracts::canonical_digest)
+            .map(rightkit_evidence_contracts::canonical_digest)
             .transpose()
             .ok()
             .flatten();
@@ -280,7 +280,7 @@ fn verify_ledger(
         if verify_record(&value, keys, HEAD_FIELDS).is_err()
             || value.get("eventSequence") != last.get("eventSequence")
             || value.get("digest").and_then(Value::as_str)
-                != legion_contracts::canonical_digest(last).ok().as_deref()
+                != rightkit_evidence_contracts::canonical_digest(last).ok().as_deref()
         {
             return (false, Vec::new(), Some("ARC_STORE_CORRUPT"));
         }
@@ -321,7 +321,7 @@ fn verify_record(
         .get("boundFieldsDigest")
         .and_then(Value::as_str)
         .ok_or(())?;
-    if bound != legion_contracts::canonical_digest(&fields.to_vec()).map_err(|_| ())? {
+    if bound != rightkit_evidence_contracts::canonical_digest(&fields.to_vec()).map_err(|_| ())? {
         return Err(());
     }
     let key = keys
@@ -336,7 +336,7 @@ fn verify_record(
     if let Some(domain) = auth.get("macDomain").filter(|value| !value.is_null()) {
         message["macDomain"] = domain.clone();
     }
-    let bytes = legion_contracts::canonical_json_bytes(&message).map_err(|_| ())?;
+    let bytes = rightkit_evidence_contracts::canonical_json_bytes(&message).map_err(|_| ())?;
     let mut hmac = Hmac::<Sha256>::new_from_slice(&key.key).map_err(|_| ())?;
     hmac.update(&bytes);
     let presented = decode_hex(mac).ok_or(())?;

@@ -5,7 +5,7 @@ use super::{
     evidence::limit_runtime_evidence,
 };
 use crate::{AuditProvider, FrozenPlan, InventoryEnvelope, NativeProviderRegistry};
-use legion_contracts::{Report, ReportScope, ReportV1};
+use rightkit_evidence_contracts::{Report, ReportScope, ReportV1};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -25,26 +25,12 @@ fn hash(bytes: &[u8]) -> String {
 /// Exact producer/consumer implementation compiled into this binary. These are
 /// source identities, not signed build provenance or execution attestations.
 pub fn implementation() -> Value {
-    let sources = BTreeMap::from([
-        (
-            "engine/crates/legion-audit/src/report.rs",
-            hash(include_bytes!("../../report.rs")),
-        ),
-        (
-            "engine/crates/legion-contracts/src/report.rs",
-            hash(include_bytes!("../../../../legion-contracts/src/report.rs")),
-        ),
-        (
-            "engine/crates/legion-report/src/lib.rs",
-            hash(include_bytes!("../../../../legion-report/src/lib.rs")),
-        ),
-        (
-            "engine/crates/legion-report/src/json.rs",
-            hash(include_bytes!("../../../../legion-report/src/json.rs")),
-        ),
-    ]);
+    let sources = BTreeMap::from([(
+        "engine/crates/legion-audit/src/report.rs",
+        hash(include_bytes!("../../report.rs")),
+    )]);
     json!({"contract":CONTRACT,"producer":{"crate":"legion-audit","version":env!("CARGO_PKG_VERSION"),"schemas":[1,2]},
-        "consumer":{"crate":"legion-contracts+legion-report","version":env!("CARGO_PKG_VERSION"),"schemas":[1,2]},
+        "consumer":{"crate":"rightkit-evidence-contracts+rightkit-evidence-report","version":"=0.1.0","schemas":[1,2]},
         "platform":{"os":std::env::consts::OS,"arch":std::env::consts::ARCH},"sources":sources})
 }
 
@@ -118,7 +104,7 @@ fn core(report: &ReportV1) -> Value {
         .iter()
         .map(|f| {
             let mut evidence = f.evidence.clone();
-            evidence.remove(legion_contracts::V2_FINDING_EVIDENCE_KEY);
+            evidence.remove(rightkit_evidence_contracts::V2_FINDING_EVIDENCE_KEY);
             json!({"id":f.id,"severity":f.severity,"title":f.title,"message":f.message,
             "provider":f.provider,"locations":f.locations,"evidence":evidence})
         })
@@ -200,15 +186,15 @@ impl NativeReportObservation {
         for schema in [1, 2] {
             // Both producer forms are exactly those consumed by the real report CLI.
             let produced = if schema == 1 {
-                legion_report::render_json(&report)
+                rightkit_evidence_report::render_json(&report)
             } else {
-                legion_report::render_json_schema(&v2, 2)
+                rightkit_evidence_report::render_json_schema(&v2, 2)
             }
             .map_err(|e| e.to_string())?;
             let wire: Value = serde_json::from_str(&produced).map_err(|e| e.to_string())?;
             let consumed = Report::read_any(&wire).map_err(|e| e.to_string())?;
             let rendered =
-                legion_report::render_json_schema(&consumed, schema).map_err(|e| e.to_string())?;
+                rightkit_evidence_report::render_json_schema(&consumed, schema).map_err(|e| e.to_string())?;
             let reread = Report::read_any(
                 &serde_json::from_str::<Value>(&rendered).map_err(|e| e.to_string())?,
             )

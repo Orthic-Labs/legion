@@ -1,11 +1,11 @@
 //! Deterministic M5 adversarial corpus for the effects-owned provider seam.
 
 use async_trait::async_trait;
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     agent::BudgetCeiling, task::RequestEnvelope, AgentId, EffectRequest, InvocationGrant, Latitude,
     Plan, PlanId, RequestId, TaskId, TaskSpec, TaskStatus,
 };
-use legion_effects::{
+use rightkit_evidence_effects::{
     artifact::{ArtifactRecord, ArtifactSink},
     error::EffectError,
     executor::{EffectExecutor, PolicyDecision, StaticPolicy},
@@ -14,7 +14,7 @@ use legion_effects::{
     request::ExternalToolRequest,
     ExecutableIdentity,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     EffectInterface, ExternalProjectTool, ProviderContext, ProviderError, SourceInterface,
 };
 use serde_json::Value;

@@ -465,7 +465,7 @@ pub fn resolve(
 }
 
 pub fn rendered_input(prompt: &Value) -> Result<String, AuditError> {
-    let canonical = legion_contracts::canonical_json_bytes(prompt)
+    let canonical = rightkit_evidence_contracts::canonical_json_bytes(prompt)
         .map_err(|error| invalid(error.to_string()))?;
     Ok(claude::user_turn_frame(
         std::str::from_utf8(&canonical).map_err(|error| invalid(error.to_string()))?,

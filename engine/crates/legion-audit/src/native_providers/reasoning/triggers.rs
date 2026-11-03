@@ -21,7 +21,7 @@
 
 use std::{io::Read, path::Path};
 
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Value};
 
 use crate::error::AuditError;

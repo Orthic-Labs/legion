@@ -1,4 +1,4 @@
-use legion_contracts::{AgentId, TaskId};
+use rightkit_evidence_contracts::{AgentId, TaskId};
 use legion_runtime::workplan::{
     parse_work_plan_json, validate_work_plan, CompletionEvidence, EvidenceAssurance,
     EvidenceOutcome, WorkPlan, WorkPlanReasonCode as Code, WorkUnit, WorkUnitAccess,

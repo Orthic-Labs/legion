@@ -18,7 +18,7 @@ use legion_audit::{
     AuditPlan, ExecutionReport, InventoryEntry, InventoryEnvelope, NativeProviderRegistry,
     ProviderExecution,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use serde_json::{json, Value};
@@ -145,9 +145,9 @@ fn perf_stdout(perf: &PerfLine) -> String {
     }
 }
 
-fn artifact(path: &Path, body: &[u8]) -> legion_effects::ArtifactRecord {
+fn artifact(path: &Path, body: &[u8]) -> rightkit_evidence_effects::ArtifactRecord {
     fs::write(path, body).unwrap();
-    legion_effects::ArtifactRecord {
+    rightkit_evidence_effects::ArtifactRecord {
         path: path.to_string_lossy().into_owned(),
         digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(body))),
         bytes: body.len(),
@@ -258,7 +258,7 @@ impl ExternalProjectTool for RuntimeFake {
 }
 
 struct Run {
-    result: legion_contracts::ProviderResult,
+    result: rightkit_evidence_contracts::ProviderResult,
     calls: Vec<ExternalToolRequest>,
     root: PathBuf,
     /// Keeps the audit scratch (and its screenshots) alive for assertions.
@@ -288,8 +288,8 @@ fn run_with_cancellation(
     if with_tool {
         registry.legacy_checks = registry
             .legacy_checks
-            .with_fixture_policy_authorizer(Arc::new(legion_effects::StaticPolicy {
-                decision: legion_effects::PolicyDecision {
+            .with_fixture_policy_authorizer(Arc::new(rightkit_evidence_effects::StaticPolicy {
+                decision: rightkit_evidence_effects::PolicyDecision {
                     allowed: true,
                     policy_id: "runtime-fixture-test".into(),
                     policy_version: 1,
@@ -340,7 +340,7 @@ fn url_inputs(extra: &[(&str, &str)], unsupported: &[&str]) -> Value {
     .unwrap()
 }
 
-fn assert_valid_not_rejected(result: &legion_contracts::ProviderResult) {
+fn assert_valid_not_rejected(result: &rightkit_evidence_contracts::ProviderResult) {
     assert!(
         !result
             .coverage_gaps
@@ -373,7 +373,7 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
         !result.complete,
         "runtime provider remains incomplete under its coverage contract"
     );
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(!result
         .coverage_gaps
         .iter()
@@ -403,7 +403,7 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
         "http://127.0.0.1:1422/settings"
     );
     assert!(!first.shell && !first.requires_network_sandbox);
-    assert_eq!(first.origin, legion_effects::ToolOrigin::LegionOwned);
+    assert_eq!(first.origin, rightkit_evidence_effects::ToolOrigin::LegionOwned);
     assert!(Path::new(&first.cwd).is_absolute());
     assert!(!Path::new(&first.cwd).starts_with(&run.root));
 
@@ -510,7 +510,7 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
 #[test]
 fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
     let actions = json!([{"type":"click","selector":"button.save"}]);
-    let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
+    let action_digest = rightkit_evidence_contracts::canonical_digest(&actions).unwrap();
     let fixture_body = serde_json::to_value(b"<main>fixture</main>").unwrap();
     let fixture_file = json!({
         "sourcePath":"index.html",
@@ -519,7 +519,7 @@ fn bounded_interaction_probe_records_unavailable_gap_without_clicking() {
         "contentType":"text/html",
         "body":fixture_body,
     });
-    let fixture_digest = legion_contracts::canonical_digest(&json!({
+    let fixture_digest = rightkit_evidence_contracts::canonical_digest(&json!({
         "files":[{"body":fixture_file["body"],"contentType":"text/html","path":"/index.html"}]
     }))
     .unwrap();
@@ -669,7 +669,7 @@ fn tool_failure_to_load_the_page_is_a_failed_provider_with_a_named_gap() {
     let result = &run.result;
     assert_valid_not_rejected(result);
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Failed);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
     assert!(result
         .coverage_gaps
         .contains(&"runtime-surface-load-failed:entry".to_owned()));
@@ -691,7 +691,7 @@ fn missing_browser_is_typed_unavailable() {
     let result = &run.result;
     assert_valid_not_rejected(result);
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(result
         .coverage_gaps
         .contains(&"unavailable:browser-not-found".to_owned()));
@@ -744,7 +744,7 @@ fn without_a_url_the_provider_is_unavailable_and_starts_nothing() {
     assert_valid_not_rejected(result);
     assert!(run.calls.is_empty(), "no process may start without a URL");
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(result
         .coverage_gaps
         .contains(&"unavailable:runtime-url-not-supplied".to_owned()));

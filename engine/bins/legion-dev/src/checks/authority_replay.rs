@@ -1,5 +1,5 @@
 //! Grades supplied observations, never routes prose or fabricates model runs.
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     fold_role_decision_declarations, AuthorityKind, RoleDecisionState, RouteOutcomeTrace,
 };
 use serde::Deserialize;

@@ -15,7 +15,7 @@ use legion_audit::{
     snapshot::FrozenSnapshot,
     AuditPlan, FilesystemInventorySource, InventorySource,
 };
-use legion_contracts::{ProviderId, ProviderSpec};
+use rightkit_evidence_contracts::{ProviderId, ProviderSpec};
 use serde_json::{json, Value};
 use std::{
     fs,
@@ -157,7 +157,7 @@ fn assert_author_source(prompt: &Value) {
     assert_eq!(
         reply["replyDigest"].as_str(),
         Some(
-            legion_contracts::canonical_digest(&content)
+            rightkit_evidence_contracts::canonical_digest(&content)
                 .unwrap()
                 .as_str()
         )
@@ -579,7 +579,7 @@ impl Fixture {
             &serde_json::to_value(
                 legion_audit::lift_report_v2(
                     &report,
-                    legion_contracts::ReportScope {
+                    rightkit_evidence_contracts::ReportScope {
                         spec: "repo".into(),
                         base_ref_oid: None,
                         merge_base_oid: None,
@@ -710,7 +710,7 @@ fn completes_with_large_compact_control_plan() {
     }
     plan["serializationFixture"] = metadata;
     assert!(serde_json::to_vec_pretty(&plan).unwrap().len() > RUNTIME_JSON_LIMIT);
-    let expected_digest = legion_contracts::canonical_digest(&plan).unwrap();
+    let expected_digest = rightkit_evidence_contracts::canonical_digest(&plan).unwrap();
     let compact = serde_json::to_vec(&plan).unwrap();
     assert!(compact.len() < RUNTIME_JSON_LIMIT);
     fs::write(&path, compact).unwrap();
@@ -726,7 +726,7 @@ fn completes_with_large_compact_control_plan() {
     assert_eq!(fixture.calls().len(), 2);
     let restored = read_json(&path);
     assert_eq!(
-        legion_contracts::canonical_digest(&restored).unwrap(),
+        rightkit_evidence_contracts::canonical_digest(&restored).unwrap(),
         expected_digest
     );
     assert_eq!(restored["nativePlan"], native_plan);

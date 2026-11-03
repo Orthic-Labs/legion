@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use legion_contracts::{canonical_digest, ProviderResult};
+use rightkit_evidence_contracts::{canonical_digest, ProviderResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -634,10 +634,10 @@ mod tests {
     fn result() -> ProviderResult {
         ProviderResult {
             schema_version: 1,
-            provider: legion_contracts::ProviderId::new("reasoning.ai-slop").unwrap(),
+            provider: rightkit_evidence_contracts::ProviderId::new("reasoning.ai-slop").unwrap(),
             applicable: true,
             required: true,
-            status: legion_contracts::ProviderStatus::Partial,
+            status: rightkit_evidence_contracts::ProviderStatus::Partial,
             complete: false,
             coverage: None,
             findings: Vec::new(),

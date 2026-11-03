@@ -232,7 +232,7 @@ fn hex(bytes: &[u8]) -> String {
     }
     out
 }
-fn artifact(value: &Option<legion_effects::ArtifactRecord>) -> Value {
+fn artifact(value: &Option<rightkit_evidence_effects::ArtifactRecord>) -> Value {
     value
         .as_ref()
         .map(|v| json!({"path":v.path,"digest":v.digest,"bytes":v.bytes,"immutable":v.immutable}))
@@ -293,7 +293,7 @@ pub(super) fn changed_run(run: &ToolRun) -> Value {
 pub(super) fn case(
     root: &Path,
     producer: &ArtifactProducer,
-    result: &legion_contracts::ProviderResult,
+    result: &rightkit_evidence_contracts::ProviderResult,
 ) -> Value {
     let inv = inventory(root);
     let selected = inv
@@ -348,7 +348,7 @@ pub(super) fn predicate(controls: &mut BTreeMap<String, Value>, name: &str, reje
 pub(super) fn incomplete(
     controls: &mut BTreeMap<String, Value>,
     name: &str,
-    result: legion_contracts::ProviderResult,
+    result: rightkit_evidence_contracts::ProviderResult,
 ) {
     assert!(!result.complete);
     assert!(controls

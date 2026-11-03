@@ -14,7 +14,7 @@ use legion_audit::{
     native_providers::security::pipeline, topological_with_artifacts, AuditProvider,
     InventoryEntry, InventoryEnvelope, NativeProviderRegistry, ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 

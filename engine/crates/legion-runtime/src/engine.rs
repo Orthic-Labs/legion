@@ -7,10 +7,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     AgentId, EffectRequest, InvocationGrant, InvocationId, ProviderResult, TaskSpec,
 };
-use legion_provider_sdk::ProviderRegistry;
+use rightkit_code_audit_provider_sdk::ProviderRegistry;
 
 use crate::{
     error::RuntimeError,
@@ -23,7 +23,7 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CandidateEvidence {
-    pub provider: legion_contracts::ProviderId,
+    pub provider: rightkit_evidence_contracts::ProviderId,
     pub result: ProviderResult,
 }
 

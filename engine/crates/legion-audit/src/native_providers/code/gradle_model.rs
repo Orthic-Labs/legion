@@ -18,8 +18,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use legion_effects::owner_process::InvocationClass;
-use legion_provider_sdk::{ExecutionState, ExternalProjectTool, ExternalToolRequest};
+use rightkit_evidence_effects::owner_process::InvocationClass;
+use rightkit_code_audit_provider_sdk::{ExecutionState, ExternalProjectTool, ExternalToolRequest};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
