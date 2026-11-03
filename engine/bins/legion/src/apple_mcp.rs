@@ -277,12 +277,7 @@ mod tests {
             SymlinkState::Unknown,
         )
         .unwrap();
-        let bind = |raw: &str| {
-            canonical_target(
-                &gate::resolve_target(raw, None).unwrap(),
-                &base,
-            )
-        };
+        let bind = |raw: &str| canonical_target(&gate::resolve_target(raw, None).unwrap(), &base);
         let outside = root.parent().unwrap().join("apple-mcp-outside");
         assert!(bind(&gate::host_path_string(&outside)).is_err());
         assert!(bind("../outside").is_err());

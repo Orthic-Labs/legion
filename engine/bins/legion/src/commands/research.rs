@@ -1,6 +1,8 @@
 use super::CommandResult;
 use clap::Args;
-use rightkit_research::research_port::{citecheck, ledger, meter, patch_guard, patcher, retraction};
+use rightkit_research::research_port::{
+    citecheck, ledger, meter, patch_guard, patcher, retraction,
+};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
