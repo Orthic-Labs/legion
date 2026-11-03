@@ -1,25 +1,62 @@
 //! Broker warmth per host and repository, from the build-control receipts (read-only). Only
-//! what is off becomes a flag: unexplained cold starts and rebuilt units, a low or falling
-//! cache hit rate against the previous run, low disk, and refusals by code.
+//! what is off becomes a flag: unexplained cold starts and rebuilt units, rebuilds with no
+//! source, lockfile, toolchain or feature change, a warm target that went cold or shrank, a low
+//! or falling cache hit rate against the previous run, low disk, and refusals by code.
 use super::time;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+};
 
 pub const RUSTRIGHT: &str = "Orthic-Labs/rustright";
 pub const RIGHTKIT: &str = "Orthic-Labs/rightkit";
 const DISK_FLOOR: u64 = 50 << 30;
 const MIN_LOOKUPS: u64 = 20;
+/// A refusal code the broker writes without the `RK_`/`RR_` prefix.
+const ADMISSION: &str = "ADMISSION_REJECTED";
 
-/// `~/.legion/daily/warmth-<host>.json`: each repository's (hits, misses) at the previous run.
-pub type State = BTreeMap<String, (u64, u64)>;
+/// One repository's baseline at the previous run, the comparison for today's flags.
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct Mark {
+    #[serde(default)]
+    hits: u64,
+    #[serde(default)]
+    misses: u64,
+    /// The largest `freshness.unitsAtStart` of the run, when a receipt reported one.
+    #[serde(default)]
+    units: Option<u64>,
+    /// The run's cohorts (toolchain, profile, triple, features), `;`-joined in sorted order.
+    #[serde(default)]
+    cohort: String,
+}
+
+/// `~/.legion/daily/warmth-<host>.json`: each repository's baseline at the previous run.
+pub type State = BTreeMap<String, Mark>;
 
 #[derive(Default)]
 pub struct Repo {
     hits: u64,
     misses: u64,
+    units: Option<u64>,
+    cohorts: BTreeSet<String>,
+    /// Units `notFresh` in receipts whose inputs and cause verdict show no change.
+    clean_not_fresh: u64,
     refused: BTreeMap<String, u64>,
     /// Flag slug -> how many (jobs or units).
     odd: BTreeMap<&'static str, u64>,
+}
+
+impl Repo {
+    fn cohort_key(&self) -> String {
+        self.cohorts
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(";")
+    }
 }
 
 pub struct Flag {
@@ -52,14 +89,17 @@ fn repo_of(workspace: &str) -> String {
     first.unwrap_or("(none)").to_owned()
 }
 
-/// The `RK_`/`RR_` code of a refused job; a plain `FAILED` is the build's own result.
+/// The `RK_`/`RR_` code (or `ADMISSION_REJECTED`) of a refused job; a plain `FAILED` is the
+/// build's own result.
 fn refusal(receipt: &Value) -> Option<String> {
     let text = |key: &str| receipt[key].as_str().unwrap_or("").trim_start();
     let first = |key: &str| {
         text(key)
             .split(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'))
             .next()
-            .filter(|w| w.len() > 3 && (w.starts_with("RK_") || w.starts_with("RR_")))
+            .filter(|w| {
+                w.len() > 3 && (w.starts_with("RK_") || w.starts_with("RR_") || *w == ADMISSION)
+            })
     };
     let coded = first("error")
         .or_else(|| first("reason"))
@@ -71,6 +111,21 @@ fn refusal(receipt: &Value) -> Option<String> {
     }
 }
 
+/// True when the receipt proves that nothing it builds from moved: the input closure was
+/// verified with no changed, added, removed or extra input (source, `Cargo.lock` included), and
+/// Cargo named no changed source or dependency as a cause.
+fn inputs_unchanged(receipt: &Value) -> bool {
+    let closure = &receipt["inputClosure"];
+    let moved = ["changed", "added", "removed", "extrasChanged"]
+        .iter()
+        .any(|key| closure[*key].as_array().is_none_or(|list| !list.is_empty()));
+    let source_cause = receipt["freshness"]["causeCounts"]["source-or-dependency-changed"]
+        .as_u64()
+        .unwrap_or(0)
+        > 0;
+    closure["status"] == "verified" && !moved && !source_cause
+}
+
 /// Count one job receipt into its repository.
 fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
     let workspace = receipt["workspace"].as_str().unwrap_or("");
@@ -79,6 +134,20 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
     if matches!(reuse["status"].as_str(), Some("PROVEN" | "MIXED" | "MISS")) {
         repo.hits += reuse["hits"].as_u64().unwrap_or(0);
         repo.misses += reuse["misses"].as_u64().unwrap_or(0);
+    }
+    if let Some(units) = fresh["unitsAtStart"].as_u64() {
+        repo.units = Some(repo.units.map_or(units, |most| most.max(units)));
+    }
+    let cohort = &receipt["cacheCohort"];
+    if cohort.is_object() {
+        repo.cohorts.insert(format!(
+            "{}|{}|{}|{}|{}",
+            cohort["toolchain"],
+            cohort["profile"],
+            cohort["targetTriple"],
+            cohort["features"],
+            cohort["defaultFeatures"]
+        ));
     }
     if receipt["coldStart"] == true {
         let reason = fresh["coldCause"]
@@ -95,6 +164,9 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
     }
     *repo.odd.entry("unexplained-rebuilt-units").or_default() +=
         fresh["unexplainedCount"].as_u64().unwrap_or(0);
+    if inputs_unchanged(receipt) {
+        repo.clean_not_fresh += fresh["notFresh"].as_u64().unwrap_or(0);
+    }
     if let Some(code) = refusal(receipt) {
         *repo.refused.entry(code).or_default() += 1;
     }
@@ -130,7 +202,8 @@ fn flags(
         for (slug, count) in repo.odd.iter().filter(|(_, count)| **count > 0) {
             flag(name, slug.to_string(), format!("{count} {slug}"));
         }
-        let before = prior.get(name).and_then(|saved| rate(*saved));
+        let saved = prior.get(name);
+        let before = saved.and_then(|mark| rate((mark.hits, mark.misses)));
         if let Some(now) = rate((repo.hits, repo.misses)) {
             if now < 0.5 || before.is_some_and(|before| before - now >= 0.2) {
                 let was = before.map_or(String::new(), |b| {
@@ -142,6 +215,39 @@ fn flags(
                     format!("hit rate {:.0}%{was}", now * 100.0),
                 );
             }
+        }
+        let lost = repo
+            .units
+            .zip(saved.and_then(|mark| mark.units))
+            .filter(|(now, was)| was > now);
+        if let Some((now, was)) = lost {
+            let verdict = if now == 0 {
+                ", went cold"
+            } else if now * 2 < was {
+                ", shrank by half or more"
+            } else {
+                ""
+            };
+            flag(
+                name,
+                "warm-target-units-lost".into(),
+                format!(
+                    "{} units lost, {was} -> {now} since the previous run{verdict}",
+                    was - now
+                ),
+            );
+        }
+        let cohort = repo.cohort_key();
+        let same_cohort = saved.is_some_and(|mark| mark.cohort == cohort && !cohort.is_empty());
+        if repo.clean_not_fresh > 0 && same_cohort {
+            flag(
+                name,
+                "not-fresh-without-change".into(),
+                format!(
+                    "{} units rebuilt with no source, lockfile, toolchain or feature change",
+                    repo.clean_not_fresh
+                ),
+            );
         }
         for (code, count) in &repo.refused {
             let slug = format!("refusal-{}", code.to_lowercase().replace('_', "-"));
@@ -196,12 +302,23 @@ pub fn measure(
     })
 }
 
-/// Remember this run's hit counts as the baseline for the next one.
+/// Remember this run as the baseline for the next one. A repository keeps its last usable hit
+/// rate, unit count and cohort when this run has too few lookups or none of that signal.
 pub fn remember(state: &mut State, host: &Host) {
     for (name, repo) in &host.repos {
+        let mut mark = state.get(name).cloned().unwrap_or_default();
         if rate((repo.hits, repo.misses)).is_some() {
-            state.insert(name.clone(), (repo.hits, repo.misses));
+            mark.hits = repo.hits;
+            mark.misses = repo.misses;
         }
+        if repo.units.is_some() {
+            mark.units = repo.units;
+        }
+        let cohort = repo.cohort_key();
+        if !cohort.is_empty() {
+            mark.cohort = cohort;
+        }
+        state.insert(name.clone(), mark);
     }
 }
 
@@ -222,6 +339,14 @@ mod tests {
 
     fn reuse(hits: u64, misses: u64) -> Value {
         json!({"cache": {"reuse": {"status": "PROVEN", "hits": hits, "misses": misses}}})
+    }
+
+    fn mark(hits: u64, misses: u64) -> Mark {
+        Mark {
+            hits,
+            misses,
+            ..Mark::default()
+        }
     }
 
     /// The `slug owner` of each flag raised on the Dell by receipts with these `extras`.
@@ -256,7 +381,7 @@ mod tests {
 
     #[test]
     fn a_low_or_falling_hit_rate_needs_enough_lookups() {
-        let prior = State::from([("heardright".to_owned(), (95, 5))]);
+        let prior = State::from([("heardright".to_owned(), mark(95, 5))]);
         let none = State::new();
         let low = [format!("low-cache-hit-rate {RUSTRIGHT}")];
         assert_eq!(flagged(&[reuse(60, 40)], &prior, 500), low);
@@ -287,6 +412,84 @@ mod tests {
         tally(&mut host.repos, &receipt(&reuse(30, 10)));
         let mut state = State::new();
         remember(&mut state, &host);
-        assert_eq!(state["heardright"], (30, 10));
+        assert_eq!(
+            (state["heardright"].hits, state["heardright"].misses),
+            (30, 10)
+        );
+    }
+
+    #[test]
+    fn an_admission_rejection_is_a_refusal_owned_by_rustright() {
+        let rejected = json!({"status": "FAILED", "error": "ADMISSION_REJECTED: queue full"});
+        assert_eq!(
+            flagged(&[rejected], &State::new(), 500),
+            [format!("refusal-admission-rejected {RUSTRIGHT}")]
+        );
+    }
+
+    #[test]
+    fn a_warm_target_that_went_cold_or_shrank_is_reported_against_the_previous_run() {
+        let warm = |units: u64| json!({"freshness": {"unitsAtStart": units}});
+        let prior = State::from([(
+            "heardright".to_owned(),
+            Mark {
+                units: Some(800),
+                ..Mark::default()
+            },
+        )]);
+        let lost = [format!("warm-target-units-lost {RUSTRIGHT}")];
+        assert_eq!(flagged(&[warm(300)], &prior, 500), lost);
+        assert_eq!(flagged(&[warm(0)], &prior, 500), lost);
+        assert!(flagged(&[warm(790), warm(810)], &prior, 500).is_empty());
+        let mut repos = BTreeMap::new();
+        tally(&mut repos, &receipt(&warm(0)));
+        let found = flags("dell", &repos, Some(500 << 30), &prior);
+        assert!(found[0].detail.contains("800 -> 0") && found[0].detail.contains("went cold"));
+    }
+
+    #[test]
+    fn a_rebuild_with_no_input_change_is_flagged_only_against_the_same_cohort() {
+        // A rebuild of two units, with the given input verdict, changed inputs and causes.
+        let rebuilt = |status: &str, changed: Value, causes: Value| {
+            json!({
+                "freshness": {"notFresh": 2, "causeCounts": causes},
+                "inputClosure": {"status": status, "changed": changed, "added": [],
+                                 "removed": [], "extrasChanged": []},
+                "cacheCohort": {"toolchain": "1.99.1", "profile": "release",
+                                "targetTriple": "aarch64-apple-darwin",
+                                "features": [], "defaultFeatures": true}
+            })
+        };
+        let clean = rebuilt("verified", json!([]), json!({"fingerprint-missing": 2}));
+        let cohort = {
+            let mut repos = BTreeMap::new();
+            tally(&mut repos, &receipt(&clean));
+            repos["heardright"].cohort_key()
+        };
+        let same = State::from([(
+            "heardright".to_owned(),
+            Mark {
+                cohort: cohort.clone(),
+                ..Mark::default()
+            },
+        )]);
+        let other = State::from([(
+            "heardright".to_owned(),
+            Mark {
+                cohort: "\"1.98.0\"".into(),
+                ..Mark::default()
+            },
+        )]);
+        let flag = [format!("not-fresh-without-change {RUSTRIGHT}")];
+        let lockfile = rebuilt("verified", json!(["Cargo.lock"]), json!({}));
+        let unproven = rebuilt("unrequested", json!([]), json!({}));
+        let source = json!({"source-or-dependency-changed": 2});
+        let source = rebuilt("verified", json!([]), source);
+        assert_eq!(flagged(std::slice::from_ref(&clean), &same, 500), flag);
+        assert!(flagged(&[lockfile], &same, 500).is_empty());
+        assert!(flagged(&[unproven], &same, 500).is_empty());
+        assert!(flagged(&[source], &same, 500).is_empty());
+        assert!(flagged(std::slice::from_ref(&clean), &State::new(), 500).is_empty());
+        assert!(flagged(std::slice::from_ref(&clean), &other, 500).is_empty());
     }
 }

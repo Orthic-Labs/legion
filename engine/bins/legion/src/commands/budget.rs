@@ -4,7 +4,6 @@ use rightkit_evidence_governance::{
     inspect_projection, state_root, BudgetGovernanceStore, KeyRing, TaskBudgetSealStore,
 };
 use serde_json::json;
-use std::path::PathBuf;
 
 pub fn run(args: CommonArgs) -> CommandResult {
     let argv = args
@@ -68,12 +67,8 @@ pub fn run(args: CommonArgs) -> CommandResult {
             "budget inspect requires --task <T-#(.#)*>",
         ));
     }
-    if std::env::var_os("ARCANE_KEY_DIR").is_none() {
-        return Err(CommandError::incomplete(
-            "ARC_AUTH_KEY_UNAVAILABLE: budget inspect requires ARCANE_KEY_DIR",
-        ));
-    }
-    let key_dir = PathBuf::from(std::env::var_os("ARCANE_KEY_DIR").expect("checked above"));
+    let (key_dir, _) = rightkit_evidence_governance::key_ring::resolve_key_dir(None)
+        .map_err(map_arcane_error)?;
     let cwd = std::env::current_dir().map_err(super::io_error)?;
     let arcane_root = state_root(&cwd);
     let key_ring = KeyRing::load_dir(&key_dir).map_err(map_arcane_error)?;
