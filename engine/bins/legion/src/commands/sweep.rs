@@ -757,7 +757,7 @@ mod tests {
         ];
         let peers = [("claude".to_owned(), "s1".to_owned(), "n".to_owned())];
         let (mut sent, mut gaps, mut texts) = (BTreeMap::new(), vec![], vec![]);
-        let mut send = |_: &Peer, t: &str| {
+        let mut send = |_: &Peer, t: &str| -> Result<(), String> {
             texts.push(t.to_owned());
             Ok(())
         };
