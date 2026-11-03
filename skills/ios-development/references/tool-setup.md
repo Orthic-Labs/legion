@@ -28,7 +28,7 @@ before optional compatibility adapters below.
 
 Lifecycle is detect → select → reuse → authorized setup only when missing → verify.
 Existing user authorization covers scope already granted by request; do not add second
-confirmation for same scope. Host Guard still controls typed effects.
+confirmation for same scope. Host permissions still control tool calls.
 
 ## Mandatory lifecycle
 

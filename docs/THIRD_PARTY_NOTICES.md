@@ -93,6 +93,6 @@ This ledger records idea provenance, not additional runtime dependencies or perm
 | [cursor/plugins pstack](https://github.com/cursor/plugins/tree/c742dd61706fbacc1b95f1a20b7b988cf096ce6c/pstack) — `c742dd61706fbacc1b95f1a20b7b988cf096ce6c` | MIT; copyright 2026 Lauren Tan at inspected pin. | Honest coverage/duplication/mutation observations, explicit execution limits and evidence-aware reuse. |
 
 These concepts do not replace Legion's canonical orchestration, Oracle assurance, Council advisory
-challenge, or Guard effect controls. Native observations and imported diagnostic assessments
+challenge, or the Guard Stop decision. Native observations and imported diagnostic assessments
 remain separate from authorized host mutations. No upstream perpetual execution loop, automatic
 merge permission, hosted service or agent topology is imported.

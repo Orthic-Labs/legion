@@ -52,7 +52,7 @@ effect authority. Read `references/manual.md` before carrying a change beyond a 
    unknown policy leave readiness unproven. Do not invent success or repeatedly poll.
 6. Return PR-ready-for-user only after required checks/reviews/threads and exact-revision proofs
    pass, with auto-merge disabled and the PR outside the merge queue. For authorized merge, use an
-   existing Guard-gated host action, revalidate the revision immediately before it, then read back
+   existing host action, revalidate the revision immediately before it, then read back
    merged state and merge commit. A ready assessment has `effectAuthority: none`.
 
 Report only reached states. Branch pushed, PR ready, merged, deployed and verified in production

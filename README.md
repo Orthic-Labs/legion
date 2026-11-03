@@ -34,7 +34,7 @@ One doctrine & kernel project into harness-native slots. Legion does not pretend
 |---|---|---|---|
 | Doctrine & routing | yes | yes | yes |
 | Native authority agents | yes | yes, via `.codex/agents` | no native subagents declared |
-| Guard pre-effect interception | yes, through blocking plugin hooks | yes for shell and `apply_patch`, through trust-gated plugin hooks | no |
+| Guard Stop decision | yes, through plugin Stop hook | yes, through trust-gated plugin Stop hook | no |
 | Guard decisions & receipts | decision returned to host; persisted receipt future work | decision returned to host; no persisted effect receipt yet | CLI/boundary decisions; persisted receipt future work |
 | Council isolation | isolated seat agents | isolated seat agents | unavailable without subagents |
 | Oracle Completion Validation | yes | yes | yes |
@@ -45,7 +45,7 @@ Run `legion doctor` to inspect repository, binding, coverage, & host state. `leg
 
 <picture><source media="(prefers-color-scheme: dark)" srcset=".github/flow-dark.svg"><img src=".github/flow.svg" alt="Request to Legion to capability to work to delivery with evidence; Sage, Alchemist and Oracle attach only when needed" style="max-width:100%;height:auto"></picture>
 
-Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect decisions; persisted receipts are future work. Neither can invent consent.
+Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically decides whether Claude may stop, reports enforcement health, & owns the evidence ledger Stop reads. Neither can invent consent.
 
 Work splits into independent units where safe, then reunites at delivery. Capabilities supply expertise, method, workflow, & context; capability never grants authority. Optional domains group catalog entries for discovery only.
 
@@ -58,7 +58,7 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | **Alchemist** | Apply bounded implementation, repair mechanical failures, verify its work | Settle new engineering decisions |
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |
-| **Guard** | Deterministically gate typed effects, report enforcement health, & own effect decisions; persisted receipts are future work | Interpret intent, select capabilities, or attach authority |
+| **Guard** | Deterministically decide whether Claude may stop, report enforcement health, & own the evidence ledger Stop reads | Interpret intent, select capabilities, or attach authority |
 | **Council** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
 Oracle is optional independent assurance authority for Completion Validation; it is never a delivery gate.

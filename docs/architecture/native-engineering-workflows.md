@@ -2,8 +2,8 @@
 
 This operational map consumes the canonical SSOT; it creates no new authority or effect model.
 Legion orchestrates, producing capabilities own routine acceptance meaning, Oracle provides
-independent read-only assurance, Council provides optional advisory challenge, and Guard gates
-typed effects. No workflow mode or diagnostic verdict grants authority.
+independent read-only assurance, Council provides optional advisory challenge, and the Guard decides
+whether Claude may stop. No workflow mode or diagnostic verdict grants authority.
 
 ## Native surfaces
 
@@ -44,7 +44,7 @@ auto-merge and queue state **before push**, since satisfying existing automation
 a later merge command. A ready handoff requires both disabled auto-merge and no queue entry.
 Authorized host mutation is separate from observation; if it is unavailable, report the exact
 unperformed action. Merge requires current explicit authorization, a final revision/policy check,
-the existing Guard-gated host action, and fresh readback of merged state and merge commit.
+the existing host action, and fresh readback of merged state and merge commit.
 
 Observer defaults are five pages per collection, a 120-second total deadline and 900-second
 maximum evidence age. Missing credentials, permissions, unknown or unsupported policy, incomplete

@@ -6,9 +6,8 @@ native plugin cache; setup verifies installed identity and release digests befor
 copies.
 
 Codex skips bundled hooks until the user trusts the current hook definition, and a changed
-definition needs trust again. Legion projects `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and
-`Stop`; the tool events match `Bash|apply_patch|exec_command|functions\.exec`. Codex has no ask
-outcome and no `PostToolUseFailure`, so a Guard confirmation request is a denial there and MCP tools
+definition needs trust again. Legion projects `UserPromptSubmit`, `PostToolUse`, and
+`Stop`; the tool events match `Bash|apply_patch|exec_command|functions\.exec`. Codex has no `PostToolUseFailure`, and MCP tools
 are not matched (Codex keeps its own MCP approvals).
 Doctor reports cache, disabled state, hook-file presence, and recorded host trust independently.
 Host-agnostic Legion receipt traces do not prove Codex execution or current-definition trust.

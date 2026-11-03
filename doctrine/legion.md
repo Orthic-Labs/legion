@@ -122,8 +122,8 @@ while project scaffolding belongs to native `legion init`. File search uses scop
 Session does not require durable handoff notes.
 
 Legion owns semantic capability selection, operation/effect derivation, authority attachment, &
-orchestration. Arcane shapes cognitive processing & response policy only; Guard gates declared
-typed effects, reports enforcement health, & owns effect-decision receipts.
+orchestration. Arcane shapes cognitive processing & response policy only; Guard decides whether
+Claude may stop, reports enforcement health, & owns the evidence ledger Stop reads.
 
 ```text
 USER INTENT
@@ -134,7 +134,7 @@ LEGION — semantic classification over the compact canonical catalog
     ↓
 WORK GRAPH — operations, effects, dependencies, authority only where required
     ↓
-the Guard gates declared effects
+host settings gate tool calls
     ↓
 execution / integration
     ↓

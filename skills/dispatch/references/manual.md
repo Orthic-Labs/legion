@@ -48,7 +48,7 @@ decision the user reserved.
 At each lead turn, compare ready open issues with active assignments & dispatch missing work
 within those limits. Name concrete dependencies or limits for ready work left idle & refill
 assignments when workers return. Coding continues while admitted builds queue or run; build
-admission still governs build launch. A precondition, failed check, or Guard gate stops only its
+admission still governs build launch. A precondition, failed check, or host permission denial stops only its
 affected operation & actual dependents. Continue unrelated authorized work, preserve required
 verification for its exact artifact, & never treat assistant-authored sequence as permission.
 

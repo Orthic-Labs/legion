@@ -144,8 +144,8 @@
     },
     "legion-hook": {
       "kind": "lifecycle-hook",
-      "summary": "The Guard effect-gate binary invoked by every event in hooks/hooks.json.",
-      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so every Guard gate stops running with no operator-visible signal and no effect-decision receipt is recorded.",
+      "summary": "The Guard Stop-decision binary invoked by the events in hooks/hooks.json.",
+      "degradation": "Fails open and silently: the host treats an unresolvable hook command as a non-blocking error, so the Guard Stop decision stops running with no operator-visible signal.",
       "probe": {
         "kind": "command",
         "command": "legion-hook"

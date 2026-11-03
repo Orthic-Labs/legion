@@ -42,7 +42,7 @@ providers, creates a second scanner registry, or reinterprets original denominat
 **Standing:** Audit Fix is a workflow capability attached to a frozen Audit result. It is **not**
 Oracle (it does not independently certify completion) and **not** Alchemist merely because it
 writes (authority is not inferred from `repository-write`). Its actual effects remain
-Guard-gated.
+under host permissions.
 
 1. Require prior `plan.json`, `facts.json`, `report.json`, & security adjudication result.
 2. Verify repository binding, provider set, & denominators before editing with

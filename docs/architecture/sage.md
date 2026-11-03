@@ -131,10 +131,10 @@ satisfies the raw user request. Sage does not pre-certify Oracle's result, and O
 become a substitute for Sage adjudication. A validation finding can return work for remediation;
 it does not grant Oracle authority to decide a new architecture or ownership question.
 
-### With deterministic effect enforcement
+### With the deterministic Stop decision
 
 Sage can specify the intended effect posture and acceptance boundary, but it cannot authorize an
-effect. The separate deterministic effect-enforcement boundary evaluates and gates typed effects.
+effect. The separate deterministic Stop boundary decides only whether Claude may stop.
 Sage's ruling is not an enforcement receipt.
 
 ## Non-negotiable invariants

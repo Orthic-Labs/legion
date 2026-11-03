@@ -312,7 +312,7 @@ Cross-boundary invariants:
 - Arcane does not decide Stop or keep Guard receipts. Its cognitive route is
   ephemeral. The `legion-arcane` crate name is historical: it holds contract-lifecycle, budget, and
   receipt-store runtime used by governed work, and none of that is an effect-decision receipt.
-  Receipt kinds stay distinct: Guard effect-decision receipts, contract/runtime receipts, handoff
+  Receipt kinds stay distinct: contract/runtime receipts, handoff
   receipts, and the Oracle completion-validation receipt.
 - Oracle is not a stop gate (principle 8). The one place a typed `verificationRequirement` may demand an
   Oracle receipt at Stop is a requirement set by a route or completion producer for a concrete
@@ -321,7 +321,7 @@ Cross-boundary invariants:
   separate enforcer process is part of the package.
 - The Guard may deliver Arcane-owned cognitive policy through a host lifecycle surface such as
   the Stop event, but it never becomes the owner or enforcer of that cognitive policy.
-- The Guard gates typed effects, not semantic capability labels. Enforcement failures fail
+- The Guard decides only Stop, not tool calls or semantic capability labels. Enforcement failures fail
   closed; mandatory authorization/security gates may never silently no-op; blocking surfaces are
   minimal and effect-scoped; gates must be earnable.
 
@@ -393,7 +393,7 @@ Ownership boundaries:
 - **Audit Fix** (`skills/audit-fix/**`) is a workflow capability attached to a frozen Audit
   result: bounded remediation of admitted findings, preservation of the frozen Audit plan,
   same-plan rerun, remediation lifecycle. It is not Oracle; it is not Alchemist merely because it
-  writes; actual effects remain Guard-gated.
+  writes; actual effects remain under host permissions.
 - **Audit Visual** (`skills/audit-visual/**`) owns rendered-state enumeration, screenshots/
   baselines/regression evidence, visual-state coverage, clipping/overlap/missing-state findings,
   deterministic visual evaluation.

@@ -25,7 +25,7 @@ does not add a role, authorize effects, dispatch workers, or issue receipts.
    conflicts. Shared owner identities do not permit concurrent conflicting
    writes. A genuine direct or transitive dependency permits serialized writes;
    inventing step order does not create authority. Dispatch only ready units
-   within actual host capacity and the existing Guard/effect boundaries.
+   within actual host capacity and the existing host permission boundaries.
 5. Keep units `pending` until all named evidence is supplied as `passed` and all
    dependencies are complete. Evidence must match its requirement, predicate,
    owner, current unit identity/revision and exact artifact path/revision/digest.
@@ -47,7 +47,7 @@ Evidence is structurally checked caller-supplied assertion data. The validator
 does not inspect artifact bytes, execute checks, authenticate authors/reviewers,
 or prove that predicate descriptions are satisfied. A matching digest is a
 binding declaration, not a verified filesystem digest. Independent assurance and
-effect authorization continue through Oracle and Guard where required; this
+tool authorization continue through Oracle and host settings where required; this
 assessment cannot substitute for their evidence.
 
 The checked-in native fixture `engine/crates/legion-runtime/tests/workplan-ready.json`
