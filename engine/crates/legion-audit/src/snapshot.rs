@@ -24,16 +24,99 @@ fn io(error: impl std::fmt::Display) -> AuditError {
 fn hash(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
-pub(crate) fn uncovered_file_digest(path: &str, bytes: u64) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(b"legion-audit-oversize-v1\0");
-    hasher.update(bytes.to_be_bytes());
-    hasher.update([0]);
-    hasher.update(path.as_bytes());
-    format!("sha256:{}", hex::encode(hasher.finalize()))
-}
+/// Typed coverage-gap id for a file over `MAX_FILE_BYTES`.
+const OVERSIZED_FILE_GAP: &str = "oversized-file";
 fn oversize_gap(path: &str) -> String {
-    format!("oversize:{path}")
+    format!("{OVERSIZED_FILE_GAP}:{path}")
+}
+/// Git object format of the repository at `root` (`sha1` unless Git says `sha256`).
+pub(crate) fn object_format(root: &Path) -> &'static str {
+    match crate::trusted_git::run_stdout(
+        root,
+        &["rev-parse", "--show-object-format"],
+        std::time::Duration::from_secs(30),
+        256,
+    ) {
+        Some(out) if out.trim_ascii() == b"sha256" => "sha256",
+        _ => "sha1",
+    }
+}
+/// Git's own blob id for a committed file, in `<format>:<oid>` form.
+fn git_oid_digest(oid: &str) -> String {
+    format!("{}:{oid}", if oid.len() == 40 { "sha1" } else { "sha256" })
+}
+/// True for a well-formed `sha1:<40 hex>` or `sha256:<64 hex>` Git blob digest.
+pub(crate) fn valid_blob_digest(digest: &str) -> bool {
+    let Some((format, oid)) = digest.split_once(':') else {
+        return false;
+    };
+    let length = match format {
+        "sha1" => 40,
+        "sha256" => 64,
+        _ => return false,
+    };
+    oid.len() == length && oid.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+/// Git blob digest (the id `git hash-object` reports) of a worktree file,
+/// streamed so an oversized file is never held in memory. `size` is the length
+/// observed beforehand; a file that no longer has that length is source drift.
+pub(crate) fn worktree_blob_digest(
+    root: &Path,
+    path: &str,
+    format: &str,
+    size: u64,
+) -> Result<String, AuditError> {
+    use std::io::Read;
+    scope::safe_path(path)?;
+    let joined = root.join(path);
+    let parent = joined
+        .parent()
+        .ok_or_else(|| invalid("snapshot path has no parent"))?;
+    let name = joined
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| invalid("invalid snapshot filename"))?;
+    let mut file = StateDir::open(parent)
+        .map_err(io)?
+        .open_read(name, &rightkit_fs::handle::ReadOptions::new())
+        .map_err(io)?;
+    let header = format!("blob {size}\0");
+    let mut sha1 = <sha1::Sha1 as sha1::Digest>::new();
+    let mut sha256 = Sha256::new();
+    let sha1_format = format == "sha1";
+    if sha1_format {
+        sha1::Digest::update(&mut sha1, header.as_bytes());
+    } else {
+        sha256.update(header.as_bytes());
+    }
+    let mut buffer = vec![0u8; 1024 * 1024];
+    let mut seen = 0u64;
+    loop {
+        let read = file.read(&mut buffer).map_err(io)?;
+        if read == 0 {
+            break;
+        }
+        seen += read as u64;
+        if seen > size {
+            break;
+        }
+        if sha1_format {
+            sha1::Digest::update(&mut sha1, &buffer[..read]);
+        } else {
+            sha256.update(&buffer[..read]);
+        }
+    }
+    if seen != size {
+        return Err(AuditError::SourceDrift(format!(
+            "worktree oversized file changed while hashing:{path}"
+        )));
+    }
+    let oid = if sha1_format {
+        hex::encode(sha1::Digest::finalize(sha1))
+    } else {
+        hex::encode(sha256.finalize())
+    };
+    Ok(format!("{format}:{oid}"))
 }
 fn snapshot_key(
     scope: &ResolvedScope,
@@ -333,6 +416,7 @@ fn add_bytes(
 fn record_uncovered(
     path: &str,
     bytes: u64,
+    digest: String,
     mode: &str,
     selected: bool,
     uncovered: &mut BTreeMap<String, UncoveredSnapshotFile>,
@@ -340,7 +424,7 @@ fn record_uncovered(
 ) {
     let metadata = UncoveredFileMetadata {
         bytes,
-        digest: uncovered_file_digest(path, bytes),
+        digest,
         mode: mode.into(),
     };
     let row = uncovered.entry(path.into()).or_default();
@@ -408,9 +492,16 @@ impl FrozenSnapshot {
                     continue;
                 }
                 if meta.len() > MAX_FILE_BYTES as u64 {
+                    let digest = worktree_blob_digest(
+                        &scope.source_root,
+                        &path,
+                        object_format(&scope.source_root),
+                        meta.len(),
+                    )?;
                     record_uncovered(
                         &path,
                         meta.len(),
+                        digest,
                         mode,
                         true,
                         &mut uncovered_files,
@@ -425,7 +516,15 @@ impl FrozenSnapshot {
                 let entry = entry.ok_or_else(|| invalid("selected Git blob missing"))?;
                 let size = blob_size(&git, &entry.oid)?;
                 if size > MAX_FILE_BYTES as u64 {
-                    record_uncovered(&path, size, mode, true, &mut uncovered_files, &mut gaps);
+                    record_uncovered(
+                        &path,
+                        size,
+                        git_oid_digest(&entry.oid),
+                        mode,
+                        true,
+                        &mut uncovered_files,
+                        &mut gaps,
+                    );
                     continue;
                 }
                 source_cache
@@ -466,6 +565,7 @@ impl FrozenSnapshot {
                 record_uncovered(
                     path,
                     size,
+                    git_oid_digest(&entry.oid),
                     &entry.mode,
                     false,
                     &mut uncovered_files,
@@ -529,7 +629,14 @@ impl FrozenSnapshot {
                 let size = std::fs::symlink_metadata(scope.source_root.join(path))
                     .map_err(io)?
                     .len();
-                if size != selected.bytes {
+                if size != selected.bytes
+                    || worktree_blob_digest(
+                        &scope.source_root,
+                        path,
+                        selected.digest.split_once(':').map_or("sha1", |(f, _)| f),
+                        size,
+                    )? != selected.digest
+                {
                     return Err(AuditError::SourceDrift(format!(
                         "worktree oversized file changed during snapshot capture:{path}"
                     )));
@@ -837,13 +944,26 @@ impl FrozenSnapshot {
         }
         for (path, uncovered) in &m.uncovered_files {
             scope::safe_path(path)?;
-            for (metadata, side_files) in [
-                (uncovered.selected.as_ref(), &m.files),
-                (uncovered.base.as_ref(), &m.base_files),
+            for (metadata, side_files, git_entry) in [
+                (
+                    uncovered.selected.as_ref(),
+                    &m.files,
+                    if m.scope.head_kind == "worktree" {
+                        None
+                    } else {
+                        m.scope.selected_entries.get(path)
+                    },
+                ),
+                (
+                    uncovered.base.as_ref(),
+                    &m.base_files,
+                    m.scope.baseline_entries.get(path),
+                ),
             ] {
                 let Some(metadata) = metadata else { continue };
                 if metadata.bytes <= MAX_FILE_BYTES as u64
-                    || metadata.digest != uncovered_file_digest(path, metadata.bytes)
+                    || !valid_blob_digest(&metadata.digest)
+                    || git_entry.is_some_and(|e| metadata.digest != git_oid_digest(&e.oid))
                     || !matches!(metadata.mode.as_str(), "100644" | "100755")
                     || side_files.contains_key(path)
                     || !m.gaps.contains(&oversize_gap(path))

@@ -157,7 +157,13 @@ impl InventorySource for FilesystemInventorySource {
                     })?
                     .len();
                 if size > 32 * 1024 * 1024 {
-                    entries.push(oversize_inventory_entry(path, size));
+                    let digest = crate::snapshot::worktree_blob_digest(
+                        &self.root,
+                        &path,
+                        crate::snapshot::object_format(&self.root),
+                        size,
+                    )?;
+                    entries.push(oversize_inventory_entry(path, size, &digest));
                     continue;
                 }
             }
@@ -196,7 +202,11 @@ impl InventorySource for FilesystemInventorySource {
                         .as_ref()
                         .is_none_or(|only| only.contains(path))
                     {
-                        entries.push(oversize_inventory_entry(path.clone(), uncovered.bytes));
+                        entries.push(oversize_inventory_entry(
+                            path.clone(),
+                            uncovered.bytes,
+                            &uncovered.digest,
+                        ));
                     }
                 }
             }
@@ -220,7 +230,11 @@ impl InventorySource for FilesystemInventorySource {
                     continue;
                 }
                 if let Some(uncovered) = snapshot.uncovered_metadata(path, SnapshotSide::Base) {
-                    entries.push(oversize_inventory_entry(path.clone(), uncovered.bytes));
+                    entries.push(oversize_inventory_entry(
+                        path.clone(),
+                        uncovered.bytes,
+                        &uncovered.digest,
+                    ));
                     continue;
                 }
                 let bytes = snapshot.read(path, SnapshotSide::Base, 32 * 1024 * 1024)?;
@@ -341,8 +355,7 @@ fn inventory_entry(path: String, bytes: &[u8]) -> InventoryEntry {
     }
 }
 
-fn oversize_inventory_entry(path: String, bytes: u64) -> InventoryEntry {
-    let digest = crate::snapshot::uncovered_file_digest(&path, bytes);
+fn oversize_inventory_entry(path: String, bytes: u64, digest: &str) -> InventoryEntry {
     InventoryEntry {
         source_file: is_source_path(Path::new(&path)),
         path,
@@ -367,7 +380,7 @@ fn is_oversize_entry(entry: &InventoryEntry) -> bool {
     let Ok(bytes) = bytes.parse::<u64>() else {
         return false;
     };
-    bytes > 32 * 1024 * 1024 && digest == crate::snapshot::uncovered_file_digest(&entry.path, bytes)
+    bytes > 32 * 1024 * 1024 && crate::snapshot::valid_blob_digest(digest)
 }
 
 /// Dependency names declared by a recognised manifest (`Cargo.toml`,
