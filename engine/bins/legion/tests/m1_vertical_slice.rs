@@ -533,7 +533,7 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
         }}),
     );
     assert_eq!(
-        apple["result"]["structuredContent"]["data"]["backend"], "legion-apple",
+        apple["result"]["structuredContent"]["data"]["backend"], "rightkit-apple-ops",
         "{apple}"
     );
     let denied = request(

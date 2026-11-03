@@ -228,7 +228,7 @@ fn apple_tool_preflight(args: &[String]) -> i32 {
         }
         index += 1;
     }
-    match legion_apple::preflight::invoke(&json!({"list":list,"tools":ids})) {
+    match rightkit_apple_ops::preflight::invoke(&json!({"list":list,"tools":ids})) {
         Ok(value) => {
             println!("{}", serde_json::to_string_pretty(&value).unwrap());
             0

@@ -12,7 +12,7 @@ name = "audit_review_runtime"
 path = "tests/audit_review_runtime.rs"
 harness = false
 [dependencies]
-legion-apple = { path = "../../crates/legion-apple" }
+rightkit-apple-ops = "=0.1.1"
 clap.workspace = true
 hmac.workspace = true
 hex.workspace = true
@@ -32,13 +32,13 @@ legion-policy = { path = "../../crates/legion-policy" }
 legion-policy-model = { path = "../../crates/legion-policy-model" }
 legion-provider-sdk = { path = "../../crates/legion-provider-sdk" }
 legion-report = { path = "../../crates/legion-report" }
-legion-research = { path = "../../crates/legion-research" }
+rightkit-research = "=0.1.1"
 legion-review = { path = "../../crates/legion-review" }
 legion-rules = { path = "../../crates/legion-rules" }
 legion-runtime = { path = "../../crates/legion-runtime" }
 legion-topology = { path = "../../crates/legion-topology" }
 reqwest.workspace = true
-rightkit-child-process = "=0.5.6"
+rightkit-child-process = "=0.5.7"
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

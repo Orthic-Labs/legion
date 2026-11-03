@@ -2241,7 +2241,6 @@ dependencies = [
  "clap",
  "hex",
  "hmac 0.13.0",
- "legion-apple",
  "legion-application",
  "legion-arcane",
  "legion-audit",
@@ -2258,38 +2257,20 @@ dependencies = [
  "legion-policy-model",
  "legion-provider-sdk",
  "legion-report",
- "legion-research",
  "legion-review",
  "legion-rules",
  "legion-runtime",
  "legion-topology",
  "reqwest",
- "rightkit-child-process 0.5.6",
+ "rightkit-apple-ops",
+ "rightkit-child-process 0.5.7",
+ "rightkit-research",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "tokio",
  "tokio-util",
  "toml 1.1.8+spec-1.1.0",
-]
-
-[[package]]
-name = "legion-apple"
-version = "0.3.23"
-dependencies = [
- "brotli",
- "futures-util",
- "hex",
- "jsonwebtoken",
- "libc 1.0.0-alpha.5",
- "md-5",
- "regex",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tokio",
 ]
 
 [[package]]
@@ -2348,7 +2329,7 @@ dependencies = [
  "rightkit-agents",
  "rightkit-browser",
  "rightkit-cache",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process 0.5.7",
  "rightkit-fs",
  "rightkit-ownership",
  "serde",
@@ -2411,7 +2392,7 @@ dependencies = [
  "legion-audit",
  "legion-contracts",
  "regex",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process 0.5.7",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2429,7 +2410,7 @@ dependencies = [
  "legion-contracts",
  "legion-policy",
  "libc 1.0.0-alpha.5",
- "rightkit-sandbox 0.6.1",
+ "rightkit-sandbox 0.6.2",
  "serde_json",
  "sha2 0.11.1",
  "thiserror 2.0.21",
@@ -2571,24 +2552,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-research"
-version = "0.3.23"
-dependencies = [
- "hex",
- "hmac 0.13.0",
- "legion-contracts",
- "legion-provider-sdk",
- "legion-runtime",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2 0.11.1",
- "zip",
-]
-
-[[package]]
 name = "legion-review"
 version = "0.3.23"
 dependencies = [
@@ -2718,9 +2681,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.38.2"
+version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8"
+checksum = "14a5f01b87b92705d07b433c06f96cbc764637d81a0bffb5734ce17cf0f9a2b3"
 dependencies = [
  "cc",
  "pkg-config",
@@ -3861,7 +3824,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "568c86c8e68c6d26604a1867a7d4a3c356452c04edb0235b74466419393f56b9"
 dependencies = [
- "rightkit-daemon",
+ "rightkit-daemon 0.2.3",
  "serde",
  "serde_json",
 ]
@@ -3874,6 +3837,29 @@ checksum = "89d3cb9c04229026fcb4ac816e6bc2149d6729d2d0abe51d01fbcec2ead75378"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rightkit-apple-ops"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a486365b0daa7dbcd0dacd4d6b2e12058db9ef6665d5a4f9b8460c6fa052c40"
+dependencies = [
+ "base64 0.22.1",
+ "brotli",
+ "futures-util",
+ "hex",
+ "libc 1.0.0-alpha.5",
+ "md-5",
+ "p256 0.14.0",
+ "regex",
+ "reqwest",
+ "rightkit-engine-host",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tokio",
 ]
 
 [[package]]
@@ -3920,12 +3906,33 @@ dependencies = [
 
 [[package]]
 name = "rightkit-child-process"
-version = "0.5.6"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed35d3576ea81808f548e345b0cb51a76e9ef0b16bf39b43da1dbf8355aa4193"
+checksum = "e0f7d6f9418044bbcb4f53c7cca46abcb10626621aa678ba924fd19035aa94db"
 dependencies = [
  "libc 0.2.190",
  "windows",
+]
+
+[[package]]
+name = "rightkit-code-audit-provider-sdk"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65080760f571bb6154b0e62e816cbda94001475b7c168db085474828ff4fa7bc"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "hex",
+ "regex",
+ "reqwest",
+ "rightkit-evidence-contracts",
+ "rightkit-evidence-effects",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -3936,22 +3943,109 @@ checksum = "654016e0cda8f4919831e7ebf5002fd9318acd4f3d24729d9ad4c02b84f83346"
 dependencies = [
  "rightkit-child-process 0.4.0",
  "rightkit-fs",
- "rightkit-sidecar",
+ "rightkit-sidecar 0.2.0",
  "serde",
  "serde_json",
  "windows",
 ]
 
 [[package]]
-name = "rightkit-fs"
-version = "0.4.3"
+name = "rightkit-daemon"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbcfbcc92a12ccbd38ed67b825d5ca54e925b9b5bc9ab96cce807ca76415ecf0"
+checksum = "0ed3a8f1b257e36398d6d5d32d0b35ed5d3e23a730580fdec56ae61d8b151645"
+dependencies = [
+ "getrandom 0.4.3",
+ "rightkit-child-process 0.5.7",
+ "rightkit-fs",
+ "rightkit-sidecar 0.3.0",
+ "serde",
+ "serde_json",
+ "subtle",
+ "windows",
+]
+
+[[package]]
+name = "rightkit-db"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d111cff71be151f534bc2bf525a808ba7ea6b8552d22646790f1159bcd25e702"
+dependencies = [
+ "libc 0.2.190",
+ "rightkit-fs",
+ "rusqlite",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
+name = "rightkit-engine-host"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "805cc0dfaa7a1fa370de36c35210533526e8db3cc8aece65dfe2e95f1f9eb5d7"
+dependencies = [
+ "rightkit-daemon 0.5.1",
+ "rightkit-job-queue",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "rightkit-evidence-contracts"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba806ca20a44a0118deff8ee1ba6af3f64b80670868629162577ec18714a538a"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-evidence-effects"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a9ef2d68e1b6300a7172771c8ded8f4a812eb5aaa26bc7eaef7d1a9bf4fcc76"
+dependencies = [
+ "hex",
+ "libc 1.0.0-alpha.5",
+ "rightkit-evidence-contracts",
+ "rightkit-sandbox 0.6.2",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rightkit-fs"
+version = "0.4.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8acdea81e5e8a8bad23b5ce97821890e1c958cc488d2eefec7cc781a030eb06"
 dependencies = [
  "libc 0.2.190",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-job-queue"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e870d5e1e799e78169c0d5a1601274452b232d189a4b3741aa7b889e48dbd64"
+dependencies = [
+ "rightkit-child-process 0.5.7",
+ "rightkit-db",
+ "rightkit-fs",
+ "rightkit-sidecar 0.3.0",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -3975,6 +4069,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rightkit-research"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc2c4f65e8ad474377ccfb7f1b7ca1f55f62a13d0f7c759a3423decfcbfe2de5"
+dependencies = [
+ "hex",
+ "hmac 0.13.0",
+ "regex",
+ "reqwest",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2 0.11.1",
+ "zip",
+]
+
+[[package]]
 name = "rightkit-sandbox"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3987,13 +4100,13 @@ dependencies = [
 
 [[package]]
 name = "rightkit-sandbox"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc88dcb8ce6b88b80a715edc73a889b082b732abccdf419d2e2b76d7bc677976"
+checksum = "48d0491b5e878fe9d0a16fdd3c08cbd40ca1d7419b1f24e83b2a4f35ebc68b70"
 dependencies = [
  "libc 0.2.190",
  "portable-pty",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process 0.5.7",
  "windows",
 ]
 
@@ -4002,6 +4115,18 @@ name = "rightkit-sidecar"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e76b9fb669976682ed646d003c07fee688d9e22af8afc5b92cda578b011ec9eb"
+dependencies = [
+ "libc 0.2.190",
+ "serde",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rightkit-sidecar"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9f3646e8bf0c6828f3476502ab83e92ecab1d299e3fe0a4995c6a85a8f8e956"
 dependencies = [
  "libc 0.2.190",
  "serde",
@@ -4056,9 +4181,9 @@ dependencies = [
 
 [[package]]
 name = "rusqlite"
-version = "0.40.2"
+version = "0.41.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3"
+checksum = "da9bba6f3506135e120a6586df05be18b48d18896600646a4bec8f993d91a594"
 dependencies = [
  "bitflags 2.13.2",
  "fallible-iterator",
@@ -4760,7 +4885,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -5266,6 +5391,17 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "uuid"
+version = "1.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a0e2d11620c50695fe12bbbfde96b3477fe606e7284c22d505c12ce51214514"
+dependencies = [
+ "getrandom 0.4.3",
+ "js-sys",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "v_frame"
@@ -5782,7 +5918,7 @@ dependencies = [
  "clap",
  "hex",
  "regex",
- "rightkit-child-process 0.5.6",
+ "rightkit-child-process 0.5.7",
  "serde",
  "serde_json",
  "sha2 0.11.1",

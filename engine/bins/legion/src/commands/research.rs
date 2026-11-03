@@ -1,6 +1,6 @@
 use super::CommandResult;
 use clap::Args;
-use legion_research::research_port::{citecheck, ledger, meter, patch_guard, patcher, retraction};
+use rightkit_research::research_port::{citecheck, ledger, meter, patch_guard, patcher, retraction};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -98,25 +98,25 @@ pub struct ResearchArgs {
 #[allow(clippy::too_many_arguments)]
 fn terminal_unproven(
     query: String,
-    failures: Vec<legion_research::SourceFailure>,
+    failures: Vec<rightkit_research::SourceFailure>,
     available_source_records: usize,
     independent_provider_count: usize,
     required_independent_providers: usize,
     independence: Value,
     external_requests: usize,
-    route: &legion_research::ResearchRoute,
-    authorization: &legion_research::ResearchAuthorization,
+    route: &rightkit_research::ResearchRoute,
+    authorization: &rightkit_research::ResearchAuthorization,
     selected_provider_denominator: usize,
 ) -> CommandResult {
-    let report = legion_research::ResearchReport::terminal_unproven(query.clone(), failures)
+    let report = rightkit_research::ResearchReport::terminal_unproven(query.clone(), failures)
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
-    let budget = legion_research::BudgetSnapshot {
-        limits: legion_research::BudgetLimits::default(),
-        usage: legion_research::BudgetUsage::default(),
+    let budget = rightkit_research::BudgetSnapshot {
+        limits: rightkit_research::BudgetLimits::default(),
+        usage: rightkit_research::BudgetUsage::default(),
     };
     let stages = vec![
-        legion_research::StageRecord {
-            stage: legion_research::WorkflowStage::Created,
+        rightkit_research::StageRecord {
+            stage: rightkit_research::WorkflowStage::Created,
             completed: true,
             detail: Some(format!(
                 "route_frozen:{};allowed_effects:{};effect_grant:{};approval_receipts:{};selected_provider_denominator:{}",
@@ -127,13 +127,13 @@ fn terminal_unproven(
                 selected_provider_denominator
             )),
         },
-        legion_research::StageRecord {
-            stage: legion_research::WorkflowStage::Unproven,
+        rightkit_research::StageRecord {
+            stage: rightkit_research::WorkflowStage::Unproven,
             completed: true,
             detail: Some("required_host_evidence_unavailable_or_provider_denominator_unmet".into()),
         },
     ];
-    let receipt = legion_research::ResearchReceipt::from_terminal_bound(
+    let receipt = rightkit_research::ResearchReceipt::from_terminal_bound(
         &report,
         budget,
         stages,
@@ -165,19 +165,19 @@ fn terminal_unproven(
 
 fn terminal_cancelled(
     query: String,
-    route: &legion_research::ResearchRoute,
-    authorization: &legion_research::ResearchAuthorization,
+    route: &rightkit_research::ResearchRoute,
+    authorization: &rightkit_research::ResearchAuthorization,
     selected_provider_denominator: usize,
 ) -> CommandResult {
-    let report = legion_research::ResearchReport::terminal_cancelled(query.clone())
+    let report = rightkit_research::ResearchReport::terminal_cancelled(query.clone())
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
-    let budget = legion_research::BudgetSnapshot {
-        limits: legion_research::BudgetLimits::default(),
-        usage: legion_research::BudgetUsage::default(),
+    let budget = rightkit_research::BudgetSnapshot {
+        limits: rightkit_research::BudgetLimits::default(),
+        usage: rightkit_research::BudgetUsage::default(),
     };
     let stages = vec![
-        legion_research::StageRecord {
-            stage: legion_research::WorkflowStage::Created,
+        rightkit_research::StageRecord {
+            stage: rightkit_research::WorkflowStage::Created,
             completed: true,
             detail: Some(format!(
                 "route_frozen:{};allowed_effects:{};effect_grant:{};approval_receipts:{};selected_provider_denominator:{}",
@@ -188,13 +188,13 @@ fn terminal_cancelled(
                 selected_provider_denominator
             )),
         },
-        legion_research::StageRecord {
-            stage: legion_research::WorkflowStage::Cancelled,
+        rightkit_research::StageRecord {
+            stage: rightkit_research::WorkflowStage::Cancelled,
             completed: true,
             detail: Some("caller_cancellation_observed".into()),
         },
     ];
-    let receipt = legion_research::ResearchReceipt::from_terminal_bound(
+    let receipt = rightkit_research::ResearchReceipt::from_terminal_bound(
         &report,
         budget,
         stages,
@@ -222,10 +222,10 @@ fn terminal_cancelled(
 
 fn validate_route_input(
     query: &str,
-    route: legion_research::ResearchRoute,
+    route: rightkit_research::ResearchRoute,
     domain: Option<&str>,
     sensitivity: Option<&str>,
-) -> Result<legion_research::ResearchRoute, super::CommandError> {
+) -> Result<rightkit_research::ResearchRoute, super::CommandError> {
     if route.subject.query.as_deref() != Some(query) {
         return Err(super::CommandError::usage(
             "--route-json subject.query must exactly match --query",
@@ -248,7 +248,7 @@ fn validate_route_input(
 }
 
 fn route_unavailable_reason(
-    route: &legion_research::ResearchRoute,
+    route: &rightkit_research::ResearchRoute,
     has_source_records: bool,
 ) -> Option<&'static str> {
     if route.operation == "manage-corpus" || route.operation == "generate-artifact" {
@@ -280,15 +280,15 @@ fn route_unavailable_reason(
 fn terminal_route_unavailable(
     query: String,
     reason: &str,
-    route: &legion_research::ResearchRoute,
-    authorization: &legion_research::ResearchAuthorization,
+    route: &rightkit_research::ResearchRoute,
+    authorization: &rightkit_research::ResearchAuthorization,
     selected_provider_denominator: usize,
 ) -> CommandResult {
     let mut result = terminal_unproven(
         query,
-        vec![legion_research::SourceFailure {
+        vec![rightkit_research::SourceFailure {
             provider: route.provider.clone(),
-            stage: legion_research::WorkflowStage::Discovering,
+            stage: rightkit_research::WorkflowStage::Discovering,
             reason: reason.to_string(),
         }],
         0,
@@ -311,12 +311,12 @@ fn terminal_route_unavailable(
 fn resolve_route(
     query: &str,
     args: &ResearchArgs,
-) -> Result<legion_research::ResearchRoute, super::CommandError> {
+) -> Result<rightkit_research::ResearchRoute, super::CommandError> {
     if let Some(path) = &args.route_json {
         let bytes = std::fs::read(path).map_err(|error| {
             super::CommandError::usage(format!("cannot read --route-json: {error}"))
         })?;
-        let route: legion_research::ResearchRoute =
+        let route: rightkit_research::ResearchRoute =
             serde_json::from_slice(&bytes).map_err(|error| {
                 super::CommandError::usage(format!("invalid --route-json: {error}"))
             })?;
@@ -327,14 +327,14 @@ fn resolve_route(
             args.sensitivity.as_deref(),
         );
     }
-    let mut route = legion_research::ResearchRoute::host_injected_with(
+    let mut route = rightkit_research::ResearchRoute::host_injected_with(
         query,
         args.domain.as_deref().unwrap_or("general"),
         args.sensitivity.as_deref().unwrap_or("public"),
     );
     if route.domain == "medical" {
         route.subject.issue = Some(query.to_string());
-        route.subject.patient = Some(legion_research::ResearchPatient {
+        route.subject.patient = Some(rightkit_research::ResearchPatient {
             kind: "anonymous".into(),
             history_available: Some(false),
             ..Default::default()
@@ -355,7 +355,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         .clone()
         .ok_or_else(|| super::CommandError::usage("--query is required unless --step is given"))?;
     let route = resolve_route(&query, &args)?;
-    let authorization = legion_research::ResearchAuthorization::full(&route)
+    let authorization = rightkit_research::ResearchAuthorization::full(&route)
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
     let requested_provider_denominator = args
         .provider
@@ -380,7 +380,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             requested_provider_denominator,
         );
     }
-    let mut records = BTreeMap::<String, Vec<legion_research::SourceRecord>>::new();
+    let mut records = BTreeMap::<String, Vec<rightkit_research::SourceRecord>>::new();
     let mut failures = Vec::new();
     let mut digest_computed_source_ids = Vec::<String>::new();
     for path in &args.source_records {
@@ -400,7 +400,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         let source = match std::fs::read(path)
             .map_err(super::io_error)
             .and_then(|bytes| {
-                legion_research::SourceRecord::from_host_json(&bytes).map_err(|error| {
+                rightkit_research::SourceRecord::from_host_json(&bytes).map_err(|error| {
                     super::CommandError::usage(format!("invalid source record: {error}"))
                 })
             }) {
@@ -411,18 +411,18 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
                 source
             }
             Err(error) => {
-                failures.push(legion_research::SourceFailure {
+                failures.push(rightkit_research::SourceFailure {
                     provider: path.display().to_string(),
-                    stage: legion_research::WorkflowStage::Discovering,
+                    stage: rightkit_research::WorkflowStage::Discovering,
                     reason: format!("host source record unavailable: {}", error.message),
                 });
                 continue;
             }
         };
         if let Err(error) = source.validate() {
-            failures.push(legion_research::SourceFailure {
+            failures.push(rightkit_research::SourceFailure {
                 provider: source.provider.clone(),
-                stage: legion_research::WorkflowStage::Discovering,
+                stage: rightkit_research::WorkflowStage::Discovering,
                 reason: format!("host source record rejected: {error}"),
             });
             continue;
@@ -433,9 +433,9 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             .push(source);
     }
     if records.is_empty() {
-        failures.push(legion_research::SourceFailure {
+        failures.push(rightkit_research::SourceFailure {
             provider: "host-injected-sources".into(),
-            stage: legion_research::WorkflowStage::Discovering,
+            stage: rightkit_research::WorkflowStage::Discovering,
             reason: "required host-injected source records are unavailable".into(),
         });
         return terminal_unproven(
@@ -466,7 +466,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>()
     };
-    let independence = legion_research::summarize_independence(
+    let independence = rightkit_research::summarize_independence(
         records
             .iter()
             .filter(|(provider, _)| providers.contains(*provider))
@@ -476,9 +476,9 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
     let independence_basis =
         independence_basis_json(&independence, args.allow_self_declared_independence);
     if independent_provider_count < args.min_independent_providers {
-        failures.push(legion_research::SourceFailure {
+        failures.push(rightkit_research::SourceFailure {
             provider: "provider-denominator".into(),
-            stage: legion_research::WorkflowStage::Discovering,
+            stage: rightkit_research::WorkflowStage::Discovering,
             reason: "independent source-provider requirement is unmet".into(),
         });
         return terminal_unproven(
@@ -499,7 +499,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
         );
     }
     let providers = providers.into_iter().collect::<Vec<_>>();
-    let request = legion_research::WorkflowRequest {
+    let request = rightkit_research::WorkflowRequest {
         schema_version: 1,
         query,
         source_providers: providers,
@@ -509,12 +509,12 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
     request
         .validate()
         .map_err(|error| super::CommandError::usage(error.to_string()))?;
-    let workflow_cancellation = legion_research::Cancellation::from_probe({
+    let workflow_cancellation = rightkit_research::Cancellation::from_probe({
         let caller = cancellation.clone();
         move || caller.is_cancelled()
     });
-    let mut workflow = legion_research::ResearchWorkflow::new(
-        legion_research::BudgetLimits::default(),
+    let mut workflow = rightkit_research::ResearchWorkflow::new(
+        rightkit_research::BudgetLimits::default(),
         Instant::now() + Duration::from_secs(30),
         workflow_cancellation,
     );
@@ -532,16 +532,16 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
     for failure in failures.iter().chain(outcome.failures.iter()) {
         failure_values.push(serde_json::to_value(failure).map_err(super::io_error)?);
     }
-    let status = if outcome.status == legion_research::WorkflowStatus::Ok
+    let status = if outcome.status == rightkit_research::WorkflowStatus::Ok
         && !failure_values.is_empty()
     {
-        serde_json::to_value(legion_research::WorkflowStatus::Partial).map_err(super::io_error)?
+        serde_json::to_value(rightkit_research::WorkflowStatus::Partial).map_err(super::io_error)?
     } else {
         serde_json::to_value(outcome.status).map_err(super::io_error)?
     };
     let incomplete =
-        outcome.status != legion_research::WorkflowStatus::Ok || !failure_values.is_empty();
-    let receipt = legion_research::ResearchReceipt::from_outcome(&outcome)
+        outcome.status != rightkit_research::WorkflowStatus::Ok || !failure_values.is_empty();
+    let receipt = rightkit_research::ResearchReceipt::from_outcome(&outcome)
         .map_err(|error| super::CommandError::incomplete(error.to_string()))?;
     let external_requests = receipt.external_requests;
     let evidence = outcome.ledger.records().cloned().collect::<Vec<_>>();
@@ -571,7 +571,7 @@ pub fn run(args: ResearchArgs, cancellation: CancellationToken) -> CommandResult
 
 /// Truthful independence report: count basis, keys, and whether any key is self-declared.
 fn independence_basis_json(
-    summary: &legion_research::IndependenceSummary,
+    summary: &rightkit_research::IndependenceSummary,
     allow_self_declared: bool,
 ) -> Value {
     json!({
@@ -585,15 +585,15 @@ fn independence_basis_json(
 
 struct RecordSource {
     provider: String,
-    records: Vec<legion_research::SourceRecord>,
+    records: Vec<rightkit_research::SourceRecord>,
 }
 
-impl legion_research::SourceClient for RecordSource {
+impl rightkit_research::SourceClient for RecordSource {
     fn provider(&self) -> &str {
         &self.provider
     }
 
-    fn estimated_bytes(&self, hit: &legion_research::SourceHit) -> u64 {
+    fn estimated_bytes(&self, hit: &rightkit_research::SourceHit) -> u64 {
         self.records
             .iter()
             .find(|record| record.source_id == hit.source_id)
@@ -606,16 +606,16 @@ impl legion_research::SourceClient for RecordSource {
         _: &str,
         limit: u32,
         _: Instant,
-        cancellation: &legion_research::Cancellation,
-    ) -> Result<Vec<legion_research::SourceHit>, legion_research::ResearchError> {
+        cancellation: &rightkit_research::Cancellation,
+    ) -> Result<Vec<rightkit_research::SourceHit>, rightkit_research::ResearchError> {
         if cancellation.is_cancelled() {
-            return Err(legion_research::ResearchError::Cancelled);
+            return Err(rightkit_research::ResearchError::Cancelled);
         }
         Ok(self
             .records
             .iter()
             .take(limit as usize)
-            .map(|record| legion_research::SourceHit {
+            .map(|record| rightkit_research::SourceHit {
                 source_id: record.source_id.clone(),
                 uri: record.uri.clone(),
                 title: record.title.clone(),
@@ -627,19 +627,19 @@ impl legion_research::SourceClient for RecordSource {
 
     fn open(
         &self,
-        hit: &legion_research::SourceHit,
+        hit: &rightkit_research::SourceHit,
         _: Instant,
-        cancellation: &legion_research::Cancellation,
-    ) -> Result<legion_research::SourceRecord, legion_research::ResearchError> {
+        cancellation: &rightkit_research::Cancellation,
+    ) -> Result<rightkit_research::SourceRecord, rightkit_research::ResearchError> {
         if cancellation.is_cancelled() {
-            return Err(legion_research::ResearchError::Cancelled);
+            return Err(rightkit_research::ResearchError::Cancelled);
         }
         self.records
             .iter()
             .find(|record| record.source_id == hit.source_id)
             .cloned()
             .ok_or_else(|| {
-                legion_research::ResearchError::InvalidSource("source hit is unavailable".into())
+                rightkit_research::ResearchError::InvalidSource("source hit is unavailable".into())
             })
     }
 }
@@ -712,10 +712,10 @@ fn step_ledger_render(args: &ResearchArgs) -> CommandResult {
     let evidence = read_jsonl(required_path(&args.evidence, "--evidence")?)?;
     let claims = read_jsonl(required_path(&args.claims, "--claims")?)?;
     let out = required_path(&args.out, "--out")?;
-    let as_of = legion_research::research_port::today();
+    let as_of = rightkit_research::research_port::today();
     match ledger::render(&evidence, &claims, &args.title, &as_of) {
         Ok(text) => {
-            legion_research::research_port::atomic_write_text(out, &text)
+            rightkit_research::research_port::atomic_write_text(out, &text)
                 .map_err(super::io_error)?;
             Ok(step_envelope(
                 "ledger-render",
@@ -830,9 +830,9 @@ fn step_retraction(args: &ResearchArgs, cancellation_token: &CancellationToken) 
         .spawn(move || {
             use std::cell::RefCell;
             let cancellation =
-                legion_research::Cancellation::from_probe(move || thread_token.is_cancelled());
-            let budget = RefCell::new(legion_research::BudgetAccount::from_timeout(
-                legion_research::BudgetLimits::default(),
+                rightkit_research::Cancellation::from_probe(move || thread_token.is_cancelled());
+            let budget = RefCell::new(rightkit_research::BudgetAccount::from_timeout(
+                rightkit_research::BudgetLimits::default(),
                 Duration::from_secs(30),
             ));
             let seen_sources = RefCell::new(std::collections::BTreeSet::new());
@@ -945,7 +945,7 @@ fn step_issue_patch(args: &ResearchArgs) -> CommandResult {
         ));
     }
     let receipt_text = serde_json::to_string_pretty(&receipt).map_err(super::io_error)? + "\n";
-    legion_research::research_port::atomic_write_text(out, &receipt_text)
+    rightkit_research::research_port::atomic_write_text(out, &receipt_text)
         .map_err(super::io_error)?;
     Ok(step_envelope(
         "issue-patch",
@@ -992,32 +992,32 @@ mod route_tests {
 
     #[test]
     fn typed_route_accepts_anonymous_medical_and_complete_legal_context() {
-        let mut medical = legion_research::ResearchRoute::host_injected_with(
+        let mut medical = rightkit_research::ResearchRoute::host_injected_with(
             "general dosing evidence",
             "medical",
             "public",
         );
         medical.subject.issue = Some("evidence for typical adult dosing".into());
-        medical.subject.patient = Some(legion_research::ResearchPatient {
+        medical.subject.patient = Some(rightkit_research::ResearchPatient {
             kind: "anonymous".into(),
             ..Default::default()
         });
         assert!(validate_route_input("general dosing evidence", medical, None, None).is_ok());
 
-        let mut legal = legion_research::ResearchRoute::host_injected_with(
+        let mut legal = rightkit_research::ResearchRoute::host_injected_with(
             "tenant notice rules",
             "legal",
             "public",
         );
-        legal.subject.country = Some(legion_research::NullableString::Value("IN".into()));
-        legal.subject.area = Some(legion_research::NullableString::Value("consumer".into()));
+        legal.subject.country = Some(rightkit_research::NullableString::Value("IN".into()));
+        legal.subject.area = Some(rightkit_research::NullableString::Value("consumer".into()));
         legal.subject.issue = Some("notice before consumer complaint".into());
         assert!(validate_route_input("tenant notice rules", legal, None, None).is_ok());
     }
 
     #[test]
     fn typed_route_rejects_query_mismatch_and_explicit_flag_conflicts() {
-        let route = legion_research::ResearchRoute::host_injected("bound query");
+        let route = rightkit_research::ResearchRoute::host_injected("bound query");
         assert!(validate_route_input("other query", route.clone(), None, None).is_err());
         assert!(validate_route_input("bound query", route.clone(), Some("medical"), None).is_err());
         assert!(validate_route_input("bound query", route, None, Some("private")).is_err());
@@ -1025,7 +1025,7 @@ mod route_tests {
 
     #[test]
     fn unsupported_stateful_route_is_marked_unavailable() {
-        let mut route = legion_research::ResearchRoute::host_injected("query");
+        let mut route = rightkit_research::ResearchRoute::host_injected("query");
         route.operation = "manage-corpus".into();
         assert!(route_unavailable_reason(&route, false).is_some());
         route.operation = "discover".into();
