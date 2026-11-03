@@ -145,6 +145,14 @@ fn dispatch_inner(request: HookRequest) -> HookResponse {
 }
 
 fn pre_effect_response(request: HookRequest) -> HookResponse {
+    if branch_delete_hides_name_in_expansion(&request.payload) {
+        return HookResponse::denied(
+            request.event_type,
+            "ARC_EFFECT_CLASS_UNAUTHORIZED",
+            "destructive command class is blocked; use a bounded, reversible alternative",
+            "strong",
+        );
+    }
     if is_destructive_command(&request.payload) {
         return HookResponse::denied(
             request.event_type,
@@ -207,11 +215,12 @@ fn pre_effect_response(request: HookRequest) -> HookResponse {
     // that would otherwise proceed is handed to the host prompt for a branch
     // deletion, which the operator answers.
     if response.allowed && branch_delete_requires_confirmation(&request.payload) {
-        return HookResponse::ask(
-            request.event_type,
-            "ARC_USER_CONFIRMATION_REQUIRED",
-            "Guard needs your confirmation: this command deletes git branches. Approve only if you asked for this deletion; deleting the default branch, rewriting history and deleting a repository stay refused.",
-        );
+        let reason = if command_prunes_remote_branches(&request.payload) {
+            "Guard needs your confirmation: this command may delete any remote branch without a local counterpart, including the default branch. Approve only if you asked for this deletion; rewriting history and deleting a repository stay refused."
+        } else {
+            "Guard needs your confirmation: this command deletes git branches. Approve only if you asked for this deletion; deleting the default branch, rewriting history and deleting a repository stay refused."
+        };
+        return HookResponse::ask(request.event_type, "ARC_USER_CONFIRMATION_REQUIRED", reason);
     }
     response
 }
@@ -2408,32 +2417,31 @@ fn push_branch_delete_verdict(arguments: &[&str]) -> Option<BranchDelete> {
     branches_delete_verdict(&branches, false)
 }
 
-/// Words of a command with redirections (`2>&1`, `> file`, `&>log`) removed.
-fn without_redirections(arguments: &[String]) -> Vec<&str> {
+/// Words of a command with attached redirections (`2>&1`, `>file`, `&>log`)
+/// removed. `None` when a redirection operator stands alone (`>`, `2>>`, `<`):
+/// its target is the next word, but the words no longer show whether the
+/// operator was quoted, so a literal `'>'` could hide a branch name.
+fn without_redirections(arguments: &[String]) -> Option<Vec<&str>> {
     let mut kept = Vec::new();
-    let mut skip_target = false;
     for argument in arguments {
         let argument = argument.as_str();
-        if skip_target {
-            skip_target = false;
-            continue;
-        }
         let redirect = argument.trim_start_matches(|c: char| c.is_ascii_digit());
         if redirect.starts_with(['>', '<']) || argument.starts_with("&>") {
-            // `>` or `2>>` alone takes the next word as its target.
-            skip_target = redirect.chars().all(|c| matches!(c, '>' | '<'));
+            if redirect.chars().all(|c| matches!(c, '>' | '<')) {
+                return None;
+            }
             continue;
         }
         kept.push(argument);
     }
-    kept
+    Some(kept)
 }
 
 /// The verdict for one segment's words, when it is a `git branch` or `git push`
 /// that deletes branches.
 fn branch_delete_verdict(words: &[String]) -> Option<BranchDelete> {
     let (subcommand, arguments) = program_subcommand(words, "git", &GIT_VALUE_FLAGS)?;
-    let arguments = without_redirections(arguments);
+    let arguments = without_redirections(arguments)?;
     match subcommand {
         "branch" => local_branch_delete_verdict(&arguments),
         "push" => push_branch_delete_verdict(&arguments),
@@ -2464,6 +2472,40 @@ fn branch_delete_requires_confirmation(payload: &Value) -> bool {
         return false;
     };
     command_value(object).is_some_and(|command| command_deletes_branches(&command))
+}
+
+/// A command substitution or process substitution (`$(`, a backtick, `<(`,
+/// `>(`) on a line that deletes branches. The segmenter cuts at the
+/// substitution, so the verdict could see `ma` where the shell builds `main`;
+/// such a line is refused rather than confirmed.
+fn branch_delete_hides_name_in_expansion(payload: &Value) -> bool {
+    let Some(object) = payload.as_object() else {
+        return false;
+    };
+    command_value(object).is_some_and(|command| {
+        ["$(", "`", "<(", ">("]
+            .iter()
+            .any(|marker| command.contains(marker))
+            && command_deletes_branches(&command)
+    })
+}
+
+/// Whether the confirmed command is a `git push --prune`, which deletes
+/// remote branches the command line does not name.
+fn command_prunes_remote_branches(payload: &Value) -> bool {
+    let Some(object) = payload.as_object() else {
+        return false;
+    };
+    command_value(object).is_some_and(|command| {
+        command_segments(&command).iter().any(|segment| {
+            let words = shell_words(strip_launchers(segment.trim_start()).0);
+            program_subcommand(&words, "git", &GIT_VALUE_FLAGS).is_some_and(
+                |(subcommand, arguments)| {
+                    subcommand == "push" && arguments.iter().any(|argument| argument == "--prune")
+                },
+            )
+        })
+    })
 }
 
 /// Deleting a whole repository: `gh repo delete`, or a `DELETE` of
@@ -2874,8 +2916,10 @@ fn tool_deletes_state(words: &[String], original_words: &[String]) -> bool {
                     };
                     let long = |name: &str| original.iter().any(|argument| argument == name);
                     let delete = bundle('d') || bundle('D') || long("--delete");
-                    let force = bundle('D') || bundle('f') || long("--force");
-                    delete && force
+                    // An unparseable deletion (substitution, variable, pipe to
+                    // xargs) is refused whether or not it forces; the plain
+                    // forms were already confirmed before this point.
+                    delete
                 },
             ),
             "tag" => arguments.iter().any(|argument| {
@@ -5437,6 +5481,7 @@ mod tests {
             "git -C repo branch -D stale-branch",
             "git -c user.name=x push origin --delete stale-branch",
             "git push origin --delete 'stale-branch' 2>&1",
+            "git branch -d stale-branch >/dev/null",
             "sudo git branch -D stale-branch",
             "bash -c 'git branch -D stale-branch'",
             "echo ok && git push origin --delete stale-branch",
@@ -5477,6 +5522,12 @@ mod tests {
             "git ls-files | xargs git push origin --delete",
             "git branch -D 'x$(id)'",
             "git branch -D $(git branch --show-current)",
+            "git push origin --delete foo '>' main",
+            "git push origin --delete foo \\> main",
+            "git branch -D foo '>' main",
+            "git branch -d $(echo main)",
+            "git branch -d \"$B\"",
+            "git branch | xargs git branch -d",
             "git branch -D stale-branch && rm -rf /tmp/x",
             "git push origin --delete stale-branch; git push --force origin main",
             "git push origin --delete stale-branch && git reset --hard",
@@ -5501,6 +5552,37 @@ mod tests {
             dispatch(pre_effect("git branch -D main")).code.as_deref(),
             Some("ARC_EFFECT_CLASS_UNAUTHORIZED")
         );
+    }
+
+    /// A substitution can build a default branch name the verdict only sees in
+    /// pieces (`ma` + `in`), so a branch deletion carrying one is refused.
+    #[test]
+    fn branch_deletion_with_substitution_is_refused_not_confirmed() {
+        for command in [
+            "git push origin --delete ma$(printf in)",
+            "git branch -D ma`echo in`",
+        ] {
+            let response = dispatch(pre_effect(command));
+            assert!(!response.allowed && !response.ask, "{command}");
+            assert_eq!(
+                response.code.as_deref(),
+                Some("ARC_EFFECT_CLASS_UNAUTHORIZED"),
+                "{command}"
+            );
+        }
+    }
+
+    /// Pruning may delete the default branch, and the prompt says so; a plain
+    /// deletion keeps the ordinary wording.
+    #[test]
+    fn prune_confirmation_names_the_default_branch_risk() {
+        let prune = dispatch(pre_effect("git push --prune origin"));
+        assert!(prune.ask);
+        assert!(prune.reason.contains("including the default branch"));
+        let plain = dispatch(pre_effect("git branch -D stale-branch"));
+        assert!(plain.ask);
+        assert!(plain.reason.contains("this command deletes git branches"));
+        assert!(!plain.reason.contains("including the default branch"));
     }
 
     /// Tags and other commands are untouched by the branch rule.
