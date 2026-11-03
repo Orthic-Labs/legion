@@ -22,7 +22,7 @@ tar.workspace = true
 flate2.workspace = true
 brotli.workspace = true
 zip.workspace = true
-ed25519-dalek = "=2.2.0"
+ed25519-dalek = "=3.0.0"
 rightkit-evidence-contracts = "=0.1.0"
 legion-identity = { path = "../../crates/legion-identity" }
 legion-audit = { path = "../../crates/legion-audit" }

@@ -62,9 +62,9 @@ tar = "0.4"
 flate2 = "1"
 brotli = "9.0.0"
 headless_chrome = "1"
-lopdf = "0.45.0"
+lopdf = "0.46.0"
 image = "0.25"
-scraper = "0.27.0"
+scraper = "0.29.0"
 
 [profile.release]
 panic = "unwind"
