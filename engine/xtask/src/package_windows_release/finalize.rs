@@ -376,4 +376,3 @@ pub fn finalize_windows_direct_release(options: FinalizeOptions) -> Result<Value
         "github": github,
     }))
 }
-

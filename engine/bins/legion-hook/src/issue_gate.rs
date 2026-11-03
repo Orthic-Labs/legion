@@ -7,7 +7,8 @@ use crate::protocol::{HookRequest, HookResponse};
 use crate::state::{off, str_field, tool_input};
 
 const MESSAGE: &str = "Search first: gh issue list -R <repo> --search '<terms>' --state all; then add a line to the body: 'Checked: #12, #34 (search \"<terms>\")' or 'Checked: none found (search \"<terms>\")'.";
-const LABEL_MESSAGE: &str = "Give the issue exactly one label: --label pipeline, decision, incident, bug or request.";
+const LABEL_MESSAGE: &str =
+    "Give the issue exactly one label: --label pipeline, decision, incident, bug or request.";
 const DECISION_MESSAGE: &str = "A decision issue needs a line 'Contract: <doc> <clause>' and the boxes '- [ ] written-in-contract', '- [ ] enforced-in-code (path:line)' and '- [ ] verified-by-run (receipt)'.";
 const TYPE_LABELS: [&str; 5] = ["pipeline", "decision", "incident", "bug", "request"];
 
@@ -173,11 +174,18 @@ mod tests {
 
     #[test]
     fn checked_line_needs_search_terms() {
-        let refused = |body: &str| check(&format!("gh issue create --label bug --body '{body}'"), "");
+        let refused =
+            |body: &str| check(&format!("gh issue create --label bug --body '{body}'"), "");
         assert_eq!(refused("Checked: #12"), Some(MESSAGE.to_owned()));
         assert_eq!(refused("Checked: none found"), Some(MESSAGE.to_owned()));
-        assert_eq!(refused("Checked: #12 (search \"\")"), Some(MESSAGE.to_owned()));
-        assert_eq!(refused("Checked: #12 (search hook)"), Some(MESSAGE.to_owned()));
+        assert_eq!(
+            refused("Checked: #12 (search \"\")"),
+            Some(MESSAGE.to_owned())
+        );
+        assert_eq!(
+            refused("Checked: #12 (search hook)"),
+            Some(MESSAGE.to_owned())
+        );
         assert!(refused("Checked: #12 (search \"hook\")").is_none());
     }
 
@@ -201,7 +209,8 @@ mod tests {
         let checked = "Checked: none found (search \"contract\")";
         let contract = "Contract: docs/contracts/BROKER.md broker-03";
         let boxes = "- [ ] written-in-contract\n- [ ] enforced-in-code (path:line)\n- [ ] verified-by-run (receipt)";
-        let issue = |body: &str| format!("gh issue create --label decision --title x --body '{body}'");
+        let issue =
+            |body: &str| format!("gh issue create --label decision --title x --body '{body}'");
         assert_eq!(
             check(&issue(&format!("{checked}\n{boxes}")), ""),
             Some(DECISION_MESSAGE.to_owned())
@@ -224,9 +233,17 @@ mod tests {
         fs::write(dir.join("ok.md"), "Checked: none found (search \"x\")").unwrap();
         fs::write(dir.join("no.md"), "no line here").unwrap();
         let cwd = dir.to_string_lossy();
-        assert!(check("gh issue create --label bug --title x --body-file ok.md", &cwd).is_none());
+        assert!(check(
+            "gh issue create --label bug --title x --body-file ok.md",
+            &cwd
+        )
+        .is_none());
         assert!(check("gh issue create --label bug --title x -F no.md", &cwd).is_some());
-        assert!(check("gh issue create --label bug --title x --body-file missing.md", &cwd).is_none());
+        assert!(check(
+            "gh issue create --label bug --title x --body-file missing.md",
+            &cwd
+        )
+        .is_none());
     }
 
     #[test]
@@ -238,6 +255,10 @@ mod tests {
             check(&format!("gh api repos/o/r/issues -f title=x {body}"), ""),
             Some(LABEL_MESSAGE.to_owned())
         );
-        assert!(check(&format!("gh api repos/o/r/issues -f title=x {body} -f labels[]=bug"), "").is_none());
+        assert!(check(
+            &format!("gh api repos/o/r/issues -f title=x {body} -f labels[]=bug"),
+            ""
+        )
+        .is_none());
     }
 }

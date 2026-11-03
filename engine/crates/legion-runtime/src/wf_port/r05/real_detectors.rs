@@ -41,8 +41,7 @@ use super::super::w2_012::detect_text::{
     run_page_level_analyzers, run_text_content_analyzers, should_run_page_analyzers,
 };
 use super::super::w2_013::detect_html::{
-    classify_img_src, find_broken_images, is_full_page, page_findings, static_element_findings,
-    StaticStylesheet,
+    find_broken_images, is_full_page, page_findings, static_element_findings, StaticStylesheet,
 };
 use super::output::CliFinding;
 use std::collections::{HashMap, HashSet};
@@ -438,11 +437,6 @@ pub fn sweep(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>) -> V
         .into_iter()
         .map(|sf| CliFinding::new(sf.antipattern, sf.file, 0, sf.detail))
         .collect()
-}
-
-#[allow(unused)]
-fn assert_classify(src: Option<&str>) -> Option<String> {
-    classify_img_src(src)
 }
 
 /// [`super::cli::Detectors`] wired to the production engines: regex/design
