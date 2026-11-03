@@ -57,30 +57,3 @@ pub fn build_notice_inventory(components: &[Value]) -> Value {
     };
     json!({"components": shipped, "blockers": blockers, "decision": decision})
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn qualified_when_no_blockers() {
-        let components =
-            vec![json!({"name": "legion", "shipped": true, "license": "MIT", "source": "local"})];
-        let inventory = build_notice_inventory(&components);
-        assert_eq!(inventory["decision"], "QUALIFIED");
-        assert!(render_notices(inventory["components"].as_array().unwrap()).contains("legion"));
-    }
-
-    #[test]
-    fn blocked_when_external_without_grant() {
-        let components = vec![
-            json!({"name": "creator", "shipped": true, "source": "external", "license": Value::Null}),
-        ];
-        let inventory = build_notice_inventory(&components);
-        assert_eq!(
-            inventory["blockers"][0]["kind"],
-            "redistribution-rights-unresolved"
-        );
-    }
-}

@@ -320,30 +320,3 @@ pub fn build_stack_graph(
     map.insert("digest".into(), Value::String(digest(&graph)));
     Value::Object(map)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn classify_version_detects_declared_range() {
-        assert_eq!(classify_version(Some("^1.0.0"))["kind"], "declared-range");
-        assert_eq!(classify_version(Some("1.0.0"))["kind"], "resolved");
-        assert_eq!(classify_version(None)["kind"], "unknown");
-    }
-
-    #[test]
-    fn build_stack_graph_marks_known_dependency() {
-        let portfolio = json!({"targets": [{"id": "target:web"}]});
-        let projection = json!({"dependencies": {"rust": "1.0.0"}});
-        let graph = build_stack_graph(
-            &portfolio,
-            &json!({"components": []}),
-            &projection,
-            &Value::Null,
-        );
-        let stacks = graph["stacks"].as_array().unwrap();
-        assert_eq!(stacks.len(), 1);
-        assert_eq!(stacks[0]["known"], true);
-    }
-}

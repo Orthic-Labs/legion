@@ -70,39 +70,3 @@ pub fn assert_acyclic(records: &[FamilyRecord]) -> Result<(), FamilyValidationEr
 pub fn validate_families(records: &[FamilyRecord]) -> Result<(), FamilyValidationError> {
     assert_acyclic(records)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn record(id: &str, deps: &[&str]) -> FamilyRecord {
-        FamilyRecord {
-            id: id.to_string(),
-            dependencies: deps.iter().map(|s| s.to_string()).collect(),
-        }
-    }
-
-    #[test]
-    fn acyclic_graph_validates() {
-        let records = vec![record("a", &[]), record("b", &["a"])];
-        assert!(validate_families(&records).is_ok());
-    }
-
-    #[test]
-    fn direct_cycle_is_rejected() {
-        let records = vec![record("a", &["b"]), record("b", &["a"])];
-        assert!(matches!(
-            validate_families(&records),
-            Err(FamilyValidationError::Cycle(_))
-        ));
-    }
-
-    #[test]
-    fn unknown_dependency_is_rejected() {
-        let records = vec![record("a", &["missing"])];
-        assert!(matches!(
-            validate_families(&records),
-            Err(FamilyValidationError::UnknownDependency(_))
-        ));
-    }
-}

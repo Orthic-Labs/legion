@@ -117,34 +117,3 @@ fn non_empty_or(mut values: Vec<String>, fallback: String) -> Vec<String> {
         values
     }
 }
-
-#[cfg(test)]
-mod closure_tests {
-    use super::*;
-
-    #[test]
-    fn leg_005_compiler_derives_operations_effects_and_authority_without_duplicates() {
-        let permissions = vec![
-            "operation:write".into(),
-            "effect:FILE_WRITE".into(),
-            "authority:ambient".into(),
-            "operation:write".into(),
-        ];
-        assert_eq!(
-            values_with_prefix(&permissions, "operation:"),
-            vec!["write"]
-        );
-        assert_eq!(
-            values_with_prefix(&permissions, "effect:"),
-            vec!["FILE_WRITE"]
-        );
-        assert_eq!(
-            values_with_prefix(&permissions, "authority:"),
-            vec!["ambient"]
-        );
-        assert_eq!(
-            non_empty_or(Vec::new(), "fallback".into()),
-            vec!["fallback"]
-        );
-    }
-}

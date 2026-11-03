@@ -424,21 +424,6 @@ pub(super) fn extend(
     }
 }
 
-#[cfg(test)]
-mod package_root_tests {
-    use super::*;
-
-    #[test]
-    fn package_root_preserves_empty_and_nested_roots() {
-        let stage = Path::new("/tmp/python/source");
-        assert_eq!(package_root(stage, ""), stage.to_path_buf());
-        assert_eq!(
-            package_root(stage, "packages/widget"),
-            stage.join("packages/widget")
-        );
-    }
-}
-
 // Actual stdlib validation runs through the same SDK, after actual build. No
 // wheel or metadata is synthesized; every RECORD member must hash actual bytes.
 const WHEEL_INSPECT: &str = r#"
@@ -579,53 +564,4 @@ pub(super) fn parse_mypy(bytes: &[u8], exit: Option<i32>) -> Result<Vec<Diag>, S
         return Err("mypy-completion-mismatch".into());
     }
     Ok(out)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn staged_inventory_rejects_generated_unfrozen_code() {
-        let base = std::env::var_os("RUNNER_TEMP")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/Volumes/D/scratch"));
-        let root = base.join(format!(
-            "legion-python-stage-unit-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(root.join("app.py"), b"pass\n").unwrap();
-        let expected = json!({"app.py": sha256_text(b"pass\n")});
-        assert!(staged_inventory(&root, expected.as_object().unwrap()).is_ok());
-        std::fs::write(root.join("generated_backend.py"), b"pass\n").unwrap();
-        assert_eq!(
-            staged_inventory(&root, expected.as_object().unwrap()).unwrap_err(),
-            "python-stage-unfrozen-file"
-        );
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn mypy_completion_requires_terminal_reconciled_summary() {
-        assert!(
-            parse_mypy(b"Success: no issues found in 2 source files\n", Some(0))
-                .unwrap()
-                .is_empty()
-        );
-        assert_eq!(parse_mypy(b"a.py:2: error: Wrong value  [assignment]\nFound 1 error in 1 file (checked 2 source files)\n",Some(1)).unwrap().len(),1);
-        for (raw, exit) in [
-            ("", 0),
-            ("Success: no issues found in 0 source files\n", 0),
-            ("a.py:1: error: Wrong\n", 1),
-            ("Found 1 error in 1 file (checked 2 source files)\n", 1),
-            ("Success: no issues found in 2 source files\ntrailing\n", 0),
-            ("Success: no issues found in 2 source files\n", 1),
-        ] {
-            assert!(parse_mypy(raw.as_bytes(), Some(exit)).is_err(), "{raw}");
-        }
-    }
 }

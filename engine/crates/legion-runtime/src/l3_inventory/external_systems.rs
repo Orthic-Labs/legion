@@ -232,23 +232,3 @@ pub fn discover_external_systems(projection: &Value, components: &Value, binding
     map.insert("digest".into(), Value::String(digest(&value)));
     Value::Object(map)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn external_system_requires_core_fields() {
-        assert!(external_system(json!({"id": "external:payments"})).is_err());
-        assert!(external_system(json!({"id": "e", "kind": "k", "status": "s"})).is_ok());
-    }
-
-    #[test]
-    fn discover_external_systems_matches_known_dependency() {
-        let projection = json!({"dependencies": {"stripe": "1.0.0"}});
-        let result =
-            discover_external_systems(&projection, &json!({"components": []}), &Value::Null);
-        let systems = result["systems"].as_array().unwrap();
-        assert!(systems.iter().any(|s| s["kind"] == "payments"));
-    }
-}

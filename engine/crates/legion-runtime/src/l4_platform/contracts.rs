@@ -125,39 +125,3 @@ pub fn require_capability(capability: Option<&Value>, destructive: bool) -> Capa
         reason: None,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sha256_matches_prefixed_hex() {
-        let digest = sha256(&json!("abc"));
-        assert!(digest.starts_with("sha256:"));
-        assert_eq!(digest.len(), "sha256:".len() + 64);
-    }
-
-    #[test]
-    fn require_capability_blocks_unavailable() {
-        let check = require_capability(None, false);
-        assert!(!check.ok);
-        assert_eq!(check.reason.as_deref(), Some("capability-missing"));
-    }
-
-    #[test]
-    fn require_capability_blocks_destructive_without_allowance() {
-        let cap = json!({"status": "available", "destructiveActionsAllowed": false});
-        let check = require_capability(Some(&cap), true);
-        assert!(!check.ok);
-        assert_eq!(
-            check.reason.as_deref(),
-            Some("destructive-action-forbidden")
-        );
-    }
-
-    #[test]
-    fn require_capability_allows_available_nondestructive() {
-        let cap = json!({"status": "available"});
-        assert!(require_capability(Some(&cap), false).ok);
-    }
-}

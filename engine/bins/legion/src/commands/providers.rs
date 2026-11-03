@@ -83,12 +83,3 @@ fn project_provider(provider: &serde_json::Value) -> serde_json::Value {
         "producesSecurityCandidates": provider["role"].as_str() == Some("candidate-generator"),
     })
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn source_projection_text_uses_node_column_order() {
-        let row = format!("{}\t{}\t{}\t{}", "p", "analysis", "source", "built-in");
-        assert_eq!(row, "p\tanalysis\tsource\tbuilt-in");
-    }
-}

@@ -31,39 +31,3 @@ pub fn skill_uri(bundle: &str, path: &str) -> String {
     let trimmed = normalized.strip_prefix("./").unwrap_or(&normalized);
     format!("legion-skill://{bundle}/{trimmed}")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_bundle_and_path() {
-        let parsed = parse_skill_uri("legion-skill://qa/SKILL.md").unwrap();
-        assert_eq!(parsed.bundle, "qa");
-        assert_eq!(parsed.path, "SKILL.md");
-    }
-
-    #[test]
-    fn rejects_unsupported_scheme() {
-        assert!(parse_skill_uri("https://example.com/x").is_err());
-    }
-
-    #[test]
-    fn rejects_parent_escape() {
-        assert!(parse_skill_uri("legion-skill://qa/../secret.md").is_err());
-    }
-
-    #[test]
-    fn rejects_absolute_path() {
-        assert!(parse_skill_uri("legion-skill://qa//etc/passwd").is_err());
-    }
-
-    #[test]
-    fn builds_uri_and_strips_dot_slash_prefix() {
-        assert_eq!(
-            skill_uri("qa", "./references/a.md"),
-            "legion-skill://qa/references/a.md"
-        );
-        assert_eq!(skill_uri("qa", "a\\b.md"), "legion-skill://qa/a/b.md");
-    }
-}

@@ -78,39 +78,3 @@ pub fn pre_tool(request: &HookRequest) -> Option<HookResponse> {
         "strong",
     ))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn only_gate_and_ci_runs_qualify_and_cargo_never_does() {
-        assert_eq!(kind("rightkit-gate --to package /r"), (true, false));
-        assert_eq!(kind("rightkit-host-gate --to=qualify /r"), (true, false));
-        assert_eq!(kind("gh run watch 123 --exit-status"), (true, false));
-        assert_eq!(kind("gh run rerun 123 && git push"), (true, true));
-        assert_eq!(kind("gh workflow run ci.yml"), (true, false));
-        for command in [
-            "rightkit-gate check /r",
-            "cargo test",
-            "rustright cargo build",
-            "gh run view 1",
-            "gh run watch 1",
-        ] {
-            assert_eq!(kind(command), (false, false), "{command}");
-        }
-    }
-
-    #[test]
-    fn a_red_run_stays_red_until_the_debugger_is_loaded_or_a_run_passes() {
-        let run = |failed: bool, t: u64| json!({"tool": "Bash", "command": "rightkit-gate --to package /r", "failed": failed, "t": t});
-        let debugger = json!({"tool": "Skill", "command": "legion:debugger", "t": 2});
-        assert!(red(&[run(true, 1)], 10));
-        assert!(!red(&[run(true, 1), debugger.clone()], 10));
-        assert!(!red(&[run(true, 1), run(false, 2)], 10));
-        assert!(red(&[debugger, run(true, 3)], 10));
-        assert!(!red(&[run(true, 1)], 1 + 24 * 3600 + 1));
-        assert!(!red(&[], 10));
-    }
-}

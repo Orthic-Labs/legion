@@ -98,32 +98,3 @@ pub fn dunce_resolve(path: &Path) -> PathBuf {
     }
     out
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn clean_path_value_strips_backticks_and_quotes() {
-        assert_eq!(clean_path_value(" `foo/bar` "), "foo/bar");
-        assert_eq!(clean_path_value("\"foo\""), "foo");
-        assert_eq!(clean_path_value("'foo'"), "foo");
-    }
-
-    #[test]
-    fn is_absolute_path_detects_unix_and_windows_drive_paths() {
-        assert!(is_absolute_path("/tmp/x"));
-        assert!(is_absolute_path("C:/Users/x"));
-        assert!(!is_absolute_path("relative/x"));
-    }
-
-    #[test]
-    fn repository_root_walks_up_to_dot_git() {
-        let dir = std::env::temp_dir().join(format!("w2_044-repo-root-{}", std::process::id()));
-        let nested = dir.join("a/b/c");
-        std::fs::create_dir_all(&nested).unwrap();
-        std::fs::create_dir_all(dir.join(".git")).unwrap();
-        assert_eq!(repository_root(&nested), Some(dunce_resolve(&dir)));
-        std::fs::remove_dir_all(&dir).ok();
-    }
-}

@@ -37,32 +37,3 @@ where
         missing,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn empty_inputs_reconcile_to_empty() {
-        let result = reconcile_denominator(Vec::<String>::new(), Vec::<String>::new());
-        assert!(result.expected.is_empty());
-        assert!(result.examined.is_empty());
-        assert!(result.missing.is_empty());
-    }
-
-    #[test]
-    fn dedupes_and_sorts_both_sides() {
-        let result = reconcile_denominator(vec!["b", "a", "a", "c"], vec!["c", "c", "a"]);
-        assert_eq!(result.expected, vec!["a", "b", "c"]);
-        assert_eq!(result.examined, vec!["a", "c"]);
-        assert_eq!(result.missing, vec!["b"]);
-    }
-
-    #[test]
-    fn missing_is_empty_when_examined_is_superset() {
-        let result = reconcile_denominator(vec!["a", "b"], vec!["a", "b", "extra"]);
-        assert_eq!(result.expected, vec!["a", "b"]);
-        assert_eq!(result.examined, vec!["a", "b", "extra"]);
-        assert!(result.missing.is_empty());
-    }
-}

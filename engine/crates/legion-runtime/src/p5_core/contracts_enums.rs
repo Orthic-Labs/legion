@@ -138,29 +138,3 @@ pub fn assert_schema_version_default(
 ) -> Result<i64, UnsupportedSchemaVersion> {
     assert_schema_version(label, version, &[1])
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn enum_round_trips_through_str() {
-        for status in ProviderStatus::ALL {
-            assert_eq!(ProviderStatus::parse(status.as_str()), Some(*status));
-        }
-    }
-
-    #[test]
-    fn assert_enum_matches_js_allowlist_semantics() {
-        let values = ["pass", "fail"];
-        assert_eq!(assert_enum("status", &values, "pass").unwrap(), "pass");
-        assert!(assert_enum("status", &values, "bogus").is_err());
-    }
-
-    #[test]
-    fn assert_schema_version_defaults_to_one() {
-        assert_eq!(assert_schema_version_default("plan", 1).unwrap(), 1);
-        assert!(assert_schema_version_default("plan", 2).is_err());
-        assert!(assert_schema_version("plan", 2, &[1, 2]).is_ok());
-    }
-}

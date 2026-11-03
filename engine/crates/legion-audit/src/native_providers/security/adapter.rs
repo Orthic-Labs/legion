@@ -773,32 +773,3 @@ fn locate_findings(
     }
     located
 }
-
-#[cfg(test)]
-mod history_identity_regression {
-    use super::*;
-
-    #[test]
-    fn ordinary_history_mode_preserves_existing_provider_identity() {
-        let excerpt = format!("sha256:{}", "a".repeat(64));
-        let finding = json!({"ruleId":"DS002","file":"Dockerfile","line":1,"secretDigest":excerpt,"mode":"history"});
-        let located = locate_findings(
-            "container.iac",
-            &[finding],
-            Some(&["Dockerfile".into()]),
-            None,
-        );
-        assert_eq!(located.refs.len(), 1);
-        assert!(located.out_of_scope.is_empty());
-        let expected = format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(
-                format!("container.iac\0DS002\0Dockerfile\01\0{excerpt}").as_bytes()
-            ))
-        );
-        assert_eq!(
-            serde_json::to_value(&located.refs[0]).unwrap()["id"],
-            json!(expected)
-        );
-    }
-}

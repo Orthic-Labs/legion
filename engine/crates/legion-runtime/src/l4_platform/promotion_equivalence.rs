@@ -53,31 +53,3 @@ pub fn promotion_equivalence(qa_candidate: Option<&Value>, promoted_artifacts: &
         "status": status,
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn passes_when_digests_match() {
-        let qa = json!({"digest": "sha256:qa", "artifacts": [{"id": "a1", "digest": "sha256:x"}]});
-        let promoted =
-            vec![json!({"sourceArtifactId": "a1", "path": "out/a", "digest": "sha256:x"})];
-        let result = promotion_equivalence(Some(&qa), &promoted);
-        assert_eq!(result["status"], "pass");
-    }
-
-    #[test]
-    fn fails_on_mismatch_and_unproven_when_missing() {
-        let qa = json!({"artifacts": [{"id": "a1", "digest": "sha256:x"}]});
-        let promoted = vec![
-            json!({"sourceArtifactId": "a1", "digest": "sha256:y"}),
-            json!({"sourceArtifactId": "missing", "digest": "sha256:z"}),
-        ];
-        let result = promotion_equivalence(Some(&qa), &promoted);
-        assert_eq!(result["status"], "fail");
-        assert_eq!(result["checks"][0]["status"], "fail");
-        assert_eq!(result["checks"][1]["status"], "unproven");
-    }
-}

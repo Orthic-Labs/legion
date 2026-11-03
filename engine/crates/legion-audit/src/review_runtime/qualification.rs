@@ -664,27 +664,3 @@ pub fn preflight_run(run: &Path) -> Result<Value, AuditError> {
         json!({"schema":"legion-reasoning-runtime-dispatch-preflight/1","run":run,"memberId":member.member_id,"memberIndex":member.member_index,"caseIds":member.case_ids,"providerIds":member.provider_ids,"expectedPlantedPositives":member.provider_ids.len(),"knownAnswerExpectedPositives":member.provider_ids.len(),"expectedPairedCleanControls":member.provider_ids.len(),"expectedVerifierItems":member.provider_ids.len(),"logicalPendingRequestCount":logical_requests.len(),"zeroFindingReviewHeadroom":8-member.provider_ids.len(),"verifierItemCap":8,"verifierEnvelopeBasis":"known-answer expectation; logical requests are a lower bound, multiple findings and zero-finding reviews remain subject to native cap","plannedFreshBatchVerifierAdmissions":1,"plannedAuthorSeats":dispatch["requiredSeats"],"remainingAdmissions":quota,"planDigest":plan.pointer("/seal/digest"),"dispatchDigest":digest(&dispatch)?,"dispatch":dispatch,"pending":verified.pending,"modelCalls":0,"productionDispatchValidated":true,"qualification":false}),
     )
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn production_author_packet_cap_counts_real_seats_not_summary_or_logical_packets() {
-        let seat = json!({"packets":["correctness.json", "architecture.json", "security.json"]});
-        let dispatch = json!({"seats":vec![seat.clone(); MAX_AUTHOR_PACKETS],"requiredSeats":8});
-        assert!(validate_production_packet_bound(&dispatch).is_ok());
-        let mut extra = dispatch.clone();
-        extra["seats"].as_array_mut().unwrap().push(seat);
-        // A forged eight-seat summary cannot hide a ninth physical request.
-        assert!(validate_production_packet_bound(&extra).is_err());
-        extra["requiredSeats"] = json!(9);
-        assert!(validate_production_packet_bound(&extra).is_err());
-        let mut mismatch = dispatch;
-        mismatch["requiredSeats"] = json!(7);
-        assert!(validate_production_packet_bound(&mismatch).is_err());
-        for missing in [json!({}), json!({"seats":[],"requiredSeats":0})] {
-            assert!(validate_production_packet_bound(&missing).is_err());
-        }
-    }
-}

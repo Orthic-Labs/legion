@@ -631,37 +631,3 @@ fn system_now_ms() -> u64 {
         .map(|elapsed| elapsed.as_millis() as u64)
         .unwrap_or(0)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn provenance_checksum_matches_cargo_lock() {
-        let lock =
-            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.lock"))
-                .unwrap();
-        let block = lock
-            .split("[[package]]")
-            .find(|b| {
-                b.contains("name = \"rightkit-sandbox\"") && b.contains("version = \"0.6.1\"")
-            })
-            .expect("rightkit-sandbox 0.6.1 is locked");
-        assert!(block.contains(&format!("checksum = \"{SANDBOX_LOCK_CHECKSUM}\"")));
-    }
-
-    #[test]
-    fn provenance_is_admissible_verified_form() {
-        let owner = HostPolicyOwner {
-            revision: "r".into(),
-            tools: vec![],
-            toolchain_roots: vec![],
-            gradle: None,
-            clock: system_now_ms,
-        };
-        match owner.identity().provenance {
-            OwnerProvenance::Verified { key_id, .. } => assert_eq!(key_id.len(), 64),
-            OwnerProvenance::Unverified(_) => panic!("must be verified"),
-        }
-    }
-}

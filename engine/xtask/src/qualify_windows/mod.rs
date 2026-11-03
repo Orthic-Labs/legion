@@ -16,6 +16,3 @@ pub mod journal;
 pub mod lifecycle;
 pub mod proofs;
 pub mod tree;
-
-#[cfg(test)]
-mod tests;

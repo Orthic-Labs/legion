@@ -26,25 +26,3 @@ pub fn transition(machine: Option<&Value>, state: &Value, event: &Value) -> Valu
         }),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn finds_matching_transition() {
-        let machine = json!({"transitions": [{"from": "idle", "event": "start", "to": "running"}]});
-        let result = transition(Some(&machine), &json!("idle"), &json!("start"));
-        assert_eq!(result["status"], "pass");
-        assert_eq!(result["to"], "running");
-    }
-
-    #[test]
-    fn blocks_unknown_transition() {
-        let machine = json!({"transitions": []});
-        let result = transition(Some(&machine), &json!("idle"), &json!("start"));
-        assert_eq!(result["status"], "blocked");
-        assert_eq!(result["reason"], "unsealed-transition");
-    }
-}

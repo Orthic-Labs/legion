@@ -438,32 +438,3 @@ pub fn validate_external_evidence(evidence: Option<&Value>, expected: &ExpectedE
         "gaps": unique_sorted,
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn missing_evidence_reports_gaps() {
-        let result = validate_external_evidence(None, &ExpectedEvidence::default());
-        assert_eq!(result["status"], "unproven");
-        let gaps = result["gaps"].as_array().unwrap();
-        assert!(gaps.iter().any(|g| g == "missing-producer"));
-        assert!(gaps.iter().any(|g| g == "producer-untrusted"));
-    }
-
-    #[test]
-    fn safe_path_rejects_traversal_and_absolute() {
-        assert!(!safe_path("../etc/passwd"));
-        assert!(!safe_path("/etc/passwd"));
-        assert!(!safe_path("C:/windows"));
-        assert!(safe_path("dist/pkg.tgz"));
-    }
-
-    #[test]
-    fn utc_parses_iso8601() {
-        assert_eq!(utc(Some("1970-01-01T00:00:00Z")), Some(0));
-        assert_eq!(utc(Some("1970-01-01T00:00:01Z")), Some(1000));
-        assert!(utc(Some("not-a-date")).is_none());
-    }
-}

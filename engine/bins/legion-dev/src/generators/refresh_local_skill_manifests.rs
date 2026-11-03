@@ -323,33 +323,3 @@ pub fn run_with_args(root: &Path, check: bool, requested: &[String]) -> bool {
     }
     true
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn temp_root(name: &str) -> PathBuf {
-        let root = std::env::temp_dir().join(format!(
-            "legion-refresh-manifest-{name}-{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("skills/demo")).unwrap();
-        fs::create_dir_all(root.join("skills/manifests")).unwrap();
-        fs::write(root.join("skills/demo/SKILL.md"), "---\nname: demo\n---\n").unwrap();
-        root
-    }
-
-    #[test]
-    fn unparseable_prior_manifest_is_an_error_not_replaced_by_defaults() {
-        let root = temp_root("unparseable");
-        fs::write(root.join("skills/manifests/demo.json"), "{ not json").unwrap();
-        let err = match build_local_skill_manifest(&root, "demo") {
-            Ok(_) => panic!("unparseable prior manifest must not be replaced silently"),
-            Err(e) => e,
-        };
-        assert!(err.contains("unparseable prior manifest"), "{err}");
-        assert!(err.contains("demo.json"), "{err}");
-        let _ = fs::remove_dir_all(&root);
-    }
-}

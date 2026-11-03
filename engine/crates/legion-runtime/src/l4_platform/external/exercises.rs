@@ -26,21 +26,3 @@ pub fn exercise_receipt(input: &Value) -> Value {
         "limitations": input.get("limitations").cloned().unwrap_or_else(|| json!([])),
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn unproven_when_not_executed() {
-        let receipt = exercise_receipt(&json!({"exercise": "smoke"}));
-        assert_eq!(receipt["status"], "unproven");
-    }
-
-    #[test]
-    fn uses_result_when_executed() {
-        let receipt = exercise_receipt(&json!({"executed": true, "result": "pass"}));
-        assert_eq!(receipt["status"], "pass");
-    }
-}

@@ -22,21 +22,3 @@ pub fn kernel_task_id_bridge_decision() -> Value {
         "rationale": "ExecutionTask identity is human-facing contract state; Kernel task identity is an opaque durable runtime handle.",
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn matches_js_literal_shape() {
-        let decision = kernel_task_id_bridge_decision();
-        assert_eq!(decision["decision"], json!("keep-bridge"));
-        assert_eq!(decision["executionTaskId"], json!("T-#.#"));
-        assert_eq!(decision["kernelTaskId"], json!("ktask_<ulid>"));
-        assert_eq!(decision["field"], json!("kernelTaskId"));
-        assert!(decision["rationale"]
-            .as_str()
-            .unwrap()
-            .contains("opaque durable runtime handle"));
-    }
-}

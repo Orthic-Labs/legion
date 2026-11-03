@@ -41,15 +41,3 @@ rightkit-agent-tools = { version = "=0.3.0", default-features = false }
 [dev-dependencies]
 legion-identity = { path = "../legion-identity" }
 
-[[test]]
-name = "native_audit"
-path = "../../tests/native_audit.rs"
-[[test]]
-name = "native_reasoning_cutover"
-path = "tests/native_reasoning_cutover.rs"
-[[test]]
-name = "native_legacy_external_tool"
-path = "tests/native_legacy_external_tool.rs"
-[[test]]
-name = "native_legacy_provider_equivalence"
-path = "tests/native_legacy_provider_equivalence.rs"

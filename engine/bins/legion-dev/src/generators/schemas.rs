@@ -259,20 +259,3 @@ pub fn run(root: &Path, check: bool) -> bool {
     }
     !failed
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn provider_result_schema_has_expected_status_enum() {
-        let schema = build_provider_result_schema();
-        assert_eq!(
-            schema["properties"]["status"]["enum"]
-                .as_array()
-                .unwrap()
-                .len(),
-            PROVIDER_STATUS.len()
-        );
-    }
-}

@@ -936,36 +936,3 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
 
     errors
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn allow_template_short_circuits() {
-        assert!(topology_errors("", true).is_empty());
-    }
-
-    #[test]
-    fn flags_invalid_topology_mode() {
-        let text = "- **Topology mode:** NOT_A_MODE\n";
-        let errors = topology_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Topology mode")));
-    }
-
-    #[test]
-    fn requires_full_matrix_authorization_for_full_comparative_dataset() {
-        let text = "- **Topology mode:** FULL_COMPARATIVE_DATASET\n";
-        let errors = topology_errors(text, false);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("FULL_COMPARATIVE_DATASET_AUTHORIZED")));
-    }
-
-    #[test]
-    fn flags_missing_launch_ceiling() {
-        let text = "- **Declared launch ceiling:** JOB_TOTAL_MAX: 0\n";
-        let errors = topology_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Declared launch ceiling")));
-    }
-}

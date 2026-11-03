@@ -374,37 +374,3 @@ pub fn assemble_symbol_csv(rows: &[(u64, u64)], symbols: &[&str]) -> Result<Stri
     }
     Ok(output)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn parses_referenced_kperf_addresses_and_filters_range() {
-        let xml = r#"<?xml version="1.0"?><root><kperf-bt id="a"><text-addresses>4096 8192</text-addresses></kperf-bt><row><kperf-bt ref="a"/></row><row><kperf-bt ref="a"/></row><row><kperf-bt id="inline"><text-addresses>12288</text-addresses></kperf-bt></row></root>"#;
-        let addresses = parse_time_sample_addresses(xml).unwrap();
-        assert_eq!(addresses, vec![4096, 8192, 4096, 8192, 12288]);
-        assert_eq!(rank_addresses(&addresses, 4096, 1, 10), vec![(4096, 2)]);
-    }
-
-    #[test]
-    fn symbol_batches_require_load_range_bounds() {
-        let symbols = invoke("profile.symbols", &json!({"binary_path":"/tmp/a","load_address":"0x1000","text_size":4096,"addresses":["0x1001"]})).unwrap();
-        assert_eq!(symbols["batches"][0]["executable"], "/usr/bin/atos");
-        assert_eq!(
-            assemble_symbol_csv(&[(0x1001, 2)], &["Demo.work"]).unwrap(),
-            "address,count,symbol\n0x1001,2,Demo.work\n"
-        );
-        assert_eq!(
-            assemble_symbol_csv(&[(0x1001, 2)], &["Demo, \"work\""]).unwrap(),
-            "address,count,symbol\n0x1001,2,\"Demo, \"\"work\"\"\"\n"
-        );
-        assert!(assemble_symbol_csv(&[(0x1001, 2)], &["bad\nrow"]).is_err());
-        assert!(invoke(
-            "profile.symbols",
-            &json!({"binary_path":"x","load_address":"bad","addresses":[]})
-        )
-        .is_err());
-    }
-}

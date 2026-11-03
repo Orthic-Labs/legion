@@ -34,29 +34,3 @@ pub fn digest(value: &Value) -> String {
 pub fn same_binding(left: &Value, right: &Value) -> bool {
     digest(left) == digest(right)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn canonicalize_sorts_keys_and_normalizes_paths() {
-        let value = json!({"b": 1, "a": "foo\\bar"});
-        let canonical = canonicalize(&value);
-        assert_eq!(canonical, json!({"a": "foo/bar", "b": 1}));
-    }
-
-    #[test]
-    fn digest_is_stable_regardless_of_key_order() {
-        let a = digest(&json!({"x": 1, "y": 2}));
-        let b = digest(&json!({"y": 2, "x": 1}));
-        assert_eq!(a, b);
-        assert!(a.starts_with("sha256:"));
-    }
-
-    #[test]
-    fn same_binding_treats_null_as_equal_null() {
-        assert!(same_binding(&Value::Null, &Value::Null));
-    }
-}

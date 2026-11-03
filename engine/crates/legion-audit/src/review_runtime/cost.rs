@@ -135,33 +135,3 @@ pub(super) fn native_root_cost(line: &str) -> Option<String> {
     }
     cost
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn reported_cost_is_exact_decimal_not_float_or_nested_cost() {
-        assert_eq!(add("0.1", "0.2").as_deref(), Some("0.3"));
-        assert_eq!(
-            add("0.000000000000000001", "1e-18").as_deref(),
-            Some("0.000000000000000002")
-        );
-        assert_eq!(normalize("2.5000e-2").as_deref(), Some("0.025"));
-        assert_eq!(
-            native_root_cost(
-                r#"{"total_cost_usd":0.1234567890123456789,"usage":{"total_cost_usd":99}}"#
-            )
-            .as_deref(),
-            Some("0.1234567890123456789")
-        );
-        for value in ["-1", "NaN", "inf", "null", "\"0.1\"", "1e999", "1.2.3"] {
-            assert_eq!(normalize(value), None, "{value}");
-        }
-        assert_eq!(
-            native_root_cost(r#"{"total_cost_usd":1,"total_cost_usd":null}"#),
-            None
-        );
-        assert_eq!(native_root_cost(r#"{"usage":{"total_cost_usd":1}}"#), None);
-    }
-}

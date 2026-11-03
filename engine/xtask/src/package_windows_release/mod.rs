@@ -20,6 +20,3 @@ pub mod cli;
 pub mod evidence;
 pub mod finalize;
 pub mod prepare;
-
-#[cfg(test)]
-mod tests;

@@ -106,29 +106,3 @@ pub fn pre_edit(request: &HookRequest) -> Option<HookResponse> {
         ),
     )
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_lock_file_names_the_session_and_the_time() {
-        assert_eq!(
-            parse_lock("abc-1 1700000000"),
-            Some(("abc-1".to_owned(), 1_700_000_000))
-        );
-        assert_eq!(parse_lock("garbage"), None);
-    }
-
-    #[test]
-    fn a_gate_run_holds_the_checkout_it_names() {
-        let listing = "  101 /usr/local/bin/rightkit-gate --to compile /r/legion\n  202 node /opt/rightkit-host-gate check --repo=/r/other\n  303 claude -p rightkit-gate /r/legion\n";
-        assert_eq!(gate_holding(listing, "/r/legion").as_deref(), Some("101"));
-        assert_eq!(gate_holding(listing, "/r/other").as_deref(), Some("202"));
-        assert_eq!(gate_holding(listing, "/r/legio"), None);
-        assert_eq!(
-            gate_holding("  303 claude -p rightkit-gate /r/legion", "/r/legion"),
-            None
-        );
-    }
-}

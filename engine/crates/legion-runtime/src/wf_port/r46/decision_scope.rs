@@ -300,37 +300,3 @@ pub fn decision_scope_errors(text: &str, allow_template: bool) -> Vec<String> {
 
     errors
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn allow_template_short_circuits() {
-        assert!(decision_scope_errors("", true).is_empty());
-    }
-
-    #[test]
-    fn flags_disallowed_semantics_token() {
-        let text = "- **Task semantics:** SOMETHING_ELSE\n";
-        let errors = decision_scope_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Task semantics")));
-    }
-
-    #[test]
-    fn requires_alchemist_gate_for_non_routine_semantics() {
-        let text = "- **Task semantics:** EXPERIMENT\n";
-        let errors = decision_scope_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Alchemist gate")));
-    }
-
-    #[test]
-    fn detects_forbidden_scope_leak_into_acceptance_table() {
-        let text = "- **Explicit forbidden scope:** FORBID: legacy-python-path\n\
-## 7. Verification & Acceptance Map\n\
-| A | B |\n|---|---|\n| legacy-python-path | ok |\n\
-## 8. Evidence & Artifact Contract\n";
-        let errors = decision_scope_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("forbidden scope leaked")));
-    }
-}

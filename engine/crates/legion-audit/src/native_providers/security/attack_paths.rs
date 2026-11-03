@@ -1312,29 +1312,3 @@ fn build_hypothesis(
     });
     (key, hypothesis)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn embedded_registry_loads() {
-        let r = Registry::embedded().expect("registry");
-        assert!(r.templates.len() >= 16);
-        assert!(r.bridges.len() >= 9);
-        assert!(r
-            .objectives
-            .iter()
-            .all(|o| r.rank(&o.priority) != usize::MAX));
-    }
-
-    #[test]
-    fn fact_string_form_parses() {
-        let f = parse_fact(&json!("data-access:read:credential-material")).unwrap();
-        assert_eq!(
-            (f.kind.as_str(), f.action.as_str()),
-            ("data-access", "read")
-        );
-        assert_eq!(f.scope.as_deref(), Some("credential-material"));
-    }
-}

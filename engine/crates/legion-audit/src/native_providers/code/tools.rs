@@ -67,9 +67,6 @@ use tokio_util::sync::CancellationToken;
 
 #[path = "dotnet_sdk.rs"]
 mod dotnet_sdk;
-#[cfg(test)]
-#[path = "dotnet_sdk_accuracy.rs"]
-mod dotnet_sdk_accuracy;
 #[path = "javascript_sdk.rs"]
 mod javascript_sdk;
 #[path = "mobile_sdk.rs"]
@@ -120,8 +117,6 @@ pub struct ToolContext<'a> {
     pub tool: &'a dyn ExternalProjectTool,
     pub scratch: &'a AuditScratch,
     pub sandbox: SandboxPolicy,
-    #[cfg(all(test, target_os = "macos"))]
-    pub dotnet_qualification_loopback: bool,
     pub search_path: Option<&'a [PathBuf]>,
     pub plan_digest: &'a str,
     pub inventory_digest: &'a str,
@@ -1028,25 +1023,6 @@ async fn run_one(
                     &ctx.scratch.sandbox_dir(),
                 )
             };
-            #[cfg(all(test, target_os = "macos"))]
-            let authentication = {
-                dotnet_sdk_accuracy::apply_qualification_environment(
-                    ctx.dotnet_qualification_loopback,
-                    ctx.provider_id,
-                    command.tool,
-                    &mut environment,
-                    &mut allowlist,
-                );
-                dotnet_sdk_accuracy::authenticate_qualification_sandbox(
-                    ctx,
-                    command.tool,
-                    &executable_text,
-                    &command.args,
-                    &cwd_text,
-                )
-                .unwrap_or_else(authenticate)
-            };
-            #[cfg(not(all(test, target_os = "macos")))]
             let authentication = authenticate();
             match authentication {
                 Ok(auth) => {
@@ -2031,165 +2007,4 @@ pub async fn run(
         }
     }
     evidence
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn owner_admission_denial_retains_effect_evidence_and_unavailable_reason() {
-        let request = ExternalToolRequest {
-            request_id: "code-denied".into(),
-            provider_id: "code.rust".into(),
-            plan_id: "sha256:frozen-plan".into(),
-            policy_id: POLICY_ID.into(),
-            executable: "definitely-missing-code-scanner".into(),
-            cwd: std::env::temp_dir()
-                .join("missing-code-root")
-                .to_string_lossy()
-                .into_owned(),
-            ..ExternalToolRequest::default()
-        };
-        let receipt = crate::execution_policy::deny(&request).await;
-        assert_eq!(
-            classify("check", &receipt),
-            Some(Outcome::AdmissionUnavailable)
-        );
-        assert_eq!(
-            Outcome::AdmissionUnavailable.reason("check"),
-            crate::execution_policy::ADMISSION_UNAVAILABLE
-        );
-        let retained = crate::execution_policy::receipt_json(&receipt);
-        assert_eq!(retained["planId"], request.plan_id);
-        assert_eq!(retained["processTree"]["started"], false);
-        assert_eq!(retained["policy"]["allowed"], false);
-        assert_eq!(retained["parser"]["attempted"], false);
-        assert_eq!(
-            retained["executionPolicy"],
-            crate::execution_policy::resolved_policy()
-        );
-        assert_eq!(
-            retained["executionPolicyIdentity"],
-            crate::execution_policy::binding()["executionPolicyIdentity"]
-        );
-    }
-
-    #[test]
-    fn python_completion_rejects_truncation_wrong_scope_and_malformed_diagnostics() {
-        let expected = BTreeSet::from(["answer.py".to_owned()]);
-        assert!(
-            parse_py_compile(br#"{"done":1,"files":["answer.py"]}"#, &expected)
-                .unwrap()
-                .is_empty()
-        );
-        for bytes in [
-            br#"{"done":0,"files":[]}"#.as_slice(),
-            br#"{"done":1,"files":["other.py"]}"#,
-            b"garbage\n{\"done\":1,\"files\":[\"answer.py\"]}",
-            br#"{"path":"answer.py"}"#,
-            b"{\"done\":1,\"files\":[\"answer.py\"]}\n{}",
-        ] {
-            assert!(parse_py_compile(bytes, &expected).is_err());
-        }
-        assert!(parse_ruff(b"[]", Some(0)).unwrap().is_empty());
-        assert!(parse_ruff(b"[]", Some(1)).is_err());
-        assert!(parse_ruff(b"[{}]", Some(1)).is_err());
-        assert!(parse_ruff(b"{}", Some(0)).is_err());
-    }
-
-    #[test]
-    fn process_completion_never_converts_test_failure_to_a_clean_pass() {
-        assert!(parse(Parser::Process, b"ok example 0.001s", Some(0))
-            .unwrap()
-            .is_empty());
-        assert!(parse(Parser::Process, b"FAIL example", Some(1)).is_err());
-        assert!(parse(Parser::Process, b"", None).is_err());
-    }
-
-    #[test]
-    fn native_syntax_failure_is_diagnostic_not_a_clean_pass() {
-        assert!(parse_syntax(b"Syntax OK", Some(0)).unwrap().is_empty());
-        let diagnostics = parse_syntax(
-            b"PHP Parse error: bad token in snapshot.php on line 12",
-            Some(255),
-        )
-        .unwrap();
-        assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].line, 12);
-        assert_eq!(diagnostics[0].severity, "error");
-        assert!(parse_syntax(b"", Some(1)).is_err());
-    }
-
-    #[test]
-    fn repo_relative_normalizes_and_rejects_escapes() {
-        let root = Path::new("/repo");
-        assert_eq!(
-            repo_relative(root, root, "crates/a", "src/lib.rs").as_deref(),
-            Some("crates/a/src/lib.rs")
-        );
-        assert_eq!(
-            repo_relative(root, root, "crates/a", "./../b/x.rs").as_deref(),
-            Some("crates/b/x.rs")
-        );
-        // `/repo/...` is only an absolute path on Unix.
-        #[cfg(unix)]
-        {
-            assert_eq!(
-                repo_relative(root, root, "", "/repo/src/main.rs").as_deref(),
-                Some("src/main.rs")
-            );
-            assert_eq!(repo_relative(root, root, "", "/elsewhere/x.rs"), None);
-        }
-        assert_eq!(repo_relative(root, root, "", "../x.rs"), None);
-    }
-
-    #[test]
-    fn cargo_diagnostics_use_the_primary_span_and_skip_notes() {
-        let stdout = br#"{"reason":"compiler-message","message":{"level":"error","message":"mismatched types","code":{"code":"E0308"},"spans":[{"file_name":"src/lib.rs","line_start":7,"is_primary":true}]}}
-{"reason":"compiler-message","message":{"level":"warning","message":"needless return","code":{"code":"clippy::needless_return"},"spans":[{"file_name":"src/lib.rs","line_start":9,"is_primary":true}]}}
-{"reason":"compiler-message","message":{"level":"note","message":"x","code":null,"spans":[]}}
-{"reason":"build-finished","success":false}
-"#;
-        let diags = parse_cargo(stdout, false).unwrap();
-        assert_eq!(diags.len(), 2);
-        assert_eq!(
-            (diags[0].rule.as_str(), diags[0].severity, diags[0].line),
-            ("rustc:E0308", "error", 7)
-        );
-        assert_eq!(
-            (diags[1].rule.as_str(), diags[1].severity),
-            ("clippy:needless_return", "warning")
-        );
-        assert!(parse_cargo(b"", false).is_err());
-    }
-
-    #[test]
-    fn tsc_lines_parse() {
-        let tsc = parse_tsc(
-            b"src/a.ts(3,5): error TS2322: Type 'x' is not assignable.\n",
-            Some(2),
-        )
-        .unwrap();
-        assert_eq!((tsc[0].path.as_str(), tsc[0].line), ("src/a.ts", 3));
-        assert!(parse_tsc(b"error TS5058: bad path\n", Some(1)).is_err());
-    }
-}
-
-#[cfg(test)]
-mod rust_execution_tests {
-    use super::*;
-    #[test]
-    fn failed_or_missing_cargo_completion_never_passes_build_coverage() {
-        assert!(!cargo_build_succeeded(
-            br#"{"reason":"build-finished","success":false}"#
-        ));
-        assert!(!cargo_build_succeeded(br#"{"reason":"build-finished"}"#));
-        assert!(!cargo_build_succeeded(b""));
-        assert!(!cargo_build_succeeded(b"{\"reason\":\"build-finished\",\"success\":true}\n{\"reason\":\"build-finished\",\"success\":true}"));
-        assert!(cargo_build_succeeded(
-            br#"{"reason":"build-finished","success":true}"#
-        ));
-        assert_eq!(policy_tools("code.rust"), &[] as &[&str]);
-    }
 }

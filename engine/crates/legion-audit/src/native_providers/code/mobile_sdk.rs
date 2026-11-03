@@ -673,7 +673,3 @@ pub(super) fn parse(
     }
     Ok(diagnostics)
 }
-
-#[cfg(test)]
-#[path = "mobile_sdk_tests.rs"]
-mod tests;

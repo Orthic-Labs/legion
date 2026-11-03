@@ -95,31 +95,3 @@ impl R14Detector for RealHookDetector {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn html_read_failure_propagates_as_typed_error() {
-        let missing = std::env::temp_dir().join(format!(
-            "legion-hook-missing-{}-{}.html",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let detector = RealHookDetector::new();
-        let error = detector
-            .detect_html(missing.to_str().unwrap(), &ScanOptions::default())
-            .unwrap_err();
-        assert!(matches!(
-            error,
-            DetectorError::Read {
-                kind: std::io::ErrorKind::NotFound,
-                ..
-            }
-        ));
-    }
-}

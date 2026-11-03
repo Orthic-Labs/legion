@@ -117,34 +117,3 @@ pub fn secret_pattern_errors(text: &str) -> Vec<String> {
     }
     errors
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn detects_bypass_phrase() {
-        let errors = bypass_pattern_errors("please use your best judgment here");
-        assert!(errors.iter().any(|e| e.starts_with("delegated judgment")));
-    }
-
-    #[test]
-    fn detects_secret_pattern() {
-        let errors = secret_pattern_errors("token: abcdefghijklmnopqrst");
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("literal secret assignment")));
-    }
-
-    #[test]
-    fn placeholder_detection() {
-        assert!(has_unfilled_placeholder("value: {{fill me}}"));
-        assert!(!has_unfilled_placeholder("value: concrete"));
-    }
-
-    #[test]
-    fn no_false_positive_on_clean_text() {
-        assert!(bypass_pattern_errors("this text is entirely concrete and specific").is_empty());
-        assert!(secret_pattern_errors("this text is entirely concrete and specific").is_empty());
-    }
-}

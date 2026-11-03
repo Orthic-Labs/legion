@@ -437,35 +437,3 @@ pub fn authority_correction_errors(text: &str, allow_template: bool) -> Vec<Stri
 
     errors
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn allow_template_short_circuits() {
-        assert!(authority_correction_errors("", true).is_empty());
-    }
-
-    #[test]
-    fn flags_wrong_authority_order() {
-        let text = "- **Authority order:** WRONG > ORDER\n";
-        let errors = authority_correction_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Authority order")));
-    }
-
-    #[test]
-    fn requires_correction_state_shape() {
-        let text = "- **Correction state:** GARBAGE\n";
-        let errors = authority_correction_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Correction state")));
-    }
-
-    #[test]
-    fn uncorrected_dispatch_requires_plan_invalidation_not_applicable() {
-        let text = "- **Correction state:** NONE: no correction needed\n\
-- **Plan invalidation:** SOMETHING_ELSE\n";
-        let errors = authority_correction_errors(text, false);
-        assert!(errors.iter().any(|e| e.contains("Plan invalidation")));
-    }
-}

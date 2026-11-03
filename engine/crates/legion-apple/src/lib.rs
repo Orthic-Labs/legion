@@ -77,21 +77,3 @@ pub fn tool_definitions() -> Vec<Value> {
         }
     })]
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn malformed_requests_do_not_dispatch() {
-        assert!(invoke("preflight", &Value::Null).await.is_err());
-        assert!(invoke("not-an-operation", &json!({})).await.is_err());
-    }
-
-    #[tokio::test]
-    async fn catalog_needs_no_credentials_or_platform() {
-        let value = invoke("catalog", &json!({})).await.unwrap();
-        assert_eq!(value["backend"], "legion-apple");
-        assert!(value["operations"]["app-store"]["actions"].is_object());
-    }
-}

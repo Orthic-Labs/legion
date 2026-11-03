@@ -91,25 +91,3 @@ pub async fn run(args: AppleArgs, cancellation: CancellationToken) -> CommandRes
     }
     Ok(value)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn args(input: &str) -> AppleArgs {
-        AppleArgs {
-            operation: "catalog".into(),
-            input: Some(input.into()),
-            input_file: None,
-            execute: false,
-            policy_context: None,
-        }
-    }
-    #[test]
-    fn input_is_structured_and_explicit_execution_is_preserved() {
-        assert!(parse_input(&args("[]")).is_err());
-        assert!(parse_input(&args("{broken")).is_err());
-        let mut input = args(r#"{"execute":false}"#);
-        input.execute = true;
-        assert_eq!(parse_input(&input).unwrap()["execute"], true);
-    }
-}

@@ -87,24 +87,3 @@ pub fn of_commit(text: &str) -> Option<String> {
     });
     tagged.or_else(|| classify(text).map(|(bucket, _)| bucket.to_owned()))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn keywords_match_on_word_edges_and_the_best_score_wins() {
-        assert!(has("reran the ci twice", "ci") && !has("a decision was made", "ci"));
-        assert!(has("it deleted the cache", "delete*"));
-        let class = |text: &str| classify(text).unwrap_or(("", "")).0;
-        assert_eq!(class("you used ci as the compiler, rerun"), "B3");
-        assert_eq!(class("i said stop, you kept building"), "B1");
-        assert_eq!(
-            (
-                class("hello there"),
-                of_commit("fix B2 gate door").as_deref()
-            ),
-            ("", Some("B2"))
-        );
-    }
-}

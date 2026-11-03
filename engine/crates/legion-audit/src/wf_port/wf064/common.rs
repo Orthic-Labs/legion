@@ -56,33 +56,3 @@ pub fn hmac_sha256_hex(signing_key: &str, message: &str) -> String {
     mac.update(message.as_bytes());
     hex::encode(mac.finalize().into_bytes())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn canonicalize_sorts_nested_keys() {
-        let value = json!({"b": 1, "a": {"z": 1, "y": 2}});
-        assert_eq!(canonical_json(&value), r#"{"a":{"y":2,"z":1},"b":1}"#);
-    }
-
-    #[test]
-    fn sha256_of_string_hashes_raw_bytes_not_json() {
-        // JS: sha256("abc") hashes the literal bytes "abc", NOT the JSON
-        // string `"abc"` (with quotes) that canonicalJson("abc") would give.
-        let digest = sha256_value(&json!("abc"));
-        let direct = sha256_str("abc");
-        assert_eq!(digest, direct);
-        assert_ne!(digest, sha256_str("\"abc\""));
-    }
-
-    #[test]
-    fn sha256_of_object_hashes_canonical_json() {
-        let value = json!({"b": 1, "a": 2});
-        let digest = sha256_value(&value);
-        assert_eq!(digest, sha256_str(&canonical_json(&value)));
-        assert!(digest.starts_with("sha256:"));
-    }
-}

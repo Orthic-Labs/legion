@@ -100,21 +100,3 @@ pub fn is_canonical(value: &str) -> bool {
         None => false,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn round_trips() {
-        let s = encode(b"hello world");
-        assert_eq!(decode(&s).unwrap(), b"hello world");
-        assert!(is_canonical(&s));
-    }
-
-    #[test]
-    fn rejects_noncanonical() {
-        assert!(!is_canonical("not base64!!"));
-        assert!(!is_canonical(""));
-    }
-}

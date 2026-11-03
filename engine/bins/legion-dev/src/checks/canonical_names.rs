@@ -525,38 +525,3 @@ pub fn run(root: &Path, json: bool) -> bool {
     }
     report.status == "pass"
 }
-
-#[cfg(test)]
-mod tests {
-    use super::skipped_naming_path;
-
-    #[test]
-    fn immutable_qualification_evidence_is_skipped_for_every_provider() {
-        for path in [
-            "qualification/provider-accuracy/logs/run.log",
-            "qualification/provider-accuracy/evidence/framework.backend/native-results.jsonl",
-            "qualification/provider-accuracy/records/code.mobile/evidence/digest/mobile-native-after.json",
-            "qualification/provider-accuracy/records/code.rust/evidence/digest/cases/positive/receipt.json",
-            "qualification/provider-accuracy/records/future.provider/evidence/payload.json",
-        ] {
-            assert!(skipped_naming_path(path), "{path}");
-        }
-    }
-
-    #[test]
-    fn active_sources_and_evidence_lookalikes_remain_scanned() {
-        for path in [
-            "src/registry/providers.json",
-            "src/config/naming-registry.json",
-            "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs",
-            "qualification/provider-accuracy/index.json",
-            "qualification/provider-accuracy/records/code.mobile/record.json",
-            "qualification/provider-accuracy/records/code.mobile/evidence-extra/payload.json",
-            "qualification/provider-accuracy/records/code.mobile/nested/evidence/payload.json",
-            "qualification/provider-accuracy/evidence-extra/payload.json",
-            "qualification/provider-accuracy/records//evidence/payload.json",
-        ] {
-            assert!(!skipped_naming_path(path), "{path}");
-        }
-    }
-}

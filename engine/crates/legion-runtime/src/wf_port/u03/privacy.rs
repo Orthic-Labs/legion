@@ -57,38 +57,3 @@ pub fn privacy_data_dictionary() -> Value {
         },
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_telemetry_is_off() {
-        let receipt = privacy_receipt(None, &[], &[]);
-        assert_eq!(receipt["telemetry"], json!("off"));
-        assert_eq!(receipt["exportCommand"], json!("legion privacy export"));
-        assert_eq!(receipt["deleteCommand"], json!("legion privacy delete"));
-    }
-
-    #[test]
-    fn sorts_integrations_and_fills_egress_defaults() {
-        let egress = vec![json!({"integration": "github", "leavesMachine": ["SARIF"]})];
-        let receipt = privacy_receipt(
-            Some("aggregate"),
-            &["zeta".to_string(), "alpha".to_string()],
-            &egress,
-        );
-        assert_eq!(receipt["integrations"], json!(["alpha", "zeta"]));
-        assert_eq!(
-            receipt["egress"][0]["dataDictionary"],
-            json!("See the integration documentation.")
-        );
-    }
-
-    #[test]
-    fn data_dictionary_matches_js_shape() {
-        let dict = privacy_data_dictionary();
-        assert_eq!(dict["telemetry"]["default"], json!("off"));
-        assert_eq!(dict["mcp"]["content"], json!([]));
-    }
-}

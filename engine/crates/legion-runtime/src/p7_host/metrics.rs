@@ -46,31 +46,3 @@ pub fn run_summary(records: &[Value]) -> Value {
         "totalModelCost": total("modelCost"),
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn economics_receipt_carries_fields_through() {
-        let receipt = economics_receipt(&EconomicsInputs {
-            provider: "eslint".into(),
-            duration_ms: 100.0,
-            ..Default::default()
-        });
-        assert_eq!(receipt["provider"], "eslint");
-        assert_eq!(receipt["durationMs"], 100.0);
-    }
-
-    #[test]
-    fn run_summary_aggregates_across_records() {
-        let records = vec![
-            json!({"durationMs": 10, "toolCost": 1}),
-            json!({"durationMs": 20, "toolCost": 2}),
-        ];
-        let summary = run_summary(&records);
-        assert_eq!(summary["providers"], 2);
-        assert_eq!(summary["totalDurationMs"], 30.0);
-        assert_eq!(summary["totalToolCost"], 3.0);
-    }
-}

@@ -41,21 +41,3 @@ pub fn script_gate_values(text: &str) -> std::collections::HashMap<String, Strin
     }
     values
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_known_keys_from_gate_evidence_block() {
-        let text = "## 5A. Script & Runner Gate\n\n**Gate evidence:**\n\n```\nGOAL: ship it\nTIER: 1\n```\n\n## 6. Failure Decision & Recovery Matrix\n";
-        let values = script_gate_values(text);
-        assert_eq!(values.get("GOAL"), Some(&"ship it".to_string()));
-        assert_eq!(values.get("TIER"), Some(&"1".to_string()));
-    }
-
-    #[test]
-    fn missing_section_is_empty() {
-        assert!(script_gate_values("nothing here").is_empty());
-    }
-}

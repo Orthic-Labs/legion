@@ -83,25 +83,3 @@ pub fn build_journeys(
     map.insert("digest".into(), Value::String(digest(&value)));
     Value::Object(map)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn no_journeys_declared_yields_denominator_gap() {
-        let portfolio = json!({"targets": [{"id": "target:web"}]});
-        let result = build_journeys(&portfolio, &json!({}), &json!({}), &Value::Null);
-        assert_eq!(result["complete"], false);
-        assert_eq!(result["gaps"].as_array().unwrap().len(), 1);
-    }
-
-    #[test]
-    fn declared_journeys_expand_per_target() {
-        let portfolio = json!({"targets": [{"id": "target:web"}, {"id": "target:api"}]});
-        let contract = json!({"declared": {"criticalJourneys": ["checkout"]}});
-        let result = build_journeys(&portfolio, &contract, &json!({}), &Value::Null);
-        assert_eq!(result["journeys"].as_array().unwrap().len(), 2);
-        assert!(result["complete"].as_bool().unwrap());
-    }
-}

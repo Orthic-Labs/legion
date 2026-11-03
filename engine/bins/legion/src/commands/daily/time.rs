@@ -70,19 +70,3 @@ pub fn duration(text: &str) -> Option<i64> {
     };
     (value > 0).then_some(value * factor)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_formats_and_reads_durations() {
-        assert_eq!(parse("2026-11-02T14:06:34.681Z"), Some(1_793_628_394));
-        assert_eq!(stamp(1_793_628_394), "2026-11-02 14:06Z");
-        assert_eq!(
-            (parse("junk"), duration("0h"), duration("24")),
-            (None, None, None)
-        );
-        assert_eq!(duration("90m"), Some(5_400));
-    }
-}

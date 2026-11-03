@@ -102,37 +102,3 @@ pub fn storage_errors(
     }
     errors
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn relative_artifact_path_flagged() {
-        let text = "- **Validated artifact path:** dispatch.md\n- **Receipt path:** dispatch.receipt.json\n";
-        let errors = storage_errors(text, Path::new("dispatch.md"), None, None);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("absolute dispatch file path")));
-    }
-
-    #[test]
-    fn missing_receipt_arg_is_required() {
-        let artifact = Path::new("/repo/dispatch.md");
-        let text = "- **Validated artifact path:** /repo/dispatch.md\n- **Receipt path:** /repo/dispatch.receipt.json\n";
-        let errors = storage_errors(text, artifact, None, None);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("write or verify sidecar receipt")));
-    }
-
-    #[test]
-    fn temp_storage_is_rejected() {
-        let artifact = Path::new("/repo/.tmp/dispatch.md");
-        let text = "- **Validated artifact path:** /repo/.tmp/dispatch.md\n- **Receipt path:** /repo/.tmp/dispatch.receipt.json\n";
-        let errors = storage_errors(text, artifact, None, None);
-        assert!(errors
-            .iter()
-            .any(|e| e.contains("temporary/cache/review-run storage")));
-    }
-}

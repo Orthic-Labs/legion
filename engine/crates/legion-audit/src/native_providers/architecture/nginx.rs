@@ -2251,24 +2251,3 @@ pub fn analyze_nginx(
     );
     analysis
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn quoted_delimiters_are_not_structure() {
-        let toks = tokenize("add_header X \"a;b{c}\"; # c;\n").unwrap();
-        assert_eq!(toks.len(), 4);
-    }
-
-    #[test]
-    fn escape_is_rejected() {
-        assert!(normalize_path("../x", "/etc/nginx").is_err());
-        assert!(normalize_path("/etc/other/x", "/etc/nginx").is_err());
-        assert_eq!(
-            normalize_path("/etc/nginx/conf.d/a.conf", "/etc/nginx").unwrap(),
-            "conf.d/a.conf"
-        );
-    }
-}

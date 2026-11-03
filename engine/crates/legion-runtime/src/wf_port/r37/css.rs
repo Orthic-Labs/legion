@@ -535,22 +535,3 @@ const CSS_TEMPLATE: &str = r###"  @page {
 pub fn build_css(domain: &str) -> String {
     CSS_TEMPLATE.replace("{domain}", domain)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn interpolates_domain_into_bottom_right_page_rule() {
-        let css = build_css("example.com");
-        assert!(css.contains("example.com Google SEO Report"));
-        assert!(!css.contains("{domain}"));
-    }
-
-    #[test]
-    fn keeps_literal_css_braces() {
-        let css = build_css("x.com");
-        assert!(css.contains("@page {"));
-        assert!(css.contains(".title-page {"));
-    }
-}

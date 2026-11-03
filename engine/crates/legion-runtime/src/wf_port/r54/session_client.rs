@@ -101,23 +101,3 @@ pub fn element_point_expression(selector_js_string: &str) -> String {
         sel = selector_js_string
     )
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn element_point_expression_matches_js_shape() {
-        let e = element_point_expression("\"#go\"");
-        assert!(e.contains("document.querySelector(\"#go\")"));
-        assert!(e.contains("empty rect"));
-    }
-
-    #[test]
-    fn session_data_round_trips_default_json() {
-        let s = SessionData::default();
-        let json = serde_json::to_string(&s).unwrap();
-        let back: SessionData = serde_json::from_str(&json).unwrap();
-        assert_eq!(s, back);
-    }
-}

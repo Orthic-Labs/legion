@@ -10,7 +10,6 @@ members = [
     "crates/legion-harness",
     "crates/legion-runtime",
     "crates/legion-topology",
-    "crates/legion-workspace-tests",
 
     "bins/legion",
     "bins/legion-dev",

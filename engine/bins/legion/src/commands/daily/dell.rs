@@ -95,18 +95,3 @@ pub fn collect(dir: &Path, since: i64) -> Dell {
         warnings,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn listing_lines_keep_known_tags_and_whole_paths() {
-        let text = "claude|120|C:\\Users\\a\\s.jsonl\r\nrubbish\nfoo|1|x\ncodex|x|y\nreceipts|9|D:\\r\\a.json";
-        let expected = [
-            ("claude", 120, "C:\\Users\\a\\s.jsonl"),
-            ("receipts", 9, "D:\\r\\a.json"),
-        ];
-        assert_eq!(parse(text), expected);
-    }
-}

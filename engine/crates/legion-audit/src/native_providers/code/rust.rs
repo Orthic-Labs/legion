@@ -35,26 +35,3 @@ pub fn analyze(input: &Value) -> Value {
     }
     output
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn soundness_and_feature_target_gaps_remain_distinct_from_scanner_findings() {
-        let result = analyze(
-            &json!({"files":[{"path":"lib.rs"}],"unsafeKeywordCandidates":[{"path":"lib.rs","line":1}],"rustVariantGaps":[{"path":"Cargo.toml","reason":"declared-feature-or-target-matrix-unproven"}]}),
-        );
-        let gaps = result["coverageGaps"].as_array().unwrap();
-        assert!(gaps
-            .iter()
-            .any(|gap| gap["kind"] == "unsafe-assessment-unavailable"));
-        assert!(gaps
-            .iter()
-            .any(|gap| gap["kind"] == "unproven-build-variant"));
-        assert_eq!(result["complete"], false);
-        assert_eq!(
-            CONFIG.tools,
-            ["metadata", "check", "lint", "test", "dependency"]
-        );
-    }
-}

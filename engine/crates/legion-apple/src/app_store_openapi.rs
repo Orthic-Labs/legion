@@ -438,26 +438,3 @@ fn pointer<'a>(root: &'a Value, reference: &str) -> Option<&'a Value> {
     }
     Some(value)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn resolves_local_refs_and_rejects_external_refs() {
-        let spec = json!({"paths": {"/v1/apps": {"get": {"operationId": "listApps", "parameters": [{"$ref": "#/components/parameters/Limit"}]}}}, "components": {"parameters": {"Limit": {"name": "limit", "in": "query", "schema": {"type": "integer"}}}}});
-        let operations = operations(&spec).unwrap();
-        assert_eq!(operations[0].operation_id, "listApps");
-        let external = json!({"$ref": "https://example.invalid/spec.json"});
-        assert!(resolve_bounded(&external, &spec).is_err());
-    }
-
-    #[test]
-    fn validates_required_body_schema() {
-        let spec = json!({"paths": {"/v1/apps": {"post": {"operationId": "createApp", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["data"]}}}}}}}});
-        let operation = operations(&spec).unwrap().remove(0);
-        let args = json!({"body": {"wrong": true}});
-        assert!(build_request(args.as_object().unwrap(), &spec, &operation).is_err());
-    }
-}

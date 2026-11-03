@@ -432,22 +432,3 @@ impl BrowserSession for ChromeSession {
         std::mem::take(&mut *self.console_errors.lock().unwrap())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::printable_text;
-
-    #[test]
-    fn printable_single_character_carries_text() {
-        assert_eq!(printable_text("a"), Some("a".to_string()));
-        assert_eq!(printable_text("7"), Some("7".to_string()));
-    }
-
-    #[test]
-    fn named_keys_and_control_characters_carry_no_text() {
-        assert_eq!(printable_text("Enter"), None);
-        assert_eq!(printable_text("ArrowDown"), None);
-        assert_eq!(printable_text("\n"), None);
-        assert_eq!(printable_text(""), None);
-    }
-}

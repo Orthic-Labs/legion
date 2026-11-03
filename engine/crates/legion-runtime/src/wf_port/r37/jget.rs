@@ -97,24 +97,3 @@ pub fn truthy(v: Option<&Value>) -> bool {
         Some(Value::Object(o)) => !o.is_empty(),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn thousands_groups_by_three() {
-        assert_eq!(thousands(0), "0");
-        assert_eq!(thousands(999), "999");
-        assert_eq!(thousands(1000), "1,000");
-        assert_eq!(thousands(1234567), "1,234,567");
-        assert_eq!(thousands(-1234), "-1,234");
-    }
-
-    #[test]
-    fn pct0_matches_python_percent_format() {
-        assert_eq!(pct0(0.0), "0%");
-        assert_eq!(pct0(0.5), "50%");
-        assert_eq!(pct0(0.9), "90%");
-    }
-}

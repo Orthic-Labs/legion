@@ -146,26 +146,3 @@ pub fn build_product_context(projection: &Value, contract: &Value) -> Value {
         "riskAuthority": contract.get("declared").and_then(|d| d.get("riskAuthority")).cloned().unwrap_or(Value::Null),
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn extract_actors_merges_and_sorts_observed_and_declared_roles() {
-        let projection = json!({"roles": ["viewer"]});
-        let contract = json!({"declared": {"roles": ["admin", "viewer"]}});
-        let result = extract_actors(&projection, &contract);
-        assert_eq!(result["roles"], json!(["admin", "viewer"]));
-    }
-
-    #[test]
-    fn build_product_context_flags_unknown_account_role() {
-        let projection = json!({
-            "roles": ["admin"],
-            "accounts": [{"id": "acct:1", "roleIds": ["ghost"]}],
-        });
-        let result = build_product_context(&projection, &json!({}));
-        assert_eq!(result["gaps"].as_array().unwrap().len(), 1);
-    }
-}

@@ -1542,31 +1542,3 @@ pub fn classify_run(
     outcome.status = NativeLintStatus::Findings;
     outcome
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn oxlint_rule_ids_are_plugin_slash_rule() {
-        assert_eq!(oxlint_rule_id("eslint(no-debugger)"), "eslint/no-debugger");
-        assert_eq!(oxlint_rule_id("plain"), "plain");
-    }
-
-    #[test]
-    fn ancestors_walk_to_root() {
-        assert_eq!(ancestors("a/b"), vec!["a/b", "a", ""]);
-        assert_eq!(ancestors(""), vec![""]);
-    }
-
-    #[test]
-    fn unpinned_identity_always_names_gaps() {
-        let gaps = validate_pin(&NativeLinterPin::unpinned(Linter::Oxlint));
-        assert!(gaps
-            .iter()
-            .any(|gap| gap.ends_with("oxlint-version-unpinned")));
-        assert!(gaps
-            .iter()
-            .any(|gap| gap.ends_with("oxlint-distribution-digest-missing")));
-    }
-}

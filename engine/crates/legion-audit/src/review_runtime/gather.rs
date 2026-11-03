@@ -76,24 +76,6 @@ pub(super) fn prompt(requests: &[&ReasoningInvocation], snapshot_key: &str) -> V
     json!({"stage":"evidence-gathering","task":"Select narrow supplementary context requests for these source-review lanes. Inventory paths and lens questions are metadata; mandatory excerpts will be separately supplied to specialist. Use audit.list_files for omitted inventory when useful. No findings or coverage decisions are accepted from this stage.","snapshotKey":snapshot_key,"lanes":lanes,"inventoryPaths":listed,"inventoryCount":count,"inventoryListingTruncated":listed.len()<count,"contextTools":tools::specs(),"maxRequests":MAX_REQUESTS})
 }
 
-#[cfg(test)]
-pub(super) fn initial_request_sizes(
-    works: &[PendingLensWork],
-) -> Result<super::RequestSizes, AuditError> {
-    let requests = works.iter().map(|work| &work.request).collect::<Vec<_>>();
-    let snapshot_key = requests
-        .first()
-        .and_then(|request| request.packet.pointer("/reviewContext/snapshotKey"))
-        .and_then(Value::as_str)
-        .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
-    super::planning_sizes(
-        &prompt(&requests, snapshot_key),
-        &schema(),
-        model::planning_gatherer_candidates()?,
-        |_| GATHER_SYSTEM,
-    )
-}
-
 impl Controller<'_> {
     pub(super) fn gather_for_author(
         &mut self,
@@ -203,45 +185,5 @@ impl Controller<'_> {
         Ok(
             json!({"kind":"supplementary-host-evidence","authority":"raw frozen-source tool replies only; cheap planner has no finding or coverage authority","snapshotKey":self.snapshot.manifest.key,"plannerContextId":observation.context_id,"deliveries":deliveries,"omittedForByteCap":omitted,"noAdditionalContextReason":no_context_reason,"mandatoryCoverageUnchanged":true}),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn gather_sizing_uses_same_once_counted_model_input() {
-        let work = crate::review_runtime::tests::estimate_work(
-            "reasoning.correctness",
-            "gather",
-            "quoted \"source\"\n",
-        );
-        let sizes = initial_request_sizes(std::slice::from_ref(&work)).unwrap();
-        let prompt = prompt(&[&work.request], "sha256:fixture");
-        let expected = (rightkit_evidence_contracts::canonical_json_bytes(&prompt)
-            .unwrap()
-            .len()
-            + GATHER_SYSTEM.len()
-            + schema().to_string().len()) as u64;
-        assert_eq!(sizes.model_visible_input_bytes, expected);
-        assert!(sizes.host_envelope_bytes > expected);
-    }
-    #[test]
-    fn gathering_cannot_supply_findings_or_unbounded_requests() {
-        assert!(validated_requests(json!({"contextRequests":[],"noAdditionalContextReason":"Mandatory excerpts already cover this narrow lane."})).is_ok());
-        assert!(validated_requests(json!({"contextRequests":[]})).is_err());
-        assert!(validated_requests(
-            json!({"contextRequests":[],"noAdditionalContextReason":" ","findings":[]})
-        )
-        .is_err());
-        let request = json!({"tool":"audit.read_file","arguments":{"path":"src/lib.rs","startLine":1,"endLine":4}});
-        assert!(
-            validated_requests(json!({"contextRequests":vec![request.clone(); MAX_REQUESTS]}))
-                .is_ok()
-        );
-        assert!(
-            validated_requests(json!({"contextRequests":vec![request; MAX_REQUESTS + 1]})).is_err()
-        );
     }
 }

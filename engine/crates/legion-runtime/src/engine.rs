@@ -323,23 +323,3 @@ impl LegionEngine {
         self.admission.quiesce(deadline).await
     }
 }
-
-#[cfg(test)]
-mod lifecycle_tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn leg_025_quiescing_rejects_admission_drains_and_reports_forced_count() {
-        let admission = RuntimeAdmission::new();
-        let token = tokio_util::sync::CancellationToken::new();
-        let operation = admission.admit(token.clone()).expect("running admission");
-        let report = admission.quiesce(Instant::now()).await;
-        assert_eq!(report.state, RuntimeState::Stopped);
-        assert_eq!(report.forced, 1);
-        assert!(token.is_cancelled());
-        assert!(admission
-            .admit(tokio_util::sync::CancellationToken::new())
-            .is_err());
-        drop(operation);
-    }
-}

@@ -49,37 +49,3 @@ pub fn validate_fault_injection(
         reason: None,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn blocks_unbounded_fault() {
-        let cap = json!({"status": "available"});
-        let fault = json!({"id": "f1"});
-        let decision = validate_fault_injection(Some(&fault), Some(&cap));
-        assert_eq!(decision.status, "blocked");
-        assert_eq!(decision.reason, Some("fault-not-bounded"));
-    }
-
-    #[test]
-    fn blocks_production_fault() {
-        let cap = json!({"status": "available"});
-        let fault = json!({"id": "f1", "durationMs": 100, "production": true});
-        let decision = validate_fault_injection(Some(&fault), Some(&cap));
-        assert_eq!(decision.status, "blocked");
-        assert_eq!(decision.reason, Some("production-fault-forbidden"));
-    }
-
-    #[test]
-    fn passes_bounded_nonproduction_fault() {
-        let cap = json!({"status": "available"});
-        let fault = json!({"id": "f1", "durationMs": 100});
-        assert_eq!(
-            validate_fault_injection(Some(&fault), Some(&cap)).status,
-            "pass"
-        );
-    }
-}

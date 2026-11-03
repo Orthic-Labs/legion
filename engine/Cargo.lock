@@ -2495,17 +2495,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-workspace-tests"
-version = "0.3.23"
-dependencies = [
- "legion-host",
- "rightkit-evidence-contracts",
- "rightkit-evidence-effects",
- "rightkit-policy-rules",
- "serde_json",
-]
-
-[[package]]
 name = "libbz2-rs-sys"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

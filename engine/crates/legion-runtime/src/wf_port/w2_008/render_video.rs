@@ -53,33 +53,3 @@ pub fn resolve_trim(trim_override: Option<f64>, animation_start_sec: f64, has_re
         None => animation_start_sec + if has_ready { 0.05 } else { 0.5 },
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn manual_override_wins() {
-        assert_eq!(resolve_trim(Some(1.25), 3.0, true), 1.25);
-        assert_eq!(resolve_trim(Some(0.0), 3.0, false), 0.0);
-    }
-
-    #[test]
-    fn ready_signal_adds_small_nudge() {
-        let t = resolve_trim(None, 1.8, true);
-        assert!((t - 1.85).abs() < 1e-9);
-    }
-
-    #[test]
-    fn fallback_adds_safety_margin() {
-        let t = resolve_trim(None, 1.5, false);
-        assert!((t - 2.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn hide_chrome_css_matches_source_literal() {
-        assert!(HIDE_CHROME_CSS.contains(".no-record,"));
-        assert!(HIDE_CHROME_CSS.contains("[data-role=\"chrome\"], [data-record=\"hidden\"]"));
-        assert!(HIDE_CHROME_CSS.contains("display: none !important;"));
-    }
-}

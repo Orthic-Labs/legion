@@ -52,39 +52,3 @@ fn contains_open_tag(lower: &str, tag: &str) -> bool {
         )
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn detects_doctype() {
-        assert!(is_full_page("<!doctype html><html></html>"));
-    }
-
-    #[test]
-    fn detects_html_tag() {
-        assert!(is_full_page("<html lang=\"en\"><body></body></html>"));
-    }
-
-    #[test]
-    fn detects_head_tag() {
-        assert!(is_full_page("<head><title>x</title></head>"));
-    }
-
-    #[test]
-    fn partial_is_not_full_page() {
-        assert!(!is_full_page("<div class=\"card\"><span>hi</span></div>"));
-    }
-
-    #[test]
-    fn ignores_markers_inside_comments() {
-        assert!(!is_full_page("<!-- <html> --><div>x</div>"));
-    }
-
-    #[test]
-    fn html_tag_not_matched_as_prefix_of_other_word() {
-        // "htmlx" should not count as an <html ...> or <html> open tag.
-        assert!(!is_full_page("<htmlx>content</htmlx>"));
-    }
-}

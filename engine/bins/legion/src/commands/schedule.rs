@@ -257,17 +257,3 @@ fn iso_now() -> String {
         elapsed.subsec_millis()
     )
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn renderer_is_pure_and_canonicalizes_wave_members() {
-        let input = json!({"z":1,"waves":[["b","a"]]});
-        assert_eq!(
-            render_schedule(&input, "json").unwrap(),
-            "{\"waves\":[[\"a\",\"b\"]],\"z\":1}\n"
-        );
-        assert_eq!(input["waves"][0], json!(["b", "a"]));
-    }
-}

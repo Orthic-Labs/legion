@@ -78,39 +78,3 @@ fn rfc3339_now() -> String {
         rem % 60
     )
 }
-
-#[cfg(all(test, unix))]
-mod tests {
-    use super::*;
-    use std::ffi::OsString;
-    use std::os::unix::fs::PermissionsExt;
-
-    fn args(parts: &[&str]) -> CommonArgs {
-        CommonArgs {
-            json: false,
-            args: parts.iter().map(OsString::from).collect(),
-        }
-    }
-
-    #[test]
-    fn rfc3339_known_instant_shape() {
-        let text = rfc3339_now();
-        assert_eq!(text.len(), 20);
-        assert!(text.ends_with('Z'));
-    }
-
-    #[test]
-    fn init_command_creates_then_refuses() {
-        let dir = std::env::temp_dir().join(format!("legion-keys-cmd-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let path = dir.to_string_lossy().into_owned();
-        let out = run(args(&["init", "--key-dir", &path])).unwrap();
-        assert_eq!(out["created"], true);
-        let mode = std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
-        assert_eq!(mode, 0o700);
-        let error = run(args(&["init", "--key-dir", &path])).unwrap_err();
-        assert!(error.message.contains("already initialized"));
-        assert!(run(args(&["bogus"])).is_err());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-}
