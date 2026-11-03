@@ -1,21 +1,19 @@
 //! Adrian's words, held by the machine: every typed prompt is recorded, standing orders are kept
-//! and delivered to every chat, and agents cannot write into the state folder.
+//! and delivered to every chat.
 
+use std::fs;
 use std::path::Path;
-use std::{env::var, fs};
 
 use serde_json::{json, Value};
 
 use crate::protocol::{HookRequest, HookResponse};
-use crate::state::{append_line, edit_path, now_secs, off, session_id, state_root, str_field};
-use crate::state::{write_atomic, Payload};
+use crate::state::{append_line, now_secs, off, session_id, state_root, str_field, write_atomic};
 use crate::transcript::human;
 
 /// Words that open a standing-order clause.
 const OPENERS: &str =
     "from now on|always|never|no more|every time|standing rule|pass this to all|all chats";
 const BUDGET: usize = 4096;
-const PROTECTED: &str = "The state folder holds Adrian's recorded words and standing orders; agents cannot write there.";
 
 struct Order {
     id: u64,
@@ -184,73 +182,4 @@ pub fn context_for_prompt(request: &HookRequest) -> Option<String> {
     }
     let session = session_id(request.payload.as_object()?)?;
     context(&state_root()?, Some(session.as_str()), false)
-}
-
-/// Add `extra` to a response's additional context, or build an allow response that carries it.
-pub fn attach_context(
-    response: Option<HookResponse>,
-    extra: Option<String>,
-    event_type: &str,
-) -> Option<HookResponse> {
-    let Some(extra) = extra else {
-        return response;
-    };
-    let fallback = || HookResponse::allowed(event_type.to_owned(), "standing orders delivered");
-    let mut response = response.unwrap_or_else(fallback);
-    response.additional_context = Some(match response.additional_context.take() {
-        Some(existing) => format!("{existing}\n\n{extra}"),
-        None => extra,
-    });
-    Some(response)
-}
-
-/// Does the command redirect into, or `tee`, `cp`, `mv` or `rm`, a path under the state root?
-fn writes_root(command: &str, root: &str, home: &str) -> bool {
-    let names = |word: &str| {
-        let expanded = word
-            .replace("${HOME}", home)
-            .replace("$HOME", home)
-            .replace('~', home);
-        expanded.replace('\\', "/").contains(root)
-    };
-    crate::command_segments(command).iter().any(|segment| {
-        let words = crate::shell_words(crate::strip_command_prefixes(segment));
-        let program = words.first().map_or("", |word| crate::program_name(word));
-        let redirected = words.iter().enumerate().any(|(index, word)| {
-            let tail = word.rsplit('>').next().unwrap_or("");
-            let target = if tail.is_empty() {
-                words.get(index + 1).map_or("", |next| next.as_str())
-            } else {
-                tail
-            };
-            word.contains('>') && names(target)
-        });
-        redirected
-            || (matches!(program, "tee" | "cp" | "mv" | "rm")
-                && words.iter().skip(1).any(|word| names(word)))
-    })
-}
-
-/// PreToolUse: deny edits and shell writes that reach the state folder, so an agent cannot forge a turn.
-pub fn pre_tool(request: &HookRequest) -> Option<HookResponse> {
-    if off("words") || !request.is_pre_effect() {
-        return None;
-    }
-    let payload: &Payload = request.payload.as_object()?;
-    let root = state_root()?.to_string_lossy().replace('\\', "/");
-    let home = var("HOME").or(var("USERPROFILE")).unwrap_or_default();
-    let inside = |path: String| path == root || path.starts_with(&format!("{root}/"));
-    let edited =
-        edit_path(payload).is_some_and(|path| inside(path.to_string_lossy().replace('\\', "/")));
-    let command = crate::state::tool_input(payload).and_then(crate::command_text);
-    if !edited && !command.is_some_and(|command| writes_root(&command, &root, &home)) {
-        return None;
-    }
-    let event = request.event_type.clone();
-    Some(HookResponse::denied(
-        event,
-        "ARC_WORDS_PROTECTED",
-        PROTECTED,
-        "strong",
-    ))
 }

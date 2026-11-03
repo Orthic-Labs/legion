@@ -2842,7 +2842,6 @@ fn devin_hook_event(event: &str) -> Option<&'static str> {
     match event {
         "SessionStart" => Some("SessionStart"),
         "UserPromptSubmit" => Some("UserPromptSubmit"),
-        "PreToolUse" => Some("PreToolUse"),
         "PostToolUse" => Some("PostToolUse"),
         "PostCompact" => Some("PostCompaction"),
         "Stop" => Some("Stop"),
@@ -2854,7 +2853,7 @@ fn devin_hook_event(event: &str) -> Option<&'static str> {
 /// none, so a copied matcher would never fire. Tool events also need Devin's
 /// own tool names (`exec`, `edit`, ...) alongside the packaged Claude names.
 fn devin_tool_event(event: &str) -> bool {
-    matches!(event, "PreToolUse" | "PostToolUse" | "PermissionRequest")
+    matches!(event, "PostToolUse" | "PermissionRequest")
 }
 
 fn devin_hook_matcher(event: &str, matcher: Option<&str>) -> Option<String> {

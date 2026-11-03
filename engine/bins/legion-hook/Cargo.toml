@@ -10,7 +10,6 @@ name = "legion-hook"
 path = "src/main.rs"
 
 [dependencies]
-legion-application = { path = "../../crates/legion-application" }
 rightkit-evidence-contracts = "=0.1.0"
 legion-identity = { path = "../../crates/legion-identity" }
 legion-runtime = { path = "../../crates/legion-runtime" }

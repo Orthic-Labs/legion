@@ -43,7 +43,7 @@ pub fn codex_descriptor() -> Value {
             "skills": {"fidelity": "strong", "mechanism": {"kind": "plugin"}, "note": "native Agent Plugin skills; plugin enablement controls bundled skills"},
             "agents": {"fidelity": "strong", "mechanism": {"kind": "agent-config", "path": ".codex/agents", "registration": ".codex/config.toml"}, "note": "bind projects roster roles and native registrations; verify effective config and runtime launch separately"},
             "mcp": {"fidelity": "strong", "mechanism": {"kind": "plugin"}, "note": "native Agent Plugin MCP configuration; plugin enablement controls bundled servers"},
-            "hooks": {"fidelity": "degraded", "mechanism": {"kind": "plugin-hook"}, "note": "native Agent Plugin lifecycle hooks include UserPromptSubmit, PreToolUse, PostToolUse and Stop; Codex skips bundled hooks until the user trusts the current definition; the pre-tool effect-enforcement hook covers Bash, apply_patch and exec_command"},
+            "hooks": {"fidelity": "degraded", "mechanism": {"kind": "plugin-hook"}, "note": "native Agent Plugin lifecycle hooks include UserPromptSubmit, PostToolUse and Stop; Codex skips bundled hooks until the user trusts the current definition; the hook enforces only the Stop decision and records post-tool evidence for Bash, apply_patch and exec_command"},
         },
     })
 }

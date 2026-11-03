@@ -6,7 +6,8 @@ pub const RESPONSE_KIND: &str = "legion-hook-response";
 
 /// Host lifecycle names accepted by both retained Claude/Codex registrations
 /// & the canonical Arcane event vocabulary. Unknown names are rejected before
-/// any effect can be considered.
+/// any effect can be considered. `PreToolUse`/`pre-effect` stay accepted so a
+/// stale host registration is a harmless no-op; Legion no longer gates tool calls.
 pub const SUPPORTED_EVENT_TYPES: &[&str] = &[
     "SessionStart",
     "SubagentStart",
@@ -144,10 +145,6 @@ impl HookRequest {
         )
     }
 
-    pub fn is_pre_effect(&self) -> bool {
-        matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect")
-    }
-
     pub fn is_post_effect(&self) -> bool {
         matches!(
             self.event_type.as_str(),
@@ -162,46 +159,18 @@ pub struct HookResponse {
     pub kind: &'static str,
     pub event_type: String,
     pub allowed: bool,
-    /// When `allowed` is false, a Claude Code PreToolUse frame is answered
-    /// with `permissionDecision: "ask"` (host confirmation) instead of
-    /// `"deny"`. Never set on an allow; Codex has no ask outcome and treats
-    /// it as a denial (exit 2).
-    pub ask: bool,
     pub code: Option<String>,
     pub reason: String,
     pub enforcement_health: &'static str,
-    /// On an allowed PreToolUse frame, the tool input the host runs instead of
-    /// the one the agent sent (Claude Code `updatedInput`).
-    pub updated_input: Option<Value>,
-    /// Model-facing text added to the conversation on SessionStart,
-    /// UserPromptSubmit or PostToolUse (Claude Code `additionalContext`).
+    /// Model-facing text added to the conversation on SessionStart or
+    /// UserPromptSubmit (Claude Code `additionalContext`).
     pub additional_context: Option<String>,
 }
 
 impl HookResponse {
-    pub fn with_updated_input(mut self, input: Value) -> Self {
-        self.updated_input = Some(input);
-        self
-    }
-
     pub fn with_additional_context(mut self, context: impl Into<String>) -> Self {
         self.additional_context = Some(context.into());
         self
-    }
-
-    pub fn unsupported(event_type: impl Into<String>) -> Self {
-        Self {
-            schema_version: SCHEMA_VERSION,
-            kind: RESPONSE_KIND,
-            event_type: event_type.into(),
-            allowed: false,
-            ask: false,
-            code: Some("ARC_NATIVE_POLICY_UNAVAILABLE".into()),
-            reason: "native hook enforcement is unavailable; effect is refused".into(),
-            enforcement_health: "unsupported",
-            updated_input: None,
-            additional_context: None,
-        }
     }
 
     pub fn allowed(event_type: impl Into<String>, reason: impl Into<String>) -> Self {
@@ -210,11 +179,9 @@ impl HookResponse {
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
             allowed: true,
-            ask: false,
             code: None,
             reason: reason.into(),
             enforcement_health: "strong",
-            updated_input: None,
             additional_context: None,
         }
     }
@@ -230,26 +197,10 @@ impl HookResponse {
             kind: RESPONSE_KIND,
             event_type: event_type.into(),
             allowed: false,
-            ask: false,
             code: Some(code.into()),
             reason: reason.into(),
             enforcement_health: health,
-            updated_input: None,
             additional_context: None,
-        }
-    }
-
-    /// An effect the Guard will not grant on its own authority but that the
-    /// host's permission prompt may let the user confirm. This never allows:
-    /// `allowed` stays false, so a host without an ask outcome (Codex) denies.
-    pub fn ask(
-        event_type: impl Into<String>,
-        code: impl Into<String>,
-        reason: impl Into<String>,
-    ) -> Self {
-        Self {
-            ask: true,
-            ..Self::denied(event_type, code, reason, "strong")
         }
     }
 
@@ -269,39 +220,10 @@ impl HookResponse {
         object.insert("reason".into(), Value::String(self.reason.clone()));
         object.insert("schemaVersion".into(), Value::from(self.schema_version));
 
-        // Preserve native Claude/Codex blocking shapes alongside the typed
-        // response envelope. Hosts ignore these fields when an event cannot
-        // be blocked, while PreToolUse/Stop consume them directly.
-        if !self.allowed && matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect") {
-            let mut specific = Map::new();
-            specific.insert("hookEventName".into(), Value::String("PreToolUse".into()));
-            specific.insert(
-                "permissionDecision".into(),
-                Value::String(if self.ask { "ask" } else { "deny" }.into()),
-            );
-            specific.insert(
-                "permissionDecisionReason".into(),
-                Value::String(self.reason.clone()),
-            );
-            object.insert("hookSpecificOutput".into(), Value::Object(specific));
-        } else if !self.allowed && matches!(self.event_type.as_str(), "Stop" | "stop") {
+        // Preserve the native Claude/Codex blocking shape alongside the typed
+        // response envelope; only Stop can block.
+        if !self.allowed && matches!(self.event_type.as_str(), "Stop" | "stop") {
             object.insert("decision".into(), Value::String("block".into()));
-        } else if self.allowed
-            && matches!(self.event_type.as_str(), "PreToolUse" | "pre-effect")
-            && self.updated_input.is_some()
-        {
-            let mut specific = Map::new();
-            specific.insert("hookEventName".into(), Value::String("PreToolUse".into()));
-            specific.insert("permissionDecision".into(), Value::String("allow".into()));
-            specific.insert(
-                "permissionDecisionReason".into(),
-                Value::String(self.reason.clone()),
-            );
-            specific.insert(
-                "updatedInput".into(),
-                self.updated_input.clone().unwrap_or(Value::Null),
-            );
-            object.insert("hookSpecificOutput".into(), Value::Object(specific));
         } else if let Some(context) = &self.additional_context {
             let event = match self.event_type.as_str() {
                 "user-prompt-submit" => "UserPromptSubmit",
@@ -316,34 +238,6 @@ impl HookResponse {
         }
         Value::Object(object)
     }
-}
-
-fn is_pre_tool_use_name(name: &str) -> bool {
-    matches!(name.trim(), "PreToolUse" | "pre-effect")
-}
-
-/// Whether a frame that failed to become a request was a PreToolUse event.
-/// `--event` wins; otherwise the raw text is scanned for an event-name field
-/// holding PreToolUse, which survives malformed JSON elsewhere in the frame.
-/// An unidentifiable frame returns false so existing behaviour is unchanged.
-pub fn identifies_pre_tool_use(input: &[u8], argv_event: Option<&str>) -> bool {
-    if argv_event.is_some_and(is_pre_tool_use_name) {
-        return true;
-    }
-    let text = String::from_utf8_lossy(input);
-    for key in ["\"hook_event_name\"", "\"eventType\""] {
-        for (index, _) in text.match_indices(key) {
-            let rest = text[index + key.len()..].trim_start();
-            let Some(rest) = rest.strip_prefix(':') else {
-                continue;
-            };
-            let rest = rest.trim_start();
-            if rest.starts_with("\"PreToolUse\"") || rest.starts_with("\"pre-effect\"") {
-                return true;
-            }
-        }
-    }
-    false
 }
 
 fn string(object: &Map<String, Value>, key: &str) -> Option<String> {

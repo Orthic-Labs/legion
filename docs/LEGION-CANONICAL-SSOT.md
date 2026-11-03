@@ -114,7 +114,7 @@ Primary rules:
 | Explicit aliases | `src/config/capability-aliases.json` | resolver/projections |
 | Semantic effect vocabulary | this root SSOT | SKILL declarations |
 | Cognitive control plane and response policy | `doctrine/arcane.md` | host delivery surfaces |
-| Runtime effect mapping/enforcement | `doctrine/guard.md` (seed: `engine/bins/legion-hook/**`) | receipts/projections |
+| Stop decision (may Claude stop) | `doctrine/guard.md` (seed: `engine/bins/legion-hook/**`) | receipts/projections |
 | Executable work-unit materialization | Legion + producing capability | contract runtime |
 | Independent Completion Validation | Oracle (`src/roster/oracle.md` + `doctrine/oracle.md`) | Audit/QA evidence may be inputs |
 
@@ -271,7 +271,7 @@ network-request
 ```
 
 Mapping from the semantic classes (declared in SKILL `effects:`) to the runtime
-`legion-contracts::EffectClass` values the Guard enforces (`doctrine/guard.md`). The enum is the
+`legion-contracts::EffectClass` values. The enum is the
 runtime authority; this table only prevents the two vocabularies from drifting apart:
 
 | Semantic class | Runtime `EffectClass` |
@@ -290,26 +290,26 @@ execute → Alchemist
 effect X → capability Y
 ```
 
-Never infer effect safety from a mode label. Effects are declared explicitly and the Guard gates
-them deterministically.
+Never infer effect safety from a mode label. Effects are declared explicitly; tool permissions
+are enforced by the host's own settings, not by Legion.
 
 ## 8. Cognitive control and deterministic effect-enforcement boundary
 
 ```text
 Legion  = orchestration control
 Arcane  = cognitive control plane
-Guard   = deterministic effect enforcement
+Guard   = the Stop decision
 ```
 
 Arcane owns cognitive processing shape and response policy, including Brief/Minimize,
 ending-shape discipline, and Bounded Falsification; its detailed method is delegated to
-`doctrine/arcane.md`. The Guard owns effect classification, policy matching, deterministic
-fail-closed gates, enforcement health, and effect-decision receipts; its detailed method is
-delegated to `doctrine/guard.md`.
+`doctrine/arcane.md`. The Guard owns the Stop decision (whether Claude may stop, and when a
+model audit is required), the evidence ledger it reads, and enforcement health; its detailed
+method is delegated to `doctrine/guard.md`.
 
 Cross-boundary invariants:
 
-- Arcane does not authorize effects or keep effect-enforcement receipts. Its cognitive route is
+- Arcane does not decide Stop or keep Guard receipts. Its cognitive route is
   ephemeral. The `legion-arcane` crate name is historical: it holds contract-lifecycle, budget, and
   receipt-store runtime used by governed work, and none of that is an effect-decision receipt.
   Receipt kinds stay distinct: Guard effect-decision receipts, contract/runtime receipts, handoff
@@ -406,8 +406,7 @@ Ownership boundaries:
   own their methods.
 - **Council** (`doctrine/council-seat.md`) owns bounded adversarial challenge, advisory only.
 - **Arcane** (`doctrine/arcane.md`) owns the cognitive processing shape and response policy.
-- **Guard** (`doctrine/guard.md`; seed `engine/bins/legion-hook/**`) owns deterministic effect
-  enforcement and its receipts.
+- **Guard** (`doctrine/guard.md`; seed `engine/bins/legion-hook/**`) owns the Stop decision.
 
 Shared capture machinery (screenshots/browser engines) is an internal primitive, not a semantic
 owner.
@@ -581,7 +580,7 @@ Capability/entrypoint semantics    → skills/<id>/SKILL.md
 Host capabilities / ref classes    → src/registry/capabilities.json
 Explicit aliases                   → src/config/capability-aliases.json
 Cognitive control plane             → doctrine/arcane.md
-Deterministic effect enforcement   → doctrine/guard.md + engine/bins/legion-hook/**
+Stop decision                      → doctrine/guard.md + engine/bins/legion-hook/**
 Executable work-unit materialization → Legion orchestration + producing capability
 Independent Completion Validation  → Oracle (roster + doctrine/oracle.md)
 ```

@@ -144,10 +144,9 @@ The plugin owns bundled skills, MCP, and hooks. Codex role definitions in `.code
 registration in `.codex/config.toml` remain separate `legion bind --write` policy. Disabling the
 plugin through Codex controls plugin-owned skills, MCP, and hooks; role files remain under bind's
 ownership. Codex also skips plugin hooks until the user trusts the current hook definition, and a
-changed definition needs trust again. Legion projects `UserPromptSubmit`, `PreToolUse`,
-`PostToolUse`, and `Stop` there; the tool events match shell commands and `apply_patch` only. Codex
-has no ask outcome, so Guard turns a confirmation request into a denial, and MCP tools are not
-matched. Registration does not prove trust or delivery. Doctor reports the native cache path, explicit plugin disablement,
+changed definition needs trust again. Legion projects `UserPromptSubmit`,
+`PostToolUse`, and `Stop` there; the tool event matches shell commands and `apply_patch` only, and
+MCP tools are not matched. Legion gates no tool call; only `Stop` can refuse. Registration does not prove trust or delivery. Doctor reports the native cache path, explicit plugin disablement,
 hook definition presence, and recorded host trust separately; generic receipt traces do not prove
 Codex hook execution or current-definition trust.
 

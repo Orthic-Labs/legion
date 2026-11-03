@@ -155,7 +155,7 @@
       "name": "CODEX_HOME",
       "class": "S5",
       "channel": "env",
-      "anchor": "engine/bins/legion-hook/src/codex.rs:96",
+      "anchor": "engine/bins/legion-hook/src/codex.rs:300",
       "userGesture": true,
       "note": "The third-party tool's own documented, user-set variable naming where that tool keeps its data (or, for DOCSET_ROOT, the Apple docset location); the user's own choice. Owner to confirm S5."
     },
@@ -582,7 +582,7 @@
       "class": "S4",
       "channel": "env",
       "anchor": "engine/bins/legion-mcp/src/main.rs:27",
-      "note": "Injects the native application configuration (versioned source) in legion, legion-hook and legion-mcp. No cfg gate."
+      "note": "Injects the native application configuration (versioned source) in legion and legion-mcp. No cfg gate."
     },
     {
       "name": "LEGION_NATIVE_BUILD_EVIDENCE",

@@ -21,4 +21,4 @@ A `legion:alchemist-specialist` launch carries a `Specialist reason:` line. The 
 
 Read-only lookup types never write files and never stand in for a role that writes or reviews.
 
-Legion's hook enforces this table and fills each role's model automatically. A launch that sets a model must use the model in this table.
+Legion's hook does not enforce this table. Set each launch's model from it.

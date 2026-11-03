@@ -1048,11 +1048,6 @@ fn validate_portable_plugin_manifests(
                     "command": "legion-hook --host codex --event UserPromptSubmit",
                     "timeout": 10
                 }]}],
-                "PreToolUse": [{ "matcher": codex_tool_matcher, "hooks": [{
-                    "type": "command",
-                    "command": "legion-hook --host codex --event PreToolUse",
-                    "timeout": 10
-                }]}],
                 "PostToolUse": [{ "matcher": codex_tool_matcher, "hooks": [{
                     "type": "command",
                     "command": "legion-hook --host codex --event PostToolUse",

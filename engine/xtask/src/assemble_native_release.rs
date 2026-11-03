@@ -229,11 +229,6 @@ fn codex_hook_projection() -> Value {
                 "command": "legion-hook --host codex --event UserPromptSubmit",
                 "timeout": 10
             }]}],
-            "PreToolUse": [{ "matcher": CODEX_TOOL_MATCHER, "hooks": [{
-                "type": "command",
-                "command": "legion-hook --host codex --event PreToolUse",
-                "timeout": 10
-            }]}],
             "PostToolUse": [{ "matcher": CODEX_TOOL_MATCHER, "hooks": [{
                 "type": "command",
                 "command": "legion-hook --host codex --event PostToolUse",

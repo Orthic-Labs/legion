@@ -363,14 +363,13 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
             "SubagentStop",
             "UserPromptSubmit",
             "PostCompact",
-            "PreToolUse",
             "PostToolUse",
             "PostToolUseFailure",
             "Stop",
         ]),
         claude_events,
-        Some(true),
-        "Legion's Claude hook projection supports matched pre-tool events; registration does not prove host trust or delivery",
+        Some(false),
+        "Legion's Claude hook projection enforces only the Stop decision and records context and evidence events; registration does not prove host trust or delivery",
     );
     let codex_events = codex_hooks
         .as_ref()
@@ -378,10 +377,10 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
         .as_ref()
         .and_then(projected_legion_events);
     let codex_enforcement = enforcement_facts(
-        Some(&["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"]),
+        Some(&["UserPromptSubmit", "PostToolUse", "Stop"]),
         codex_events,
-        Some(true),
-        "Legion's Codex projection covers prompt submission, shell and apply_patch pre/post tool events, and stop; Codex has no ask outcome, so Guard confirmation requests are denied; registration does not prove host trust or delivery",
+        Some(false),
+        "Legion's Codex projection covers prompt submission, shell and apply_patch post-tool evidence, and the stop decision; registration does not prove host trust or delivery",
     );
     let mut devin_row = row("devin", devin);
     devin_row["enforcement"] = enforcement_facts(

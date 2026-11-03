@@ -6,7 +6,6 @@ use std::{
 
 fn invoke(payload: &Value) -> Value {
     let mut child = Command::new(env!("CARGO_BIN_EXE_legion-hook"))
-        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
         .env_remove("LEGION_M1_CONFIG")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -57,57 +56,25 @@ fn claude_stop_keeps_explicit_verification_enforcement() {
 }
 
 #[test]
-fn claude_third_party_mcp_calls_leave_permissions_with_host() {
-    for tool in [
-        "mcp__Windows-MCP__Snapshot",
-        "mcp__Windows-MCP__Click",
-        "mcp__docs__query",
-    ] {
-        let result = invoke(&json!({
-            "hook_event_name": "PreToolUse",
-            "tool_name": tool,
-            "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
-            "tool_input": {}
-        }));
-        assert_eq!(result["allowed"], true, "{result}");
-        assert!(result["reason"].as_str().unwrap().contains(tool));
-        assert!(result["reason"]
-            .as_str()
-            .unwrap()
-            .contains("could not be classified"));
-        // An admitted hook must not grant a Claude permission override.
-        assert!(
-            result["hookSpecificOutput"]["permissionDecision"].is_null(),
-            "{result}"
-        );
-    }
-}
-
-#[test]
-fn claude_classified_mcp_effects_require_user_confirmation() {
+fn claude_pre_tool_use_is_never_gated_by_legion() {
     for (tool, input) in [
+        ("mcp__docs__query", json!({})),
         ("mcp__files__write_file", json!({})),
-        ("mcp__mail__send_message", json!({})),
-        ("mcp__files__delete_file", json!({})),
-        ("mcp__docs__query", json!({"operation": "delete"})),
+        ("Bash", json!({"command": "git push --force"})),
+        ("Write", json!({"file_path": "/tmp/x"})),
     ] {
         let result = invoke(&json!({
             "hook_event_name": "PreToolUse",
             "tool_name": tool,
-            "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
             "tool_input": input
         }));
-        // External write/send/delete effects are never allowed by the hook;
-        // they go to the host approval prompt (plan v3 A7).
-        assert_eq!(result["allowed"], false, "{result}");
-        assert_eq!(result["code"], "ARC_USER_CONFIRMATION_REQUIRED");
-        assert_eq!(result["hookSpecificOutput"]["permissionDecision"], "ask");
+        assert_eq!(result["allowed"], true, "{result}");
+        assert!(result["hookSpecificOutput"].is_null(), "{result}");
     }
 }
 
 fn invoke_in(state: &std::path::Path, payload: &Value) -> Value {
     let mut child = Command::new(env!("CARGO_BIN_EXE_legion-hook"))
-        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
         .env_remove("LEGION_M1_CONFIG")
         .env("LEGION_STATE_ROOT", state)
         .stdin(Stdio::piped())

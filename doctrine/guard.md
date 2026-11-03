@@ -2,370 +2,134 @@
 name: guard
 ---
 
-# Guard — deterministic effect and safety enforcement
+# Guard — the Stop decision
 
-The Guard is the deterministic effect boundary for Legion. It answers one
+The Guard is the one deterministic enforcement point Legion keeps. It answers one
 question:
 
-> **May this typed effect proceed under the applicable policy?**
+> **May Claude stop working now?**
 
-The current seed is the `legion-hook` binary. It receives host hook frames,
-classifies pre-effect requests, applies hard safety gates, loads a validated
-native policy, and returns a typed allow, ask, or deny response. The Guard is a sibling
-of the Arcane cognitive plane, not a lower-level implementation of Arcane.
+The seed is the `legion-hook` binary. It receives host hook frames, records
+non-blocking context and evidence, and refuses a `Stop` only when a typed
+verification requirement or the evidence ledger says the work is not finished.
+The Guard is a sibling of the Arcane cognitive plane, not a lower-level
+implementation of Arcane.
 
 ## Definition
 
-> **The Guard is a fail-closed, deterministic adapter between host hook events
-> and effect policy.**
+> **The Guard is a deterministic adapter between the host `Stop` event and the
+> verification decision.**
 
-It owns effect classification, policy matching, approval-boundary refusal,
-hard safety refusals, enforcement-health reporting, and effect-decision
-receipts when that receipt path is implemented.
+It owns the Stop decision, the evidence ledger Stop reads, and enforcement-health
+reporting.
 
-The Guard does not interpret user intent, choose capabilities, attach Sage,
-Alchemist, or Oracle, decompose work, supervise subagents, route cognition, or
-shape the final response. Legion owns capability selection, authority attachment,
-& orchestration; Arcane owns cognitive processing & response policy.
-
-Arcane may describe the processing topology of a request, but it cannot
-authorize an effect. A route envelope is ephemeral and is not a Guard
-receipt.
+The Guard does not gate tool calls. Permissions for shell commands, git actions,
+file writes, deletes, MCP tools and the rest live in the host's own settings and
+configuration (Claude Code settings, Codex config), not in Legion. It does not
+interpret user intent, choose capabilities, attach Sage, Alchemist, or Oracle,
+decompose work, supervise subagents, route cognition, or shape the final
+response. Legion owns capability selection, authority attachment, &
+orchestration; Arcane owns cognitive processing & response policy.
 
 ## Guard and Arcane
 
 ```text
-ARCANE
-  how should this request be processed?
-       |
-       v
-LEGION / HOST
-  what work and typed effects exist?
-       |
-       v
-GUARD
-  may this effect proceed under deterministic policy?
+ARCANE   how should this request be processed?
+LEGION   what work exists, and who does it?
+GUARD    may Claude stop?
 ```
 
-Arcane keeps no receipts for its cognitive route. Effect decisions are a
-Guard concern and must not be represented as Arcane cognitive evidence.
+Arcane keeps no receipts for its cognitive route, and a route envelope never
+satisfies a Guard decision.
 
 ## Seed implementation
 
-`engine/bins/legion-hook/src/main.rs` is the current Guard seed. Its dispatch
-order is bounded and deterministic:
+`engine/bins/legion-hook/src/main.rs` dispatches in a bounded, deterministic
+order:
 
 1. parse and validate the versioned host frame;
-2. acknowledge lifecycle and post-effect observations;
-3. reject unsupported event shapes;
-4. apply hard gates for destructive commands and rewrite pushes;
-5. construct and validate a typed `EffectRequest`;
-6. load the native application and its policy;
-7. authorize the effect through `NativeApplication::authorize_hook`.
+2. for `Stop`, run the Stop decision (below);
+3. for `UserPromptSubmit` and `SessionStart`, deliver context;
+4. acknowledge every other lifecycle and post-tool observation.
 
-A pre-effect request is never allowed merely because classification or policy
-loading failed. The failure response is a denial.
-
-The native application can receive a versioned JSON configuration inline or
-from the path named by `LEGION_NATIVE_APPLICATION_CONFIG`. If that variable is
-unset, `default_for_repository` builds the canonical default application. A
-configured application replaces the default composition in this seed; policy
-artifacts are not merged here.
+A `PreToolUse` frame is accepted and acknowledged without a decision. Nothing
+in Legion registers it.
 
 ## Hook event surface
 
-Explicit reviewed-scope freezes use `legion-policy::frozen_scope` & native
-`legion authority freeze` broker. Protected host enrollment & broker-launched
-reviews supply authority; hashes, caller JSON & hook actor labels do not. Consult
-[broker boundaries](../docs/architecture/frozen-scope-broker.md) before claiming
-installed delivery coverage. Hooks remain early effect feedback, not universal
-mutation interception or publication authorization.
-
-`hooks/hooks.json` currently invokes `legion-hook` for:
+`hooks/hooks.json` invokes `legion-hook` for:
 
 | Event | Current registration | Current Guard treatment |
 | --- | --- | --- |
-| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle, and inject the hand-maintained `SESSION_START_CONTEXT` routing/scope text as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` |
+| `SessionStart` | `startup`, `resume`, `clear`, `compact` | inject the hand-maintained `SESSION_START_CONTEXT` routing/scope text and the standing orders as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` |
 | `SubagentStart` | all | acknowledge as lifecycle |
 | `SubagentStop` | all | acknowledge as lifecycle |
-| `UserPromptSubmit` | all | acknowledge as lifecycle |
+| `UserPromptSubmit` | all | record the prompt and deliver standing orders added by other chats; open an evidence turn |
 | `PostCompact` | `manual`, `auto` | acknowledge as lifecycle |
-| `PreToolUse` | shell, command, file-edit, patch, & `mcp__*` tools | classify typed effects & authorize; allow MCP reads as observations |
-| `PostToolUse` | the pre-effect tools plus `WebFetch` & `WebSearch` | acknowledge as post-effect |
-| `PostToolUseFailure` | the same post-effect matcher | acknowledge as post-effect |
-| `Stop` | all | deliver response policy and verify proportionally |
+| `PostToolUse` | shell, file-edit, patch, `Skill`, `WebFetch`, `WebSearch` & `mcp__*` tools | append one evidence-ledger row |
+| `PostToolUseFailure` | the same plus `Agent` & `Task` | append a failed evidence-ledger row |
+| `Stop` | all | the Stop decision |
 
 The binary also accepts the lower-case protocol aliases `session-start`,
-`subagent-start`, `subagent-stop`, `user-prompt-submit`, `post-compact`, `pre-effect`,
-`post-effect`, `post-effect-failure`, and `stop`, plus `ci-boundary`.
-Those aliases are protocol support; they are not additional registrations in
+`subagent-start`, `subagent-stop`, `user-prompt-submit`, `post-compact`,
+`post-effect`, `post-effect-failure`, and `stop`, plus `ci-boundary`. Those
+aliases are protocol support; they are not additional registrations in
 `hooks/hooks.json`.
 
-Lifecycle and post-effect acknowledgements are not effect authorization. The
-`Stop` path blocks at most once per turn, and only in two cases. The first is a
-completion claim (done, fixed, green, installed, live) with no matching
-successful command after the last edit in the evidence ledger. The second is an
-approval request that cites no Class A run after the last edit or carries no
-will-pass verdict. Both checks start in shadow mode (they log would-blocks) and
-block once switched to enforce. A skill the user named is enforced earlier, at
-PreToolUse: until it is called, only reads and the Skill tool run. When
-`stop_hook_active` is set, Stop does not block again, so the path never loops.
-After the block, the turn may end with an `UNRESOLVED:` line that states what
-stays unproven. Arcane response
-policy cannot create Stop re-prompt loops. Stop completion
-verification is proportional: it consults a typed verification requirement and
-checks the `oracle-completion-validation-v1` receipt only when that requirement
-demands one, rather than treating any file write as grounds for mandatory
-assurance. `SubagentStop` is registered as lifecycle observation. `mcp__*`
-write/send/delete tools map to `EXTERNAL_SIDE_EFFECT`, which asks (see
-Approval boundary); known read-only MCP tools are `MCP_KNOWN_OBSERVATION` and
-other MCP reads remain unclassified observations.
+## The Stop decision
 
-The current hook surface deliberately does not treat `Task` or `Agent`
-dispatch as an effect class. Dispatch is Legion orchestration; the
-subagent's own effects are guarded inside its session.
+`Stop` blocks in three cases and no other:
 
-## Effect classification
+1. **Typed verification requirement.** Stop never infers assurance from a
+   mutation. A route or completion producer must set `verificationRequirement`;
+   only the `oracle` requirement consumes a receipt, and that receipt
+   (`oracle-completion-validation-v1`) must be a fresh PASS bound to the exact
+   delivery digest and source revision. Missing, stale, unbound, or non-PASS
+   receipts block (`ARC_VERIFICATION_REQUIRED`, `ARC_ORACLE_RECEIPT_INVALID`).
+2. **Completion claim without evidence.** A completion claim (done, fixed, green,
+   installed, live) with no matching successful command after the last edit in
+   the evidence ledger blocks once per turn (`ARC_EVIDENCE_REQUIRED`).
+3. **Incomplete approval request.** An `APPROVAL REQUEST` block that omits a
+   field, cites no Class A run after the last edit, or carries no will-pass
+   verdict blocks once (`ARC_APPROVAL_REQUEST_INCOMPLETE`).
 
-`legion-contracts::EffectClass` is the runtime effect vocabulary (the semantic names used in SKILL `effects:` map onto it in `docs/LEGION-CANONICAL-SSOT.md` section 7):
+Cases 2 and 3 start in shadow mode (they log would-blocks) and block once
+switched to enforce. When `stop_hook_active` is set, or the re-entry cap is
+reached, Stop does not block again, so the path never loops. After a block, the
+turn may end with an `UNRESOLVED:` line that states what stays unproven. Arcane
+response policy cannot create Stop re-prompt loops.
 
-```text
-FILE_WRITE          FILE_DELETE          FILE_MOVE
-COMMAND_EXEC        NETWORK_EGRESS       PROCESS_SPAWN
-CREDENTIAL_ACCESS   DEPENDENCY_INSTALL   VCS_COMMIT
-VCS_PUSH            PUBLISH              EXTERNAL_SIDE_EFFECT
-MCP_UNCLASSIFIED_OBSERVATION  MCP_KNOWN_OBSERVATION
-```
-
-`parse_effect_class` gives an explicit `effectClass` or `effect_class`
-precedence. It normalizes case, hyphens, spaces, and slashes and accepts the
-implemented aliases such as `WRITE`, `DELETE`, `SHELL`, `NETWORK`, `PUSH`, and
-`PUBLISH`. An unknown explicit class is not guessed.
-
-Without an explicit class, the seed maps:
-
-```text
-Write, Edit, MultiEdit, NotebookEdit  → FILE_WRITE
-WebFetch, WebSearch                   → NETWORK_EGRESS
-shell, shell_command, Bash,
-PowerShell, apply_patch               → command classification
-any payload with a command             → command classification
-```
-
-Command classification recognizes adjacent token pairs in command segments:
-
-```text
- git push       → VCS_PUSH
- git commit     → VCS_COMMIT
- npm install/ci, pnpm install/add,
- yarn install/add, cargo install/add  → DEPENDENCY_INSTALL
- otherwise                           → COMMAND_EXEC
-```
-
-The command scan separates shell segments at `;`, `&`, `|`, and newlines; it
-is not a shell parser. A command or tool that supplies neither a recognized
-class nor a recognized command cannot construct an effect and is denied as an
-invalid host event. The Guard must not claim a stronger classification than
-its parser established.
-
-The adapter derives an effect target from explicit effect/source/payload
-fields, then from `tool_input` fields (`file_path`, `path`, `url`, or `query`),
-and finally from the command. It derives an operation from explicit fields,
-then the tool name, then the class default (`write`, `delete`, `move`,
-`execute`, `connect`, `spawn`, `access`, `install`, `commit`, `push`, or
-`publish`). Request identity and source revision are also required before a
-policy decision.
-
-## Canonical default policy
-
-The canonical default is a built-in `PolicyPack` returned by
-`canonical_default_policy_pack`. It is always present in the normal installed
-path: an unset `LEGION_NATIVE_APPLICATION_CONFIG` selects it, rather than
-meaning that policy is absent.
-
-Ambient permission is an explicit policy decision, never the absence of a
-rule. The baseline explicitly allows ordinary reversible effects:
-
-```text
-FILE_WRITE       allow
-FILE_MOVE        allow
-VCS_COMMIT       allow
-COMMAND_EXEC     allow
-```
-
-It also explicitly allows `PUBLISH`, `VCS_PUSH`, `DEPENDENCY_INSTALL`,
-`NETWORK_EGRESS`, `PROCESS_SPAWN`, `MCP_KNOWN_OBSERVATION`, and
-`MCP_UNCLASSIFIED_OBSERVATION` (the host's own permissions still apply). The
-canonical pack has exactly two classes the policy refuses:
-
-```text
-CREDENTIAL_ACCESS      deny (hard denial)
-EXTERNAL_SIDE_EFFECT   not grantable by policy; the hook answers "ask"
-```
-
-The policy matcher requires the effect class and matches both `targets` and
-`operations` by exact value or `"*"`. Any matching deny wins. No matching
-rule denies; an approval requirement or a request marked
-`approval_required` also denies. Trust or enforcement requirements that the
-native policy boundary cannot supply deny rather than being ignored.
-
-The baseline policy is validated while the default native application is
-built. A configured policy is validated as part of the complete versioned
-application configuration. A malformed, empty, unreadable, or otherwise
-unbuildable configuration therefore cannot fall through to ambient allow.
-
-## FILE_DELETE discrimination
-
-`FILE_DELETE` is not a sufficient safety decision by itself. A bounded source
-file removal during a refactor is materially different from a recursive,
-forceful, broad, or protected-target deletion.
-
-The policy schema therefore matches both target and operation. The canonical
-pack has:
-
-- an explicit ordinary `FILE_DELETE` allow rule with `operations: ["*"]`;
-- an explicit deny rule for `delete-recursive`, `delete-force`, and
-  `delete-broad`.
-
-The ordinary rule makes bounded deletion an explicit ambient policy decision;
-the narrow deny rule wins for a matching destructive operation. The current
-adapter defaults an explicit `FILE_DELETE` request to operation `delete`, or
-preserves a supplied operation. Raw shell `rm` is currently classified as
-`COMMAND_EXEC`, and recursive/broad shell deletion is hard-gated before policy
-matching. Emitting the reserved operation tags from a delete-specific adapter
-path is future work.
-
-The target/operation distinction must remain in policy. Replacing it with a
-class-wide delete approval would incorrectly require approval for every
-ordinary refactor deletion; replacing it with a wildcard allow would erase the
-safety boundary.
-
-## Hard safety gates
-
-Before policy authorization, the seed denies recognized destructive command
-shapes, including recursive `rm`, recursive `Remove-Item`, `git clean`,
-`dropdb`, Terraform apply/destroy forms, and a curl-to-shell pipeline. A
-`git push` containing rewrite or delete flags (`--force`, `--delete`, `-f`, or
-`-d`) is denied as approval-required. These are deterministic refusals, not
-model judgments and not policy fallbacks.
-
-## Approval boundary
-
-The Guard has three pre-effect outcomes: allow, ask, and deny.
-
-- **Allow** is granted only by a matching policy rule.
-- **Ask** hands the decision to the host permission prompt, which shows the
-  exact tool and arguments and is answered by the user. On Claude Code the hook
-  emits PreToolUse `hookSpecificOutput.permissionDecision: "ask"` with a reason
-  naming the tool and target (code `ARC_USER_CONFIRMATION_REQUIRED`). The hook
-  never emits `"allow"` for these effects and holds no approval store: it
-  declines to grant, it does not record consent. Codex has no ask outcome, so
-  the same response is a denial there (exit 2). An authenticated Sage or Oracle
-  actor never receives ask; its external effects stay denied.
-- **Deny** is a hard refusal: destructive command shapes, rewrite pushes,
-  `CREDENTIAL_ACCESS`, role-restricted effects, and every classification,
-  policy, or configuration failure.
-
-Classes that ask:
-
-- `EXTERNAL_SIDE_EFFECT`: a third-party MCP tool whose name or explicit
-  operation identifies a write, send, or delete (leading verbs such as
-  `create`, `update`, `delete`, `send`, `post`, `run`, `set`).
-- Scheduled-task mutators (`mcp__scheduled-tasks__create_scheduled_task`,
-  `update_scheduled_task`, `delete_scheduled_task`, `run_scheduled_task`):
-  standing local configuration. `list_scheduled_tasks` and `list_task_runs`
-  are known read-only observations.
-- A short exact list of first-party host-security tools: `set_session_permission_mode`,
-  `set_setting`, `set_auto_merge`, `delete_session`, and `set_remote_control`
-  under `mcp__ccd_*`. The rest of the first-party `mcp__ccd_*` and
-  `mcp__Claude_Browser__*` namespace stays host dispatch (`COMMAND_EXEC`),
-  including cross-session `send_message`.
-
-Whether a hook `ask` still prompts under `bypassPermissions` is not stated in
-the Claude Code documentation; verify on the installed build before relying on
-it. A policy rule that requires a non-`None` approval, or a request marked
-`approval_required`, still fails closed in the native policy adapter; the
-`ask` path exists only for `EXTERNAL_SIDE_EFFECT`. A target-bound approval
-store is not implemented.
+A non-blocking reminder is added once per session when files changed and the
+final message cites no evidence; it never blocks.
 
 ## Fail closed and enforcement health
 
-The Guard has two separate obligations:
-
-1. **Fail closed:** no classification, policy, identity, or configuration
-   failure may authorize the effect.
-2. **Report honestly:** `enforcementHealth` must describe the enforcement
-   actually available, not merely accompany a denial.
-
-The hook response is schema-versioned and includes `allowed`, `code`,
-`reason`, and `enforcementHealth`. The seed returns `allowed: false` for
-malformed frames, unsupported events, missing effect data, policy denial, and
-native-policy failures. `HookResponse` uses `unsupported` for I/O &
-serialization failures; ordinary validated decisions are labelled `strong`.
-
-The `native_application` failure branch returns
-`ARC_NATIVE_POLICY_UNAVAILABLE` with health `unsupported`. It fails closed
-without claiming strong enforcement; a focused regression test pins this
-label.
+The hook response is schema-versioned and includes `allowed`, `code`, `reason`,
+and `enforcementHealth`. A malformed frame, an unsupported event, or an I/O or
+serialization failure returns `allowed: false`; hosts act on that only for
+events they can block. Ordinary validated decisions are labelled `strong`; I/O &
+serialization failures are labelled `unsupported`.
 
 Codex bridges invoke installed stable `current/bin/legion-hook --host codex`.
-This native transport emits Codex context output & exit 2 for Guard denials
-and for ask-class effects (Codex has no ask outcome);
+This native transport emits Codex context output & exit 2 for a refused `Stop`;
 default transport retains its versioned response envelope. Accepted Stop events
 may notify configured computer-use cleanup with bounded thread/turn identity &
 a 500 ms deadline. Missing, stale, invalid, failed, or timed-out cleanup remains
-diagnostic only: it never changes Guard's decision. Host bridges contain no
-completion policy or notifier implementation.
+diagnostic only: it never changes Guard's decision.
 
 ## Receipts
 
-Receipt ownership is deliberately split:
-
-```text
-Guard   → effect decisions, policy outcomes, and enforcement receipts
-Arcane  → ephemeral cognitive route; no receipts
-```
-
-The current `legion-hook` protocol emits a decision response envelope. It does
-not yet include or persist a dedicated effect receipt. The M1 application has
-separate typed policy and invocation receipt structures, but those are not a
-receipt emitted by the hook dispatch path. A complete Guard receipt—bound to
-the request, effect class, target, operation, policy identity, decision,
-enforcement health, and source revision—is future work. It must remain a Guard
-artifact and must never be replaced by an Arcane route trace.
-
-## Current boundary and future work
-
-The current Guard is deterministic and local: it parses JSON, reads native
-configuration and repository metadata needed for the request, matches policy,
-and returns a host-compatible response. It does not run a model or shell to
-make an authorization decision.
-
-Future Guard work includes:
-
-- a target-bound approval flow for the rewrite-push gate, which still returns
-  a hard denial that tells the operator to approve it;
-- emitting and retaining effect receipts;
-- wiring operation-specific destructive `FILE_DELETE` classification; and
-- fuzzing/property-testing malformed, nested, oversized, Unicode, shell,
-  path, multi-target, and unknown-class inputs before broadening coverage.
-
-These additions must preserve the boundary: deterministic effect enforcement
-may refuse or authorize a typed effect, but it must not become a cognitive
-router, a task planner, or a ceremony layer.
+The `legion-hook` protocol emits a decision response envelope and appends
+non-blocking route-outcome and child-lifecycle trace lines. It does not emit a
+dedicated effect receipt, because it no longer decides effects. A Guard artifact
+must never be replaced by an Arcane route trace.
 
 ## Guard invariants
 
-1. Missing or invalid policy never means ambient allow.
-2. Ambient permission is always an explicit matching policy decision.
-3. A denial is not approval, and denial never falls through to another
-   executor or model. An ask is not approval either: the hook never emits
-   allow for an effect it asked about.
-4. `FILE_DELETE` decisions discriminate target and operation, not class alone.
-5. Unsupported classification is denied and never reported as strong
-   authorization.
-6. Guard receipts belong to the Guard; Arcane keeps no receipts.
-7. Lifecycle acknowledgement is not pre-effect authorization.
-8. The Guard does not gate Legion's orchestration dispatch as an effect.
-9. Safety enforcement remains deterministic, bounded, and independently
-   testable.
+1. Stop never infers assurance from a mutation; only an explicit typed
+   requirement demands an Oracle receipt.
+2. A refused Stop is deterministic and bounded; it never loops.
+3. The Guard does not gate tool calls or Legion's orchestration dispatch;
+   permissions belong to the host's settings.
+4. Guard receipts belong to the Guard; Arcane keeps no receipts.
+5. Evidence and context events observe and never block.

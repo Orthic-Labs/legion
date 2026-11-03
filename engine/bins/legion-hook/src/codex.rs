@@ -1,10 +1,9 @@
 //! Codex transport & optional completion cleanup. Native Guard owns decisions;
 //! cleanup never changes them, including after Codex replaces its runtime.
 //!
-//! Codex PreToolUse/PostToolUse frames are normalised to the shape the Guard
-//! already classifies (`normalize_request`), and the host answer is limited to
-//! what Codex honours: deny is exit 2 with the reason on stderr (Codex has no
-//! `ask` outcome), and `updatedInput` is passed only in a shape Codex accepts.
+//! Codex PostToolUse frames are normalised to the shape the evidence ledger
+//! reads (`normalize_request`), and the host answer is limited to what Codex
+//! honours: a Stop refusal is exit 2 with the reason on stderr.
 use crate::{
     protocol::{HookRequest, HookResponse},
     response_value,
@@ -47,7 +46,7 @@ pub fn project_response(response: &HookResponse) -> (i32, Value) {
     (if response.allowed || !blocking { 0 } else { 2 }, output)
 }
 
-/// `LEGION_HOOK_OFF` check id: when listed, Codex frames reach the Guard
+/// `LEGION_HOOK_OFF` check id: when listed, Codex frames reach the hook
 /// exactly as Codex sent them.
 pub const NORMALIZE_CHECK_ID: &str = "codex-normalize";
 
@@ -157,8 +156,8 @@ fn lexical_join(base: &str, relative: &str) -> String {
     format!("{root}{}", parts.join("/"))
 }
 
-/// Patch paths are relative to the session `cwd`; the Guard's protected-path
-/// check is textual, so resolve them before it sees them.
+/// Patch paths are relative to the session `cwd`; resolve them so the evidence
+/// ledger records the file that was edited.
 fn resolve_path(cwd: Option<&str>, path: &str) -> String {
     let path = path.trim();
     let absolute = path.starts_with(['/', '\\', '~']) || path.as_bytes().get(1) == Some(&b':');
@@ -199,14 +198,14 @@ fn normalize_apply_patch(payload: &mut Map<String, Value>, tool: String) {
     payload.insert("tool_input".into(), tool_input);
 }
 
-/// Map a Codex frame onto the names and fields the Guard classifies.
+/// Map a Codex frame onto the names and fields the evidence ledger reads.
 ///
 /// - Codex shell tools (`exec_command`, ...) become `Bash`; the command stays
 ///   at `tool_input.command`.
 /// - `apply_patch` becomes a file `Edit` with `tool_input.file_path` (first
 ///   file) and `tool_input.paths` (all files, resolved against `cwd`). The raw
-///   patch text is dropped from `tool_input`: the Guard judges `command`
-///   fields as shell text, and file contents in a patch are not commands.
+///   patch text is dropped from `tool_input`: file contents in a patch are not
+///   commands.
 /// - The original name is kept in `codex_tool_name`; every Codex frame gets
 ///   `legion_host: "codex"` so host-specific checks can tell it apart.
 ///
@@ -220,7 +219,7 @@ fn normalize_request_with(request: &mut HookRequest, kill_switch: Option<&str>) 
     if hook_off(kill_switch, NORMALIZE_CHECK_ID) {
         return;
     }
-    let tool_event = request.is_pre_effect() || request.is_post_effect();
+    let tool_event = request.is_post_effect();
     let Some(payload) = request.payload.as_object_mut() else {
         return;
     };
@@ -240,50 +239,6 @@ fn normalize_request_with(request: &mut HookRequest, kill_switch: Option<&str>) 
         payload.insert("tool_name".into(), Value::String("Bash".into()));
     } else if is_apply_patch(&tool) {
         normalize_apply_patch(payload, tool);
-    }
-}
-
-/// Codex accepts `updatedInput` on an allowed PreToolUse only as a string
-/// `command` for Bash/apply_patch, or an arguments object for other tools; any
-/// other shape fails the hook run. A rewrite Legion cannot express that way is
-/// dropped, which leaves the original input in force.
-fn updated_input_supported(payload: &Value, updated: &Value) -> bool {
-    let original = payload
-        .get("codex_tool_name")
-        .or_else(|| payload.get("tool_name"))
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    if is_apply_patch(original) {
-        return false;
-    }
-    if original == "Bash" || is_shell_alias(original) {
-        return updated.get("command").is_some_and(Value::is_string);
-    }
-    updated.is_object()
-}
-
-fn drop_unsupported_updated_input(output: &mut Value, request: Option<&HookRequest>) {
-    let Some(specific) = output
-        .get_mut("hookSpecificOutput")
-        .and_then(Value::as_object_mut)
-    else {
-        return;
-    };
-    let Some(updated) = specific.get("updatedInput") else {
-        return;
-    };
-    if request.is_some_and(|request| updated_input_supported(&request.payload, updated)) {
-        return;
-    }
-    specific.remove("updatedInput");
-    if specific.get("permissionDecision").and_then(Value::as_str) == Some("allow") {
-        specific.remove("permissionDecision");
-        specific.remove("permissionDecisionReason");
-    }
-    if specific.len() <= 1 {
-        if let Some(object) = output.as_object_mut() {
-            object.remove("hookSpecificOutput");
-        }
     }
 }
 
@@ -391,8 +346,7 @@ fn notify_computer_use(_request: &HookRequest) -> Result<(), String> {
 }
 
 pub fn emit_response(response: &HookResponse, request: Option<&HookRequest>) -> i32 {
-    let (exit_code, mut output) = project_response(response);
-    drop_unsupported_updated_input(&mut output, request);
+    let (exit_code, output) = project_response(response);
     if !response.allowed {
         eprintln!("{}", response.reason);
     }

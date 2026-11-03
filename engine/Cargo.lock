@@ -2407,7 +2407,6 @@ dependencies = [
 name = "legion-hook"
 version = "0.3.23"
 dependencies = [
- "legion-application",
  "legion-identity",
  "legion-runtime",
  "rightkit-evidence-contracts",

@@ -98,19 +98,6 @@ pub fn edit_path(payload: &Payload) -> Option<PathBuf> {
     Some(PathBuf::from(cwd).join(file))
 }
 
-/// stdout of `git -C dir args`; `None` when git fails or takes over 5 s.
-pub fn git(dir: &Path, args: &[&str]) -> Option<String> {
-    let mut command = std::process::Command::new("git");
-    command.env("GIT_OPTIONAL_LOCKS", "0");
-    command.arg("-C").arg(dir).args(args);
-    let (sender, receiver) = std::sync::mpsc::channel();
-    std::thread::spawn(move || sender.send(command.output()));
-    let wait = std::time::Duration::from_secs(5);
-    let output = receiver.recv_timeout(wait).ok()?.ok()?;
-    let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    output.status.success().then_some(text)
-}
-
 pub fn ledger(session: &str) -> Vec<Value> {
     let path = state_dir("evidence").map(|dir| dir.join(format!("{session}.jsonl")));
     let text = path.and_then(|path| fs::read_to_string(path).ok());
