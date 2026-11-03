@@ -291,25 +291,6 @@
       "reason": "generic source-code-hosting term (Rust port of forges.mjs)"
     },
     {
-      "path": "engine/crates/legion-runtime/tests/p6_inventory_artifacts_naming.rs",
-      "tokens": [
-        "nemesis",
-        "forge",
-        "seer",
-        "sentinel",
-        "sorcerer"
-      ],
-      "occurrences": {
-        "nemesis": 3,
-        "forge": 3,
-        "seer": 16,
-        "sentinel": 3,
-        "sorcerer": 4
-      },
-      "class": "R5",
-      "reason": "naming-migration compatibility fixtures (Rust port of naming contract tests)"
-    },
-    {
       "path": "engine/crates/legion-runtime/src/wf_port/w2_023/seeds.rs",
       "tokens": [
         "forge"
@@ -403,7 +384,7 @@
         "forge"
       ],
       "occurrences": {
-        "forge": 6
+        "forge": 5
       },
       "class": "R2",
       "reason": "forge is the ported legacy Alchemist->Forge label-migration table's own literal replacement text, not renamed"

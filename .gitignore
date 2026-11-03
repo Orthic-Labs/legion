@@ -56,3 +56,4 @@ evidence/
 !bench/corpora/**/evidence/
 !bench/corpora/**/evidence/**
 .legion-cache/
+tasks/handoffs/
