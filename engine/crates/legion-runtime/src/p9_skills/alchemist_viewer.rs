@@ -100,7 +100,7 @@ impl RealRunsDir {
         Self { dir }
     }
 
-    /// Mirrors `Path(os.environ.get("ALCHEMIST_RUN_DIR", Path.home() / ".alchemist" / "runs"))`.
+    /// Explicit override of the default `~/.alchemist/runs`; production callers pass `None`.
     pub fn default_dir(env_run_dir: Option<&str>, home_dir: &Path) -> PathBuf {
         match env_run_dir {
             Some(d) if !d.is_empty() => PathBuf::from(d),

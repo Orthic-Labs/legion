@@ -1351,6 +1351,10 @@
     {
       "id": "state-snapshot-write",
       "command": "state",
+      "env": {
+        "LEGION_PARITY_NOW": "2026-09-15T00:00:00.000Z",
+        "LEGION_PARITY_ROOT": "<PARITY_ROOT>"
+      },
       "subcommand": "snapshot",
       "argv": ["state", "snapshot", "--path", ".", "--out", ".audit/state.json"],
       "cwd": "tests/fixtures/minimal-repo",

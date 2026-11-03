@@ -967,8 +967,8 @@ const USAGE: &str = "Usage: legion script designer/live-inject [options]\n\nInse
 /// Mirrors `injectCli()`: the full CLI entrypoint, argv handling, and
 /// process orchestration of `live-inject.mjs`. `cwd` mirrors
 /// `process.cwd()`; `scripts_dir` mirrors the caller's `__dirname` (used
-/// only for the legacy config-path fallback); `env_live_config` mirrors
-/// `process.env.IMPECCABLE_LIVE_CONFIG`. Prints the same JSON payloads the
+/// only for the legacy config-path fallback); `env_live_config` is an explicit
+/// override; production callers pass `None`. Prints the same JSON payloads the
 /// JS prints to stdout/stderr via `println!`/`eprintln!`, and returns the
 /// process exit code in place of the JS's `process.exit(code)`.
 pub fn run(
