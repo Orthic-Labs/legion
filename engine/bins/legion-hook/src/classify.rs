@@ -10,7 +10,7 @@
 //! body) is an `Err` the caller reads as "no verdict". The whole call, key lookup included, is capped at 3
 //! seconds. The key lives in a redacting `Secret`, is exposed only at the header write, and is never logged,
 //! printed, stored or put in an error; every error is a fixed string. Kill switch: `classify` in
-//! `LEGION_HOOK_OFF`. Not wired into any hook yet.
+//! `LEGION_HOOK_OFF`. Called by `review.rs` at Stop.
 
 use std::fs;
 use std::path::PathBuf;

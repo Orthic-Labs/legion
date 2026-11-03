@@ -15,13 +15,13 @@ use rightkit_evidence_contracts::{
 use serde_json::{Map, Value};
 
 mod approvals;
-#[allow(dead_code)] // not wired into stop_response yet
 mod classify;
 mod codex;
 mod error;
 mod evidence;
 mod progress;
 mod protocol;
+mod review;
 mod skills;
 mod state;
 mod transcript;
@@ -177,6 +177,10 @@ fn stop_response(request: &HookRequest) -> HookResponse {
     denials.extend(approvals::stop_check(request));
     // Tier 0 triage: a stalled session, open task items, or "ready" with no read-back reopens the turn once.
     denials.extend(progress::stop_check(request));
+    // Tier 1: one narrow ScaleDown review per human turn, only when every Tier-0 check passed.
+    if denials.is_empty() {
+        denials.extend(review::stop_check(request));
+    }
     // Every failing check is reported together, one reason per line, so the order of checks decides nothing.
     if let Some(first) = denials.first() {
         let code = first.code.clone().unwrap_or_default();
