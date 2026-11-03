@@ -84,7 +84,6 @@ fn sources(root: &Path) -> BTreeMap<String, String> {
     for name in [
         "engine/crates/legion-runtime/src/lib.rs",
         "engine/crates/legion-runtime/src/wf_port/mod.rs",
-        "scripts/ci/tests/test_audit_runtime_app_accuracy.py",
     ] {
         walk(root, &root.join(name), &mut out);
     }

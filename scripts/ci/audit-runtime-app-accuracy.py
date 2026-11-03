@@ -18,7 +18,7 @@ POLICY = "legion-runtime-app-constructed-sdk-v1"
 SCOPE = "Constructed live URL/surface SDK controls via explicit attested fixture executable mapping; not production admission, unmodified resolver identity or whole-provider clean"
 ROOTS = ["engine/crates/legion-audit/src", "engine/crates/legion-audit/assets", "engine/crates/legion-runtime/src/wf_port/r54", "engine/crates/legion-effects/src", "engine/crates/legion-provider-sdk/src", "engine/crates/legion-contracts/src", "engine/crates/legion-rules/src", "engine/bins/legion/src", "src/registry/rules", "src/registry/controls", "bench/fixtures/runtime-app"]
 FILES = [PLAN, SOURCE, "scripts/ci/audit-runtime-app-accuracy.py", "engine/Cargo.toml", "engine/Cargo.lock", "engine/bins/legion/Cargo.toml", "engine/crates/legion-runtime/Cargo.toml", "engine/crates/legion-audit/Cargo.toml", "engine/crates/legion-effects/Cargo.toml", "engine/crates/legion-provider-sdk/Cargo.toml", "engine/crates/legion-contracts/Cargo.toml", "engine/crates/legion-rules/Cargo.toml"]
-FILES += ["engine/crates/legion-runtime/src/lib.rs", "engine/crates/legion-runtime/src/wf_port/mod.rs", "scripts/ci/tests/test_audit_runtime_app_accuracy.py"]
+FILES += ["engine/crates/legion-runtime/src/lib.rs", "engine/crates/legion-runtime/src/wf_port/mod.rs"]
 FALSE_CLAIMS = ("productionQualification", "wholeProviderQualified", "unmodifiedResolverQualified", "productionAdmissionQualified")
 
 
