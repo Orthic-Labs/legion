@@ -126,10 +126,10 @@ pub fn mark_turn_start(request: &HookRequest) {
     let prompt = str_field(payload, &["prompt", "user_prompt", "userPrompt"]);
     if let (Some(session), Some(prompt)) = (session_id(payload), prompt.filter(|text| human(text)))
     {
-        append(
-            &session,
-            &json!({"marker": "turn", "t": now_secs(), "prompt": head_chars(&prompt, 200)}),
-        );
+        let skills = crate::skills::named(payload, &prompt);
+        let prompt = head_chars(&prompt, 200);
+        let row = json!({"marker": "turn", "t": now_secs(), "prompt": prompt, "skills": skills});
+        append(&session, &row);
     }
 }
 

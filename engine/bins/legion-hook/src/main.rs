@@ -19,6 +19,7 @@ mod codex;
 mod error;
 mod evidence;
 mod protocol;
+mod skills;
 mod state;
 mod transcript;
 mod words;
@@ -169,6 +170,10 @@ fn stop_response(request: &HookRequest) -> HookResponse {
         return denied;
     }
     if let Some(denied) = approvals::stop_check(request) {
+        return denied;
+    }
+    // A skill Adrian named this turn that was never called reopens the turn once.
+    if let Some(denied) = skills::stop_check(request) {
         return denied;
     }
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")

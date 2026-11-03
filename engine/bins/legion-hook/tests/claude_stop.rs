@@ -128,3 +128,43 @@ fn claude_stop_reminds_once_when_edits_have_no_evidence_and_never_blocks() {
     assert!(again["systemMessage"].is_null(), "{again}");
     let _ = std::fs::remove_dir_all(&state);
 }
+
+#[test]
+fn claude_stop_blocks_once_for_a_named_skill_that_was_never_called() {
+    let root = std::env::temp_dir().join(format!("legion-hook-skill-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let skill = root.join("home/.claude/plugins/cache/market/legion/1/skills/zzdemo");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(skill.join("SKILL.md"), "---\nname: zzdemo\n---\n").unwrap();
+    let send = |payload: &Value| {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_legion-hook"))
+            .env_remove("LEGION_M1_CONFIG")
+            .env("HOME", root.join("home"))
+            .env("LEGION_STATE_ROOT", root.join("state"))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let input = payload.to_string();
+        let stdin = child.stdin.as_mut().unwrap();
+        stdin.write_all(input.as_bytes()).unwrap();
+        let output = child.wait_with_output().unwrap();
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+    };
+    let event = |session: &str, name: &str| {
+        json!({"hook_event_name":name, "session_id":session, "prompt":"please use the zzdemo skill",
+        "last_assistant_message":"Working."})
+    };
+    send(&event("skill-a", "UserPromptSubmit"));
+    let blocked = send(&event("skill-a", "Stop"));
+    assert_eq!(blocked["allowed"], false, "{blocked}");
+    assert_eq!(blocked["code"], "ARC_SKILL_NAMED");
+    assert_eq!(send(&event("skill-a", "Stop"))["allowed"], true);
+    send(&event("skill-b", "UserPromptSubmit"));
+    send(
+        &json!({"hook_event_name":"PostToolUse", "session_id":"skill-b", "tool_name":"Skill",
+        "tool_input":{"skill":"legion:zzdemo"}}),
+    );
+    assert_eq!(send(&event("skill-b", "Stop"))["allowed"], true);
+    let _ = std::fs::remove_dir_all(&root);
+}
