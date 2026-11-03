@@ -86,6 +86,66 @@ fn validate_state_root(state_root: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Windows: the state root is chosen by the host (`LEGION_STATE_ROOT`, else `%LOCALAPPDATA%`), never
+/// by the audited repository, and a per-profile Claude home legitimately reaches it through a
+/// junction. Follow links in the state root's own ancestors exactly once, here, and hand the
+/// resolved (verbatim `\\?\`) path to the pinned state directories. Everything beneath the
+/// root (`audit-cache`, the repository key, snapshots) is still opened no-reparse by
+/// `StateDir`, so a link planted there stays refused. A root that resolves into the audited
+/// repository is rejected. The verbatim spelling also lifts the 260 character MAX_PATH limit.
+#[cfg(windows)]
+fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathBuf> {
+    validate_state_root(state_root)?;
+    let mut ancestor = state_root;
+    let mut suffix = Vec::new();
+    let resolved_state = loop {
+        match ancestor.canonicalize() {
+            Ok(mut resolved) => {
+                // Components that did not exist cannot be links; append them verbatim.
+                for name in suffix.iter().rev() {
+                    resolved.push(name);
+                }
+                break resolved;
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                suffix.push(
+                    ancestor
+                        .file_name()
+                        .ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                "Legion state ancestor unavailable",
+                            )
+                        })?
+                        .to_os_string(),
+                );
+                ancestor = ancestor.parent().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Legion state ancestor unavailable",
+                    )
+                })?;
+            }
+            Err(error) => return Err(error),
+        }
+    };
+    let root = resolved_state
+        .join("audit-cache")
+        .join(bytes_digest(repository.to_string_lossy().as_bytes()));
+    // The resolved root is verbatim (`\\?\`); compare it with the repository in the same spelling.
+    let repository_resolved = repository
+        .canonicalize()
+        .unwrap_or_else(|_| repository.to_path_buf());
+    if root.starts_with(repository) || root.starts_with(&repository_resolved) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Audit cache root must be outside audited repository",
+        ));
+    }
+    Ok(root)
+}
+
+#[cfg(not(windows))]
 fn audit_cache_root_in(repository: &Path, state_root: &Path) -> io::Result<PathBuf> {
     validate_state_root(state_root)?;
     let root = state_root
