@@ -216,14 +216,14 @@ pub fn normalize_request(request: &mut HookRequest) {
 }
 
 fn normalize_request_with(request: &mut HookRequest, kill_switch: Option<&str>) {
-    if hook_off(kill_switch, NORMALIZE_CHECK_ID) {
-        return;
-    }
     let tool_event = request.is_post_effect();
     let Some(payload) = request.payload.as_object_mut() else {
         return;
     };
     payload.insert("legion_host".into(), Value::String("codex".into()));
+    if hook_off(kill_switch, NORMALIZE_CHECK_ID) {
+        return;
+    }
     if !tool_event {
         return;
     }

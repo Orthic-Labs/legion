@@ -24,7 +24,7 @@ fn fixture() -> PathBuf {
     root
 }
 
-fn invoke(input: &Value, config: &PathBuf, codex: bool) -> std::process::Output {
+fn invoke(input: &Value, config: &std::path::Path, codex: bool) -> std::process::Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_legion-hook"));
     if codex {
         command.args(["--host", "codex"]);

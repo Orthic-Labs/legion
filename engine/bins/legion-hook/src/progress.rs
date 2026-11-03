@@ -78,11 +78,6 @@ fn id_text(value: &Value) -> Option<String> {
     value.as_str().map(str::to_owned).or(number)
 }
 
-fn texts(value: &Value) -> Vec<String> {
-    let items = value.as_array().into_iter().flatten();
-    items.filter_map(id_text).collect()
-}
-
 /// Set one plan step (1-based `index`) to `status`; an unknown step changes nothing.
 fn set_step(plan: &mut [String], index: Option<&Value>, status: &str) {
     let slot = index.and_then(Value::as_u64).and_then(|n| n.checked_sub(1));

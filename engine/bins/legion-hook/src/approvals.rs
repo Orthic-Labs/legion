@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
+use crate::evidence::turn_id;
 use crate::protocol::{HookRequest, HookResponse};
 use crate::state::{append_line, ledger, mode, now_secs, off, session_id, state_dir};
 use crate::state::{str_field, write_atomic, Mode, Payload};
@@ -126,11 +127,12 @@ pub fn stop_check(request: &HookRequest) -> Option<HookResponse> {
     let missing: Vec<_> = problems.iter().filter(|(bad, _)| *bad).collect();
     let texts: Vec<&str> = missing.iter().map(|problem| problem.1).collect();
     let marker = approval_file(payload)?.with_extension("blocked");
-    let seen = fs::read_to_string(&marker).is_ok_and(|text| text == message);
+    let turn = turn_id(&ledger(&session_id(payload)?));
+    let seen = fs::read_to_string(&marker).is_ok_and(|text| text == turn);
     if missing.is_empty() || seen || payload.get("stop_hook_active") == Some(&Value::Bool(true)) {
         return None;
     }
-    write_atomic(&marker, message.as_bytes());
+    write_atomic(&marker, turn.as_bytes());
     let reason = format!("Your APPROVAL REQUEST is incomplete: {}", texts.join("; "));
     refuse(request, &marker, "ARC_APPROVAL_REQUEST_INCOMPLETE", reason)
 }

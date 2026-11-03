@@ -166,21 +166,28 @@ fn stop_response(request: &HookRequest) -> HookResponse {
     }
     // A skill Adrian named this turn that was never called reopens the turn once. It runs first so it always
     // records that this turn marker was evaluated; its result is kept only when it blocks.
-    if let Some(denied) = skills::stop_check(request) {
-        return denied;
-    }
+    let mut denials: Vec<HookResponse> = Vec::new();
+    denials.extend(skills::stop_check(request));
     // A completion claim with no matching successful command after the last
     // edit may reopen the turn once (never while `stop_hook_active`); in shadow
     // mode the check only logs.
-    if let Some(denied) = evidence::stop_check(request) {
-        return denied;
-    }
-    if let Some(denied) = approvals::stop_check(request) {
-        return denied;
-    }
+    denials.extend(evidence::stop_check(request));
+    denials.extend(approvals::stop_check(request));
     // Tier 0 triage: a stalled session, open task items, or "ready" with no read-back reopens the turn once.
-    if let Some(denied) = progress::stop_check(request) {
-        return denied;
+    denials.extend(progress::stop_check(request));
+    // Every failing check is reported together, one reason per line, so the order of checks decides nothing.
+    if let Some(first) = denials.first() {
+        let code = first.code.clone().unwrap_or_default();
+        let reasons: Vec<&str> = denials
+            .iter()
+            .map(|denied| denied.reason.as_str())
+            .collect();
+        return HookResponse::denied(
+            request.event_type.clone(),
+            code,
+            reasons.join("\n"),
+            "strong",
+        );
     }
     HookResponse::allowed(request.event_type.clone(), "lifecycle observation accepted")
 }

@@ -213,7 +213,7 @@ fn stop_view(request: &HookRequest) -> Option<(String, Vec<Value>, Vec<&'static 
 }
 
 /// The id of the newest turn marker: when `t` of the marker.
-fn turn_id(entries: &[Value]) -> String {
+pub fn turn_id(entries: &[Value]) -> String {
     let marker = entries.iter().rev().find(|entry| entry["marker"] == "turn");
     marker.map_or("0".to_owned(), |entry| entry["t"].to_string())
 }

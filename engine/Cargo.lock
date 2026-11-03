@@ -2408,11 +2408,9 @@ name = "legion-hook"
 version = "0.3.23"
 dependencies = [
  "legion-identity",
- "legion-runtime",
  "rightkit-evidence-contracts",
  "serde_json",
  "tokio",
- "tokio-util",
 ]
 
 [[package]]

@@ -12,7 +12,5 @@ path = "src/main.rs"
 [dependencies]
 rightkit-evidence-contracts = "=0.1.0"
 legion-identity = { path = "../../crates/legion-identity" }
-legion-runtime = { path = "../../crates/legion-runtime" }
 serde_json.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
