@@ -93,6 +93,12 @@ List every source-block `artifact_roots` path here (including paths outside the 
 |---|---|---|---|---|---|
 | {{GAP_OR_NONE_CHECKED}} | {{FATAL_HIGH_MEDIUM_LOW_OR_NONE}} | {{EXACT_IMPACT}} | {{EXACT_RECOVERY}} | {{EXACT_SAFE_SUBSET_OR_NONE}} | {{OWNER}} |
 
+### Imported open items (source ledger)
+
+| Ledger id | Item | Disposition (carried / done+evidence / superseded / user-cancelled) | Next action | Approval needed | Evidence |
+|---|---|---|---|---|---|
+| {{LEDGER_ID}} | {{ITEM}} | {{DISPOSITION}} | {{NEXT_ACTION}} | {{APPROVAL_OR_NONE}} | {{EVIDENCE}} |
+
 ## 9. Safety, Authority & Boundaries
 
 - **May do:** {{AUTHORIZED_ACTIONS}}
@@ -222,6 +228,8 @@ RECEIPT AT: {{ABSOLUTE_RECEIPT_PATH}}
 - [ ] User corrections, learnings, gotchas, naming locks, & do-not-touch zones are captured.
 - [ ] No secret values appear.
 - [ ] Every gap has severity, impact, recovery, safe subset, & owner.
+- [ ] Every source-ledger row appears under Imported open items with a disposition; every procedure step appears in Resume Sequence in order; Definition of success covers each or names what is out of scope.
+- [ ] Any claim in an option or recommendation about another agent's or system's state ("quiet", "idle", "done") cites a check made this turn, or says `unverified`.
 - [ ] Readiness matches gap severities.
 - [ ] Resume Step 1 is immediately executable.
 - [ ] State verification + invalidation rules are exact.

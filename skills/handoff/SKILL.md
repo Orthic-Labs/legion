@@ -43,7 +43,7 @@ legion script handoff/transcript-handoff bootstrap --platform claude --session-i
 
 Use `--platform codex` in Codex and `--platform claude` in Claude Code.
 
-Use this native command on macOS & Windows. Return its generated paste block only. If runtime exposes no ID, omit `--session-id`; resolver must declare
+Declare the open-items ledger (`open_items`, plus `procedures` for any procedure in flight) in the `--live-state` block; see the manual. Use this native command on macOS & Windows. Return its generated paste block only. If runtime exposes no ID, omit `--session-id`; resolver must declare
 its selection method. Source output is a pointer, not a permanent handoff packet.
 
 The source may add one small typed **source assertion block** (JSON, `--live-state <file>`; schema in
@@ -69,7 +69,7 @@ evidence), and **artifact roots** the work updates, including paths outside the 
    Add `--reconciliation <rec.json>` (one entry per declared in-flight item, each with evidence) before writing the packet:
    it fails until every item is reconciled. Verification also verifies & prints post-cutoff notes
    (`<session>.notes.jsonl` beside the context); fold them into the packet before `READBACK`.
-3. Verify drift-prone live state; confirm every source assertion (HEAD, path owners, partial edits) rather than trusting it.
+3. Verify drift-prone live state; confirm every source assertion (HEAD, path owners, partial edits) rather than trusting it. Import every source-ledger row (`open_items`) and procedure step into the packet; a transcript read alone never replaces the ledger. State no other agent's or system's status in an option without a check made this turn, else say `unverified`.
    Read the source memory directory when present. Account for every `changed_since` entry in the packet and never state its
    old value as a LOCKED decision.
 4. Read [manual](references/manual.md), copy [template](assets/handoff-template.md), & write a
