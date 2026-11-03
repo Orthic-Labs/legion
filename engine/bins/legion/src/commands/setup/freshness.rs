@@ -1,10 +1,12 @@
 //! Is the installed Legion behind? `legion setup status` compares the
-//! installed release with the newest published release and with the version in
-//! the development checkout, so an install that stopped moving cannot read as
-//! "complete" (Orthic-Labs/legion#137).
+//! installed release with the newest published release, with the version in
+//! the development checkout, and with the checkout's HEAD commit distance from
+//! the installed source commit, so an install that stopped moving cannot read
+//! as "complete" (Orthic-Labs/legion#137).
 //!
-//! The check fails open: a version, tag or checkout that cannot be read leaves
-//! `behind` unknown and the setup status exactly as it was.
+//! The check fails open: a version, tag, commit or checkout that cannot be read
+//! leaves `behind` unknown and the setup status exactly as it was. An installed
+//! commit that is not recorded yields `commitState` `unknown`, never `current`.
 use rightkit_evidence_effects::{PlatformProcess, ProcessLaunch};
 use serde_json::Value;
 use std::{
@@ -40,6 +42,15 @@ pub(super) struct Freshness {
     pub(super) latest_release_source: Option<&'static str>,
     /// `version` in the development checkout's plugin manifest.
     pub(super) checkout_version: Option<String>,
+    /// The source commit the installed generation was built from, when its
+    /// release manifest records one (`sourceRevision`).
+    pub(super) installed_commit: Option<String>,
+    /// Commits on checkout HEAD that the installed commit does not include.
+    /// `None` when either commit is unknown or git could not count them.
+    pub(super) commits_behind: Option<u64>,
+    /// `current`, `behind` or `unknown`, judged from the installed commit and
+    /// the commit distance alone.
+    pub(super) commit_state: Option<&'static str>,
     /// `None` when installed or newer versions could not be determined.
     pub(super) behind: Option<bool>,
     /// The line `setup status` adds when `behind` is true.
@@ -71,7 +82,7 @@ impl Freshness {
         let Some(object) = target.as_object_mut() else {
             return;
         };
-        let fields: [(&str, Value); 5] = [
+        let fields: [(&str, Value); 8] = [
             ("installedVersion", string_or_null(&self.installed_version)),
             ("latestRelease", string_or_null(&self.latest_release)),
             (
@@ -80,6 +91,13 @@ impl Freshness {
                     .map_or(Value::Null, |source| Value::String(source.into())),
             ),
             ("checkoutVersion", string_or_null(&self.checkout_version)),
+            ("installedCommit", string_or_null(&self.installed_commit)),
+            ("commitsBehind", self.commits_behind.map_or(Value::Null, Value::from)),
+            (
+                "commitState",
+                self.commit_state
+                    .map_or(Value::Null, |state| Value::String(state.into())),
+            ),
             ("behind", self.behind.map_or(Value::Null, Value::Bool)),
         ];
         for (key, value) in fields {
@@ -142,11 +160,38 @@ fn release_tag(output: &str) -> Option<String> {
     parse_version(tag).map(|_| tag.to_owned())
 }
 
-/// Compare the installed version with every newer version known. Pure.
+/// A source commit as recorded in a release manifest or passed to git: 7 to 40
+/// hexadecimal digits. Anything else is never handed to git as an argument.
+fn is_commit_id(text: &str) -> bool {
+    (7..=40).contains(&text.len()) && text.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// `sourceRevision` from an installed release manifest. Releases that do not
+/// record their source commit yield `None`.
+fn installed_commit_from_manifest(value: &Value) -> Option<String> {
+    value
+        .get("sourceRevision")?
+        .as_str()
+        .map(str::trim)
+        .filter(|commit| is_commit_id(commit))
+        .map(str::to_owned)
+}
+
+/// `git rev-list --count` output: one non-negative integer.
+fn parse_commit_count(output: &str) -> Option<u64> {
+    output.trim().parse().ok()
+}
+
+/// Compare the installed version and commit with every newer version and commit
+/// known. Pure. Without a known installed commit the commit distance is ignored
+/// and `commit_state` is `unknown`; a version-current install is then not
+/// reported `behind: false`, because the commit that decides it is unknown.
 fn assess(
     installed: &str,
     latest: Option<(String, &'static str)>,
     checkout_version: Option<String>,
+    installed_commit: Option<String>,
+    commits_behind: Option<u64>,
 ) -> Freshness {
     let mut targets: Vec<(Vec<u64>, String)> = Vec::new();
     if let Some((tag, _)) = &latest {
@@ -159,32 +204,53 @@ fn assess(
             targets.push((parsed, format!("dev checkout {version}")));
         }
     }
-    let (behind, remediation) = match parse_version(installed) {
-        Some(parsed) if !targets.is_empty() => {
-            let newer = targets
+    let commits_behind = if installed_commit.is_some() {
+        commits_behind
+    } else {
+        None
+    };
+    // `None` when the installed version or every version target is unknown.
+    let newer = parse_version(installed)
+        .filter(|_| !targets.is_empty())
+        .map(|parsed| {
+            targets
                 .iter()
                 .filter(|(target, _)| compare(&parsed, target) == Ordering::Less)
                 .map(|(_, label)| label.as_str())
-                .collect::<Vec<_>>();
-            if newer.is_empty() {
-                (Some(false), None)
-            } else {
-                (
-                    Some(true),
-                    Some(format!(
-                        "installed Legion {installed} is behind {}; reinstall from the newest release (rerun bootstrap), then run legion setup repair --confirm",
-                        newer.join(" and ")
-                    )),
-                )
-            }
-        }
-        _ => (None, None),
+                .collect::<Vec<_>>()
+        });
+    let mut reasons = Vec::new();
+    if let Some(newer) = newer.as_ref().filter(|newer| !newer.is_empty()) {
+        reasons.push(format!("behind {}", newer.join(" and ")));
+    }
+    if let Some(count) = commits_behind.filter(|count| *count > 0) {
+        reasons.push(format!("behind: {count} commits to checkout HEAD"));
+    }
+    let (behind, remediation) = if reasons.is_empty() {
+        let current = newer.is_some() && commits_behind == Some(0);
+        (current.then_some(false), None)
+    } else {
+        (
+            Some(true),
+            Some(format!(
+                "installed Legion {installed} is {}; reinstall from the newest release (rerun bootstrap), then run legion setup repair --confirm",
+                reasons.join("; ")
+            )),
+        )
+    };
+    let commit_state = match (installed_commit.is_some(), commits_behind) {
+        (true, Some(0)) => "current",
+        (true, Some(_)) => "behind",
+        _ => "unknown",
     };
     Freshness {
         installed_version: Some(installed.to_owned()),
         latest_release: latest.as_ref().map(|(tag, _)| tag.clone()),
         latest_release_source: latest.map(|(_, source)| source),
         checkout_version,
+        installed_commit,
+        commits_behind,
+        commit_state: Some(commit_state),
         behind,
         remediation,
     }
@@ -276,6 +342,8 @@ pub(super) struct Lookup {
     pub(super) cwd: Option<PathBuf>,
     pub(super) use_git: bool,
     pub(super) use_gh: bool,
+    /// The installed generation's recorded source commit, when known.
+    pub(super) installed_commit: Option<String>,
 }
 
 impl Lookup {
@@ -287,8 +355,40 @@ impl Lookup {
             cwd: std::env::current_dir().ok(),
             use_git: true,
             use_gh: true,
+            installed_commit: enabled.then(installed_source_commit).flatten(),
         }
     }
+}
+
+/// The source commit recorded in the installed generation's release manifest.
+/// The manifest is read raw: `ReleaseManifest` rejects unknown fields, and the
+/// commit is not part of its schema.
+fn installed_source_commit() -> Option<String> {
+    let installed = legion_runtime::release_binding::load_installed_release().ok()?;
+    let bytes = std::fs::read(&installed.manifest_path).ok()?;
+    let value: Value = serde_json::from_slice(&bytes).ok()?;
+    installed_commit_from_manifest(&value)
+}
+
+/// `git -C <checkout> rev-list --count <installed>..HEAD`. `None` when the
+/// installed commit is unknown, git is not allowed, or git cannot count it
+/// (for example the installed commit is not in this checkout).
+async fn commits_behind(lookup: &Lookup, checkout: Option<&Path>) -> Option<u64> {
+    let installed = lookup.installed_commit.as_deref()?;
+    if !lookup.use_git || !is_commit_id(installed) {
+        return None;
+    }
+    let root = checkout?;
+    let args = vec![
+        "-C".to_owned(),
+        root.to_string_lossy().into_owned(),
+        "rev-list".to_owned(),
+        "--count".to_owned(),
+        format!("{installed}..HEAD"),
+    ];
+    run_tool("git", args, root)
+        .await
+        .and_then(|output| parse_commit_count(&output))
 }
 
 #[cfg(debug_assertions)]
@@ -354,7 +454,14 @@ async fn observe_with(installed_version: &str, lookup: &Lookup) -> Freshness {
             .and_then(|output| release_tag(&output))
             .map(|tag| (tag, "github-release"));
     }
-    assess(installed_version, latest, checkout_version)
+    let commits = commits_behind(lookup, checkout.as_deref()).await;
+    assess(
+        installed_version,
+        latest,
+        checkout_version,
+        lookup.installed_commit.clone(),
+        commits,
+    )
 }
 
 #[cfg(test)]
@@ -433,7 +540,13 @@ mod tests {
 
     #[test]
     fn older_than_the_latest_release_is_behind_and_names_both_versions() {
-        let freshness = assess("0.3.23", Some(("v0.3.24".into(), "github-release")), None);
+        let freshness = assess(
+            "0.3.23",
+            Some(("v0.3.24".into(), "github-release")),
+            None,
+            None,
+            None,
+        );
         assert_eq!(freshness.behind, Some(true));
         let line = freshness.remediation.as_deref().unwrap();
         assert!(
@@ -449,6 +562,8 @@ mod tests {
             "0.3.23",
             Some(("v0.3.22".into(), "git-tag")),
             Some("0.3.25".into()),
+            None,
+            None,
         );
         assert_eq!(freshness.behind, Some(true));
         let line = freshness.remediation.as_deref().unwrap();
@@ -460,32 +575,167 @@ mod tests {
     }
 
     #[test]
-    fn current_or_ahead_is_not_behind() {
+    fn current_or_ahead_is_not_behind_only_when_the_commit_is_current() {
         let equal = assess(
             "0.3.22",
             Some(("v0.3.22".into(), "git-tag")),
             Some("0.3.22".into()),
+            Some("14b630ca".into()),
+            Some(0),
         );
         assert_eq!((equal.behind, equal.remediation), (Some(false), None));
-        let ahead = assess("0.3.23", Some(("v0.3.22".into(), "git-tag")), None);
+        assert_eq!(equal.commit_state, Some("current"));
+        let ahead = assess(
+            "0.3.23",
+            Some(("v0.3.22".into(), "git-tag")),
+            None,
+            Some("14b630ca".into()),
+            Some(0),
+        );
         assert_eq!(ahead.behind, Some(false));
+    }
+
+    #[test]
+    fn version_current_with_commit_behind_is_behind_not_complete() {
+        let freshness = assess(
+            "0.3.23",
+            Some(("v0.3.23".into(), "git-tag")),
+            Some("0.3.23".into()),
+            Some("14b630ca".into()),
+            Some(486),
+        );
+        assert_eq!(freshness.behind, Some(true));
+        assert_eq!(freshness.commit_state, Some("behind"));
+        assert_eq!(freshness.commits_behind, Some(486));
+        let line = freshness.remediation.as_deref().unwrap();
+        assert!(line.contains("behind: 486 commits"), "{line}");
+        assert!(line.contains("0.3.23"), "{line}");
+        let mut remediation = Vec::new();
+        assert_eq!(
+            freshness.apply_to_health("complete", &mut remediation),
+            "behind"
+        );
+    }
+
+    #[test]
+    fn unknown_commit_or_distance_never_reports_current() {
+        let no_commit = assess(
+            "0.3.23",
+            Some(("v0.3.23".into(), "git-tag")),
+            Some("0.3.23".into()),
+            None,
+            Some(486),
+        );
+        assert_eq!(
+            no_commit.behind, None,
+            "a commit distance without an installed commit is ignored"
+        );
+        assert_eq!(no_commit.commits_behind, None);
+        assert_eq!(no_commit.commit_state, Some("unknown"));
+        let no_distance = assess(
+            "0.3.23",
+            Some(("v0.3.23".into(), "git-tag")),
+            Some("0.3.23".into()),
+            Some("14b630ca".into()),
+            None,
+        );
+        assert_eq!(no_distance.behind, None);
+        assert_eq!(no_distance.installed_commit.as_deref(), Some("14b630ca"));
+        assert_eq!(no_distance.commit_state, Some("unknown"));
+        assert_eq!(no_distance.remediation, None);
+    }
+
+    #[test]
+    fn commit_distance_counts_even_when_the_version_is_unknown() {
+        let freshness = assess("dev-build", None, None, Some("14b630ca".into()), Some(3));
+        assert_eq!(freshness.behind, Some(true));
+        assert_eq!(freshness.commit_state, Some("behind"));
+        assert!(freshness
+            .remediation
+            .unwrap()
+            .contains("behind: 3 commits to checkout HEAD"));
+    }
+
+    #[test]
+    fn installed_commit_must_be_a_plain_hex_revision() {
+        let manifest = |revision: Value| {
+            json!({"releaseVersion": "0.3.23", "sourceRevision": revision})
+        };
+        let full = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
+        assert_eq!(
+            installed_commit_from_manifest(&manifest(json!(" 14b630ca9f1e "))),
+            Some("14b630ca9f1e".to_owned())
+        );
+        assert_eq!(
+            installed_commit_from_manifest(&manifest(json!(full))),
+            Some(full.to_owned())
+        );
+        assert_eq!(
+            installed_commit_from_manifest(&manifest(json!("14b630c"))),
+            Some("14b630c".to_owned()),
+            "seven digits is the shortest commit id"
+        );
+        for unknown in [
+            json!(""),
+            json!("14b630"),
+            json!("14b630ca9f1e-dirty"),
+            json!("--output=/tmp/x"),
+            json!("HEAD~1"),
+            json!("main"),
+            json!(42),
+            Value::Null,
+        ] {
+            let shown = unknown.to_string();
+            assert_eq!(
+                installed_commit_from_manifest(&manifest(unknown)),
+                None,
+                "{shown}"
+            );
+        }
+        assert_eq!(
+            installed_commit_from_manifest(&json!({"releaseVersion": "0.3.23"})),
+            None
+        );
+        assert_eq!(
+            installed_commit_from_manifest(
+                &json!({"rightkitAx": {"sourceCommit": full}})
+            ),
+            None,
+            "the RightKit commit is not the Legion commit"
+        );
+    }
+
+    #[test]
+    fn commit_count_output_is_one_integer() {
+        assert_eq!(parse_commit_count("486\n"), Some(486));
+        assert_eq!(parse_commit_count("0"), Some(0));
+        for bad in ["", "fatal: bad revision", "-3", "1 2"] {
+            assert_eq!(parse_commit_count(bad), None, "{bad}");
+        }
     }
 
     #[test]
     fn unknown_inputs_leave_behind_unknown() {
         for freshness in [
-            assess("0.3.23", None, None),
-            assess("0.3.23", None, Some("garbage".into())),
-            assess("dev-build", Some(("v9.9.9".into(), "git-tag")), None),
+            assess("0.3.23", None, None, None, None),
+            assess("0.3.23", None, Some("garbage".into()), None, None),
+            assess("dev-build", Some(("v9.9.9".into(), "git-tag")), None, None, None),
         ] {
             assert_eq!(freshness.behind, None);
             assert_eq!(freshness.remediation, None);
+            assert_eq!(freshness.commit_state, Some("unknown"));
         }
     }
 
     #[test]
     fn behind_replaces_complete_and_keeps_stronger_statuses() {
-        let behind = assess("0.3.23", Some(("v0.3.24".into(), "git-tag")), None);
+        let behind = assess(
+            "0.3.23",
+            Some(("v0.3.24".into(), "git-tag")),
+            None,
+            None,
+            None,
+        );
         let mut remediation = vec!["something else".to_owned()];
         assert_eq!(
             behind.apply_to_health("complete", &mut remediation),
@@ -501,7 +751,7 @@ mod tests {
         );
         assert_eq!(remediation.len(), 1);
 
-        let unknown = assess("0.3.23", None, None);
+        let unknown = assess("0.3.23", None, None, None, None);
         let mut remediation = Vec::new();
         assert_eq!(
             unknown.apply_to_health("complete", &mut remediation),
@@ -517,12 +767,17 @@ mod tests {
             "0.3.23",
             Some(("v0.3.24".into(), "git-tag")),
             Some("0.3.25".into()),
+            Some("14b630ca".into()),
+            Some(486),
         )
         .merge_into(&mut status);
         assert_eq!(status["installedVersion"], "0.3.23");
         assert_eq!(status["latestRelease"], "v0.3.24");
         assert_eq!(status["latestReleaseSource"], "git-tag");
         assert_eq!(status["checkoutVersion"], "0.3.25");
+        assert_eq!(status["installedCommit"], "14b630ca");
+        assert_eq!(status["commitsBehind"], 486);
+        assert_eq!(status["commitState"], "behind");
         assert_eq!(status["behind"], true);
         assert_eq!(
             status["status"], "complete",
@@ -534,6 +789,8 @@ mod tests {
         assert_eq!(failed["behind"], Value::Null);
         assert_eq!(failed["latestRelease"], Value::Null);
         assert_eq!(failed["installedVersion"], Value::Null);
+        assert_eq!(failed["commitState"], Value::Null);
+        assert_eq!(failed["commitsBehind"], Value::Null);
     }
 
     #[test]
@@ -580,11 +837,14 @@ mod tests {
             cwd: None,
             use_git: false,
             use_gh: false,
+            installed_commit: Some("14b630ca".into()),
         };
         let freshness = observe_with("0.3.23", &lookup).await;
         assert_eq!(freshness.checkout_version.as_deref(), Some("9.9.9"));
         assert_eq!(freshness.latest_release, None);
         assert_eq!(freshness.behind, Some(true));
+        assert_eq!(freshness.commits_behind, None, "git is not allowed");
+        assert_eq!(freshness.commit_state, Some("unknown"));
 
         let disabled = Lookup {
             enabled: false,
@@ -592,6 +852,26 @@ mod tests {
         };
         let freshness = observe_with("0.3.23", &disabled).await;
         assert_eq!(freshness.installed_version.as_deref(), Some("0.3.23"));
+        assert_eq!(freshness.behind, None);
+        assert_eq!(freshness.commit_state, None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn observe_without_a_known_installed_commit_never_counts_commits() {
+        let root = checkout("0.3.23");
+        let lookup = Lookup {
+            enabled: true,
+            checkout: Some(root.clone()),
+            cwd: None,
+            use_git: true,
+            use_gh: false,
+            installed_commit: None,
+        };
+        let freshness = observe_with("0.3.23", &lookup).await;
+        assert_eq!(freshness.commits_behind, None);
+        assert_eq!(freshness.installed_commit, None);
+        assert_eq!(freshness.commit_state, Some("unknown"));
         assert_eq!(freshness.behind, None);
         let _ = std::fs::remove_dir_all(&root);
     }
