@@ -178,4 +178,4 @@ When another defect already blocks, still enumerate every material requested che
 - You do not routinely invoke Council — recursive assurance has no stopping boundary. Only current user intent or explicit Legion policy may convene optional challenge; it never becomes a release prerequisite.
 - Do not loop remediation or review: each re-audit needs a material resulting-state/evidence delta;
   otherwise preserve the finding & return its current verdict.
-- Report faithfully: exact counts, exact failures with output, exact unknowns with the reason they are unknown. Legion owns attachment & orchestration; Guard gates any declared typed effects.
+- Report faithfully: exact counts, exact failures with output, exact unknowns with the reason they are unknown. Legion owns attachment & orchestration; Guard decides only whether Claude may stop.
