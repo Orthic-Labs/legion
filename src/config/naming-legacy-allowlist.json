@@ -30,11 +30,11 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 11,
-        "forge": 64,
-        "seer": 32,
-        "sentinel": 31,
-        "sorcerer": 12
+        "nemesis": 9,
+        "forge": 62,
+        "seer": 30,
+        "sentinel": 29,
+        "sorcerer": 10
       },
       "class": "R2",
       "reason": "legacy-token classification source"
