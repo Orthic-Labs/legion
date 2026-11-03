@@ -66,11 +66,16 @@ fn text_tail(path: &Path, max_bytes: usize) -> Option<String> {
     }
 }
 
-fn qualification_failure_diagnostics(install_log: &Path, activation_events: &Path) -> String {
+fn qualification_failure_diagnostics(
+    install_log: &Path,
+    activation_events: &Path,
+    uninstall_log: &Path,
+) -> String {
     let mut sections = Vec::new();
     for (label, path) in [
         ("Inno setup log", install_log),
         ("Legion activation events", activation_events),
+        ("Inno uninstall log", uninstall_log),
     ] {
         if let Some(contents) = text_tail(path, 12 * 1024) {
             if !contents.trim().is_empty() {
@@ -1017,6 +1022,7 @@ fn qualify_inner(
     let executable = install_root.join("current").join("bin").join("legion.exe");
     let install_log = output.join("setup-install.log");
     let activation_events = output.join("activation-events.jsonl");
+    let uninstall_log = output.join("setup-uninstall.log");
     let staged_validation_failure_log = output.join("setup-staged-validation-failure.log");
     let mirror_sync_failure_log = output.join("setup-mirror-sync-failure.log");
     let forced_refresh_failure_log = output.join("setup-forced-refresh-failure.log");
@@ -2168,13 +2174,31 @@ throw 'Receipt fault did not interrupt activation'
                     "/VERYSILENT".into(),
                     "/SUPPRESSMSGBOXES".into(),
                     "/NORESTART".into(),
+                    format!("/LOG={}", uninstall_log.display()),
                 ],
                 &workspace_opts,
                 "silent uninstall",
             )
         })?;
-        if !disappears(&install_root, Duration::from_millis(3000)) {
-            return Err(fail("silent uninstall left installed product behind"));
+        // The Inno uninstaller relaunches itself from a temp copy and the
+        // launcher returns before the real uninstall finishes. That phase runs
+        // `setup remove` (bounded at 120s by InitializeUninstall) before it
+        // deletes the payload, so removal is observable only well after the
+        // launcher exits.
+        if !disappears(&install_root, Duration::from_secs(240)) {
+            let remaining: Vec<String> = fs::read_dir(&install_root)
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .map(|e| e.file_name().to_string_lossy().to_string())
+                        .collect()
+                })
+                .unwrap_or_default();
+            return Err(fail(format!(
+                "silent uninstall left installed product behind; remaining entries in {}: [{}]",
+                install_root.display(),
+                remaining.join(", ")
+            )));
         }
         // Uninstall deregisters Legion's native client entries while leaving
         // every unrelated client entry byte-for-byte intact.
@@ -2315,7 +2339,8 @@ throw 'Receipt fault did not interrupt activation'
             // qualification receipt. Include only bounded logs emitted by
             // this product installer so activation failures retain their
             // PowerShell cause instead of collapsing to Inno's exit code.
-            let diagnostics = qualification_failure_diagnostics(&install_log, &activation_events);
+            let diagnostics =
+                qualification_failure_diagnostics(&install_log, &activation_events, &uninstall_log);
             if diagnostics.is_empty() {
                 Err(err)
             } else {
