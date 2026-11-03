@@ -43,7 +43,7 @@ legion script handoff/transcript-handoff bootstrap --platform claude --session-i
 
 Use `--platform codex` in Codex and `--platform claude` in Claude Code.
 
-Declare the open-items ledger (`open_items`, plus `procedures` for any procedure in flight) in the `--live-state` block; see the manual. Use this native command on macOS & Windows. Return its generated paste block only. If runtime exposes no ID, omit `--session-id`; resolver must declare
+Write the open-items ledger (`open_items`, plus `procedures` for any procedure in flight) as the sidecar file the manual names, and give its path and SHA-256 beside the paste block. Use this native command on macOS & Windows. Return its generated paste block only. If runtime exposes no ID, omit `--session-id`; resolver must declare
 its selection method. Source output is a pointer, not a permanent handoff packet.
 
 The source may add one small typed **source assertion block** (JSON, `--live-state <file>`; schema in

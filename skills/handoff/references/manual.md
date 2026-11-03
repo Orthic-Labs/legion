@@ -60,18 +60,6 @@ Source has no prose channel, but may declare verified live facts in one typed JS
   current prefix. `old` and `new` must differ; ids are unique; free text is secret-scanned.
 - `artifact_roots`: process artifacts the work updates, including paths outside the workspace:
   `{"path":"<absolute>","owner":"legion","rerender":"<command or none: reason>","durable":true}`.
-- `open_items`: the ledger of everything pending at handoff, one row per item; required, so a source that has nothing pending
-  says `"open_items":[]` with `"open_items_none_reason":"<one line, e.g. all work complete>"`, never a bare empty list.
-  Row: `{"id":"O1","item":"<what>","owner":"<who>","state":"pending|in_progress|blocked|waiting_on_user","next":"<exact next action>","blocker":"<text|none>","approval":{"needed":true,"from":"user"},"evidence":"<path or command>"}`.
-  Fill it from the live task list, unanswered user requests, approvals issued but unfinished, background jobs, messages awaiting
-  a reply, and follow-ups promised this session. Ids are unique; free text is secret-scanned.
-  The source reads each of these at handoff time, never recalls them: the live task list (`update_plan`/`TaskList`), open issues in
-  the owning repositories, `tasks/approvals/`, `git status` and unpushed commits per repository, background job lists, and pending
-  peer messages. A row is dropped only with a stated reason (done with evidence, superseded, or user-cancelled).
-- `procedures`: for each procedure in flight (a release, a migration, an install), the full remaining sequence:
-  `{"name":"release","steps":["push","publish","install on every host","notify dependents","publish dependent packages"],"steps_source":"<repo doc path or the last completed run, cited>"}`.
-  The source author takes the steps from the repo's runbook or the last completed run of the same procedure; the script
-  hashes them but cannot know the canonical list, so `steps_source` is mandatory and the target checks it.
 
 ```bash
 legion script handoff/transcript-handoff bootstrap --platform claude --session-id "<ID>" --workspace "<WS>" --live-state "<block.json>"
@@ -87,6 +75,28 @@ Bootstrap validates the block, saves its canonical form beside the other handoff
 & adds `--source-block`/`--source-block-sha256` to the target command. The continuity receipt then covers the block
 (`sourceBlockSha256`); it lives in the context as `sourceAssertion`, never inside `events`. It is the source's
 claim: hash-bound & well-formed, not independently verified. Target confirms drift-prone facts itself.
+
+#### Open-items ledger (sidecar file)
+
+The published handoff package rejects unknown fields in the `--live-state` block, so until it carries these fields
+(bogusyogi/rightkit#1495) the ledger is a sidecar file, not part of that block. The source writes
+`<handoff dir>/<ID>.open-items.json` with `{"schema":"legion.handoff.open-items.v1","open_items":[...],"procedures":[...]}`,
+computes its SHA-256, and states the absolute path and digest in its reply beside the paste block. The target reads the file,
+verifies the digest, and treats it as a source assertion. Once the package supports the fields, they move into the block
+unchanged.
+
+`open_items`: the ledger of everything pending at handoff, one row per item; required, so a source that has nothing pending
+  says `"open_items":[]` with `"open_items_none_reason":"<one line, e.g. all work complete>"`, never a bare empty list.
+  Row: `{"id":"O1","item":"<what>","owner":"<who>","state":"pending|in_progress|blocked|waiting_on_user","next":"<exact next action>","blocker":"<text|none>","approval":{"needed":true,"from":"user"},"evidence":"<path or command>"}`.
+  Fill it from the live task list, unanswered user requests, approvals issued but unfinished, background jobs, messages awaiting
+  a reply, and follow-ups promised this session. Ids are unique; free text is secret-scanned.
+  The source reads each of these at handoff time, never recalls them: the live task list (`update_plan`/`TaskList`), open issues in
+  the owning repositories, `tasks/approvals/`, `git status` and unpushed commits per repository, background job lists, and pending
+  peer messages. A row is dropped only with a stated reason (done with evidence, superseded, or user-cancelled).
+`procedures`: for each procedure in flight (a release, a migration, an install), the full remaining sequence:
+  `{"name":"release","steps":["push","publish","install on every host","notify dependents","publish dependent packages"],"steps_source":"<repo doc path or the last completed run, cited>"}`.
+  The source author takes the steps from the repo's runbook or the last completed run of the same procedure; the script
+  hashes them but cannot know the canonical list, so `steps_source` is mandatory and the target checks it.
 
 #### Post-cutoff notes
 
