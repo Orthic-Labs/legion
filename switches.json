@@ -652,6 +652,14 @@
       "note": "Release and build tooling (xtask, legion-dev, right-release.config.mjs); never read by a shipped binary (the release assembles only legion, legion-hook and legion-mcp). S6 enum per sibling-inventory precedent for non-shipped tooling."
     },
     {
+      "name": "LEGION_SOURCE_REVISION",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "right-release.config.mjs:80",
+      "valueType": "enum",
+      "note": "Release and build tooling (right-release.config.mjs, xtask); never read by a shipped binary. S6 enum per sibling-inventory precedent for non-shipped tooling."
+    },
+    {
       "name": "LEGION_STATE_ROOT",
       "class": "S4",
       "channel": "env",

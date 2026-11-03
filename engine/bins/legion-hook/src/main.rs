@@ -2037,9 +2037,8 @@ fn strip_launchers(segment: &str) -> (&str, bool) {
             // `eval 'rm -rf src'` runs the quoted text as a command line.
             let trimmed = rest.trim_end();
             if let Some(quote) = trimmed.chars().next().filter(|c| *c == '"' || *c == '\'') {
-                if trimmed.len() >= 2 && trimmed.ends_with(quote) {
-                    rest = trimmed[1..trimmed.len() - 1].trim_start();
-                }
+                let inner = &trimmed[1..];
+                rest = inner.strip_suffix(quote).unwrap_or(inner).trim_start();
             }
         }
     }
@@ -2483,7 +2482,7 @@ fn branch_delete_hides_name_in_expansion(payload: &Value) -> bool {
         return false;
     };
     command_value(object).is_some_and(|command| {
-        ["$(", "`", "<(", ">("]
+        ["(", ")", "`", "<<"]
             .iter()
             .any(|marker| command.contains(marker))
             && command_deletes_branches(&command)
@@ -2912,14 +2911,14 @@ fn tool_deletes_state(words: &[String], original_words: &[String]) -> bool {
                             argument.starts_with('-')
                                 && !argument.starts_with("--")
                                 && argument.contains(letter)
+                                && argument[1..].chars().all(|c| "dDfrqvailmMcCtu".contains(c))
                         })
                     };
                     let long = |name: &str| original.iter().any(|argument| argument == name);
-                    let delete = bundle('d') || bundle('D') || long("--delete");
                     // An unparseable deletion (substitution, variable, pipe to
                     // xargs) is refused whether or not it forces; the plain
                     // forms were already confirmed before this point.
-                    delete
+                    bundle('d') || bundle('D') || long("--delete")
                 },
             ),
             "tag" => arguments.iter().any(|argument| {
