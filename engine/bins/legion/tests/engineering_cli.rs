@@ -87,6 +87,36 @@ fn plan_cli_returns_a_structured_dependency_error() {
 }
 
 #[test]
+fn plan_cli_rejects_a_second_owner_of_one_file_even_when_a_dependency_orders_them() {
+    // "integration" depends on "implementation", yet both own src/feature.rs.
+    // Ordering the writers does not give the file a single owner, so it is rejected.
+    let mut shared = read(&fixture("legion-runtime", "workplan-ready.json"));
+    shared["units"][2]["writeScopes"] = json!([{"path": "src/feature.rs", "kind": "file"}]);
+    shared["units"][2]["completion"][0]["artifact"]["path"] = json!("src/feature.rs");
+    let file = InputFile::new(&shared);
+    let output = run("work-plan", "validate", &file.0);
+    assert_eq!(output.status.code(), Some(1));
+    let value = json_output(&output);
+    assert_eq!(value["valid"], false);
+    assert_eq!(value["assessment"]["error"]["code"], "scope_conflict");
+    assert_eq!(value["assessment"]["error"]["field"], "write_scopes");
+
+    // Disjoint files under the same dependency order are accepted and stay parallel.
+    let output = run(
+        "work-plan",
+        "validate",
+        &fixture("legion-runtime", "workplan-ready.json"),
+    );
+    assert_eq!(output.status.code(), Some(0));
+    let value = json_output(&output);
+    assert!(value["assessment"]["error"].is_null());
+    assert_eq!(
+        value["assessment"]["readyUnits"],
+        json!(["documentation", "implementation"])
+    );
+}
+
+#[test]
 fn stale_review_and_pr_observations_are_not_successful_cli_results() {
     let mut review = read(&fixture("legion-runtime", "rounds-approved.json"));
     review["currentDigest"] = json!("c".repeat(64));
