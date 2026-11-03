@@ -105,8 +105,13 @@ fn api_key() -> Option<Secret> {
     let home = std::env::var_os("HOME")
         .filter(|home| !home.is_empty())
         .or_else(|| std::env::var_os("USERPROFILE").filter(|home| !home.is_empty()))?;
-    let path = PathBuf::from(home).join(".legion").join("scaledown-api-key");
-    fs::read_to_string(path).ok().and_then(clean).map(Secret::new)
+    let path = PathBuf::from(home)
+        .join(".legion")
+        .join("scaledown-api-key");
+    fs::read_to_string(path)
+        .ok()
+        .and_then(clean)
+        .map(Secret::new)
 }
 
 /// The Keychain item `legion-scaledown`. Output is piped, never echoed, and a command that blocks on a
