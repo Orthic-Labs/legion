@@ -1,4 +1,4 @@
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     AgentDefinition, BudgetCeiling, InvocationGrant, RoutingCeiling, ToolCeiling,
 };
 
@@ -21,7 +21,7 @@ impl AgentProfile {
     pub fn definition(&self) -> &AgentDefinition {
         &self.definition
     }
-    pub fn id(&self) -> &legion_contracts::AgentId {
+    pub fn id(&self) -> &rightkit_evidence_contracts::AgentId {
         &self.definition.id
     }
     pub fn budget(&self) -> &BudgetCeiling {

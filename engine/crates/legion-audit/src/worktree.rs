@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use legion_contracts::{EffectClass, EffectRequest};
+use rightkit_evidence_contracts::{EffectClass, EffectRequest};
 
 use crate::error::AuditError;
 

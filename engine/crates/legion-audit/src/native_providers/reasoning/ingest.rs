@@ -22,7 +22,7 @@ use std::{
 };
 
 use hmac::{Hmac, KeyInit, Mac};
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     canonical_digest, canonical_json_bytes, Coverage, FindingId, FindingRef, ProviderId,
     ProviderResult, ProviderStatus, ReportStatus, ReportV1,
 };
@@ -2276,7 +2276,7 @@ pub fn ingest_lens_result(
         serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
     let stored_report: ReportV1 =
-        legion_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
+        rightkit_evidence_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
             .map(|report| report.v1_core())
             .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     crate::verify::validate_effect_artifacts(run_dir, &plan, &stored_report, &execution)?;
@@ -5414,7 +5414,7 @@ pub(crate) fn validate_runtime_prerequisites(
     let execution: ExecutionReport = serde_json::from_value(execution_json)
         .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
     let stored: ReportV1 =
-        legion_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
+        rightkit_evidence_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
             .map(|report| report.v1_core())
             .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     crate::verify::validate_effect_artifacts(run_dir, plan, &stored, &execution)?;
@@ -5431,7 +5431,7 @@ pub fn recompute_run(run_dir: &Path) -> Result<Recomputed, AuditError> {
         serde_json::from_value(read_json(&run_dir.join("execution.json"))?)
             .map_err(|error| invalid(format!("execution.json is invalid: {error}")))?;
     let stored: ReportV1 =
-        legion_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
+        rightkit_evidence_contracts::Report::read_any(&read_json(&run_dir.join("report.json"))?)
             .map(|report| report.v1_core())
             .map_err(|error| invalid(format!("report.json is invalid: {error}")))?;
     let plan = read_json(&run_dir.join("plan.json"))?;
@@ -6628,7 +6628,7 @@ mod variant_anchor_scope_tests {
         ensure_variant_anchor_in_scope, set_derived_provider_coverage,
         verify_precompile_provider_selection,
     };
-    use legion_contracts::ReportV1;
+    use rightkit_evidence_contracts::ReportV1;
     use serde_json::json;
     use std::collections::BTreeSet;
 

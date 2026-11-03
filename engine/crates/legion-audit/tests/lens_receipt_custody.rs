@@ -34,6 +34,7 @@ impl Sandbox {
         let state = base.join("state");
         fs::create_dir_all(&run).unwrap();
         fs::create_dir_all(&state).unwrap();
+        legion_identity::declare();
         let saved = std::env::var_os("LEGION_STATE_ROOT");
         std::env::set_var("LEGION_STATE_ROOT", &state);
         Self {

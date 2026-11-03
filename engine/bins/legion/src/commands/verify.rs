@@ -148,9 +148,9 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     {
         errors.push("facts.plan binding differs from plan binding".into());
     }
-    let facts_digest = legion_contracts::canonical_digest_hex(&facts)
+    let facts_digest = rightkit_evidence_contracts::canonical_digest_hex(&facts)
         .map_err(|e| CommandError::integrity(e.to_string()))?;
-    let plan_digest = legion_contracts::canonical_digest_hex(&plan)
+    let plan_digest = rightkit_evidence_contracts::canonical_digest_hex(&plan)
         .map_err(|e| CommandError::integrity(e.to_string()))?;
     let repository_id = facts
         .get("workspace")
@@ -241,7 +241,7 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
             .get("providerSpecs")
             .cloned()
             .and_then(|specs| {
-                serde_json::from_value::<Vec<legion_contracts::ProviderSpec>>(specs).ok()
+                serde_json::from_value::<Vec<rightkit_evidence_contracts::ProviderSpec>>(specs).ok()
             })
             .unwrap_or_else(|| application.provider_specs())
             .into_iter()
@@ -1379,7 +1379,7 @@ fn lens_verdict(run: &std::path::Path, errors: &mut Vec<String>) -> Value {
         "ingestedLenses": recomputed.ingested,
         "pendingLenses": recomputed.pending,
         "coverageNotes": recomputed.execution.coverage_notes,
-        "clean": recomputed.report.status == legion_contracts::ReportStatus::Clean,
+        "clean": recomputed.report.status == rightkit_evidence_contracts::ReportStatus::Clean,
     })
 }
 
@@ -1390,7 +1390,7 @@ fn stored_visual_findings(stored: &Value) -> Option<Vec<Value>> {
     // A stored report of schema 1 or 2 compares as its v1 core (ADR-8), so the
     // v2-only fields never affect the recomputed-verdict match. A document that
     // is not a complete report keeps its raw findings.
-    let findings = match legion_contracts::Report::read_any(stored) {
+    let findings = match rightkit_evidence_contracts::Report::read_any(stored) {
         Ok(view) => serde_json::to_value(view.v1_core().findings).ok()?,
         Err(_) => stored.get("findings")?.clone(),
     };

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{AgentDefinition, AgentId, BudgetCeiling, RoutingCeiling, ToolCeiling};
+use rightkit_evidence_contracts::{AgentDefinition, AgentId, BudgetCeiling, RoutingCeiling, ToolCeiling};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};

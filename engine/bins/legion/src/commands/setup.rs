@@ -1,6 +1,6 @@
 use super::{io_error, CommandError, CommandResult};
 use clap::{Args, Subcommand, ValueEnum};
-use legion_effects::{PlatformProcess, ProcessLaunch, ProcessOutput};
+use rightkit_evidence_effects::{PlatformProcess, ProcessLaunch, ProcessOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -1382,11 +1382,11 @@ async fn run_client_command(
         cancellation,
     };
     #[cfg(unix)]
-    let output = legion_effects::platform::unix::UnixProcess
+    let output = rightkit_evidence_effects::platform::unix::UnixProcess
         .run(launch)
         .await;
     #[cfg(windows)]
-    let output = legion_effects::platform::windows::WindowsProcess
+    let output = rightkit_evidence_effects::platform::windows::WindowsProcess
         .run(launch)
         .await;
     let output = output.map_err(|error| {
@@ -4456,11 +4456,11 @@ async fn run_marketplace_cli(
             cancellation: cancellation.clone(),
         };
         #[cfg(unix)]
-        let output = legion_effects::platform::unix::UnixProcess
+        let output = rightkit_evidence_effects::platform::unix::UnixProcess
             .run(launch)
             .await;
         #[cfg(windows)]
-        let output = legion_effects::platform::windows::WindowsProcess
+        let output = rightkit_evidence_effects::platform::windows::WindowsProcess
             .run(launch)
             .await;
         let output = output.map_err(|error| {

@@ -4,7 +4,7 @@
 use super::super::{supply_chain, supply_chain_documents as documents};
 use super::*;
 use crate::{FilesystemInventorySource, InventorySource};
-use legion_effects::{PolicyAuthorizer, PolicyDecision};
+use rightkit_evidence_effects::{PolicyAuthorizer, PolicyDecision};
 use std::sync::Mutex;
 
 const ID: &str = "supply-chain.license-sbom-provenance";
@@ -187,10 +187,6 @@ fn sources(root: &Path) -> Value {
     let mut files = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "src/registry/providers.json",
@@ -198,10 +194,6 @@ fn sources(root: &Path) -> Value {
         "engine/Cargo.lock",
         "engine/rust-toolchain.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         "scripts/ci/audit-supply-chain-native-accuracy.py",
         "scripts/ci/tests/test_audit_supply_chain_native_accuracy.py",
         "scripts/ci/schemas/audit-supply-chain-native-accuracy.schema.json",

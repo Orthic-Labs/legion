@@ -1170,7 +1170,7 @@ fn validate_report_binding(
     snapshot_key: &str,
 ) -> Result<(), AuditError> {
     let value: serde_json::Value = serde_json::from_slice(bytes).map_err(io)?;
-    let report = legion_contracts::ReportV2::read_any(&value).map_err(io)?;
+    let report = rightkit_evidence_contracts::ReportV2::read_any(&value).map_err(io)?;
     if report.claims.get("planDigest").and_then(|v| v.as_str()) != Some(plan_digest)
         || report.scope.snapshot_key.as_deref() != Some(snapshot_key)
     {

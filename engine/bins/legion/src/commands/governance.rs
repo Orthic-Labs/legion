@@ -1,6 +1,6 @@
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_arcane::{
+use rightkit_evidence_governance::{
     auth_unavailable_result, dispatch_delivery_governance, dispatch_execution_control,
     dispatch_governance_judgment, requires_authenticated_stores, JudgmentControlCapability,
     KeyRing,

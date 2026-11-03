@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, process::Command, sync::Arc};
 
 use legion_audit::{AuditError, FilesystemInventorySource, InventoryEnvelope, InventorySource};
-use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
 
 fn fixture_git(root: &std::path::Path, args: &[&str]) {
     let mut child = Command::new("git")

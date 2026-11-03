@@ -4,7 +4,7 @@ use legion_audit::{
     canonical_bytes, digest, execute, AuditPlan, FilesystemInventorySource, InventorySource,
     NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{

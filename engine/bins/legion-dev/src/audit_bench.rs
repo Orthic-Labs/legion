@@ -637,7 +637,7 @@ fn deterministic_stage_metrics(
                 // Plan-level selector NA is distinct from missing host support or an
                 // untyped applicable=false claim. It proves no inspection took place.
                 let not_applicable = !result.applicable && !result.complete
-                    && result.status == legion_contracts::ProviderStatus::Ok
+                    && result.status == rightkit_evidence_contracts::ProviderStatus::Ok
                     && result.coverage.is_none() && result.findings.is_empty()
                     && result.coverage_gaps.is_empty() && result.degradation.is_empty()
                     && result.details.get("notApplicable") == Some(&Value::Bool(true))
@@ -2222,10 +2222,10 @@ mod tests {
     fn actual_report_serializers_preserve_flat_provider_evidence_for_benchmark_readers() {
         let mut candidate = selected_result(AUDIT_BEHAVIOR_PROVIDERS[0], true);
         candidate["result"]["details"]["candidates"] = json!([{"path":"src/session.ts","line":4}]);
-        let report = legion_contracts::ReportV1 {
+        let report = rightkit_evidence_contracts::ReportV1 {
             schema_version: 1,
-            report_id: legion_contracts::ReportId::new("benchmark-wire-fixture").unwrap(),
-            status: legion_contracts::ReportStatus::Clean,
+            report_id: rightkit_evidence_contracts::ReportId::new("benchmark-wire-fixture").unwrap(),
+            status: rightkit_evidence_contracts::ReportStatus::Clean,
             findings: Vec::new(),
             gaps: Vec::new(),
             claims: BTreeMap::new(),
@@ -2240,7 +2240,7 @@ mod tests {
         };
         let serialized = serde_json::to_value(&report).unwrap();
         assert!(serialized.get("extensions").is_none());
-        let view = legion_contracts::Report::read_any(&serialized).unwrap();
+        let view = rightkit_evidence_contracts::Report::read_any(&serialized).unwrap();
         for schema in [1, 2] {
             let wire = view.to_value_for_schema(schema).unwrap();
             assert!(wire.get("extensions").is_none());

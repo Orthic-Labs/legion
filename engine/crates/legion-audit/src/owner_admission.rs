@@ -8,7 +8,7 @@
 //! fields and environment values never reach the grant path.
 //!
 //! Admission is *policy*. It is deliberately separate from OS containment
-//! (`legion_effects::owner_process`), executable integrity (the executor's
+//! (`rightkit_evidence_effects::owner_process`), executable integrity (the executor's
 //! digest check) and attestation (signed run receipts). A pinned digest only
 //! identifies an executable; it never grants admission.
 //!
@@ -22,7 +22,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_effects::{
+use rightkit_evidence_effects::{
     owner_process::{ContainmentProfile, InvocationClass},
     DigestState, ExecutableIdentity, ExternalToolRequest, PolicyAuthorizer, PolicyDecision,
 };

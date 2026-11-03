@@ -7,7 +7,7 @@ use super::{
     freeze_review::{self, CapturedReview, ReviewerConfig},
     freeze_store::ProtectedStore,
 };
-use legion_policy::frozen_scope::{
+use rightkit_policy_rules::rules::frozen_scope::{
     self as policy, AmendmentBinding, DecisionKind, EffectRequest, FreezeBinding, FreezeStatus,
     HostObservation, LiveFreeze, ObservedDecision, Operation, RequiredReviewers, SourceError,
     TrustedObservationSource,

@@ -18,8 +18,8 @@ pub enum AuditError {
     Provider(String),
 }
 
-impl From<legion_contracts::ContractError> for AuditError {
-    fn from(error: legion_contracts::ContractError) -> Self {
+impl From<rightkit_evidence_contracts::ContractError> for AuditError {
+    fn from(error: rightkit_evidence_contracts::ContractError) -> Self {
         Self::Invalid(error.to_string())
     }
 }

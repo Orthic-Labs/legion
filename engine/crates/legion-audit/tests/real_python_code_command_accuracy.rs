@@ -9,12 +9,12 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
     ArtifactRecord, ExecutionReceipt, ExternalToolRequest, PolicyAuthorizer, PolicyDecision,
     ToolOrigin,
 };
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -254,20 +254,12 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
     let mut sources = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/Cargo.toml",
         "engine/Cargo.lock",
         "engine/rust-toolchain.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         SOURCE,
         FIXTURES,
         "scripts/ci/audit-python-sdk-bootstrap.py",
@@ -742,9 +734,9 @@ fn request_mutations(
             "planId" => request.plan_id = "different-frozen-plan".into(),
             _ => unreachable!(),
         }
-        let actual = legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        let actual = rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             SharedPolicy(policy.clone()),
         );
         let rows = Arc::new(Mutex::new(Vec::new()));
@@ -1134,15 +1126,15 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, control: &str) -> Valu
     let rows = Arc::new(Mutex::new(Vec::new()));
     let requests = Arc::new(Mutex::new(Vec::new()));
     let actual: Arc<dyn ExternalProjectTool> = if control == "rejected-admission" {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             legion_audit::execution_policy::OwnerAdmissionRequired,
         ))
     } else {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             SharedPolicy(policy.clone()),
         ))
     };

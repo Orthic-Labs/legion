@@ -9,12 +9,12 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
     ArtifactRecord, ExecutionReceipt, ExternalToolRequest, PolicyAuthorizer, PolicyDecision,
     ToolOrigin,
 };
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -142,10 +142,6 @@ fn source_binding() -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
     for relative in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         FIXTURES,
@@ -157,10 +153,6 @@ fn source_binding() -> BTreeMap<String, String> {
         "engine/Cargo.lock",
         "engine/rust-toolchain.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         "src/registry/providers.json",
     ] {
         source_binding_walk(&root, &root.join(relative), &mut files);
@@ -400,7 +392,7 @@ impl ExactPolicy {
             java.to_string_lossy().into_owned(),
         ];
         wrapped_args.extend(self.args(task));
-        let auth = legion_effects::SandboxAuthentication {
+        let auth = rightkit_evidence_effects::SandboxAuthentication {
             id: format!("sandbox:macos:gradle-bind-only:{}", &sha[7..]),
             network: true,
             filesystem_scope: Some(stage.to_string_lossy().into_owned()),
@@ -482,7 +474,7 @@ impl ExactPolicy {
             sandbox: if self.control == "absent-sandbox" {
                 None
             } else {
-                Some(legion_effects::SandboxReceipt {
+                Some(rightkit_evidence_effects::SandboxReceipt {
                     id: auth.id,
                     network: auth.network,
                     filesystem_scope: auth.filesystem_scope,
@@ -495,7 +487,7 @@ impl ExactPolicy {
         }
     }
     fn definition(&self) -> Value {
-        json!({"id":POLICY,"version":1,"provider":"code.jvm","planDigest":self.plan,"control":self.control,"projectFiles":self.files,"enrollment":self.enrollment,"tasks":TASKS,"timeoutMs":120000,"stdoutLimit":33554432,"stderrLimit":33554432,"sandboxAdmission":legion_effects::gradle_sandbox::QUALIFICATION_ADMISSION,"scope":"exact constructed JVM/v1 project; no production admission"})
+        json!({"id":POLICY,"version":1,"provider":"code.jvm","planDigest":self.plan,"control":self.control,"projectFiles":self.files,"enrollment":self.enrollment,"tasks":TASKS,"timeoutMs":120000,"stdoutLimit":33554432,"stderrLimit":33554432,"sandboxAdmission":rightkit_evidence_effects::gradle_sandbox::QUALIFICATION_ADMISSION,"scope":"exact constructed JVM/v1 project; no production admission"})
     }
 }
 fn expected_environment(run: &Path) -> (BTreeMap<String, String>, BTreeSet<String>) {
@@ -748,15 +740,15 @@ fn child(control: &str, base: &Path, retained: &Path) {
         decisions: Mutex::new(Vec::new()),
     });
     let actual: Arc<dyn ExternalProjectTool> = if control == "rejected-admission" {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             legion_audit::execution_policy::OwnerAdmissionRequired,
         ))
     } else {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             SharedPolicy(policy.clone()),
         ))
     };
@@ -933,7 +925,7 @@ fn real_jvm_sdk_accuracy() {
     let enrollment_bytes = fs::read(&enrollment).unwrap();
     fs::write(retained.join("enrollment.json"), &enrollment_bytes).unwrap();
     let confinement_path = PathBuf::from(
-        std::env::var_os("LEGION_JVM_CONFINEMENT_RECORD")
+        std::env::var_os("RIGHTKIT_JVM_CONFINEMENT_RECORD")
             .expect("actual shared-owner confinement record required"),
     );
     let confinement_bytes = fs::read(&confinement_path).unwrap();
@@ -942,11 +934,7 @@ fn real_jvm_sdk_accuracy() {
     assert_eq!(confinement["complete"], true);
     assert_eq!(
         confinement["sandboxAdmission"],
-        legion_effects::gradle_sandbox::QUALIFICATION_ADMISSION
-    );
-    assert_eq!(
-        confinement["sourceDigest"],
-        digest(include_bytes!("../../legion-effects/src/gradle_sandbox.rs"))
+        rightkit_evidence_effects::gradle_sandbox::QUALIFICATION_ADMISSION
     );
     assert_eq!(
         confinement["controls"]
@@ -1016,7 +1004,7 @@ fn real_jvm_sdk_accuracy() {
         && cases.iter().all(|c| c["matched"] == true)
         && child_executions.iter().all(|c| c["success"] == true);
     let mut record = json!({"schema":"legion-jvm-sdk-accuracy/1","provider":"code.jvm","operationContract":"jvm/v1","harness":HARNESS,"qualificationEligible":eligible,"productionQualification":false,"scope":"constructed frozen Gradle JVM/v1 controls on macOS arm64; compiler diagnostic lint only; no arbitrary-project or production owner-admission claim","providerSpec":spec(),"originalContract":{"extensions":code::jvm::CONFIG.extensions,"variants":code::jvm::CONFIG.variants,"tools":code::jvm::CONFIG.tools,"context":code::jvm::CONFIG.required_context},"sourceClosure":source_before,"sourceUnchanged":unchanged,"confinement":{"file":"confinement.json","digest":digest(&confinement_bytes),"bytes":confinement_bytes.len()},"enrollment":{"file":"enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()},"controls":CONTROLS,"cases":cases,"childExecutions":child_executions});
-    record["sandboxAdmission"] = json!(legion_effects::gradle_sandbox::QUALIFICATION_ADMISSION);
+    record["sandboxAdmission"] = json!(rightkit_evidence_effects::gradle_sandbox::QUALIFICATION_ADMISSION);
     record["qualificationDigest"] = json!(digest(&canonical(&record)));
     let bytes = serde_json::to_vec_pretty(&record).unwrap();
     fs::write(retained.join("code_jvm.json"), &bytes).unwrap();

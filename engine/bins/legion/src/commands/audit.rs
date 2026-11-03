@@ -4,7 +4,7 @@ use legion_audit::{
     parse_effect_artifact_ref, read_effect_artifact, validate_effect_artifact_path,
     InventorySource as _,
 };
-use legion_effects::artifact::ArtifactRecord as EffectArtifactRef;
+use rightkit_evidence_effects::artifact::ArtifactRecord as EffectArtifactRef;
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc, time::Instant};
 use tokio_util::sync::CancellationToken;
@@ -1561,7 +1561,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
             report.gaps.sort();
             report.gaps.dedup();
             if !report.gaps.is_empty() {
-                report.status = legion_contracts::ReportStatus::Incomplete;
+                report.status = rightkit_evidence_contracts::ReportStatus::Incomplete;
             }
             if provider_scope_claims_allowed(trusted_scope_universe) {
                 report.claims.insert(
@@ -1592,18 +1592,18 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                     .insert("contextNotices".into(), json!(context_notices));
             }
             let report_status = match report.status {
-                legion_contracts::ReportStatus::Clean => "pass",
-                legion_contracts::ReportStatus::Findings => "findings",
-                legion_contracts::ReportStatus::Incomplete => "incomplete",
-                legion_contracts::ReportStatus::Failed => "failed",
-                legion_contracts::ReportStatus::Blocked => "blocked",
+                rightkit_evidence_contracts::ReportStatus::Clean => "pass",
+                rightkit_evidence_contracts::ReportStatus::Findings => "findings",
+                rightkit_evidence_contracts::ReportStatus::Incomplete => "incomplete",
+                rightkit_evidence_contracts::ReportStatus::Failed => "failed",
+                rightkit_evidence_contracts::ReportStatus::Blocked => "blocked",
             };
             report
                 .claims
                 .insert("auditStatus".into(), json!(report_status));
             report.claims.insert(
                 "qualityGate".into(),
-                json!(if report.status != legion_contracts::ReportStatus::Clean {
+                json!(if report.status != rightkit_evidence_contracts::ReportStatus::Clean {
                     "unproven"
                 } else if sampled_run {
                     "sampled"
@@ -1658,7 +1658,7 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 ),
                 args.report_schema,
             )?;
-            let report_sarif = legion_report::render_sarif(&report).map_err(super::io_error)?;
+            let report_sarif = rightkit_evidence_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
                 let native_plan = native_plan_document(
                     &lens_basis,
@@ -1734,11 +1734,11 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 _ => None,
             };
             let status = match report.status {
-                legion_contracts::ReportStatus::Clean => "pass",
-                legion_contracts::ReportStatus::Findings => "findings",
-                legion_contracts::ReportStatus::Incomplete => "incomplete",
-                legion_contracts::ReportStatus::Failed => "failed",
-                legion_contracts::ReportStatus::Blocked => "blocked",
+                rightkit_evidence_contracts::ReportStatus::Clean => "pass",
+                rightkit_evidence_contracts::ReportStatus::Findings => "findings",
+                rightkit_evidence_contracts::ReportStatus::Incomplete => "incomplete",
+                rightkit_evidence_contracts::ReportStatus::Failed => "failed",
+                rightkit_evidence_contracts::ReportStatus::Blocked => "blocked",
             };
             let mut summary = json!({
                 "schemaVersion": 1,
@@ -2194,12 +2194,12 @@ fn plan_followup_recompute(
 /// Scope of a freshly executed run: commit identities & snapshot key come
 /// from frozen review context. Legacy imported plans retain inventory fallback.
 fn run_report_scope(
-    report: &legion_contracts::ReportV1,
+    report: &rightkit_evidence_contracts::ReportV1,
     spec: &str,
     root: &std::path::Path,
     review_context: &Value,
     inventory_digest: &str,
-) -> legion_contracts::ReportScope {
+) -> rightkit_evidence_contracts::ReportScope {
     let mut scope = report_scope(report, spec);
     let oid = |pointer: &str| {
         review_context
@@ -2226,8 +2226,8 @@ fn run_report_scope(
     scope
 }
 
-fn report_scope(report: &legion_contracts::ReportV1, spec: &str) -> legion_contracts::ReportScope {
-    legion_contracts::ReportScope {
+fn report_scope(report: &rightkit_evidence_contracts::ReportV1, spec: &str) -> rightkit_evidence_contracts::ReportScope {
+    rightkit_evidence_contracts::ReportScope {
         spec: spec.into(),
         base_ref_oid: None,
         merge_base_oid: None,
@@ -2246,29 +2246,29 @@ fn report_scope(report: &legion_contracts::ReportV1, spec: &str) -> legion_contr
 /// report is lifted to v2 (deterministic anchor positioning, confidence,
 /// status rules) and written natively as 2 or as the v1 projection.
 fn render_report_json(
-    report: &legion_contracts::ReportV1,
-    scope: legion_contracts::ReportScope,
+    report: &rightkit_evidence_contracts::ReportV1,
+    scope: rightkit_evidence_contracts::ReportScope,
     schema: u32,
 ) -> Result<String, CommandError> {
     let v2 = legion_audit::lift_report_v2(report, scope)
         .map_err(|error| CommandError::integrity(error.to_string()))?;
-    legion_report::render_json_schema(&v2, schema).map_err(super::io_error)
+    rightkit_evidence_report::render_json_schema(&v2, schema).map_err(super::io_error)
 }
 
 pub(super) fn write_run_reports(
     dir: &std::path::Path,
-    report: &legion_contracts::ReportV1,
+    report: &rightkit_evidence_contracts::ReportV1,
     schema: u32,
 ) -> Result<(), CommandError> {
     // A re-written run keeps the scope its first report recorded.
     let scope = std::fs::read(dir.join("report.json"))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
-        .and_then(|value| legion_contracts::Report::read_any(&value).ok())
+        .and_then(|value| rightkit_evidence_contracts::Report::read_any(&value).ok())
         .map(|stored| stored.scope)
         .unwrap_or_else(|| report_scope(report, "whole"));
     let report_json = render_report_json(report, scope, schema)?;
-    let report_sarif = legion_report::render_sarif(report).map_err(super::io_error)?;
+    let report_sarif = rightkit_evidence_report::render_sarif(report).map_err(super::io_error)?;
     write_artifact(dir, "report.json", report_json.as_bytes())?;
     // A report rewritten after finalization must be journaled, or verify fails.
     legion_audit::native_providers::reasoning::ingest::record_report_update(
@@ -2325,11 +2325,11 @@ fn ingest_output(
     followup: Value,
 ) -> Value {
     let status = match recomputed.report.status {
-        legion_contracts::ReportStatus::Clean => "pass",
-        legion_contracts::ReportStatus::Findings => "findings",
-        legion_contracts::ReportStatus::Incomplete => "incomplete",
-        legion_contracts::ReportStatus::Failed => "failed",
-        legion_contracts::ReportStatus::Blocked => "blocked",
+        rightkit_evidence_contracts::ReportStatus::Clean => "pass",
+        rightkit_evidence_contracts::ReportStatus::Findings => "findings",
+        rightkit_evidence_contracts::ReportStatus::Incomplete => "incomplete",
+        rightkit_evidence_contracts::ReportStatus::Failed => "failed",
+        rightkit_evidence_contracts::ReportStatus::Blocked => "blocked",
     };
     json!({
         "schemaVersion": 1,
@@ -2357,7 +2357,7 @@ fn ingest_output(
 /// A provider spec from the native registry by id (no application is built).
 pub(super) fn registry_provider_spec(
     id: &str,
-) -> Result<legion_contracts::ProviderSpec, CommandError> {
+) -> Result<rightkit_evidence_contracts::ProviderSpec, CommandError> {
     let registry = native_provider_registry_path()
         .ok_or_else(|| CommandError::incomplete("native Audit provider registry is unavailable"))?;
     let value: Value = serde_json::from_slice(&std::fs::read(&registry).map_err(super::io_error)?)
@@ -2405,7 +2405,7 @@ fn native_plan_document(
 
 fn freeze_lens_basis(
     root: &std::path::Path,
-    specs: &[legion_contracts::ProviderSpec],
+    specs: &[rightkit_evidence_contracts::ProviderSpec],
     signing_key: Option<&[u8]>,
     only_paths: Option<&std::collections::BTreeSet<String>>,
     assurance: Option<&super::audit_assurance::AssuranceRequest>,
@@ -2896,7 +2896,7 @@ fn native_facts_document(
     root: &std::path::Path,
     plan: &Value,
     execution: &legion_audit::ExecutionReport,
-    report: &legion_contracts::ReportV1,
+    report: &rightkit_evidence_contracts::ReportV1,
     scope: &AuditScope,
 ) -> Value {
     let provider_results = execution
@@ -2966,12 +2966,12 @@ fn native_facts_document(
     facts
 }
 
-fn provider_status_name(status: &legion_contracts::ProviderStatus) -> &'static str {
+fn provider_status_name(status: &rightkit_evidence_contracts::ProviderStatus) -> &'static str {
     match status {
-        legion_contracts::ProviderStatus::Ok | legion_contracts::ProviderStatus::Complete => "pass",
-        legion_contracts::ProviderStatus::Partial => "partial",
-        legion_contracts::ProviderStatus::Failed => "fail",
-        legion_contracts::ProviderStatus::Cancelled => "skipped",
+        rightkit_evidence_contracts::ProviderStatus::Ok | rightkit_evidence_contracts::ProviderStatus::Complete => "pass",
+        rightkit_evidence_contracts::ProviderStatus::Partial => "partial",
+        rightkit_evidence_contracts::ProviderStatus::Failed => "fail",
+        rightkit_evidence_contracts::ProviderStatus::Cancelled => "skipped",
     }
 }
 
@@ -3017,7 +3017,7 @@ fn native_audit_input_gaps(args: &AuditArgs, declared_gaps: &[String]) -> Vec<St
 /// for anything that cannot reach the provider and whether they were injected.
 fn apply_visual_inputs(
     args: &AuditArgs,
-    specs: &mut [legion_contracts::ProviderSpec],
+    specs: &mut [rightkit_evidence_contracts::ProviderSpec],
     direct: bool,
 ) -> Result<(Vec<String>, bool), CommandError> {
     if args.visual_spec.is_none() && args.visual_baselines.is_none() {
@@ -3068,7 +3068,7 @@ fn apply_visual_inputs(
 /// Freeze the runtime-to-visual handoff as an ordering-only source. Explicit
 /// visual specifications remain authoritative and never receive inferred
 /// runtime captures.
-fn bind_runtime_visual_capture_source(specs: &mut [legion_contracts::ProviderSpec]) {
+fn bind_runtime_visual_capture_source(specs: &mut [rightkit_evidence_contracts::ProviderSpec]) {
     let runtime_url = specs
         .iter()
         .find(|provider| provider.id.as_str() == RUNTIME_PROVIDER_ID)
@@ -3109,7 +3109,7 @@ fn bind_runtime_visual_capture_source(specs: &mut [legion_contracts::ProviderSpe
 fn apply_runtime_inputs(
     args: &AuditArgs,
     root: &std::path::Path,
-    specs: &mut [legion_contracts::ProviderSpec],
+    specs: &mut [rightkit_evidence_contracts::ProviderSpec],
     direct: bool,
 ) -> Result<(Vec<String>, bool), CommandError> {
     let mut gaps = Vec::new();
@@ -3336,7 +3336,7 @@ fn read_runtime_interactions(
             ));
         }
         let expected = json_text(probe, "actionsDigest").unwrap_or_default();
-        let action_digest = legion_contracts::canonical_digest(actions).map_err(|error| {
+        let action_digest = rightkit_evidence_contracts::canonical_digest(actions).map_err(|error| {
             CommandError::usage(format!(
                 "runtime interaction actions cannot be canonicalized: {error}"
             ))
@@ -3556,7 +3556,7 @@ fn read_runtime_fixture_manifest(
                         .as_bytes(),
                 )
         });
-        let source_digest = legion_contracts::canonical_digest(&json!({"files":digest_files}))
+        let source_digest = rightkit_evidence_contracts::canonical_digest(&json!({"files":digest_files}))
             .map_err(|error| {
                 CommandError::usage(format!("runtime fixture cannot be canonicalized: {error}"))
             })?;
@@ -3916,9 +3916,9 @@ fn resolve_surface_url(base_url: &str, target: &str) -> Result<String, CommandEr
 }
 
 fn filter_provider_specs(
-    mut providers: Vec<legion_contracts::ProviderSpec>,
+    mut providers: Vec<rightkit_evidence_contracts::ProviderSpec>,
     args: &AuditArgs,
-) -> Vec<legion_contracts::ProviderSpec> {
+) -> Vec<rightkit_evidence_contracts::ProviderSpec> {
     if !args.only.is_empty() {
         providers.retain(|provider| args.only.iter().any(|id| id == provider.id.as_str()));
     }
@@ -3933,7 +3933,7 @@ fn filter_provider_specs(
 fn provider_selection_coverage(
     root: &std::path::Path,
     inventory: &legion_audit::InventoryEnvelope,
-    all_specs: &[legion_contracts::ProviderSpec],
+    all_specs: &[rightkit_evidence_contracts::ProviderSpec],
     args: &AuditArgs,
     signing_key: Option<&[u8]>,
     selected_plan_digest: &str,
@@ -4537,7 +4537,7 @@ fn native_rule_diagnostic_application(
     manifest: &std::path::Path,
     only_paths: Option<&std::collections::BTreeSet<String>>,
 ) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
-    let provider: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+    let provider: rightkit_evidence_contracts::ProviderSpec = serde_json::from_value(json!({
         "schemaVersion": 2,
         "id": "security.native-rules",
         "providerVersion": "1",
@@ -4864,7 +4864,7 @@ fn native_registry_application(
         .iter()
         .cloned()
         .map(serde_json::from_value)
-        .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
+        .collect::<Result<Vec<rightkit_evidence_contracts::ProviderSpec>, _>>()
         .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
     let source = super::audit_inventory_source_scoped(root, only_paths)?;
     // All audit scratch lives outside the audited tree and is removed when the
@@ -4926,7 +4926,7 @@ fn native_audit_external_tool(
     scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
     root: &std::path::Path,
 ) -> (
-    std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool>,
+    std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool>,
     Option<legion_audit::native_providers::code::HostOwnerWiring>,
 ) {
     // A host-owned policy file outside every audited tree makes a real trusted
@@ -4943,15 +4943,15 @@ fn native_audit_external_tool(
 
 fn native_audit_fallback_tool(
     scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
-) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
+) -> std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
     let policy = legion_audit::owner_admission::NativeAuthorizer::resolve(None, None);
     #[cfg(windows)]
-    let process = legion_effects::platform::windows::WindowsProcess;
+    let process = rightkit_evidence_effects::platform::windows::WindowsProcess;
     #[cfg(unix)]
-    let process = legion_effects::platform::unix::UnixProcess::new();
-    let effects = legion_effects::EffectExecutor::new(
+    let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
         process,
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         policy,
     );
     // Admission precedes project command resolution, version probes & launch.
@@ -4967,7 +4967,7 @@ fn host_owned_external_tool(
     scratch: &legion_audit::native_providers::legacy_checks::AuditScratch,
     root: &std::path::Path,
 ) -> Option<(
-    std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool>,
+    std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool>,
     legion_audit::native_providers::code::HostOwnerWiring,
 )> {
     use legion_audit::host_owner::{default_policy_path, HostPolicyOwner};
@@ -5016,9 +5016,9 @@ fn host_owned_external_tool(
     if let Ok(bytes) = serde_json::to_vec_pretty(&policy.binding()) {
         let _ = std::fs::write(output.join("execution-policy-owner-binding.json"), bytes);
     }
-    let effects = legion_effects::EffectExecutor::new(
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
         process,
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         policy,
     );
     Some((std::sync::Arc::new(effects), wiring))
@@ -5184,8 +5184,8 @@ fn retain_effect_artifacts(
     for (index, gaps) in provider_failures {
         let result = &mut execution.results[index].result;
         result.complete = false;
-        if result.status != legion_contracts::ProviderStatus::Failed {
-            result.status = legion_contracts::ProviderStatus::Partial;
+        if result.status != rightkit_evidence_contracts::ProviderStatus::Failed {
+            result.status = rightkit_evidence_contracts::ProviderStatus::Partial;
         }
         result.coverage_gaps.extend(gaps.iter().cloned());
         result.coverage_gaps.sort();
@@ -5262,7 +5262,7 @@ fn write_effect_artifact(
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            legion_effects::ArtifactWriter::new(root)
+            rightkit_evidence_effects::ArtifactWriter::new(root)
                 .write_immutable(&record.path, bytes)
                 .map_err(|error| format!("artifact persistence failed: {error}"))?;
         }
@@ -5504,7 +5504,7 @@ fn verify_sealed_plan(
     value: &serde_json::Value,
     root: &std::path::Path,
     source: &dyn legion_audit::InventorySource,
-    specifications: &[legion_contracts::ProviderSpec],
+    specifications: &[rightkit_evidence_contracts::ProviderSpec],
     key: Option<&[u8]>,
 ) -> Result<String, CommandError> {
     let claimed_digest = plan_claimed_digest(value).ok_or_else(|| {
@@ -5559,7 +5559,7 @@ fn verify_sealed_plan(
 /// array of ids alone carries no specifications and is rejected explicitly.
 fn parse_provider_plan_value(
     value: &serde_json::Value,
-) -> Result<Vec<legion_contracts::ProviderSpec>, CommandError> {
+) -> Result<Vec<rightkit_evidence_contracts::ProviderSpec>, CommandError> {
     let providers = if let Some(array) = value.as_array() {
         array
     } else if let Some(array) = value
@@ -5595,7 +5595,7 @@ fn parse_provider_plan_value(
 /// `details.planDigest`.
 fn read_provider_result(
     path: &std::path::Path,
-) -> Result<(legion_contracts::ProviderResult, Option<String>), CommandError> {
+) -> Result<(rightkit_evidence_contracts::ProviderResult, Option<String>), CommandError> {
     let value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(path).map_err(super::io_error)?)
             .map_err(|error| CommandError::usage(format!("invalid provider result: {error}")))?;
@@ -6241,7 +6241,7 @@ mod closure_tests {
 
     #[test]
     fn documented_scope_types_do_not_filter_provider_families() {
-        let provider: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+        let provider: rightkit_evidence_contracts::ProviderSpec = serde_json::from_value(json!({
             "schemaVersion": 2,
             "id": "security.opengrep",
             "providerVersion": "1",
@@ -6273,7 +6273,7 @@ mod closure_tests {
         }
     }
 
-    fn runtime_spec() -> legion_contracts::ProviderSpec {
+    fn runtime_spec() -> rightkit_evidence_contracts::ProviderSpec {
         serde_json::from_value(json!({
             "schemaVersion": 2,
             "id": "legacy.runtime.app",
@@ -6337,7 +6337,7 @@ mod closure_tests {
         let body_bytes = b"<main data-testid='ready'>ready</main>";
         std::fs::write(&source_path, body_bytes).unwrap();
         let body = serde_json::to_value(body_bytes.as_slice()).unwrap();
-        let fixture_digest = legion_contracts::canonical_digest(&json!({
+        let fixture_digest = rightkit_evidence_contracts::canonical_digest(&json!({
             "files":[{"body":body,"contentType":"text/html","path":"/index.html"}]
         }))
         .unwrap();
@@ -6361,7 +6361,7 @@ mod closure_tests {
         };
         write_manifest("index.html", "/index.html");
         let actions = json!([{"type":"assertVisible","selector":"[data-testid='ready']"}]);
-        let actions_digest = legion_contracts::canonical_digest(&actions).unwrap();
+        let actions_digest = rightkit_evidence_contracts::canonical_digest(&actions).unwrap();
         let descriptor = |surface: Value, actions: Value, digest: &str, fixture_digest: &str| {
             json!([{
                 "id": "settings-ready",
@@ -6490,7 +6490,7 @@ mod closure_tests {
         // The allow-list excludes script/eval and action mutations without a
         // probe-declared, verified digest.
         let script_actions = json!([{"type":"eval", "expression":"window.localStorage.clear()"}]);
-        let script_digest = legion_contracts::canonical_digest(&script_actions).unwrap();
+        let script_digest = rightkit_evidence_contracts::canonical_digest(&script_actions).unwrap();
         std::fs::write(
             &file,
             serde_json::to_vec(&descriptor(
@@ -6517,7 +6517,7 @@ mod closure_tests {
         .unwrap();
         assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
         let unsupported_actions = json!([{"type":"assertStyle","selector":"button","property":"display","value":"block"}]);
-        let unsupported_digest = legion_contracts::canonical_digest(&unsupported_actions).unwrap();
+        let unsupported_digest = rightkit_evidence_contracts::canonical_digest(&unsupported_actions).unwrap();
         std::fs::write(
             &file,
             serde_json::to_vec(&descriptor(
@@ -6637,7 +6637,7 @@ mod closure_tests {
         let (gaps, injected) = apply_runtime_inputs(
             &args,
             &args.root,
-            &mut Vec::<legion_contracts::ProviderSpec>::new(),
+            &mut Vec::<rightkit_evidence_contracts::ProviderSpec>::new(),
             false,
         )
         .unwrap();
@@ -6668,7 +6668,7 @@ mod closure_tests {
         );
     }
 
-    fn visual_spec_provider() -> legion_contracts::ProviderSpec {
+    fn visual_spec_provider() -> rightkit_evidence_contracts::ProviderSpec {
         serde_json::from_value(json!({
             "schemaVersion": 2,
             "id": "legacy.visual.core",
@@ -6936,7 +6936,7 @@ mod sealed_plan_tests {
 
     const KEY: &[u8] = b"sealed-plan-test-key";
 
-    fn spec() -> legion_contracts::ProviderSpec {
+    fn spec() -> rightkit_evidence_contracts::ProviderSpec {
         serde_json::from_value(json!({
             "schemaVersion": 2,
             "id": "fixture-provider",
@@ -7092,14 +7092,14 @@ mod sealed_plan_tests {
             [("plan.json", &plan, ""), ("facts.json", &facts, "/plan")]
         {
             assert!(serde_json::to_vec_pretty(document).unwrap().len() > RUNTIME_JSON_LIMIT);
-            let expected_digest = legion_contracts::canonical_digest(document).unwrap();
+            let expected_digest = rightkit_evidence_contracts::canonical_digest(document).unwrap();
             write_control_artifact(&out, name, document).unwrap();
             let bytes = std::fs::read(out.join(name)).unwrap();
             assert!(bytes.len() < RUNTIME_JSON_LIMIT);
             let restored: Value = serde_json::from_slice(&bytes).unwrap();
             assert_eq!(&restored, document);
             assert_eq!(
-                legion_contracts::canonical_digest(&restored).unwrap(),
+                rightkit_evidence_contracts::canonical_digest(&restored).unwrap(),
                 expected_digest
             );
             let restored_plan = restored.pointer(plan_pointer).unwrap();
@@ -7144,13 +7144,13 @@ mod sealed_plan_tests {
             "nativePlan":native});
         let pointer =
             "/nativePlan/plan/providers/0/configuration/reasoning/reviewContext/graphContext";
-        let expected_digest = legion_contracts::canonical_digest(&graph).unwrap();
+        let expected_digest = rightkit_evidence_contracts::canonical_digest(&graph).unwrap();
         for mut artifact in [plan_only, executed] {
             artifact["reviewContext"] = json!({"graphContext":{"tampered":true}});
             let resolved = artifact.pointer(pointer).unwrap();
             assert_eq!(resolved, &graph);
             assert_eq!(
-                legion_contracts::canonical_digest(resolved).unwrap(),
+                rightkit_evidence_contracts::canonical_digest(resolved).unwrap(),
                 expected_digest
             );
             assert_eq!(artifact["nativePlan"]["digest"], artifact["seal"]["digest"]);
@@ -7319,12 +7319,12 @@ mod effect_artifact_retention_tests {
         if let Some(stderr) = stderr {
             receipt.insert("stderr".into(), stderr);
         }
-        let result = legion_contracts::ProviderResult {
+        let result = rightkit_evidence_contracts::ProviderResult {
             schema_version: 1,
-            provider: legion_contracts::ProviderId::new("fixture.external").unwrap(),
+            provider: rightkit_evidence_contracts::ProviderId::new("fixture.external").unwrap(),
             applicable: true,
             required: true,
-            status: legion_contracts::ProviderStatus::Complete,
+            status: rightkit_evidence_contracts::ProviderStatus::Complete,
             complete: true,
             coverage: None,
             findings: Vec::new(),
@@ -7360,7 +7360,7 @@ mod effect_artifact_retention_tests {
         path: &str,
         bytes: &[u8],
     ) {
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir())
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir())
             .write_immutable(path, bytes)
             .unwrap();
     }
@@ -7413,7 +7413,7 @@ mod effect_artifact_retention_tests {
             Some(record("fixture/stderr", stderr)),
         );
         execution.results[0].result.complete = false;
-        execution.results[0].result.status = legion_contracts::ProviderStatus::Failed;
+        execution.results[0].result.status = rightkit_evidence_contracts::ProviderStatus::Failed;
 
         assert!(retain_effect_artifacts(&out, &scratch, &mut execution).is_empty());
         assert!(!execution.results[0].result.complete);
@@ -7447,7 +7447,7 @@ mod effect_artifact_retention_tests {
         });
         let mut native_result = execution.results[0].result.clone();
         native_result.provider =
-            legion_contracts::ProviderId::new("legacy.native.fixture").unwrap();
+            rightkit_evidence_contracts::ProviderId::new("legacy.native.fixture").unwrap();
         native_result
             .details
             .insert("executionReceipt".into(), summary);
@@ -7592,7 +7592,7 @@ mod effect_artifact_retention_tests {
         let mut conflicting = execution.results[0].clone();
         conflicting.provider = "fixture.conflicting".into();
         conflicting.result.provider =
-            legion_contracts::ProviderId::new("fixture.conflicting").unwrap();
+            rightkit_evidence_contracts::ProviderId::new("fixture.conflicting").unwrap();
         conflicting.result.details.insert(
             "executionReceipt".into(),
             json!({"stdout": record("fixture/stdout", b"second")}),
@@ -7600,7 +7600,7 @@ mod effect_artifact_retention_tests {
         let mut original_again = execution.results[0].clone();
         original_again.provider = "fixture.original-again".into();
         original_again.result.provider =
-            legion_contracts::ProviderId::new("fixture.original-again").unwrap();
+            rightkit_evidence_contracts::ProviderId::new("fixture.original-again").unwrap();
         execution.results.push(conflicting);
         execution.results.push(original_again);
 

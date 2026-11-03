@@ -16,7 +16,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use legion_contracts::canonical_json_bytes;
+use rightkit_evidence_contracts::canonical_json_bytes;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 

@@ -10,8 +10,8 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -99,7 +99,7 @@ fn fresh(parent: &Path, name: &str) -> PathBuf {
 }
 fn retain(root: &Path, name: &str, value: &Value) -> Value {
     let raw = serde_json::to_vec_pretty(value).unwrap();
-    let record = legion_effects::ArtifactWriter::new(root)
+    let record = rightkit_evidence_effects::ArtifactWriter::new(root)
         .write_immutable(name, &raw)
         .unwrap();
     json!({"path":root.join(&record.path),"digest":record.digest,"bytes":record.bytes})

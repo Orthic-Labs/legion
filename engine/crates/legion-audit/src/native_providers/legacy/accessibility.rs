@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use legion_contracts::{FindingRef, ProviderStatus};
+use rightkit_evidence_contracts::{FindingRef, ProviderStatus};
 use serde_json::json;
 
 use super::common::{
@@ -327,7 +327,7 @@ pub fn run_accessibility_suite(
 
 pub fn execute(
     input: &ProviderInput<'_>,
-) -> Result<legion_contracts::ProviderResult, crate::error::AuditError> {
+) -> Result<rightkit_evidence_contracts::ProviderResult, crate::error::AuditError> {
     let selected = denominator(input)?;
     let (files, mut gaps) = source_files(input, &selected);
     let mut findings = Vec::new();

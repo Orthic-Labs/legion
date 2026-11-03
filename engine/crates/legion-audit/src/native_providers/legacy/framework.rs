@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::ProviderStatus;
+use rightkit_evidence_contracts::ProviderStatus;
 use serde_json::{json, Value};
 
 use super::common::{denominator, digest_text, line_at, source_files, ProviderInput};
@@ -558,7 +558,7 @@ pub fn run_framework_suite(input: &ProviderInput<'_>) -> Result<Value, crate::er
 
 pub fn execute(
     input: &ProviderInput<'_>,
-) -> Result<legion_contracts::ProviderResult, crate::error::AuditError> {
+) -> Result<rightkit_evidence_contracts::ProviderResult, crate::error::AuditError> {
     let selected = denominator(input)?;
     let (files, mut gaps) = source_files(input, &selected);
     let analysis = run_framework_suite(input)?;

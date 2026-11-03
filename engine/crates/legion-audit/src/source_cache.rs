@@ -34,7 +34,7 @@ pub(crate) fn cache_child(parent: &StateDir, name: &str) -> rightkit_fs::Result<
 /// an existing symlink or an override containing parent traversal.
 pub fn audit_cache_root(repository: &Path) -> io::Result<PathBuf> {
     let repository = repository.canonicalize()?;
-    let override_root = std::env::var_os(legion_contracts::state_root::STATE_ROOT_ENV)
+    let override_root = std::env::var_os(rightkit_evidence_contracts::state_root::state_root_env())
         .filter(|value| !value.is_empty());
     if let Some(root) = &override_root {
         // The receipts owner appends a child. On Windows a verbatim prefix makes that
@@ -42,7 +42,7 @@ pub fn audit_cache_root(repository: &Path) -> io::Result<PathBuf> {
         validate_state_root(Path::new(root))?;
     }
     let receipts =
-        legion_contracts::state_root::receipts_root_for_cwd(&repository).ok_or_else(|| {
+        rightkit_evidence_contracts::state_root::receipts_root_for_cwd(&repository).ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::NotFound,
                 "Legion user state root unavailable",

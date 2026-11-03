@@ -12,12 +12,12 @@ use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
     ProviderExecutor,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
     platform::unix::UnixProcess, ArtifactWriter, EffectExecutor, ExternalToolRequest,
     PolicyAuthorizer, PolicyDecision,
 };
-use legion_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
+use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
 use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
@@ -83,7 +83,7 @@ impl PolicyAuthorizer for FixtureAdmission {
                 "ownership-inputs-after",
             ]
             .contains(&mode)
-            && request.origin == legion_effects::ToolOrigin::System
+            && request.origin == rightkit_evidence_effects::ToolOrigin::System
             && request.skip_version_probe
             && !request.shell
             && !request.requires_network_sandbox

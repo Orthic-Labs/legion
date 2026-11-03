@@ -26,8 +26,8 @@ use std::sync::{
     Arc,
 };
 
-use legion_effects::owner_process::InvocationClass;
-use legion_provider_sdk::{
+use rightkit_evidence_effects::owner_process::InvocationClass;
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use serde_json::json;

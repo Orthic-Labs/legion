@@ -31,7 +31,7 @@ use legion_audit::{
     execute, AuditPlan, ExecutionReport, FilesystemInventorySource, FrozenPlan, InventoryEnvelope,
     InventorySource, NativeProviderRegistry, ProviderExecutor,
 };
-use legion_contracts::{ProviderResult, ProviderSpec};
+use rightkit_evidence_contracts::{ProviderResult, ProviderSpec};
 use serde_json::{json, Value};
 
 const KEY: &[u8] = b"security-packs-fixture-signing-key";

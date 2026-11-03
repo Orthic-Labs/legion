@@ -4,7 +4,7 @@ use legion_audit::{
     native_providers::code::{evidence::EvidenceLimits, ProviderExecutorAdapter},
     AuditProvider, InventoryEntry, InventoryEnvelope, ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderResult, ProviderStatus};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{
@@ -625,7 +625,7 @@ mod real_tools {
         },
         AuditPlan, FrozenPlan,
     };
-    use legion_provider_sdk::{
+    use rightkit_code_audit_provider_sdk::{
         ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
     };
     use std::sync::{Arc, Mutex};
@@ -689,11 +689,11 @@ exit 3
     /// The production route: sandbox-capable executor behind the audit adapter,
     /// artifacts rooted at the run scratch.
     fn real_tool(scratch: &AuditScratch) -> Arc<dyn ExternalProjectTool> {
-        let effects = legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
-            legion_effects::StaticPolicy {
-                decision: legion_effects::PolicyDecision {
+        let effects = rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+            rightkit_evidence_effects::StaticPolicy {
+                decision: rightkit_evidence_effects::PolicyDecision {
                     allowed: true,
                     policy_id: "audit".into(),
                     policy_version: 1,

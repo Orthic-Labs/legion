@@ -24,7 +24,7 @@ const MAX_NODES: usize = 500_000;
 const MAX_BYTES: u64 = 32 * 1024 * 1024 * 1024;
 
 fn canonical_digest(value: &impl serde::Serialize, error: &'static str) -> Result<String, String> {
-    let bytes = legion_contracts::canonical_json_bytes(value).map_err(|_| error)?;
+    let bytes = rightkit_evidence_contracts::canonical_json_bytes(value).map_err(|_| error)?;
     Ok(sha256_text(&bytes))
 }
 
@@ -301,13 +301,7 @@ pub(super) fn source_snapshot(root: &Path) -> Result<Value, String> {
         Ok(())
     }
     let mut files = BTreeMap::new();
-    for name in [
-        "legion-audit",
-        "legion-effects",
-        "legion-provider-sdk",
-        "legion-contracts",
-        "legion-rules",
-    ] {
+    for name in ["legion-audit"] {
         visit(
             root,
             &root.join(format!("engine/crates/{name}/src")),

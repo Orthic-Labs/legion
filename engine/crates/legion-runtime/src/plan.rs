@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     ExecutionCompletionCheck, ExecutionEscalationPolicy, ExecutionRequirementV1,
     ExecutionSemanticRequirement, ExecutorBindingOutcome, NodeId, Plan, PlanId, PlanNode,
     PlanNodeKind, ProviderId, TaskSpec,
 };
-use legion_provider_sdk::ProviderRegistry;
+use rightkit_code_audit_provider_sdk::ProviderRegistry;
 
 use crate::{error::RuntimeError, route::SelectedRoute};
 

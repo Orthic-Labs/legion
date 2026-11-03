@@ -308,35 +308,8 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             "legacy product filename still exists",
         ));
     }
-    // Runtime authority registry literal check (Rust port of the retired
-    // authority-binding-store.mjs).
-    let abs_path = "engine/crates/legion-policy/src/wf_port/wf067/binding_store.rs";
-    if let Some(source) = required_text(root, abs_path, &mut issues) {
-        let fn_re = RegexBuilder::new(r"fn authority_for_agent_type[^{]*\{([\s\S]*?)\n\}")
-            .build()
-            .unwrap();
-        let literal = fn_re
-            .captures(&source)
-            .and_then(|c| c.get(1))
-            .map(|m| m.as_str().to_string())
-            .unwrap_or_default();
-        let value_re = RegexBuilder::new(r#"Some\(\s*"([^"]+)"\s*\)"#)
-            .build()
-            .unwrap();
-        let mut observed: BTreeSet<String> = BTreeSet::new();
-        for cap in value_re.captures_iter(&literal) {
-            observed.insert(cap[1].to_string());
-        }
-        let observed: Vec<String> = observed.into_iter().collect();
-        let mut expected_sorted = vec!["alchemist", "legion", "oracle", "sage"];
-        expected_sorted.sort();
-        if observed != expected_sorted {
-            issues.push(mk(
-                abs_path,
-                "runtime authority registry differs from canonical set",
-            ));
-        }
-    }
+    // The runtime authority registry lives in the pinned rightkit-policy-rules
+    // package, which owns its canonical-set test.
     issues
 }
 

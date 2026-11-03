@@ -7,11 +7,11 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     ExecutionRequirementV1, InvocationId, InvocationReceipt, InvocationStatus, NodeId, Plan,
     PlanNode, ProviderId, ProviderResult, ProviderStatus, TaskSpec,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     normalize_result, Provider, ProviderContext, ProviderError, ProviderErrorKind, ProviderRegistry,
 };
 use tokio_util::sync::CancellationToken;
@@ -411,7 +411,7 @@ pub struct Scheduler<'a> {
     plan: &'a FrozenPlan,
     request: &'a ContextRequest,
     task: &'a TaskSpec,
-    grant: legion_contracts::InvocationGrant,
+    grant: rightkit_evidence_contracts::InvocationGrant,
     invocation_id: InvocationId,
     policy: SchedulerPolicy,
     budget: BudgetAccount,
@@ -423,7 +423,7 @@ impl<'a> Scheduler<'a> {
         plan: &'a FrozenPlan,
         request: &'a ContextRequest,
         task: &'a TaskSpec,
-        grant: legion_contracts::InvocationGrant,
+        grant: rightkit_evidence_contracts::InvocationGrant,
         invocation_id: InvocationId,
         policy: SchedulerPolicy,
     ) -> Self {
@@ -757,7 +757,7 @@ impl<'a> Scheduler<'a> {
     ) -> InvocationReceipt {
         InvocationReceipt {
             schema_version: 1,
-            receipt_id: legion_contracts::ReceiptId::new(format!(
+            receipt_id: rightkit_evidence_contracts::ReceiptId::new(format!(
                 "{}-{}",
                 self.invocation_id, provider
             ))
@@ -817,7 +817,7 @@ fn consume_requirement(
     requirement: Option<&ExecutionRequirementV1>,
     provider_id: &ProviderId,
     registry: &ProviderRegistry,
-    grant: &legion_contracts::InvocationGrant,
+    grant: &rightkit_evidence_contracts::InvocationGrant,
 ) -> Result<(), RuntimeError> {
     let requirement = requirement.ok_or_else(|| {
         RuntimeError::Scheduler(format!(
@@ -972,7 +972,7 @@ fn unescape_field(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use legion_contracts::{
+    use rightkit_evidence_contracts::{
         ExecutionCompletionCheck, ExecutionEscalationPolicy, ExecutionSemanticRequirement,
         ExecutorBindingOutcome, PlanId, PlanNodeKind, ProviderResult,
     };

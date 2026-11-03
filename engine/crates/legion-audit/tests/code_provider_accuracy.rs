@@ -9,7 +9,7 @@ use accuracy_receipt::CaseObservation;
 use legion_audit::{
     execute, AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 use serde_json::Value;
 use std::{
     fs,

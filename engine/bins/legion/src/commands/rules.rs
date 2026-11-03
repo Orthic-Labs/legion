@@ -2,10 +2,10 @@ use super::{CommandError, CommandResult};
 use clap::Args;
 use legion_audit::InventorySource as _;
 use legion_audit::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
-use legion_rules::{Confidence, RuleCompiler, Severity, SourceFile};
+use rightkit_policy_rules::analysis::{Confidence, RuleCompiler, Severity, SourceFile};
 use serde::{
     de::{MapAccess, SeqAccess, Visitor},
     Deserialize,
@@ -454,9 +454,9 @@ pub fn run(args: RulesArgs) -> CommandResult {
 }
 
 fn select_packs(
-    compiled: std::collections::BTreeMap<String, legion_rules::CompiledRules>,
+    compiled: std::collections::BTreeMap<String, rightkit_policy_rules::analysis::CompiledRules>,
     requested: &[String],
-) -> Result<std::collections::BTreeMap<String, legion_rules::CompiledRules>, CommandError> {
+) -> Result<std::collections::BTreeMap<String, rightkit_policy_rules::analysis::CompiledRules>, CommandError> {
     if requested.is_empty() {
         return Ok(compiled);
     }

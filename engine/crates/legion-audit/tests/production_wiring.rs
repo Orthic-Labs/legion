@@ -18,7 +18,7 @@ use legion_audit::{
     runtime_obligations::RuntimeDeclarations,
     AuditProvider, InventoryEntry, InventoryEnvelope, ProviderExecution, ProviderKind,
 };
-use legion_contracts::{ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderId, ProviderResult, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
@@ -277,7 +277,7 @@ fn spec_provider(id: &str) -> AuditProvider {
         .iter()
         .find(|item| item["id"] == id)
         .unwrap();
-    let spec: legion_contracts::ProviderSpec = serde_json::from_value(item.clone()).unwrap();
+    let spec: rightkit_evidence_contracts::ProviderSpec = serde_json::from_value(item.clone()).unwrap();
     AuditProvider {
         id: spec.id.to_string(),
         version: spec.provider_version.clone(),

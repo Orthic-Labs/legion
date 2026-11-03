@@ -1,10 +1,10 @@
 use super::CommandResult;
 use clap::Args;
+use rightkit_evidence_contracts::{BudgetCeiling, ProviderId};
 use rightkit_code_audit_provider_sdk::{
     http_client::{HttpInferenceClient, HttpInferenceConfig},
     EnvironmentSecretProvider, InferenceRequest, ScopedCredentialAuthorizer,
 };
-use rightkit_evidence_contracts::{BudgetCeiling, ProviderId};
 use serde_json::json;
 use std::fs;
 use std::time::{Duration, Instant};
@@ -42,10 +42,8 @@ pub async fn run(args: ReviewArgs, cancellation: CancellationToken) -> CommandRe
         .input
         .ok_or_else(|| super::CommandError::usage("review requires --input <request.json>"))?;
     let bytes = fs::read(&input).map_err(super::io_error)?;
-    let mut request: rightkit_review::code_review::AdjudicationRequest =
-        serde_json::from_slice(&bytes).map_err(|error| {
-            super::CommandError::usage(format!("invalid review request: {error}"))
-        })?;
+    let mut request: rightkit_review::code_review::AdjudicationRequest = serde_json::from_slice(&bytes)
+        .map_err(|error| super::CommandError::usage(format!("invalid review request: {error}")))?;
     let mut credential_receipt = None;
     if let Some(endpoint) = args.provider_endpoint {
         let provider_id = args.provider_id.ok_or_else(|| {

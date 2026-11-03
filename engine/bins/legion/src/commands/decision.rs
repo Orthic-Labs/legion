@@ -1,6 +1,6 @@
 use super::{display_path, io_error, CommandError, CommandResult};
 use clap::{Args, Subcommand};
-use legion_decisions::{
+use rightkit_evidence_decisions::{
     l1b_port::{produce_candidate_set, CandidateSpec},
     DecisionError, DecisionRecord, DecisionStatus, DecisionStore, InsertDisposition,
 };

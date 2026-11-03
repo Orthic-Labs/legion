@@ -1,11 +1,36 @@
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
 use rightkit_review::minimize::{
-    build_receipt, build_review, decision_receipt, file_exists, read_json, resolve_minimize_paths,
-    validate_decision, verify_decision, verify_receipt, write_json, GitContext, MinimizeError,
+    build_receipt, build_review, decision_receipt, file_exists, read_json,
+    resolve_minimize_paths as resolve_paths_in, validate_decision, verify_decision, verify_receipt,
+    write_json, GitContext, MinimizeError, MinimizePaths,
 };
 use serde_json::json;
 use std::path::{Path, PathBuf};
+
+/// Roots that may hold the minimize policy asset: the installed release, else
+/// this source checkout.
+fn release_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Ok(installed) = legion_runtime::release_binding::load_installed_release() {
+        if let Some(parent) = installed.manifest_path.parent() {
+            roots.push(parent.to_path_buf());
+            roots.push(parent.join("share").join("legion"));
+            roots.push(parent.join("assets"));
+        }
+        return roots;
+    }
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    if let Some(repo_root) = manifest_dir.ancestors().nth(3) {
+        roots.push(repo_root.join("src"));
+        roots.push(repo_root.to_path_buf());
+    }
+    roots
+}
+
+pub(super) fn resolve_minimize_paths() -> Result<MinimizePaths, MinimizeError> {
+    resolve_paths_in(&release_roots())
+}
 
 pub fn run(args: CommonArgs) -> CommandResult {
     let argv = args
@@ -18,7 +43,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let rest = argv.iter().skip(2).cloned().collect::<Vec<_>>();
     let cwd = std::env::current_dir().map_err(super::io_error)?;
     let git = GitContext::new(cwd.clone());
-    let paths = resolve_minimize_paths(&release_roots()).map_err(map_minimize_error)?;
+    let paths = resolve_minimize_paths().map_err(map_minimize_error)?;
 
     match domain {
         Some("decision") => run_decision(action, &rest, &cwd, &paths),
@@ -163,24 +188,4 @@ fn map_minimize<T>(result: Result<T, MinimizeError>) -> Result<T, CommandError> 
 
 fn map_minimize_error(error: MinimizeError) -> CommandError {
     CommandError::policy(format!("MINIMIZE FAIL: {}", error))
-}
-
-/// Roots that may hold `lib/minimize/POLICY.md`: the installed release when one is bound,
-/// otherwise this source checkout.
-pub(crate) fn release_roots() -> Vec<std::path::PathBuf> {
-    let mut roots = Vec::new();
-    if let Ok(installed) = legion_runtime::release_binding::load_installed_release() {
-        if let Some(parent) = installed.manifest_path.parent() {
-            roots.push(parent.to_path_buf());
-            roots.push(parent.join("share").join("legion"));
-            roots.push(parent.join("assets"));
-        }
-        return roots;
-    }
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    if let Some(repo_root) = manifest_dir.ancestors().nth(3) {
-        roots.push(repo_root.join("src"));
-        roots.push(repo_root.to_path_buf());
-    }
-    roots
 }

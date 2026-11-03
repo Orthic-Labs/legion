@@ -8,7 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_policy_model::{
+use rightkit_policy_rules::model::{
     ApprovalState, CanonicalPath, CapabilityCeiling, CapabilityGrant, ContractVersion, EffectClass,
     EnforcementLevel, HostEnforcement, LeasePolicy, LeaseState, PathOperation, PathScope,
     PolicyContext, PolicyPack, PolicyRule, ReceiptRequirements, ReceiptState, RuleDecision,
@@ -533,7 +533,7 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
         }}),
     );
     assert_eq!(
-        apple["result"]["structuredContent"]["data"]["backend"], "rightkit-apple-ops",
+        apple["result"]["structuredContent"]["data"]["backend"], "legion-apple",
         "{apple}"
     );
     let denied = request(

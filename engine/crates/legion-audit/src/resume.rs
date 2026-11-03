@@ -96,7 +96,7 @@ impl ResumePlan {
     }
 
     pub fn digest(&self) -> Result<String, AuditError> {
-        legion_contracts::canonical_digest(self).map_err(|e| AuditError::Invalid(e.to_string()))
+        rightkit_evidence_contracts::canonical_digest(self).map_err(|e| AuditError::Invalid(e.to_string()))
     }
 }
 
@@ -376,7 +376,7 @@ pub fn receipt_path(dir: &Path, provider: &str) -> Result<PathBuf, AuditError> {
 }
 
 fn receipt_signed_bytes(body: &ReceiptBody, digest: &str) -> Result<Vec<u8>, AuditError> {
-    legion_contracts::canonical_json_bytes(&serde_json::json!({
+    rightkit_evidence_contracts::canonical_json_bytes(&serde_json::json!({
         "provider": body.provider,
         "planDigest": body.plan_digest,
         "digest": digest,
@@ -392,7 +392,7 @@ pub fn write_receipt(dir: &Path, key: &[u8], body: ReceiptBody) -> Result<String
         .ok_or_else(|| AuditError::Invalid("receipt path has no parent".into()))?;
     std::fs::create_dir_all(parent)
         .map_err(|e| AuditError::Invalid(format!("receipt dir: {e}")))?;
-    let digest = legion_contracts::canonical_digest(&body)
+    let digest = rightkit_evidence_contracts::canonical_digest(&body)
         .map_err(|e| AuditError::Invalid(e.to_string()))?;
     let signature = domain_mac(key, RECEIPT_DOMAIN, &receipt_signed_bytes(&body, &digest)?)?;
     let stored = StoredReceipt {
@@ -429,7 +429,7 @@ pub fn read_verified_receipt(
     if stored.body.provider != provider {
         return Err("receipt names a different provider".into());
     }
-    let digest = legion_contracts::canonical_digest(&stored.body)
+    let digest = rightkit_evidence_contracts::canonical_digest(&stored.body)
         .map_err(|e| format!("receipt digest: {e}"))?;
     if digest != stored.digest {
         return Err("receipt content does not match its digest".into());
@@ -646,7 +646,7 @@ impl RunRecorder {
     }
 
     fn payload(value: serde_json::Value) -> Result<String, AuditError> {
-        legion_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
+        rightkit_evidence_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
     }
 
     pub fn started(&self, provider: &str) -> Result<(), AuditError> {

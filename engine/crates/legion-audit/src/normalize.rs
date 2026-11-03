@@ -1,4 +1,4 @@
-use legion_contracts::ProviderResult;
+use rightkit_evidence_contracts::ProviderResult;
 
 pub fn normalize(mut result: ProviderResult) -> ProviderResult {
     result.findings.sort_by(|a, b| a.id.cmp(&b.id));
@@ -365,14 +365,14 @@ pub fn replay_normalize(value: &Value) -> Value {
 }
 
 fn canonical_sort_key(value: &Value) -> String {
-    legion_contracts::canonical_json_bytes(value)
+    rightkit_evidence_contracts::canonical_json_bytes(value)
         .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
         .unwrap_or_default()
 }
 
 /// `replay-sha256:<hex>` over the canonical bytes of the normalized view.
 pub fn replay_digest(value: &Value) -> Result<String, crate::error::AuditError> {
-    let bytes = legion_contracts::canonical_json_bytes(&replay_normalize(value))
+    let bytes = rightkit_evidence_contracts::canonical_json_bytes(&replay_normalize(value))
         .map_err(|error| crate::error::AuditError::Invalid(error.to_string()))?;
     Ok(format!(
         "{REPLAY_DIGEST_PREFIX}{}",

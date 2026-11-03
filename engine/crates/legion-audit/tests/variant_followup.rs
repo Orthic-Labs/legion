@@ -25,7 +25,7 @@ use legion_audit::{
     canonical_report, execute, AuditError, AuditPlan, AuditProvider, FilesystemInventorySource,
     FrozenPlan, InventoryEnvelope, InventorySource, ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     canonical_digest, Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
 };
 use serde_json::{json, Value};
@@ -479,7 +479,7 @@ fn mint_stage_receipts(run: &Run, verdicts: &[Value]) {
             &run.run,
             request,
             "fixture-adjudication-stage",
-            legion_contracts::canonical_json_bytes(&stage_packet)
+            rightkit_evidence_contracts::canonical_json_bytes(&stage_packet)
                 .unwrap()
                 .len() as u64
                 + 256,

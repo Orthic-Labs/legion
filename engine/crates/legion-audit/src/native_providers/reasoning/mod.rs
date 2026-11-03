@@ -16,7 +16,7 @@ use std::{
 };
 
 use hmac::{Hmac, KeyInit, Mac};
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     canonical_digest, canonical_json_bytes, ProviderId, ProviderResult, ProviderStatus,
 };
 use serde::{Deserialize, Serialize};
@@ -3024,7 +3024,7 @@ fn failure_result(
         required: provider.required,
         status: ProviderStatus::Failed,
         complete: false,
-        coverage: Some(legion_contracts::Coverage {
+        coverage: Some(rightkit_evidence_contracts::Coverage {
             denominator_digest: denominator.digest.clone(),
             expected: denominator.entries.len() as u64,
             examined: 0,

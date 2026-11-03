@@ -7,7 +7,7 @@ use crate::{error::AuditError, plan::AuditPlan};
 type HmacSha256 = Hmac<Sha256>;
 
 pub fn canonical_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, AuditError> {
-    legion_contracts::canonical_json_bytes(value)
+    rightkit_evidence_contracts::canonical_json_bytes(value)
         .map_err(|error| AuditError::Invalid(error.to_string()))
 }
 
@@ -124,12 +124,12 @@ pub fn new_plan_key() -> Result<Vec<u8>, AuditError> {
 /// Per-user host directory that holds plan keys.
 pub fn host_plan_key_dir() -> Result<std::path::PathBuf, AuditError> {
     use std::path::PathBuf;
-    let state = match std::env::var_os(legion_contracts::state_root::STATE_ROOT_ENV)
+    let state = match std::env::var_os(rightkit_evidence_contracts::state_root::state_root_env())
         .filter(|value| !value.is_empty())
     {
         Some(root) => PathBuf::from(root),
         None => {
-            let receipts = legion_contracts::state_root::user_state_receipts_root(
+            let receipts = rightkit_evidence_contracts::state_root::user_state_receipts_root(
                 cfg!(target_os = "macos"),
                 cfg!(windows),
                 std::env::var_os("HOME").map(PathBuf::from),

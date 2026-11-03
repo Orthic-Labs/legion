@@ -11,10 +11,10 @@ description = "Compiles the workspace-level integration tests that live in engin
 path = "src/lib.rs"
 
 [dev-dependencies]
-legion-contracts = { path = "../legion-contracts" }
-legion-effects = { path = "../legion-effects" }
+rightkit-evidence-contracts = "=0.1.0"
+rightkit-evidence-effects = "=0.1.0"
 legion-host = { path = "../legion-host" }
-legion-policy-model = { path = "../legion-policy-model" }
+rightkit-policy-rules = "=0.1.0"
 serde_json.workspace = true
 
 # m2_portable_integration.rs is compiled as a module of native_hosts.rs.

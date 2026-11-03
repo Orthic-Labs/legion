@@ -51,7 +51,7 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
     // renderers consume the v1 core of the view.
     let value: serde_json::Value = serde_json::from_slice(&bytes)
         .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
-    let view = legion_contracts::Report::read_any(&value)
+    let view = rightkit_evidence_contracts::Report::read_any(&value)
         .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
     let report = view.v1_core();
     report
@@ -62,25 +62,25 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
         .and_then(serde_json::Value::as_u64)
         .unwrap_or(1);
     let rendered = match (args.report_kind.as_str(), args.format.as_str()) {
-        ("audit", "json") if source_schema == 2 => legion_report::render_json_schema(&view, 2),
+        ("audit", "json") if source_schema == 2 => rightkit_evidence_report::render_json_schema(&view, 2),
         ("audit", "json") => {
-            let original: legion_contracts::ReportV1 = serde_json::from_value(value.clone())
+            let original: rightkit_evidence_contracts::ReportV1 = serde_json::from_value(value.clone())
                 .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
-            legion_report::render_json(&original)
+            rightkit_evidence_report::render_json(&original)
         }
-        ("audit", "sarif") => legion_report::render_sarif(&report),
-        ("audit", "markdown" | "md") => legion_report::render_markdown(&report),
-        ("audit", "html") => legion_report::render_html(&report),
-        ("review", "markdown" | "md") => legion_report::render_review(&view),
+        ("audit", "sarif") => rightkit_evidence_report::render_sarif(&report),
+        ("audit", "markdown" | "md") => rightkit_evidence_report::render_markdown(&report),
+        ("audit", "html") => rightkit_evidence_report::render_html(&report),
+        ("review", "markdown" | "md") => rightkit_evidence_report::render_review(&view),
         ("review", "github-review") if args.out.is_some() => {
-            legion_report::render_github_review(&view)
+            rightkit_evidence_report::render_github_review(&view)
         }
         ("review", "github-review") => {
             return Err(CommandError::usage(
                 "--format github-review requires --out; output is a file only",
             ));
         }
-        ("ponytail", "markdown" | "md") => legion_report::render_ponytail(&view),
+        ("ponytail", "markdown" | "md") => rightkit_evidence_report::render_ponytail(&view),
         ("assurance", _) => {
             let format = projection_format(&args)?;
             return emit(

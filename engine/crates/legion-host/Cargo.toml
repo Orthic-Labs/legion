@@ -7,9 +7,9 @@ license.workspace = true
 
 [dependencies]
 directories-next = "2"
-legion-contracts = { path = "../legion-contracts" }
+rightkit-evidence-contracts = "=0.1.0"
 legion-catalog = { path = "../legion-catalog" }
-legion-policy-model = { path = "../legion-policy-model" }
+rightkit-policy-rules = "=0.1.0"
 serde_json.workspace = true
 serde.workspace = true
 toml.workspace = true

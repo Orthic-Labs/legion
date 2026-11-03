@@ -8,9 +8,9 @@ use legion_audit::{
     native_providers::{legacy_checks::AuditExternalProjectTool, security::dependency_osv},
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
-use legion_provider_sdk::ExternalProjectTool;
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -254,19 +254,11 @@ fn source_binding(root: &Path) -> BTreeMap<String, String> {
     let mut files = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/Cargo.lock",
         "engine/Cargo.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         SOURCE,
         "engine/crates/legion-audit/tests/fixtures/osv",
     ] {
@@ -456,7 +448,7 @@ impl PolicyAuthorizer for SharedPolicy {
     }
 }
 
-fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
+fn retained(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -> Value {
     let bytes = fs::read(root.join(&artifact.path)).unwrap();
     assert!(artifact.immutable);
     assert_eq!(digest(&bytes), artifact.digest);
@@ -464,7 +456,7 @@ fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
     json!({"path": artifact.path, "digest": artifact.digest, "bytes": artifact.bytes, "immutable": artifact.immutable, "raw": String::from_utf8(bytes).unwrap()})
 }
 /// Exact field projection of actual EffectExecutor receipt; no inferred process proof.
-fn receipt_json(receipt: &legion_effects::ExecutionReceipt, artifacts: &Path) -> Value {
+fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt, artifacts: &Path) -> Value {
     json!({"schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id, "planId": receipt.plan_id,
         "policyId": receipt.policy_id, "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),
@@ -589,11 +581,11 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
         environment: environment.clone(),
         decisions: Mutex::new(vec![]),
     });
-    let auth = legion_effects::authenticate_sandbox(
+    let auth = rightkit_evidence_effects::authenticate_sandbox(
         tool.to_str().unwrap(),
         &args,
         root.to_str().unwrap(),
-        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite,
         &run.join("sandbox"),
     )
     .unwrap();
@@ -616,7 +608,7 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
         environment,
         accepted_exit_codes: [0, 1].into_iter().collect(),
         requires_network_sandbox: true,
-        sandbox: Some(legion_effects::SandboxReceipt {
+        sandbox: Some(rightkit_evidence_effects::SandboxReceipt {
             id: auth.id,
             network: auth.network,
             filesystem_scope: auth.filesystem_scope,
@@ -627,9 +619,9 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
         ..ExternalToolRequest::default()
     };
     let artifacts = run.join("artifacts");
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(&artifacts),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(&artifacts),
         SharedPolicy(policy.clone()),
     );
     let receipt = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -651,7 +643,7 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
         // Require genuine parser/process failure, never denial-only success.
         assert_eq!(
             receipt.state,
-            legion_effects::ExecutionState::Failed,
+            rightkit_evidence_effects::ExecutionState::Failed,
             "{full_receipt}"
         );
         assert!(
@@ -700,7 +692,7 @@ fn case(id: &str, version: &str, planted: bool, malformed: bool, directory: &Pat
     }
     assert_eq!(
         receipt.state,
-        legion_effects::ExecutionState::Completed,
+        rightkit_evidence_effects::ExecutionState::Completed,
         "{full_receipt}"
     );
     assert!(

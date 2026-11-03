@@ -13,7 +13,7 @@ use clap::Args;
 use serde_json::json;
 use std::io::Write;
 
-use legion_handoff::{l1_port, l1b_port};
+use rightkit_agent_orchestration_handoff::{l1_port, l1b_port};
 use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
     r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005,
@@ -228,7 +228,7 @@ fn apple_tool_preflight(args: &[String]) -> i32 {
         }
         index += 1;
     }
-    match rightkit_apple_ops::preflight::invoke(&json!({"list":list,"tools":ids})) {
+    match legion_apple::preflight::invoke(&json!({"list":list,"tools":ids})) {
         Ok(value) => {
             println!("{}", serde_json::to_string_pretty(&value).unwrap());
             0
@@ -1859,9 +1859,7 @@ impl r46::cli::MinimizeGate for RealMinimizeGate {
         minimize_path: &std::path::Path,
         minimize_receipt: &std::path::Path,
     ) -> Result<(), String> {
-        let paths =
-            rightkit_review::minimize::resolve_minimize_paths(&super::minimize::release_roots())
-                .map_err(|e| e.to_string())?;
+        let paths = super::minimize::resolve_minimize_paths().map_err(|e| e.to_string())?;
         rightkit_review::minimize::verify_decision(minimize_path, minimize_receipt, &paths)
             .map(|_| ())
             .map_err(|e| e.to_string())

@@ -25,6 +25,34 @@
       "note": "Directory of the Arcane signing keys; selects the authority key ring. No cfg gate."
     },
     {
+      "name": "ASC_ISSUER_ID",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:530",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "ASC_KEY_ID",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:531",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "ASC_PRIVATE_KEY_PATH",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:532",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
+      "name": "ASC_TOKEN",
+      "class": "S2",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/app_store.rs:516",
+      "note": "User-supplied third-party credential or identity read from the environment in release code. Class S2 per the sibling-inventory precedent; owner to confirm."
+    },
+    {
       "name": "AUDIT_OWNERSHIP_SCAN_CMD",
       "class": "S3",
       "channel": "env",
@@ -184,6 +212,14 @@
       "anchor": "engine/crates/legion-audit/src/native_providers/code/mobile_sdk.rs:36",
       "valueType": "enum",
       "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
+    },
+    {
+      "name": "DOCSET_ROOT",
+      "class": "S5",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/docs.rs:156",
+      "userGesture": true,
+      "note": "The third-party tool's own documented, user-set variable naming where that tool keeps its data (or, for DOCSET_ROOT, the Apple docset location); the user's own choice. Owner to confirm S5."
     },
     {
       "name": "FIRECRAWL_API_KEY",
@@ -678,6 +714,14 @@
       "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
     },
     {
+      "name": "MINIMIZE_BASE_REF",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-minimize/src/git.rs:12",
+      "valueType": "enum",
+      "note": "Git base ref name for minimize; a ref selects a comparison base only."
+    },
+    {
       "name": "NIM_API_KEY",
       "class": "S2",
       "channel": "env",
@@ -714,6 +758,14 @@
       "anchor": "engine/crates/legion-audit/src/trusted_git.rs:56",
       "valueType": "enum",
       "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables. Executable lookup by fixed name; owner to confirm S6 over S3."
+    },
+    {
+      "name": "PATHEXT",
+      "class": "S6",
+      "channel": "env",
+      "anchor": "engine/crates/legion-apple/src/preflight.rs:229",
+      "valueType": "enum",
+      "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
     },
     {
       "name": "ProgramFiles",
@@ -925,6 +977,10 @@
     {
       "file": "engine/bins/legion/src/commands/setup.rs",
       "reason": "Environment snapshot for a child process plus a HOME/USERPROFILE selection by platform (both registered); no single literal name."
+    },
+    {
+      "file": "engine/crates/legion-apple/src/app_store.rs",
+      "reason": "Sandbox environment allowlists and named-constant credential lookups iterating a fixed list of names; every name in those lists is registered above."
     },
     {
       "file": "engine/crates/legion-application/src/lib.rs",

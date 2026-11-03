@@ -1306,7 +1306,7 @@ pub struct PartBudget {
 // indentation & transport-envelope escaping are not additional source cost.
 // Final envelope sizing still measures contracts, listings & graph context.
 fn rendered_excerpt_cost(excerpt: &Excerpt) -> usize {
-    legion_contracts::canonical_json_bytes(excerpt)
+    rightkit_evidence_contracts::canonical_json_bytes(excerpt)
         .map_or(usize::MAX, |bytes| bytes.len().saturating_add(1))
 }
 
@@ -1768,7 +1768,7 @@ mod tests {
         let canonical = chunks
             .iter()
             .map(|excerpt| {
-                legion_contracts::canonical_json_bytes(excerpt)
+                rightkit_evidence_contracts::canonical_json_bytes(excerpt)
                     .unwrap()
                     .len()
                     + 1

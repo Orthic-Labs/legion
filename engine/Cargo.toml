@@ -1,21 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/legion-apple",
     "crates/legion-application",
-    "crates/legion-arcane",
     "crates/legion-audit",
     "crates/legion-catalog",
-    "crates/legion-contracts",
-    "crates/legion-decisions",
-    "crates/legion-effects",
-    "crates/legion-handoff",
     "crates/legion-host",
+    "crates/legion-identity",
     "crates/legion-harness",
-    "crates/legion-policy-model",
-    "crates/legion-policy",
-    "crates/legion-provider-sdk",
-    "crates/legion-report",
-    "crates/legion-rules",
     "crates/legion-runtime",
     "crates/legion-topology",
     "crates/legion-workspace-tests",
@@ -52,7 +44,7 @@ reqwest = { version = "0.13.5", default-features = false, features = ["json", "r
 jsonwebtoken = { version = "11", features = ["rust_crypto"] }
 futures-util = "0.3.34"
 secrecy = "0.10.3"
-rusqlite = { version = "0.41.1", features = ["bundled"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
 toml = "1.1.8"
 libc = "1.0.0-alpha.5"
 windows-sys = { version = "0.61.2", features = [
@@ -74,17 +66,5 @@ lopdf = "0.45.0"
 image = "0.25"
 scraper = "0.27.0"
 
-[profile.dev]
-# line-tables-only: full debuginfo dominates large-crate dev codegen; backtraces keep file:line
-debug = "line-tables-only"
-
-[profile.release-iterate]
-inherits = "release"
-opt-level = 1
-lto = false
-codegen-units = 16
-incremental = true
-strip = "none"
-
-[profile.release-iterate.package."*"]
-incremental = false
+[profile.release]
+panic = "unwind"

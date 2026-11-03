@@ -5,7 +5,7 @@ use legion_audit::{
     FilesystemInventorySource, InventorySource, NativeProviderRegistry, ProviderExecutor,
     ProviderKind,
 };
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},

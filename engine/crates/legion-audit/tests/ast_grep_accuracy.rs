@@ -10,8 +10,8 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, ProviderExecutor,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -66,7 +66,7 @@ struct Policy {
     wrapper_digest: String,
     args: Vec<String>,
     version_args: Vec<String>,
-    sandbox: legion_effects::SandboxReceipt,
+    sandbox: rightkit_evidence_effects::SandboxReceipt,
     environment: BTreeMap<String, String>,
     decisions: Mutex<Vec<Value>>,
 }
@@ -311,10 +311,6 @@ fn source_binding_excludes_only_regular_generated_session_receipts() {
 fn source_binding(root: &Path) -> Value {
     let roots = [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/crates/legion-audit/tests/fixtures/ast-grep",
@@ -328,10 +324,6 @@ fn source_binding(root: &Path) -> Value {
         "engine/Cargo.toml",
         "engine/Cargo.lock",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
     ] {
         source_binding_walk(root, &root.join(path), &mut files);
     }
@@ -350,7 +342,7 @@ fn source_binding(root: &Path) -> Value {
     json!({"repositoryRoot":fs::canonicalize(root).unwrap(),"roots":roots,"files":files,"providerSpec":spec,"providerSpecDigest":provider_spec_digest})
 }
 
-fn artifact_text(root: &Path, receipt: &Option<legion_effects::ArtifactRecord>) -> String {
+fn artifact_text(root: &Path, receipt: &Option<rightkit_evidence_effects::ArtifactRecord>) -> String {
     let record = receipt.as_ref().expect("actual SDK stream artifact");
     let bytes = fs::read(root.join(&record.path)).unwrap();
     assert_eq!(bytes.len(), record.bytes);
@@ -410,11 +402,11 @@ fn run_case(kind: &str, fixture: &Path, planted: bool) -> Value {
         root.to_string_lossy(),
         Some(&json!({"providerTimeoutMs":30000,"maxOutputBytes":1048576})),
     );
-    let auth = legion_effects::authenticate_sandbox(
+    let auth = rightkit_evidence_effects::authenticate_sandbox(
         &contract.executable,
         &contract.args,
         &contract.cwd,
-        legion_effects::SandboxMode::DenyNetworkDenyProjectWrite,
+        rightkit_evidence_effects::SandboxMode::DenyNetworkDenyProjectWrite,
         &run.join("sandbox"),
     )
     .unwrap();
@@ -427,7 +419,7 @@ fn run_case(kind: &str, fixture: &Path, planted: bool) -> Value {
         .into_iter()
         .filter_map(|key| std::env::var(key).ok().map(|value| (key.into(), value)))
         .collect();
-    let sandbox = legion_effects::SandboxReceipt {
+    let sandbox = rightkit_evidence_effects::SandboxReceipt {
         id: auth.id,
         network: auth.network,
         filesystem_scope: auth.filesystem_scope,
@@ -471,9 +463,9 @@ fn run_case(kind: &str, fixture: &Path, planted: bool) -> Value {
     };
     let artifacts_dir = run.join("artifacts");
     fs::create_dir_all(&artifacts_dir).unwrap();
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(&artifacts_dir),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(&artifacts_dir),
         SharedPolicy(policy.clone()),
     );
     let receipt = tokio::runtime::Runtime::new()

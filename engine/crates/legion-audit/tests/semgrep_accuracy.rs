@@ -7,8 +7,8 @@ use legion_audit::{
     native_providers::legacy_checks::{resolve_request, AuditExternalProjectTool, AuditScratch},
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -292,19 +292,11 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
     let mut sources = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/Cargo.toml",
         "engine/Cargo.lock",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         SOURCE,
         GATE,
         "scripts/ci/provision-python-qualification-tools.py",
@@ -933,9 +925,9 @@ fn run_case(
         allowlist,
         decisions: Mutex::new(vec![]),
     });
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         SharedPolicy(policy.clone()),
     );
     let mut native = NativeProviderRegistry::new(&root)

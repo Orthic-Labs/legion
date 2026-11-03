@@ -97,11 +97,11 @@ pub(super) fn apply_pin(
 /// authorizer; a missing pin, plan conflict or missing authorizer denies.
 pub(super) fn authorize_preparation(
     ctx: Option<&OwnerRequestContext>,
-    owner_authorizer: Option<&dyn legion_effects::PolicyAuthorizer>,
-    fixture_authorizer: Option<&dyn legion_effects::PolicyAuthorizer>,
+    owner_authorizer: Option<&dyn rightkit_evidence_effects::PolicyAuthorizer>,
+    fixture_authorizer: Option<&dyn rightkit_evidence_effects::PolicyAuthorizer>,
     preparation: &mut ExternalToolRequest,
-) -> legion_effects::PolicyDecision {
-    use legion_effects::PolicyAuthorizer;
+) -> rightkit_evidence_effects::PolicyDecision {
+    use rightkit_evidence_effects::PolicyAuthorizer;
     let deny = crate::execution_policy::OwnerAdmissionRequired;
     let Some(ctx) = ctx else {
         return fixture_authorizer
@@ -136,18 +136,18 @@ pub(super) fn authorize_preparation(
 /// owner-admissible (attested-run probe/submit/status/cancel/verify). The
 /// executable must already be absolute; the plan is bound once per request.
 pub(super) struct OwnerPinnedTool<'a> {
-    pub inner: &'a dyn legion_provider_sdk::ExternalProjectTool,
+    pub inner: &'a dyn rightkit_code_audit_provider_sdk::ExternalProjectTool,
     pub ctx: std::sync::Arc<OwnerRequestContext>,
 }
 
 #[async_trait::async_trait]
-impl legion_provider_sdk::ExternalProjectTool for OwnerPinnedTool<'_> {
+impl rightkit_code_audit_provider_sdk::ExternalProjectTool for OwnerPinnedTool<'_> {
     async fn execute(
         &self,
         mut request: ExternalToolRequest,
         cancellation: tokio_util::sync::CancellationToken,
-    ) -> legion_provider_sdk::ExecutionReceipt {
-        use legion_provider_sdk::{ExecutionReceipt, ExecutionState};
+    ) -> rightkit_code_audit_provider_sdk::ExecutionReceipt {
+        use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExecutionState};
         let provider = request.provider_id.to_string();
         let gap = (|| {
             self.ctx
@@ -194,7 +194,7 @@ impl legion_provider_sdk::ExternalProjectTool for OwnerPinnedTool<'_> {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    use legion_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
+    use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
     use sha2::{Digest, Sha256};
     use std::{
         os::unix::fs::PermissionsExt,
@@ -215,7 +215,7 @@ mod tests {
         ) -> ExecutionReceipt {
             let receipt = ExecutionReceipt::failure(
                 &request,
-                legion_provider_sdk::ExecutionState::Blocked,
+                rightkit_code_audit_provider_sdk::ExecutionState::Blocked,
                 "recorded",
             );
             self.0.lock().unwrap().push(request);
@@ -338,14 +338,14 @@ mod tests {
         let receipt = pinned.execute(relative, token.clone()).await;
         assert_eq!(
             receipt.state,
-            legion_provider_sdk::ExecutionState::UnauthorizedEffect
+            rightkit_code_audit_provider_sdk::ExecutionState::UnauthorizedEffect
         );
         let mut unpinned = base(Path::new("/bin/sh"), &frozen);
         unpinned.executable = "/bin/sh".into();
         let receipt = pinned.execute(unpinned, token).await;
         assert_eq!(
             receipt.state,
-            legion_provider_sdk::ExecutionState::UnauthorizedEffect
+            rightkit_code_audit_provider_sdk::ExecutionState::UnauthorizedEffect
         );
         assert_eq!(recorder.0.lock().unwrap().len(), 1);
     }
@@ -371,7 +371,7 @@ mod tests {
     fn preparation_is_admitted_for_pinned_tool_and_denied_when_unpinned_or_unbacked() {
         let tool = std::fs::canonicalize(std::env::current_exe().unwrap()).unwrap();
         let (ctx, digest, frozen, authorizer) = context_with_authorizer(&tool);
-        let owner: &dyn legion_effects::PolicyAuthorizer = authorizer.as_ref();
+        let owner: &dyn rightkit_evidence_effects::PolicyAuthorizer = authorizer.as_ref();
 
         let mut request = preparation(&tool, &frozen);
         let decision = authorize_preparation(Some(&ctx), Some(owner), None, &mut request);
@@ -385,8 +385,8 @@ mod tests {
 
         // Owner context without an owner-backed authorizer stays denied, and a
         // fixture authorizer cannot widen it.
-        let allow = legion_effects::StaticPolicy {
-            decision: legion_effects::PolicyDecision {
+        let allow = rightkit_evidence_effects::StaticPolicy {
+            decision: rightkit_evidence_effects::PolicyDecision {
                 allowed: true,
                 policy_id: "fixture".into(),
                 policy_version: 1,

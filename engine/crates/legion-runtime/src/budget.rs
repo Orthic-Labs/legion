@@ -1,4 +1,4 @@
-use legion_contracts::BudgetCeiling;
+use rightkit_evidence_contracts::BudgetCeiling;
 
 use crate::error::RuntimeError;
 

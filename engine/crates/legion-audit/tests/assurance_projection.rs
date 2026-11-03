@@ -19,7 +19,7 @@ use legion_audit::{
     canonical_report, canonical_report_assured, verify, verify_assurance, AuditPlan, AuditProvider,
     ExecutionReport, FrozenPlan, ProviderExecution, ProviderKind,
 };
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus, ReportStatus, ReportV2,
 };
 use serde_json::{json, Value};
@@ -193,7 +193,7 @@ fn execution_with_toolchain(
         findings: findings
             .iter()
             .map(|id| FindingRef {
-                id: legion_contracts::FindingId::new(*id).unwrap(),
+                id: rightkit_evidence_contracts::FindingId::new(*id).unwrap(),
                 severity: "high".into(),
             })
             .collect(),
@@ -562,7 +562,7 @@ fn claim_scope_fixture_and_missing_record_do_not_qualify_release() {
 }
 
 /// Every obligation reason in the report's assurance extension, joined.
-fn unmet_reasons(report: &legion_contracts::ReportV1) -> String {
+fn unmet_reasons(report: &rightkit_evidence_contracts::ReportV1) -> String {
     AuditAssuranceV1::from_value(&report.extensions[AUDIT_ASSURANCE_EXTENSION_KEY], NOW)
         .unwrap()
         .obligations
@@ -572,7 +572,7 @@ fn unmet_reasons(report: &legion_contracts::ReportV1) -> String {
         .join(" | ")
 }
 
-fn release_report_for(plan: &FrozenPlan, exec: &ExecutionReport) -> legion_contracts::ReportV1 {
+fn release_report_for(plan: &FrozenPlan, exec: &ExecutionReport) -> rightkit_evidence_contracts::ReportV1 {
     canonical_report_assured("/frozen/source", plan, exec, &[], &[], NOW).unwrap()
 }
 

@@ -1,5 +1,5 @@
 use crate::error::HostError;
-use legion_contracts::HostDescriptor as ContractHostDescriptor;
+use rightkit_evidence_contracts::HostDescriptor as ContractHostDescriptor;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -142,7 +142,7 @@ impl HostDescriptor {
     pub fn contract_view(&self) -> Result<ContractHostDescriptor, HostError> {
         let host_id = self
             .id
-            .parse::<legion_contracts::id::HostId>()
+            .parse::<rightkit_evidence_contracts::id::HostId>()
             .map_err(|error| HostError::InvalidDescriptor {
                 path: "id".into(),
                 reason: error.to_string(),

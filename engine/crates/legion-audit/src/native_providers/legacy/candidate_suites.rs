@@ -14,7 +14,7 @@ use std::{
     path::Path,
 };
 
-use legion_contracts::{ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderResult, ProviderStatus};
 use serde_json::Value;
 
 use super::common::{denominator, result, source_files, ProviderInput};

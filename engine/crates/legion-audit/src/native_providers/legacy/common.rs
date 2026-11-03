@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
 use serde_json::{json, Value};
@@ -299,7 +299,7 @@ impl ProviderExecutorAdapter {
         provider: &AuditProvider,
         inventory: &InventoryEnvelope,
         owner: &super::ownership_sdk::NativeOwner,
-        tool: &dyn legion_provider_sdk::ExternalProjectTool,
+        tool: &dyn rightkit_code_audit_provider_sdk::ExternalProjectTool,
         artifacts_root: &Path,
         cancellation: tokio_util::sync::CancellationToken,
     ) -> Result<ProviderResult, AuditError> {

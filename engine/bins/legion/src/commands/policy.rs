@@ -14,7 +14,7 @@ pub fn run(args: PolicyArgs) -> CommandResult {
         return Err(CommandError::usage("policy requires --file <policy.json>"));
     };
     let bytes = std::fs::read(&path).map_err(super::io_error)?;
-    let pack: legion_policy::PolicyPack = serde_json::from_slice(&bytes)
+    let pack: rightkit_policy_rules::rules::PolicyPack = serde_json::from_slice(&bytes)
         .map_err(|error| CommandError::policy(format!("invalid policy: {error}")))?;
     let digest = pack
         .digest()

@@ -6,7 +6,7 @@ use legion_audit::{
     FilesystemInventorySource, FrozenPlan, InventoryEnvelope, InventorySource,
     NativeProviderRegistry, ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderResult, ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,

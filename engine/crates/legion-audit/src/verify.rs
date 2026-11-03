@@ -5,8 +5,8 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use legion_contracts::{ReportStatus, ReportV1};
-use legion_effects::artifact::ArtifactRecord;
+use rightkit_evidence_contracts::{ReportStatus, ReportV1};
+use rightkit_evidence_effects::artifact::ArtifactRecord;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -349,7 +349,7 @@ fn verify_execution_structure(report: &ExecutionReport) -> Result<(), AuditError
         if item.skipped
             && !matches!(
                 item.result.status,
-                legion_contracts::ProviderStatus::Cancelled
+                rightkit_evidence_contracts::ProviderStatus::Cancelled
             )
         {
             return Err(AuditError::Invalid(
@@ -359,7 +359,7 @@ fn verify_execution_structure(report: &ExecutionReport) -> Result<(), AuditError
         if item.result.complete
             && !matches!(
                 item.result.status,
-                legion_contracts::ProviderStatus::Ok | legion_contracts::ProviderStatus::Complete
+                rightkit_evidence_contracts::ProviderStatus::Ok | rightkit_evidence_contracts::ProviderStatus::Complete
             )
         {
             return Err(AuditError::Invalid(
@@ -467,7 +467,7 @@ mod effect_artifact_tests {
 
     use super::validate_effect_artifacts;
     use crate::execution::ExecutionReport;
-    use legion_contracts::ReportV1;
+    use rightkit_evidence_contracts::ReportV1;
 
     fn temp_run() -> PathBuf {
         let nonce = SystemTime::now()
@@ -594,7 +594,7 @@ mod effect_artifact_tests {
         fs::write(run.join("artifacts/original/stdout.bin"), bytes).unwrap();
         let stored = report(json!("artifacts"));
         let mut execution = execution(record(bytes));
-        let native_provider = legion_contracts::ProviderId::new("legacy.native.fixture").unwrap();
+        let native_provider = rightkit_evidence_contracts::ProviderId::new("legacy.native.fixture").unwrap();
         let mut native_result = execution.results[0].result.clone();
         native_result.provider = native_provider.clone();
         native_result.details.insert(

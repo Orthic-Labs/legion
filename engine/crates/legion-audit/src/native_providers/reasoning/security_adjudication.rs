@@ -32,7 +32,7 @@ use std::{
     path::{Component, Path},
 };
 
-use legion_contracts::{canonical_digest, canonical_json_bytes, ProviderResult};
+use rightkit_evidence_contracts::{canonical_digest, canonical_json_bytes, ProviderResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -89,7 +89,7 @@ impl SecurityVerdictKind {
 /// One canonical vocabulary, owned by `legion-contracts`: possible,
 /// strong-inference, verified. Legacy `observed` and `candidate` spellings are
 /// accepted on read and re-emitted canonically.
-pub use legion_contracts::enums::EvidenceStrength;
+pub use rightkit_evidence_contracts::enums::EvidenceStrength;
 
 /// Typed negative control (SEC 5.7, 9.4): the check that would have made the
 /// claimed behavior disappear, and what happened when it was run or reasoned.
@@ -4218,7 +4218,7 @@ mod tests {
     }
 
     fn scanner_fixture() -> (std::path::PathBuf, ProviderResult) {
-        use legion_contracts::{ProviderId, ProviderStatus};
+        use rightkit_evidence_contracts::{ProviderId, ProviderStatus};
         // Parallel tests share the process id; the counter keeps fixtures apart.
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(

@@ -140,8 +140,8 @@ fn producer(root: &Path, run_dir: &Path, bin: &Path) -> ArtifactProducer {
         .with_run_dir(run_dir)
         .with_search_path(vec![bin.parent().unwrap().to_owned()])
         .with_sandbox(SandboxPolicy::Disabled)
-        .with_policy_authorizer(Arc::new(legion_effects::StaticPolicy {
-            decision: legion_effects::PolicyDecision {
+        .with_policy_authorizer(Arc::new(rightkit_evidence_effects::StaticPolicy {
+            decision: rightkit_evidence_effects::PolicyDecision {
                 allowed: true,
                 policy_id: "synthetic-secrets-history-qualification-only".into(),
                 policy_version: 1,
@@ -150,7 +150,7 @@ fn producer(root: &Path, run_dir: &Path, bin: &Path) -> ArtifactProducer {
             },
         }))
 }
-fn execute(root: &Path, producer: &ArtifactProducer) -> legion_contracts::ProviderResult {
+fn execute(root: &Path, producer: &ArtifactProducer) -> rightkit_evidence_contracts::ProviderResult {
     let inventory = inventory(root);
     SecurityProviderExecutor::default()
         .with_producer(producer.clone())
@@ -159,7 +159,7 @@ fn execute(root: &Path, producer: &ArtifactProducer) -> legion_contracts::Provid
 }
 
 fn assert_final_finding(
-    result: &legion_contracts::ProviderResult,
+    result: &rightkit_evidence_contracts::ProviderResult,
     path: &str,
     mode: &str,
     commit: Option<&str>,

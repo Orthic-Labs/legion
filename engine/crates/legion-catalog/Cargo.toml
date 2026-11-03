@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-legion-contracts = { path = "../legion-contracts" }
+rightkit-evidence-contracts = "=0.1.0"
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

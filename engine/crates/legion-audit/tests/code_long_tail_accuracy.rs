@@ -4,7 +4,7 @@ use legion_audit::{
     canonical_bytes, digest, execute, AuditPlan, InventoryEntry, InventoryEnvelope,
     NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
+use rightkit_evidence_contracts::ProviderSpec;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -19,24 +19,16 @@ const HARNESS: &str = "engine/crates/legion-audit/tests/code_long_tail_accuracy.
 const CORPUS: &str = "engine/crates/legion-audit/tests/fixtures/code-long-tail/controls.json";
 const VALIDATOR: &str = "scripts/ci/audit-code-long-tail-accuracy.py";
 const SCOPE: &str = "constructed frozen native generic-source controls; unsupported-language coverage remains partial";
-const SOURCE_ROOTS: [&str; 7] = [
+const SOURCE_ROOTS: [&str; 3] = [
     "engine/crates/legion-audit/src",
-    "engine/crates/legion-effects/src",
-    "engine/crates/legion-provider-sdk/src",
-    "engine/crates/legion-contracts/src",
-    "engine/crates/legion-rules/src",
     "src/registry/rules",
     "src/registry/controls",
 ];
-const SOURCE_FILES: [&str; 11] = [
+const SOURCE_FILES: [&str; 7] = [
     "engine/Cargo.toml",
     "engine/Cargo.lock",
     "engine/rust-toolchain.toml",
     "engine/crates/legion-audit/Cargo.toml",
-    "engine/crates/legion-effects/Cargo.toml",
-    "engine/crates/legion-provider-sdk/Cargo.toml",
-    "engine/crates/legion-contracts/Cargo.toml",
-    "engine/crates/legion-rules/Cargo.toml",
     HARNESS,
     CORPUS,
     VALIDATOR,

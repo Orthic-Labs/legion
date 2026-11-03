@@ -3,7 +3,7 @@ use legion_audit::{
     AuditProvider, InventoryEntry, InventoryEnvelope, NativeProviderRegistry, ProviderExecutor,
     ProviderKind,
 };
-use legion_contracts::{ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{ProviderSpec, ProviderStatus};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -190,7 +190,7 @@ fn inventory() -> InventoryEnvelope {
     .unwrap()
 }
 
-fn assert_authority(result: &legion_contracts::ProviderResult) {
+fn assert_authority(result: &rightkit_evidence_contracts::ProviderResult) {
     let evidence = result
         .details
         .get("findingEvidence")
@@ -328,7 +328,7 @@ fn missing_runtime_inputs_degrade_truthfully_without_fabricated_findings() {
 /// A provider that applies reports Complete, Partial or Failed. A provider
 /// with no applicable input reports the engine's not-applicable shape:
 /// `applicable: false`, `Ok`, no coverage, and no gap.
-fn assert_status_is_settled(id: &str, result: &legion_contracts::ProviderResult) {
+fn assert_status_is_settled(id: &str, result: &rightkit_evidence_contracts::ProviderResult) {
     // Some packs report `applicable: false` with their own Partial result;
     // only an `Ok` not-applicable result must carry the engine's exact shape.
     if result.applicable || result.status != ProviderStatus::Ok {

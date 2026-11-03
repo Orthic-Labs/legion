@@ -40,8 +40,8 @@ use std::{
     sync::atomic::Ordering,
 };
 
-use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
-use legion_provider_sdk::{
+use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use rightkit_browser::{
@@ -505,7 +505,7 @@ fn validate_frozen_fixture_files(files: &[Value], expected_digest: &str) -> Resu
                     .as_bytes(),
             )
     });
-    let actual_digest = legion_contracts::canonical_digest(&json!({"files":digest_files}))
+    let actual_digest = rightkit_evidence_contracts::canonical_digest(&json!({"files":digest_files}))
         .map_err(|error| format!("runtime-interaction-fixture-canonical:{error}"))?;
     if actual_digest != expected_digest {
         return Err("runtime-interaction-fixture-digest-mismatch".into());
@@ -646,7 +646,7 @@ fn parse_interactions(
         {
             return Err("runtime-interaction-actions-invalid".into());
         }
-        let actual_actions_digest = legion_contracts::canonical_digest(actions)
+        let actual_actions_digest = rightkit_evidence_contracts::canonical_digest(actions)
             .map_err(|error| format!("runtime-interaction-actions-canonical:{error}"))?;
         if actual_actions_digest != actions_digest {
             return Err("runtime-interaction-actions-digest-mismatch".into());
@@ -964,7 +964,7 @@ fn base_request(
         executable: RUNTIME_CAPTURE_TOOL.into(),
         args,
         cwd: cwd.to_string_lossy().into_owned(),
-        origin: legion_effects::ToolOrigin::LegionOwned,
+        origin: rightkit_evidence_effects::ToolOrigin::LegionOwned,
         shell: false,
         accepted_exit_codes: [0].into_iter().collect(),
         timeout_ms: bound_u64(provider, "timeoutMs").unwrap_or(120_000),
@@ -2000,7 +2000,7 @@ pub(super) async fn execute(
         request.task_id = Some("runtime-fixture-browser-session".into());
         let decision = match &executor.fixture_policy_authorizer {
             Some(authorizer) => authorizer.authorize(&request),
-            None => legion_effects::PolicyAuthorizer::authorize(
+            None => rightkit_evidence_effects::PolicyAuthorizer::authorize(
                 &crate::execution_policy::OwnerAdmissionRequired,
                 &request,
             ),
@@ -2009,14 +2009,14 @@ pub(super) async fn execute(
             // The same effect executor issues the real denial receipt before
             // FixtureServer preparation or browser/session launch.
             #[cfg(unix)]
-            let process = legion_effects::platform::unix::UnixProcess::new();
+            let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
             #[cfg(windows)]
-            let process = legion_effects::platform::windows::WindowsProcess::default();
+            let process = rightkit_evidence_effects::platform::windows::WindowsProcess::default();
             let scratch = executor.scratch()?;
-            let effects = legion_effects::EffectExecutor::new(
+            let effects = rightkit_evidence_effects::EffectExecutor::new(
                 process,
-                legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
-                legion_effects::StaticPolicy { decision },
+                rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+                rightkit_evidence_effects::StaticPolicy { decision },
             );
             let receipt = effects
                 .execute_with_cancellation(&request, cancellation)
@@ -2485,7 +2485,7 @@ mod tests {
                     "inventoryDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                     "files":files,
                 },
-                "probe":{"id":"native-probe","actionsDigest":legion_contracts::canonical_digest(&actions).unwrap()},
+                "probe":{"id":"native-probe","actionsDigest":rightkit_evidence_contracts::canonical_digest(&actions).unwrap()},
                 "isolationBindingId":"frozen-source-only",
                 "expiresAfterMs":30000,
                 "actions":actions,
@@ -2519,7 +2519,7 @@ mod tests {
             }],
         )
         .unwrap();
-        let provider_spec: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+        let provider_spec: rightkit_evidence_contracts::ProviderSpec = serde_json::from_value(json!({
             "schemaVersion":2,
             "id":"legacy.runtime.app",
             "providerVersion":"2.0.0",
@@ -2554,8 +2554,8 @@ mod tests {
         let mut executor = NativeLegacyCheckExecutor::new(root);
         if admitted {
             executor = executor.with_fixture_policy_authorizer(std::sync::Arc::new(
-                legion_effects::StaticPolicy {
-                    decision: legion_effects::PolicyDecision {
+                rightkit_evidence_effects::StaticPolicy {
+                    decision: rightkit_evidence_effects::PolicyDecision {
                         allowed: true,
                         policy_id: "runtime-fixture-test".into(),
                         policy_version: 1,
@@ -2659,7 +2659,7 @@ mod tests {
             "contentType":"text/html",
             "body":fixture_body,
         });
-        let fixture_digest = legion_contracts::canonical_digest(&json!({
+        let fixture_digest = rightkit_evidence_contracts::canonical_digest(&json!({
             "files":[{"body":fixture_file["body"],"contentType":"text/html","path":"/index.html"}]
         }))
         .unwrap();
@@ -2676,7 +2676,7 @@ mod tests {
             {"type":"assertVisible","selector":".status","timeout":100},
             {"type":"assertText","selector":".status","text":"Saved"}
         ]);
-        let action_digest = legion_contracts::canonical_digest(&actions).unwrap();
+        let action_digest = rightkit_evidence_contracts::canonical_digest(&actions).unwrap();
         let mut descriptor = json!({
             "id":"profile-save",
             "surface":{"label":"entry","url":"http://127.0.0.1:1422/index.html"},
@@ -2806,7 +2806,7 @@ mod tests {
 
         descriptor["actions"] = json!([{"type":"eval","expression":"fetch('/mutate')"}]);
         descriptor["probe"]["actionsDigest"] =
-            json!(legion_contracts::canonical_digest(&descriptor["actions"]).unwrap());
+            json!(rightkit_evidence_contracts::canonical_digest(&descriptor["actions"]).unwrap());
         let eval = RuntimeParams::from_value(&json!({
             "url":"http://127.0.0.1:1422/index.html",
             "interactions":[descriptor],
@@ -2824,7 +2824,7 @@ mod tests {
         });
         let one_action = json!([{"type":"click","selector":"button"}]);
         non_loopback["probe"]["actionsDigest"] =
-            json!(legion_contracts::canonical_digest(&one_action).unwrap());
+            json!(rightkit_evidence_contracts::canonical_digest(&one_action).unwrap());
         assert_eq!(
             RuntimeParams::from_value(&json!({
                 "url":"http://127.0.0.1:1422/index.html",
@@ -2853,8 +2853,8 @@ mod tests {
         let action_order_b: Value =
             serde_json::from_str(r#"[{"selector":"button","type":"click"}]"#).unwrap();
         assert_eq!(
-            legion_contracts::canonical_digest(&action_order_a).unwrap(),
-            legion_contracts::canonical_digest(&action_order_b).unwrap()
+            rightkit_evidence_contracts::canonical_digest(&action_order_a).unwrap(),
+            rightkit_evidence_contracts::canonical_digest(&action_order_b).unwrap()
         );
     }
 

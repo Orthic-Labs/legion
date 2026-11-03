@@ -1,6 +1,6 @@
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_arcane::{
+use rightkit_evidence_governance::{
     inspect_projection, state_root, BudgetGovernanceStore, KeyRing, TaskBudgetSealStore,
 };
 use serde_json::json;
@@ -109,7 +109,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
     }))
 }
 
-fn map_arcane_error(error: legion_arcane::ArcaneError) -> CommandError {
+fn map_arcane_error(error: rightkit_evidence_governance::GovernanceError) -> CommandError {
     match error.code() {
         "ARC_AUTH_KEY_UNAVAILABLE" => CommandError::incomplete(error.to_string()),
         "ARC_BINDING_MISMATCH" | "ARC_STORE_MISSING" | "ARC_STORE_CORRUPT" => {

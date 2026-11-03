@@ -268,7 +268,7 @@ fn external_route_without_authorized_capability_cannot_claim_process_or_coverage
     fs::remove_dir_all(root).unwrap();
 }
 
-fn specification(id: &str) -> legion_contracts::ProviderSpec {
+fn specification(id: &str) -> rightkit_evidence_contracts::ProviderSpec {
     let contract = spec(id).unwrap();
     serde_json::from_value(json!({
         "schemaVersion":2, "id":id, "providerVersion":"2.0.0",

@@ -13,10 +13,10 @@ use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventoryEntry, InventoryEnvelope, InventorySource,
     NativeProviderRegistry,
 };
-use legion_effects::{
+use rightkit_evidence_effects::{
     ArtifactWriter, DigestState, ExecutableIdentity, SignatureState, VersionProbeEvidence,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
 use serde_json::{json, Value};
@@ -260,13 +260,13 @@ fn native_owner_denial_preserves_plan_report_binding_and_provider_coverage() {
     let inventory = inventory();
     let plan = plan(&inventory);
     #[cfg(unix)]
-    let process = legion_effects::platform::unix::UnixProcess::new();
+    let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
     #[cfg(windows)]
-    let process = legion_effects::platform::windows::WindowsProcess::default();
+    let process = rightkit_evidence_effects::platform::windows::WindowsProcess::default();
     let registry = NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(
-        legion_effects::EffectExecutor::new(
+        rightkit_evidence_effects::EffectExecutor::new(
             process,
-            legion_effects::ArtifactWriter::new(root.join("effects")),
+            rightkit_evidence_effects::ArtifactWriter::new(root.join("effects")),
             legion_audit::execution_policy::OwnerAdmissionRequired,
         ),
     ));
@@ -284,7 +284,7 @@ fn native_owner_denial_preserves_plan_report_binding_and_provider_coverage() {
     assert_eq!(execution.results.len(), 1);
     assert!(!execution.results[0].skipped);
     let result = &execution.results[0].result;
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(!result.complete);
     assert_eq!(
         result.details["availability"]["reason"],
@@ -300,7 +300,7 @@ fn native_owner_denial_preserves_plan_report_binding_and_provider_coverage() {
         plan.plan().bounds["executionPolicy"]
     );
     let report = legion_audit::canonical_report("repo", &execution).unwrap();
-    assert_eq!(report.status, legion_contracts::ReportStatus::Incomplete);
+    assert_eq!(report.status, rightkit_evidence_contracts::ReportStatus::Incomplete);
     assert_eq!(
         report.claims["executionPolicy"],
         plan.plan().bounds["executionPolicy"]
@@ -395,7 +395,7 @@ fn sandbox_refusal_is_typed_unavailable_not_a_failed_provider() {
         ))
         .unwrap();
     let result = &report.results[0].result;
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(!result.complete);
     assert!(
         result
@@ -559,7 +559,7 @@ fn managed_test_without_trust_has_no_start_receipt_or_tree_writes() {
         .unwrap();
     let result = &report.results[0].result;
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(result.findings.is_empty());
     assert!(result
         .coverage_gaps
@@ -626,7 +626,7 @@ fn malformed_enrollment_fails_before_copy_or_client_call() {
         .unwrap();
     let result = &report.results[0].result;
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Failed);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
     assert!(result
         .coverage_gaps
         .iter()
@@ -648,7 +648,7 @@ fn malformed_enrollment_fails_before_copy_or_client_call() {
         .with_attested_runs(invalid)
         .execute(plan.provider("legacy.quality.test").unwrap(), &inventory)
         .unwrap();
-    assert_eq!(sync_result.status, legion_contracts::ProviderStatus::Failed);
+    assert_eq!(sync_result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
     assert!(sync_result
         .coverage_gaps
         .iter()
@@ -689,7 +689,7 @@ fn missing_attested_client_is_typed_unavailable_before_copy_or_tool_call() {
         .unwrap();
     let result = &report.results[0].result;
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(result
         .coverage_gaps
         .iter()
@@ -763,7 +763,7 @@ fn enrolled_runner_registration_and_version_gaps_do_not_copy_or_launch() {
             .unwrap();
         let result = &report.results[0].result;
         assert!(!result.complete);
-        assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+        assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
         assert!(result
             .coverage_gaps
             .iter()
@@ -841,7 +841,7 @@ fn enrolled_managed_test_requires_admission_before_git_inventory_or_copy() {
     assert_eq!(execution.results.len(), 1);
     let result = &execution.results[0].result;
     assert!(!result.complete);
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert_eq!(
         result.details["availability"]["reason"],
         legion_audit::execution_policy::ADMISSION_UNAVAILABLE

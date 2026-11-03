@@ -6,8 +6,8 @@ use crate::{
     execute_with_cancellation, AuditPlan, FilesystemInventorySource, InventorySource,
     NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ArtifactRecord, PolicyAuthorizer, PolicyDecision};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ArtifactRecord, PolicyAuthorizer, PolicyDecision};
 use std::{
     fs,
     sync::{Arc, Mutex},
@@ -101,23 +101,23 @@ pub(super) fn authenticate_qualification_sandbox(
     executable: &str,
     args: &[String],
     cwd: &str,
-) -> Option<Result<legion_effects::SandboxAuthentication, legion_effects::SandboxGap>> {
+) -> Option<Result<rightkit_evidence_effects::SandboxAuthentication, rightkit_evidence_effects::SandboxGap>> {
     if !qualification_applies(ctx.dotnet_qualification_loopback, ctx.provider_id, task) {
         return None;
     }
     Some((|| {
         let wrapper = Path::new("/usr/bin/sandbox-exec");
         if !wrapper.is_file() {
-            return Err(legion_effects::SandboxGap::ToolMissing);
+            return Err(rightkit_evidence_effects::SandboxGap::ToolMissing);
         }
         let profile = qualification_profile(Path::new(cwd), task);
         let hash = sha256_text(profile.as_bytes());
         let hash = hash.trim_start_matches("sha256:");
         let path = ctx.scratch.sandbox_dir().join(format!("audit-{hash}.sb"));
         fs::create_dir_all(ctx.scratch.sandbox_dir())
-            .map_err(|e| legion_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
+            .map_err(|e| rightkit_evidence_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
         fs::write(&path, &profile)
-            .map_err(|e| legion_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
+            .map_err(|e| rightkit_evidence_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
         let mut wrapped_args = vec!["-f".into(), string(&path), "--".into(), executable.into()];
         wrapped_args.extend_from_slice(args);
         // VSTest propagates diagnostics to testhost; retain both logs in this
@@ -126,7 +126,7 @@ pub(super) fn authenticate_qualification_sandbox(
             "--diag".into(),
             string(&ctx.scratch.cache_dir().join("dotnet-control/vstest.log")),
         ]);
-        Ok(legion_effects::SandboxAuthentication {
+        Ok(rightkit_evidence_effects::SandboxAuthentication {
             id: format!("sandbox:macos:{hash}"),
             network: true,
             filesystem_scope: Some(cwd.into()),
@@ -787,7 +787,7 @@ impl ExactPolicy {
             sandbox: if self.absent {
                 None
             } else {
-                Some(legion_effects::SandboxReceipt {
+                Some(rightkit_evidence_effects::SandboxReceipt {
                     id: format!(
                         "sandbox:macos:{}",
                         sha256_text(self.profile_text(task).as_bytes())
@@ -1064,15 +1064,15 @@ fn case(base: &Path, retained: &Path, enrollment: &Value, language: &str, contro
     let original = drift.as_ref().map(|p| fs::read(p).ok());
     let restoration = RestoreInput(drift.clone().zip(original.clone()));
     let actual: Arc<dyn ExternalProjectTool> = if control == "rejected-admission" {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             crate::execution_policy::OwnerAdmissionRequired,
         ))
     } else {
-        Arc::new(legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+        Arc::new(rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
             Shared(policy.clone()),
         ))
     };
@@ -1275,7 +1275,7 @@ fn boundary_controls(
                 request.accepted_exit_codes.insert(42);
             }
             "shell" => request.shell = true,
-            "origin" => request.origin = legion_effects::ToolOrigin::System,
+            "origin" => request.origin = rightkit_evidence_effects::ToolOrigin::System,
             "sandbox" => request.sandbox.as_mut().unwrap().network = false,
             _ => panic!(),
         }
@@ -1289,9 +1289,9 @@ fn boundary_controls(
             decisions: Mutex::new(Vec::new()),
             absent: false,
         });
-        let effect = legion_effects::EffectExecutor::new(
-            legion_effects::platform::unix::UnixProcess::new(),
-            legion_effects::ArtifactWriter::new(baseline.scratch.artifacts_dir()),
+        let effect = rightkit_evidence_effects::EffectExecutor::new(
+            rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+            rightkit_evidence_effects::ArtifactWriter::new(baseline.scratch.artifacts_dir()),
             Shared(policy.clone()),
         );
         let receipt =
@@ -1317,9 +1317,9 @@ fn boundary_controls(
     });
     let mut request = source.clone();
     request.sandbox = None;
-    let effect = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(baseline.scratch.artifacts_dir()),
+    let effect = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(baseline.scratch.artifacts_dir()),
         Shared(policy.clone()),
     );
     let receipt =
@@ -1386,20 +1386,12 @@ fn original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls() {
     let mut source_binding = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "scripts/ci/provision-dotnet-qualification-tools.py",
         "scripts/ci/audit-dotnet-sdk-accuracy.py",
         "scripts/ci/run-dotnet-sdk-qualification-child.py",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         "engine/Cargo.toml",
         "engine/Cargo.lock",
         "engine/rust-toolchain.toml",

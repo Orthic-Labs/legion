@@ -6,7 +6,7 @@
 
 use std::{collections::BTreeMap, path::PathBuf};
 
-use legion_contracts::{Coverage, FindingRef, ProviderStatus};
+use rightkit_evidence_contracts::{Coverage, FindingRef, ProviderStatus};
 use serde_json::Value;
 
 use crate::{inventory::InventoryDenominator, plan::AuditProvider};

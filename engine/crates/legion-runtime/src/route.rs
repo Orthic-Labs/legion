@@ -1,4 +1,4 @@
-use legion_contracts::{AgentDefinition, InvocationGrant, ProviderId};
+use rightkit_evidence_contracts::{AgentDefinition, InvocationGrant, ProviderId};
 
 use crate::error::RuntimeError;
 

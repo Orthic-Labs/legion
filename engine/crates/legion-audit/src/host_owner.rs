@@ -35,7 +35,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use legion_effects::{
+use rightkit_evidence_effects::{
     owner_process::{InvocationClass, OwnerProcess},
     sandbox_runtime::{EnforcedExecPolicy, ExecHardening, RightKitSandboxRuntime},
     EffectError,
@@ -49,7 +49,7 @@ use crate::owner_admission::{
     PlanBinding, TrustedOwner,
 };
 use crate::profiles::RuntimeConstraint;
-use legion_effects::SandboxReceipt;
+use rightkit_evidence_effects::SandboxReceipt;
 
 pub const POLICY_FILE: &str = "audit-owner-policy.json";
 pub const OWNER_ID: &str = "legion-host-policy-owner";
@@ -510,7 +510,7 @@ impl TrustedOwner for HostPolicyOwner {
 #[cfg(unix)]
 fn read_trusted_policy(path: &Path, audited: &[PathBuf]) -> Result<Vec<u8>, String> {
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
-    let uid = legion_effects::sandbox_runtime::effective_uid();
+    let uid = rightkit_evidence_effects::sandbox_runtime::effective_uid();
     let canonical = std::fs::canonicalize(path).map_err(|e| e.to_string())?;
     if canonical != path {
         return Err("policy path must be canonical (no symlinks)".into());
@@ -526,7 +526,7 @@ fn read_trusted_policy(path: &Path, audited: &[PathBuf]) -> Result<Vec<u8>, Stri
     // O_NOFOLLOW + fstat on the opened handle closes the check/use gap.
     let mut file = std::fs::OpenOptions::new()
         .read(true)
-        .custom_flags(legion_effects::sandbox_runtime::o_nofollow())
+        .custom_flags(rightkit_evidence_effects::sandbox_runtime::o_nofollow())
         .open(&canonical)
         .map_err(|e| e.to_string())?;
     let meta = file.metadata().map_err(|e| e.to_string())?;

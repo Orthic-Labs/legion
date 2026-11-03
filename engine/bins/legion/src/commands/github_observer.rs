@@ -3,7 +3,7 @@ use super::{
     engineering::{self, ObserveArgs},
     CommandError, CommandResult,
 };
-use legion_provider_sdk::{
+use rightkit_code_audit_provider_sdk::{
     github::{GitHubObservation, GitHubObserver, GitHubObserverLimits},
     EnvironmentSecretProvider, ScopedCredentialAuthorizer,
 };
@@ -525,7 +525,7 @@ fn normalize_checks(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use legion_provider_sdk::github::GitHubObservationCompleteness;
+    use rightkit_code_audit_provider_sdk::github::GitHubObservationCompleteness;
     fn observation() -> GitHubObservation {
         GitHubObservation {
             repository: "owner/repo".into(),

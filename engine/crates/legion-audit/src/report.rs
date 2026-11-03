@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     Finding, FindingId, LiftContext, ReportId, ReportScope, ReportStatus, ReportV1, ReportV2,
 };
 use serde_json::{json, Value};
@@ -456,7 +456,7 @@ fn detail_string(
 mod tests {
     use super::*;
     use crate::execution::ProviderExecution;
-    use legion_contracts::{Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus};
+    use rightkit_evidence_contracts::{Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus};
 
     fn execution(results: Vec<ProviderExecution>) -> ExecutionReport {
         ExecutionReport {

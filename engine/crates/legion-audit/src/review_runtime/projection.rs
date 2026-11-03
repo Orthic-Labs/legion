@@ -304,8 +304,8 @@ pub(crate) fn evidence(request: &ReasoningInvocation) -> Result<Value, AuditErro
     }
     Ok(
         json!({"encoding":ENCODING,"manifest":manifest,"packet":packet,
-        "projectedPacketBytes":legion_contracts::canonical_json_bytes(&packet).map_err(|error|invalid(error.to_string()))?.len(),
-        "logicalReconstructedPacketBytes":legion_contracts::canonical_json_bytes(&request.packet).map_err(|error|invalid(error.to_string()))?.len()}),
+        "projectedPacketBytes":rightkit_evidence_contracts::canonical_json_bytes(&packet).map_err(|error|invalid(error.to_string()))?.len(),
+        "logicalReconstructedPacketBytes":rightkit_evidence_contracts::canonical_json_bytes(&request.packet).map_err(|error|invalid(error.to_string()))?.len()}),
     )
 }
 

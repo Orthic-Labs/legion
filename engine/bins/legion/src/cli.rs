@@ -346,7 +346,7 @@ struct M1CompositionConfig {
     release_binding: M1BindingConfig,
     catalog_root: PathBuf,
     catalog_index_path: PathBuf,
-    policy_pack: legion_policy_model::PolicyPack,
+    policy_pack: rightkit_policy_rules::model::PolicyPack,
     providers: Vec<M1ProviderConfig>,
 }
 
@@ -1323,7 +1323,7 @@ impl legion_mcp::NativeApi for M1McpApi {
         let Some(context) = arguments.get("policyContext") else {
             return Err(legion_mcp::McpError::InvalidParams);
         };
-        serde_json::from_value::<legion_policy_model::PolicyContext>(context.clone())
+        serde_json::from_value::<rightkit_policy_rules::model::PolicyContext>(context.clone())
             .map(|_| ())
             .map_err(|_| legion_mcp::McpError::InvalidParams)
     }

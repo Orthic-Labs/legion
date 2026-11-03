@@ -15,7 +15,7 @@ use legion_audit::profiles::{
     classify_runtime, validate_runtime_closure, AuditProfile, FrozenProfile, LaunchStep,
     LaunchStepKind, RuntimeClass, RuntimeClosure, RuntimeConstraint,
 };
-use legion_contracts::Coverage;
+use rightkit_evidence_contracts::Coverage;
 use serde_json::Value;
 
 const NOW: &str = "2026-10-23T00:00:00Z";

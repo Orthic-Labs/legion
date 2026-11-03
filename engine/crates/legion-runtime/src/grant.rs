@@ -1,4 +1,4 @@
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     AgentDefinition, BudgetCeiling, InvocationGrant, RoutingCeiling, ToolCeiling,
 };
 
@@ -6,8 +6,8 @@ use crate::error::RuntimeError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EffectiveGrant {
-    pub agent_id: legion_contracts::AgentId,
-    pub task_id: legion_contracts::TaskId,
+    pub agent_id: rightkit_evidence_contracts::AgentId,
+    pub task_id: rightkit_evidence_contracts::TaskId,
     pub capabilities: Vec<String>,
     pub tools: ToolCeiling,
     pub budget: BudgetCeiling,

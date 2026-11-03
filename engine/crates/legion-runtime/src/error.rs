@@ -9,7 +9,7 @@ pub enum RuntimeError {
     Plan(String),
     Budget(String),
     Scheduler(String),
-    Provider(legion_provider_sdk::ProviderError),
+    Provider(rightkit_code_audit_provider_sdk::ProviderError),
     Escalation(String),
     Cancelled,
     DeadlineExceeded,
@@ -45,14 +45,14 @@ impl fmt::Display for RuntimeError {
 
 impl std::error::Error for RuntimeError {}
 
-impl From<legion_provider_sdk::ProviderError> for RuntimeError {
-    fn from(error: legion_provider_sdk::ProviderError) -> Self {
+impl From<rightkit_code_audit_provider_sdk::ProviderError> for RuntimeError {
+    fn from(error: rightkit_code_audit_provider_sdk::ProviderError) -> Self {
         Self::Provider(error)
     }
 }
 
-impl From<legion_contracts::ContractError> for RuntimeError {
-    fn from(error: legion_contracts::ContractError) -> Self {
+impl From<rightkit_evidence_contracts::ContractError> for RuntimeError {
+    fn from(error: rightkit_evidence_contracts::ContractError) -> Self {
         Self::Contract(error.to_string())
     }
 }

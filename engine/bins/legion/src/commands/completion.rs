@@ -1,9 +1,9 @@
 //! Authenticated completion claim and Oracle evidence persistence.
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use legion_arcane::receipt_auth::{sign_record, verify_record};
-use legion_arcane::{AuthorityInvocationProofIssuer, KeyRing, ReceiptStore, SessionBindingStore};
-use legion_contracts::canonical_digest;
+use rightkit_evidence_governance::receipt_auth::{sign_record, verify_record};
+use rightkit_evidence_governance::{AuthorityInvocationProofIssuer, KeyRing, ReceiptStore, SessionBindingStore};
+use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -81,7 +81,7 @@ fn hash(s: &str) -> String {
     hex::encode(h.finalize())
 }
 fn seal(root: &Path, b: &Value) -> Result<Value, CommandError> {
-    let p = legion_arcane::state_paths::state_file(
+    let p = rightkit_evidence_governance::state_paths::state_file(
         &root.join(".audit/arcane/contract-seals"),
         "arcane.contract-seal.key.v1",
         &[

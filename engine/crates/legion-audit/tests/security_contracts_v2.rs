@@ -12,7 +12,7 @@ use legion_audit::native_providers::reasoning::{
         SecurityAdjudicationError, SecurityCandidateV2, SecurityVerdictInput, SecurityVerdictKind,
     },
 };
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     enums::{EvidenceStrength, EVIDENCE_STRENGTH},
     FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };

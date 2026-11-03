@@ -260,7 +260,7 @@ impl ProvenanceVerifier for HostEvidenceVerifier {
 #[cfg(unix)]
 fn read_trusted(path: &Path, audited: &[PathBuf]) -> Result<Vec<u8>, String> {
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
-    let uid = legion_effects::sandbox_runtime::effective_uid();
+    let uid = rightkit_evidence_effects::sandbox_runtime::effective_uid();
     let canonical = std::fs::canonicalize(path).map_err(|e| e.to_string())?;
     if canonical != path {
         return Err("issuer enrollment path must be canonical (no symlinks)".into());
@@ -279,7 +279,7 @@ fn read_trusted(path: &Path, audited: &[PathBuf]) -> Result<Vec<u8>, String> {
     }
     let mut file = std::fs::OpenOptions::new()
         .read(true)
-        .custom_flags(legion_effects::sandbox_runtime::o_nofollow())
+        .custom_flags(rightkit_evidence_effects::sandbox_runtime::o_nofollow())
         .open(&canonical)
         .map_err(|e| e.to_string())?;
     let meta = file.metadata().map_err(|e| e.to_string())?;

@@ -758,7 +758,7 @@ mod owned_bridge {
         owner_admission::{NativeAuthorizer, PlanBinding},
         profiles::RuntimeConstraint,
     };
-    use legion_effects::{
+    use rightkit_evidence_effects::{
         owner_process::{ContainedRuntime, ContainmentProfile, InvocationClass, OwnerProcess},
         platform::{ProcessFuture, ProcessLaunch, ProcessOutput},
         receipt::ProcessTreeEvidence,

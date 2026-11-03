@@ -1,20 +1,20 @@
 //! A14 canonical source-anchor fixtures (RULE-FIXTURES ANCHOR-01..09) & safe
 //! PR projection, exercised on production entry points:
-//! `legion_contracts::position_anchor_canonical`, the `source_anchor`
+//! `rightkit_evidence_contracts::position_anchor_canonical`, the `source_anchor`
 //! validation/projection helpers, `ReportV2` v1/v2 round-trips &
-//! `legion_report::render_github_review`.
+//! `rightkit_evidence_report::render_github_review`.
 //!
 //! Authored under the edit-only worker rules; root integration executes.
 
 use std::collections::BTreeMap;
 
-use legion_contracts::source_anchor::{
+use rightkit_evidence_contracts::source_anchor::{
     build_evidence, derive_position, line_byte_range, locate_span, project_to_pr, propose_reanchor,
     safe_snapshot_path, validate_evidence_against_bytes, AnchorValidation, ByteRange, PrDiff,
     PrDiffFile, PrProjection, PrProjectionReason, ReanchorOutcome, SourceSide, SpanLocation,
 };
-use legion_contracts::{
-    position_anchor_canonical, DiffTag, Finding, FindingId, LiftContext, LineRange, Report,
+use rightkit_evidence_contracts::{
+    position_anchor_canonical, CanonicalAnchorParams, DiffTag, Finding, FindingId, LiftContext, LineRange, Report,
     ReportId, ReportScope, ReportStatus, ReportV2,
 };
 use serde_json::{json, Value};
@@ -28,7 +28,7 @@ fn evidence_for(
     side: SourceSide,
     bytes: &[u8],
     range: LineRange,
-) -> legion_contracts::source_anchor::SourceAnchorEvidence {
+) -> rightkit_evidence_contracts::source_anchor::SourceAnchorEvidence {
     build_evidence(
         path,
         side,
@@ -156,17 +156,17 @@ fn anchor03_repeated_snippet_is_ambiguous() {
     );
     // Byte-exact identity still anchors the first span when its bytes and
     // offset are what is claimed, via position (not text search).
-    let (anchor, canonical) = position_anchor_canonical(
-        "src/a.rs",
-        2,
-        2,
-        None,
-        Some(bytes),
-        Some(DiffTag::InDiff),
-        SourceSide::Selected,
-        None,
-        Some("snap-1"),
-    );
+    let (anchor, canonical) = position_anchor_canonical(CanonicalAnchorParams {
+        path: "src/a.rs",
+        start: 2,
+        end: 2,
+        claimed_hash: None,
+        bytes: Some(bytes),
+        diff: Some(DiffTag::InDiff),
+        side: SourceSide::Selected,
+        repository: None,
+        snapshot_key: Some("snap-1"),
+    });
     assert!(!anchor.failed());
     assert_eq!(canonical.unwrap().byte_range.start, 9);
 }
@@ -246,7 +246,7 @@ fn anchor06_beyond_diff_finding_remains_in_summary() {
     let report = canonical_report("src/caller.rs:2", b"fn caller() {\n    target();\n}\n");
     // Caller unchanged in the PR: no prDiff entry for it at all.
     let payload: Value =
-        serde_json::from_str(&legion_report::render_github_review(&report).unwrap()).unwrap();
+        serde_json::from_str(&rightkit_evidence_report::render_github_review(&report).unwrap()).unwrap();
     assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
     let body = payload["body"].as_str().unwrap();
     assert!(
@@ -498,17 +498,17 @@ fn canonical_report(location: &str, bytes: &[u8]) -> ReportV2 {
         !anchor.failed(),
         "fixture location must position: {location}"
     );
-    let (_, canonical) = position_anchor_canonical(
-        &anchor.path,
-        anchor.range.start,
-        anchor.range.end,
-        Some(&anchor.line_hash),
-        Some(bytes),
-        Some(DiffTag::InDiff),
-        SourceSide::Selected,
-        Some("repo"),
-        Some("snap-1"),
-    );
+    let (_, canonical) = position_anchor_canonical(CanonicalAnchorParams {
+        path: &anchor.path,
+        start: anchor.range.start,
+        end: anchor.range.end,
+        claimed_hash: Some(&anchor.line_hash),
+        bytes: Some(bytes),
+        diff: Some(DiffTag::InDiff),
+        side: SourceSide::Selected,
+        repository: Some("repo"),
+        snapshot_key: Some("snap-1"),
+    });
     report.findings[0]
         .set_source_anchor_evidence(&canonical.expect("canonical evidence"))
         .unwrap();
@@ -525,10 +525,10 @@ fn canonical_report_round_trips_and_review_stays_local_json() {
     }
     // Local JSON only: the payload is the review-request shape rendered to
     // a string; nothing here posts or installs anything.
-    let rendered = legion_report::render_github_review(&report).unwrap();
+    let rendered = rightkit_evidence_report::render_github_review(&report).unwrap();
     let payload: Value = serde_json::from_str(&rendered).unwrap();
     assert_eq!(payload["event"], json!("COMMENT"));
-    let review = legion_report::render_review(&report).unwrap();
+    let review = rightkit_evidence_report::render_review(&report).unwrap();
     assert!(review.contains("Canonical anchor:"));
     assert!(review.contains("side `selected`"));
 }

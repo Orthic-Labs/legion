@@ -281,6 +281,7 @@ fn record_round_trips_additive_assurance() {
 fn init_state_root() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
+        legion_identity::declare();
         let dir = std::env::temp_dir().join(format!("legion-fh-state-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let dir = dir.canonicalize().unwrap();
@@ -447,7 +448,7 @@ fn expired_acceptance_is_explicit() {
 mod finalization {
     use super::*;
     use legion_audit::p12_pipeline::store::{make_finding, FindingDraft, FindingStore};
-    use legion_contracts::{ReportId, ReportStatus, ReportV1};
+    use rightkit_evidence_contracts::{ReportId, ReportStatus, ReportV1};
     use serde_json::json;
 
     fn seeded(tag: &str) -> (PathBuf, FindingStore, String) {

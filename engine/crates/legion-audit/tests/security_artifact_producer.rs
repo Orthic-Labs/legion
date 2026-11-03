@@ -14,7 +14,7 @@ use legion_audit::{
     },
     AuditProvider, FilesystemInventorySource, InventoryEnvelope, InventorySource, ProviderExecutor,
 };
-use legion_contracts::ProviderResult;
+use rightkit_evidence_contracts::ProviderResult;
 use serde_json::{json, Value};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -78,8 +78,8 @@ fn bare(root: &Path) -> ArtifactProducer {
 
 fn admitted_fixture(root: &Path) -> ArtifactProducer {
     ArtifactProducer::new(root).with_policy_authorizer(std::sync::Arc::new(
-        legion_effects::StaticPolicy {
-            decision: legion_effects::PolicyDecision {
+        rightkit_evidence_effects::StaticPolicy {
+            decision: rightkit_evidence_effects::PolicyDecision {
                 allowed: true,
                 policy_id: "scanner-fixture".into(),
                 policy_version: 1,
@@ -368,7 +368,7 @@ fn default_admission_denies_scanner_version_probe_and_target_even_without_sandbo
         !marker.exists(),
         "neither --version nor target command may run"
     );
-    assert_eq!(result.status, legion_contracts::ProviderStatus::Partial);
+    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
     assert!(!result.complete);
     assert_eq!(
         result.details["availability"]["reason"],
@@ -516,7 +516,7 @@ fn flagged_findings_carry_evidence_and_locations_without_the_value() {
     // It ran and found something: partial with coverage, never failed.
     assert_ne!(
         result.status,
-        legion_contracts::ProviderStatus::Failed,
+        rightkit_evidence_contracts::ProviderStatus::Failed,
         "{:?}",
         result.coverage_gaps
     );
@@ -540,7 +540,7 @@ fn source_inventory_never_substitutes_for_native_dual_sbom() {
     // Provenance cannot come from a source tree: the gap stays visible.
     assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
     assert!(!result.complete);
-    assert_ne!(result.status, legion_contracts::ProviderStatus::Failed);
+    assert_ne!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
 }
 
 #[test]
@@ -564,7 +564,7 @@ fn unavailable_osv_still_reports_the_selected_manifests() {
     );
     assert_eq!(analysis(&result)["denominator"]["expected"], json!(1));
     assert_eq!(analysis(&result)["denominator"]["examined"], json!(0));
-    assert_ne!(result.status, legion_contracts::ProviderStatus::Failed);
+    assert_ne!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
 }
 
 #[test]

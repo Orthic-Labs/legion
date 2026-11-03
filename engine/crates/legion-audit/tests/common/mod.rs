@@ -7,7 +7,7 @@ use legion_audit::native_providers::reasoning::{
     ingest::{mint_runtime_delivery, mint_runtime_verification},
     ReasoningInvocation,
 };
-use legion_contracts::{canonical_digest, canonical_json_bytes};
+use rightkit_evidence_contracts::{canonical_digest, canonical_json_bytes};
 use serde_json::{json, Value};
 use std::{
     path::Path,

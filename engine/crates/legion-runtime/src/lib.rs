@@ -29,7 +29,7 @@ pub use engine::{
 pub use error::RuntimeError;
 pub use escalation::{validate_target, EscalationGrant};
 pub use grant::EffectiveGrant;
-pub use legion_contracts::{
+pub use rightkit_evidence_contracts::{
     AgentDefinition, BudgetCeiling, InvocationGrant as CapabilityGrant, TaskSpec,
 };
 pub use plan::{compile_plan, FrozenPlan};

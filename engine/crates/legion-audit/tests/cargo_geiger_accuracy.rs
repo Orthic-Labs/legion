@@ -7,9 +7,9 @@ use legion_audit::{
     native_providers::legacy_checks::{resolve_request, AuditExternalProjectTool, AuditScratch},
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::ProviderSpec;
-use legion_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
-use legion_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -203,20 +203,12 @@ fn binding(id: &str, fixtures: &BTreeMap<String, String>) -> Value {
     let mut sources = BTreeMap::new();
     for path in [
         "engine/crates/legion-audit/src",
-        "engine/crates/legion-effects/src",
-        "engine/crates/legion-provider-sdk/src",
-        "engine/crates/legion-contracts/src",
-        "engine/crates/legion-rules/src",
         "src/registry/rules",
         "src/registry/controls",
         "engine/Cargo.toml",
         "engine/Cargo.lock",
         "engine/rust-toolchain.toml",
         "engine/crates/legion-audit/Cargo.toml",
-        "engine/crates/legion-effects/Cargo.toml",
-        "engine/crates/legion-provider-sdk/Cargo.toml",
-        "engine/crates/legion-contracts/Cargo.toml",
-        "engine/crates/legion-rules/Cargo.toml",
         SOURCE,
         FIXTURES,
     ] {
@@ -447,7 +439,7 @@ fn artifact(receipt: &Value, stream: &str, scratch: &AuditScratch) -> Vec<u8> {
     bytes
 }
 
-fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
+fn retained(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -> Value {
     let bytes = fs::read(root.join(&artifact.path)).unwrap();
     assert!(artifact.immutable);
     assert_eq!(digest(&bytes), artifact.digest);
@@ -455,7 +447,7 @@ fn retained(root: &Path, artifact: &legion_effects::ArtifactRecord) -> Value {
     json!({"path": artifact.path, "digest": artifact.digest, "bytes": artifact.bytes, "immutable": artifact.immutable, "raw": String::from_utf8(bytes).unwrap()})
 }
 /// Exact field projection of actual EffectExecutor receipt; no inferred process proof.
-fn receipt_json(receipt: &legion_effects::ExecutionReceipt, artifacts: &Path) -> Value {
+fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt, artifacts: &Path) -> Value {
     json!({"schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id, "planId": receipt.plan_id,
         "policyId": receipt.policy_id, "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),
@@ -641,9 +633,9 @@ fn case(base: &Path, control: &str) -> Value {
         accepted_exits: [0, 1, 2].into_iter().collect(),
         decisions: Mutex::new(Vec::new()),
     });
-    let effects = legion_effects::EffectExecutor::new(
-        legion_effects::platform::unix::UnixProcess::new(),
-        legion_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+    let effects = rightkit_evidence_effects::EffectExecutor::new(
+        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
         SharedPolicy(policy.clone()),
     );
     let receipts = Arc::new(Mutex::new(Vec::new()));
@@ -721,7 +713,7 @@ fn case(base: &Path, control: &str) -> Value {
         if control == "process-error" {
             assert_eq!(actual["exitCode"], 1);
             // Accepted process completion retains Ok; coverage proves analysis incomplete.
-            assert_eq!(result.status, legion_contracts::ProviderStatus::Ok);
+            assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Ok);
             assert!(!result.complete && candidates.is_empty());
             assert_eq!(
                 result.coverage_gaps,

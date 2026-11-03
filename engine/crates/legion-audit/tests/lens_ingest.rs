@@ -20,7 +20,7 @@ use legion_audit::{
     canonical_report, execute, AuditError, AuditPlan, AuditProvider, FilesystemInventorySource,
     FrozenPlan, InventoryEnvelope, InventorySource, ProviderExecutor, ProviderKind,
 };
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     canonical_digest, Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
     ReportStatus,
 };

@@ -14,7 +14,7 @@ fn catalog_is_available_without_xcode_or_account_credentials() {
     let output = apple(&["catalog"]);
     assert!(output.status.success(), "{output:?}");
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["backend"], "rightkit-apple-ops");
+    assert_eq!(value["backend"], "legion-apple");
     assert!(value["operations"]["mobile"]["operations"].is_array());
 }
 

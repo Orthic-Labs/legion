@@ -16,7 +16,7 @@ use accuracy_receipt::CaseObservation;
 use legion_audit::{
     execute, AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use legion_contracts::{ProviderResult, ProviderSpec};
+use rightkit_evidence_contracts::{ProviderResult, ProviderSpec};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 

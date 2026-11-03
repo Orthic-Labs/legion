@@ -1,7 +1,7 @@
 //! Bind cargo-outdated's one executed root package to its selected frozen lockfile.
 use super::{AuditScratch, LegacyCheckExecution, LegacyCheckInput, LegacyCheckProcessState};
 use crate::inventory::InventoryEnvelope;
-use legion_contracts::{Coverage, ProviderStatus};
+use rightkit_evidence_contracts::{Coverage, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{

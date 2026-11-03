@@ -12,7 +12,7 @@
 
 use serde_json::{Map, Value};
 
-use legion_contracts::canonical_digest;
+use rightkit_evidence_contracts::canonical_digest;
 
 const OMIT: [&str; 6] = [
     "generatedAt",
@@ -63,7 +63,7 @@ fn project(value: Value) -> Value {
 
 /// Port of `semanticProjection(value)`. Returns the projected (but not yet
 /// digested) canonical value; callers that need the digest itself should use
-/// `legion_contracts::canonical_digest` on the result, matching how the JS
+/// `rightkit_evidence_contracts::canonical_digest` on the result, matching how the JS
 /// `canonicalize()` call was only ever used to feed a digest in this repo.
 pub fn semantic_projection(value: Value) -> Value {
     project(value)

@@ -5,7 +5,7 @@
 //! integration owner must run them after workspace compilation and record
 //! receipts in `migration/native-rust/acceptance-report.json`.
 
-use legion_contracts::{
+use rightkit_evidence_contracts::{
     canonical_equal, derived_id_string, AgentId, BudgetCeiling, InvocationGrant, Plan, PlanId,
     PlanNode, PlanNodeKind, ProviderId, ProviderResult, ProviderStatus,
 };

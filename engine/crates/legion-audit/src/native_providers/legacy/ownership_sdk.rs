@@ -10,8 +10,8 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use legion_contracts::{ProviderResult, ProviderStatus};
-use legion_provider_sdk::{ExecutionReceipt, ExternalProjectTool, ExternalToolRequest};
+use rightkit_evidence_contracts::{ProviderResult, ProviderStatus};
+use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool, ExternalToolRequest};
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
@@ -354,7 +354,7 @@ pub async fn execute(
                     vec![root.to_string_lossy().into_owned(), "--inputs".into()]
                 },
                 cwd: root.to_string_lossy().into_owned(),
-                origin: legion_effects::ToolOrigin::System,
+                origin: rightkit_evidence_effects::ToolOrigin::System,
                 expected_digest: Some(owner.executable_digest.clone()),
                 skip_version_probe: true,
                 stdout_limit: LIMIT,

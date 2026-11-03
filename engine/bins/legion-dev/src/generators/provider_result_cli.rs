@@ -1,4 +1,4 @@
-//! CLI surface over `legion_contracts::provider_result`, ported from
+//! CLI surface over `rightkit_evidence_contracts::provider_result`, ported from
 //! `scripts/normalize-provider-result.mjs`'s direct-run self-test block
 //! (the JS file is a library; run directly it prints
 //! `OK: normalize-provider-result.mjs self-test passed`) plus a
@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use legion_contracts::provider_result::{normalize_provider_result, validate_provider_result};
+use rightkit_evidence_contracts::provider_result::{normalize_provider_result, validate_provider_result};
 use serde_json::json;
 
 fn read_json(path: &Path) -> Result<serde_json::Value, String> {

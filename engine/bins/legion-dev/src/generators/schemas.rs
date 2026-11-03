@@ -1,7 +1,7 @@
 //! Port of `scripts/generate-schemas.mjs`.
 //!
 //! Generates the three committed JSON schemas from the code-owned contract
-//! enums in `legion_contracts::enums` so runtime validators and generated
+//! enums in `rightkit_evidence_contracts::enums` so runtime validators and generated
 //! JSON schemas can never drift. `--check` fails when a committed schema
 //! differs from what the enums generate; without `--check` it (re)writes
 //! each schema and prints `wrote <path>`.
@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-use legion_contracts::enums::{EVIDENCE_STRENGTH, PROVIDER_STATUS, SECURITY_VERDICTS};
+use rightkit_evidence_contracts::enums::{EVIDENCE_STRENGTH, FACT_KINDS, PROVIDER_STATUS, SECURITY_VERDICTS};
 
 fn enum_arr(values: &[&str]) -> Value {
     Value::Array(values.iter().map(|s| Value::from(*s)).collect())
