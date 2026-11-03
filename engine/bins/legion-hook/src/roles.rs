@@ -65,11 +65,9 @@ fn load_tiers() -> Value {
 /// A prompt line that starts `Specialist reason:`, allowing list and quote markers before it.
 fn has_reason(prompt: &str) -> bool {
     let marker = |c: char| c.is_whitespace() || "-*>_#".contains(c);
-    let lines = prompt
+    prompt
         .lines()
-        .map(|line| line.trim_start_matches(marker).to_lowercase());
-    lines
-        .into_iter()
+        .map(|line| line.trim_start_matches(marker).to_lowercase())
         .any(|line| line.starts_with("specialist reason:"))
 }
 

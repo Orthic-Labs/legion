@@ -72,7 +72,7 @@ pub fn render(
         )
     };
     let rows = |keep: &dyn Fn(&Group) -> bool| -> Vec<String> {
-        groups.iter().filter(|g| keep(*g)).map(|g| row(g)).collect()
+        groups.iter().filter(|g| keep(*g)).map(&row).collect()
     };
     let mut out = header.to_owned();
     let warm = |g: &Group| g.fp.starts_with("warmth/");

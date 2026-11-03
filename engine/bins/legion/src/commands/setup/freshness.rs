@@ -5,7 +5,7 @@
 //!
 //! The check fails open: a version, tag or checkout that cannot be read leaves
 //! `behind` unknown and the setup status exactly as it was.
-use legion_effects::{PlatformProcess, ProcessLaunch};
+use rightkit_evidence_effects::{PlatformProcess, ProcessLaunch};
 use serde_json::Value;
 use std::{
     cmp::Ordering,
@@ -253,11 +253,11 @@ async fn run_tool(command: &str, args: Vec<String>, cwd: &Path) -> Option<String
         cancellation: CancellationToken::new(),
     };
     #[cfg(unix)]
-    let output = legion_effects::platform::unix::UnixProcess
+    let output = rightkit_evidence_effects::platform::unix::UnixProcess
         .run(launch)
         .await;
     #[cfg(windows)]
-    let output = legion_effects::platform::windows::WindowsProcess
+    let output = rightkit_evidence_effects::platform::windows::WindowsProcess
         .run(launch)
         .await;
     let output = output.ok()?;

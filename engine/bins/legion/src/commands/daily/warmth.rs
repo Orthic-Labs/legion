@@ -56,9 +56,8 @@ fn repo_of(workspace: &str) -> String {
 fn refusal(receipt: &Value) -> Option<String> {
     let text = |key: &str| receipt[key].as_str().unwrap_or("").trim_start();
     let first = |key: &str| {
-        let word =
-            text(key).split(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'));
-        word.into_iter()
+        text(key)
+            .split(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'))
             .next()
             .filter(|w| w.len() > 3 && (w.starts_with("RK_") || w.starts_with("RR_")))
     };
@@ -86,8 +85,11 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
             .as_str()
             .or(receipt["coldStartReason"].as_str());
         let explained = ["empty", "missing", "first", "new", "absent"];
-        let words = reason.unwrap_or("").split(['-', '_', ' ']);
-        if !words.into_iter().any(|word| explained.contains(&word)) {
+        if !reason
+            .unwrap_or("")
+            .split(['-', '_', ' '])
+            .any(|word| explained.contains(&word))
+        {
             *repo.odd.entry("unexplained-cold-starts").or_default() += 1;
         }
     }
