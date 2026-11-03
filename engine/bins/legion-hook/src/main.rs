@@ -2334,7 +2334,10 @@ fn is_plain_remote_word(word: &str) -> bool {
         && !word.starts_with(['-', '+', ':'])
         && word.chars().all(|character| {
             character.is_ascii_alphanumeric()
-                || matches!(character, '-' | '_' | '.' | '/' | '@' | ':' | '~' | '=' | '%')
+                || matches!(
+                    character,
+                    '-' | '_' | '.' | '/' | '@' | ':' | '~' | '=' | '%'
+                )
         })
 }
 
