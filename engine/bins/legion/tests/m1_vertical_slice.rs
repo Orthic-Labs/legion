@@ -187,6 +187,7 @@ fn fixture(with_body: bool) -> Fixture {
         portable_core_sha256: None,
         plugin_sha256: None,
         native_marketplaces: None,
+        source_revision: None,
     };
     fs::write(
         root.join("release.json"),
@@ -327,6 +328,7 @@ fn installed_composition_is_resolved_from_the_executable() {
         portable_core_sha256: None,
         plugin_sha256: None,
         native_marketplaces: None,
+        source_revision: None,
     };
     fs::write(
         share.join("release.json"),

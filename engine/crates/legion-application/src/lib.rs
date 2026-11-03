@@ -2743,6 +2743,7 @@ mod m1_tests {
             portable_core_sha256: None,
             plugin_sha256: None,
             native_marketplaces: None,
+            source_revision: None,
         };
         let manifest_path = root.join("release.json");
         fs::write(

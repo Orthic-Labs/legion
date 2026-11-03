@@ -370,6 +370,24 @@ pub struct AssembleArgs {
     pub provenance: Option<String>,
 }
 
+/// Legion's own git HEAD, 40 lowercase hex, for the release manifest's
+/// `sourceRevision`. `None` when git or the checkout is unavailable; the
+/// manifest field is optional, so assembly never fails on it.
+fn legion_source_revision(repository_root: &Path) -> Option<String> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repository_root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let revision = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .to_ascii_lowercase();
+    (revision.len() == 40 && revision.bytes().all(|b| b.is_ascii_hexdigit())).then_some(revision)
+}
+
 /// Rust port of `assemble-native-release.mjs`'s top-level script.
 pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> {
     let host_platform = if cfg!(target_os = "windows") {
@@ -669,6 +687,9 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
         "stateSchemaVersion": 1,
         "rightkitAx": { "version": "0.2.1", "sourceCommit": "4c1a414269d8ffdb95b4b1e685440bd34784b41b" },
     });
+    if let Some(revision) = legion_source_revision(repository_root) {
+        manifest["sourceRevision"] = Value::String(revision);
+    }
     write_json(&share.join("release.json"), &manifest)?;
     write_json(
         &share.join("composition.json"),

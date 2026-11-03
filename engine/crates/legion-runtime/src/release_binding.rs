@@ -174,6 +174,11 @@ pub struct ReleaseManifest {
     /// marketplace packaging was introduced.
     #[serde(default)]
     pub native_marketplaces: Option<NativeMarketplaceManifest>,
+    /// Legion's own git HEAD (40 lowercase hex) the release was assembled
+    /// from. Absent on releases assembled before the field existed, and then
+    /// omitted from the serialized manifest so older manifests keep their form.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_revision: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -387,6 +392,18 @@ impl ReleaseManifest {
         }
         if let Some(digest) = &self.plugin_sha256 {
             digest_field(path, "pluginSha256", digest)?;
+        }
+        if let Some(revision) = &self.source_revision {
+            if revision.len() != 40
+                || !revision
+                    .bytes()
+                    .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+            {
+                return invalid(
+                    path,
+                    "sourceRevision must be a 40-character lowercase hex git commit",
+                );
+            }
         }
         match (&self.plugin_sha256, &self.native_marketplaces) {
             (Some(_), Some(marketplaces)) => {
@@ -1385,6 +1402,7 @@ mod tests {
             portable_core_sha256: None,
             plugin_sha256: None,
             native_marketplaces: None,
+            source_revision: None,
         }
     }
 
@@ -1451,6 +1469,52 @@ mod tests {
         assert_eq!(marketplaces.plugin, "legion");
         assert_eq!(marketplaces.source_path, "./plugin");
         assert_eq!(marketplaces.files.len(), 2);
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn source_revision_is_optional_and_validated() {
+        let root = root();
+        let base = manifest(&root);
+        let path = Path::new("release.json");
+
+        // Without the field: parses, stays absent, and is not serialized.
+        let without = serde_json::to_value(&base).expect("serialize");
+        assert!(without.get("sourceRevision").is_none());
+        let parsed: ReleaseManifest =
+            json::from_slice(&serde_json::to_vec(&without).expect("encode")).expect("parse");
+        assert_eq!(parsed.source_revision, None);
+        parsed.validate(path).expect("absent revision validates");
+
+        // With a valid field: round-trips.
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let mut with = without.clone();
+        with["sourceRevision"] = serde_json::Value::String(revision.into());
+        let parsed: ReleaseManifest =
+            json::from_slice(&serde_json::to_vec(&with).expect("encode")).expect("parse");
+        assert_eq!(parsed.source_revision.as_deref(), Some(revision));
+        parsed.validate(path).expect("valid revision validates");
+        let reserialized = serde_json::to_value(&parsed).expect("serialize");
+        assert_eq!(reserialized["sourceRevision"], revision);
+
+        // Invalid values are rejected.
+        for bad in [
+            "",
+            "abc1234",
+            "0123456789ABCDEF0123456789ABCDEF01234567",
+            "0123456789abcdef0123456789abcdef0123456g",
+            "0123456789abcdef0123456789abcdef012345678",
+        ] {
+            let mut broken = base.clone();
+            broken.source_revision = Some(bad.into());
+            assert!(
+                matches!(
+                    broken.validate(path),
+                    Err(ReleaseBindingError::InvalidManifest { .. })
+                ),
+                "{bad:?} must be rejected"
+            );
+        }
         fs::remove_dir_all(root).expect("cleanup");
     }
 

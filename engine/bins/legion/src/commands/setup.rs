@@ -5537,6 +5537,7 @@ mod tests {
             portable_core_sha256: None,
             plugin_sha256: None,
             native_marketplaces: None,
+            source_revision: None,
         }
     }
 
