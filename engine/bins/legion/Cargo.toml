@@ -27,13 +27,14 @@ legion-handoff = { path = "../../crates/legion-handoff" }
 legion-mcp = { path = "../legion-mcp" }
 legion-host = { path = "../../crates/legion-host" }
 legion-harness = { path = "../../crates/legion-harness" }
-legion-minimize = { path = "../../crates/legion-minimize" }
 legion-policy = { path = "../../crates/legion-policy" }
 legion-policy-model = { path = "../../crates/legion-policy-model" }
 legion-provider-sdk = { path = "../../crates/legion-provider-sdk" }
 legion-report = { path = "../../crates/legion-report" }
 rightkit-research = "=0.1.1"
-legion-review = { path = "../../crates/legion-review" }
+rightkit-review = { version = "=0.4.1", default-features = false, features = ["code", "minimize"] }
+rightkit-code-audit-provider-sdk = "=0.1.0"
+rightkit-evidence-contracts = "=0.1.0"
 legion-rules = { path = "../../crates/legion-rules" }
 legion-runtime = { path = "../../crates/legion-runtime" }
 legion-topology = { path = "../../crates/legion-topology" }

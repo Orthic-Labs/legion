@@ -2252,19 +2252,20 @@ dependencies = [
  "legion-harness",
  "legion-host",
  "legion-mcp",
- "legion-minimize",
  "legion-policy",
  "legion-policy-model",
  "legion-provider-sdk",
  "legion-report",
- "legion-review",
  "legion-rules",
  "legion-runtime",
  "legion-topology",
  "reqwest",
  "rightkit-apple-ops",
  "rightkit-child-process 0.5.7",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
  "rightkit-research",
+ "rightkit-review",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -2487,19 +2488,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "legion-minimize"
-version = "0.3.23"
-dependencies = [
- "hex",
- "legion-runtime",
- "regex",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "legion-policy"
 version = "0.3.23"
 dependencies = [
@@ -2549,24 +2537,6 @@ version = "0.3.23"
 dependencies = [
  "legion-contracts",
  "serde_json",
-]
-
-[[package]]
-name = "legion-review"
-version = "0.3.23"
-dependencies = [
- "hex",
- "icu_normalizer",
- "legion-contracts",
- "legion-provider-sdk",
- "legion-runtime",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2 0.11.1",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -4085,6 +4055,23 @@ dependencies = [
  "serde_yaml",
  "sha2 0.11.1",
  "zip",
+]
+
+[[package]]
+name = "rightkit-review"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a49fb7d8d009050adcc02c1c77fad3ed653735effbaae02ca3c8f3b1ed10001"
+dependencies = [
+ "hex",
+ "icu_normalizer",
+ "regex",
+ "rightkit-code-audit-provider-sdk",
+ "rightkit-evidence-contracts",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

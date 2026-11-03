@@ -678,14 +678,6 @@
       "note": "OS, Cargo or CI-provided variable; selects no test mode, root, executable or identity by itself. S6 enum, same disposition as sibling RightKit inventories pending a class for OS and Cargo variables."
     },
     {
-      "name": "MINIMIZE_BASE_REF",
-      "class": "S6",
-      "channel": "env",
-      "anchor": "engine/crates/legion-minimize/src/git.rs:12",
-      "valueType": "enum",
-      "note": "Git base ref name for minimize; a ref selects a comparison base only."
-    },
-    {
       "name": "NIM_API_KEY",
       "class": "S2",
       "channel": "env",

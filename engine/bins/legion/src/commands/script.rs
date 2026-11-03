@@ -1859,8 +1859,10 @@ impl r46::cli::MinimizeGate for RealMinimizeGate {
         minimize_path: &std::path::Path,
         minimize_receipt: &std::path::Path,
     ) -> Result<(), String> {
-        let paths = legion_minimize::resolve_minimize_paths().map_err(|e| e.to_string())?;
-        legion_minimize::verify_decision(minimize_path, minimize_receipt, &paths)
+        let paths =
+            rightkit_review::minimize::resolve_minimize_paths(&super::minimize::release_roots())
+                .map_err(|e| e.to_string())?;
+        rightkit_review::minimize::verify_decision(minimize_path, minimize_receipt, &paths)
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
