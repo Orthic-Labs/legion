@@ -78,17 +78,5 @@ lopdf = "0.45.0"
 image = "0.25"
 scraper = "0.27.0"
 
-[profile.dev]
-# line-tables-only: full debuginfo dominates large-crate dev codegen; backtraces keep file:line
-debug = "line-tables-only"
-
-[profile.release-iterate]
-inherits = "release"
-opt-level = 1
-lto = false
-codegen-units = 16
-incremental = true
-strip = "none"
-
-[profile.release-iterate.package."*"]
-incremental = false
+[profile.release]
+panic = "unwind"
