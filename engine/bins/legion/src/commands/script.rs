@@ -323,8 +323,9 @@ fn alchemist_parse_events(args: &[String]) -> i32 {
 
 fn alchemist_viewer(args: &[String]) -> i32 {
     let home_dir = dirs_home();
-    let env_run_dir = std::env::var("ALCHEMIST_RUN_DIR").ok();
-    p9_skills::alchemist_viewer::run(args, &home_dir, env_run_dir.as_deref())
+    // The runs directory is `--runs-dir` or `~/.alchemist/runs`; the viewer takes
+    // no environment override (Orthic-Labs/legion#127).
+    p9_skills::alchemist_viewer::run(args, &home_dir, None)
 }
 
 fn dirs_home() -> std::path::PathBuf {
@@ -764,8 +765,7 @@ fn parse_bwt_args(args: &[String]) -> Result<w2_028::bing_webmaster::BwtArgs, St
 
 fn designer_live_inject(args: &[String]) -> i32 {
     let cwd = cwd();
-    let env_live_config = std::env::var("IMPECCABLE_LIVE_CONFIG").ok();
-    w2_018::inject::run(args, &cwd, None, env_live_config.as_deref())
+    w2_018::inject::run(args, &cwd, None, None)
 }
 
 fn designer_live_insert(args: &[String]) -> i32 {

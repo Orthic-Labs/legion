@@ -482,8 +482,7 @@ fn stop_server(project_root: &Path) -> StopServerState {
 /// from the current project. Injection config resolution does not depend on
 /// `server.json`, so this also repairs cleanup after a prior stop removed it.
 pub fn stop_running_server(project_root: &Path, keep_inject: bool) -> RunOutcome {
-    let env_live_config = env::var("IMPECCABLE_LIVE_CONFIG").ok();
-    stop_running_server_with_config(project_root, keep_inject, env_live_config.as_deref())
+    stop_running_server_with_config(project_root, keep_inject, None)
 }
 
 fn stop_running_server_with_config(

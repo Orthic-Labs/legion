@@ -37,13 +37,13 @@ pub fn candidate_browsers(
     }
 }
 
-/// Port of `findBrowser()`. `CHROME_PATH`/`QA_BROWSER` env override wins and must exist or this
+/// Port of `findBrowser()`. `CHROME_PATH` env override wins and must exist or this
 /// errors (qa.mjs lines 258-264); otherwise the first existing platform candidate wins.
 pub fn find_browser(fs: &dyn FsProbe, platform_is_windows: bool) -> Result<String, String> {
-    if let Some(over) = fs.env("CHROME_PATH").or_else(|| fs.env("QA_BROWSER")) {
+    if let Some(over) = fs.env("CHROME_PATH") {
         if !over.is_empty() {
             if !fs.exists(&over) {
-                return Err(format!("CHROME_PATH/QA_BROWSER set but not found: {over}"));
+                return Err(format!("CHROME_PATH set but not found: {over}"));
             }
             return Ok(over);
         }
@@ -135,10 +135,10 @@ mod tests {
     fn override_env_missing_path_errors() {
         let fs = FakeFs {
             existing: vec![],
-            env: HashMap::from([("QA_BROWSER".into(), "/nope".into())]),
+            env: HashMap::from([("CHROME_PATH".into(), "/nope".into())]),
         };
         let e = find_browser(&fs, false).unwrap_err();
-        assert_eq!(e, "CHROME_PATH/QA_BROWSER set but not found: /nope");
+        assert_eq!(e, "CHROME_PATH set but not found: /nope");
     }
 
     #[test]

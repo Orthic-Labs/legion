@@ -398,7 +398,6 @@ fn real_runtime_app_accuracy() {
         json!([{"kind":"chrome","url":definition["browser"]["archiveUrl"],"sha256":definition["browser"]["archiveSha256"]}])
     );
     std::env::set_var("CHROME_PATH", &browser);
-    std::env::remove_var("QA_BROWSER");
     let browser_version = std::process::Command::new(&browser)
         .arg("--version")
         .output()

@@ -52,12 +52,12 @@ fn find_browser_executable_prefers_chrome_path_override() {
 #[test]
 fn find_browser_executable_override_missing_is_error() {
     let env = FakeEnv(HashMap::from([(
-        "QA_BROWSER".to_string(),
+        "CHROME_PATH".to_string(),
         "/nowhere".to_string(),
     )]));
     let fs = FakeFs(vec![]);
     let err = find_browser_executable(Platform::Other, &env, &fs).unwrap_err();
-    assert!(err.contains("CHROME_PATH/QA_BROWSER set but not found"));
+    assert!(err.contains("CHROME_PATH set but not found"));
 }
 
 #[test]

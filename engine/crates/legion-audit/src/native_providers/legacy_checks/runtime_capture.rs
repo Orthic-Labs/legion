@@ -882,7 +882,7 @@ fn verified_load(qa: &QaOutput, label: &str, gaps: &mut Vec<String>) -> bool {
 /// gap to record.
 fn classify_failure(label: &str, state: &str, text: &str) -> (Option<String>, String) {
     if text.contains("No Chrome/Edge executable found")
-        || text.contains("CHROME_PATH/QA_BROWSER set but not found")
+        || text.contains("CHROME_PATH set but not found")
     {
         return (
             Some("browser-not-found".to_owned()),
@@ -2095,12 +2095,10 @@ pub(super) async fn execute(
     };
     let scratch = executor.scratch()?;
     let (mut environment, mut allowlist) = audit_environment(&scratch);
-    // The route locates the browser from these, when the operator set them.
-    for name in ["CHROME_PATH", "QA_BROWSER"] {
-        if let Ok(value) = std::env::var(name) {
-            environment.insert(name.to_owned(), value);
-            allowlist.insert(name.to_owned());
-        }
+    // The route locates the browser from this, when the operator set it.
+    if let Ok(value) = std::env::var("CHROME_PATH") {
+        environment.insert("CHROME_PATH".to_owned(), value);
+        allowlist.insert("CHROME_PATH".to_owned());
     }
     let sequence = AUDIT_ARTIFACT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let work_dir = scratch.tmp_dir().join(format!("runtime-{sequence}"));

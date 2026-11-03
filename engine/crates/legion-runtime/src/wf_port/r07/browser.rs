@@ -18,7 +18,7 @@ pub enum Platform {
     Other,
 }
 
-/// Stands in for `process.env` reads (`CHROME_PATH`, `QA_BROWSER`, `HOME`,
+/// Stands in for `process.env` reads (`CHROME_PATH`, `HOME`,
 /// `USERPROFILE`, `ProgramFiles`, `ProgramFiles(x86)`), so tests can supply a
 /// fixed environment instead of the real process environment.
 pub trait EnvLookup {
@@ -49,7 +49,7 @@ impl FsLookup for RealFs {
 }
 
 /// Port of `findBrowserExecutable()`. Same override/candidate-list/error
-/// behaviour as the JS: `CHROME_PATH`/`QA_BROWSER` win outright (and a
+/// behaviour as the JS: `CHROME_PATH` wins outright (and a
 /// missing override path is a hard error, exactly like JS's
 /// `if (!fs.existsSync(override)) throw ...`), otherwise the first existing
 /// candidate from the platform-specific list wins, otherwise
@@ -61,11 +61,9 @@ pub fn find_browser_executable(
     env: &impl EnvLookup,
     fs: &impl FsLookup,
 ) -> Result<PathBuf, String> {
-    if let Some(override_path) = env.get("CHROME_PATH").or_else(|| env.get("QA_BROWSER")) {
+    if let Some(override_path) = env.get("CHROME_PATH") {
         if !fs.exists(&override_path) {
-            return Err(format!(
-                "CHROME_PATH/QA_BROWSER set but not found: {override_path}"
-            ));
+            return Err(format!("CHROME_PATH set but not found: {override_path}"));
         }
         return Ok(PathBuf::from(override_path));
     }

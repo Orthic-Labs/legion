@@ -183,7 +183,7 @@ pub fn read_frames(buffer: &[u8]) -> (Vec<DecodedFrame>, Vec<u8>) {
 // ---------------------------------------------------------------------------
 
 /// Port of `findBrowserExecutable`'s per-platform candidate path list
-/// (everything after the `CHROME_PATH`/`QA_BROWSER` override check). `home`
+/// (everything after the `CHROME_PATH` override check). `home`
 /// mirrors `process.env.HOME || process.env.USERPROFILE || ''`.
 pub fn browser_executable_candidates(
     is_windows: bool,
@@ -228,7 +228,7 @@ pub fn find_browser_executable(
         return if exists(over) {
             Ok(over.to_string())
         } else {
-            Err(format!("CHROME_PATH/QA_BROWSER set but not found: {over}"))
+            Err(format!("CHROME_PATH set but not found: {over}"))
         };
     }
     for c in candidates {
@@ -341,7 +341,7 @@ mod tests {
         assert_eq!(overridden, Ok("/opt/chrome".to_string()));
 
         let bad_override = find_browser_executable(Some("/opt/missing"), &candidates, |_| false);
-        assert!(bad_override.unwrap_err().contains("CHROME_PATH/QA_BROWSER"));
+        assert!(bad_override.unwrap_err().contains("CHROME_PATH"));
     }
 
     #[test]

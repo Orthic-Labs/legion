@@ -159,41 +159,18 @@ fn collect_dir(root: &Path, prefix: &Path, observed: &mut Observed) {
     }
 }
 
-/// The base that relative surface keys are taken against, when parity mode is on.
-fn parity_root(cwd: &Path) -> Option<PathBuf> {
-    std::env::var("LEGION_PARITY_ROOT")
-        .ok()
-        .filter(|value| !value.is_empty())
-        .map(|value| resolve_path(cwd, &value))
-}
-
-/// The key a surface is recorded under. Distinct surfaces get distinct keys.
-/// With LEGION_PARITY_ROOT set, a surface under that root is keyed by its path
-/// relative to it, so snapshots stay portable across checkouts; any other
-/// surface keeps its resolved path.
-fn surface_key(cwd: &Path, resolved: &Path) -> String {
-    if let Some(parity) = parity_root(cwd) {
-        if let Ok(relative) = resolved.strip_prefix(&parity) {
-            return display_rel(relative);
-        }
-    }
+/// The key a surface is recorded under: its resolved path, so distinct
+/// surfaces get distinct keys.
+fn surface_key(resolved: &Path) -> String {
     resolved.to_string_lossy().into_owned()
 }
 
 /// The filesystem path a recorded surface key refers to at verify time.
-fn surface_path(cwd: &Path, key: &str) -> PathBuf {
-    match parity_root(cwd) {
-        Some(parity) if !Path::new(key).is_absolute() => resolve_path(&parity, key),
-        _ => PathBuf::from(key),
-    }
+fn surface_path(key: &str) -> PathBuf {
+    PathBuf::from(key)
 }
 
 fn iso_now() -> String {
-    if let Ok(value) = std::env::var("LEGION_PARITY_NOW") {
-        if !value.is_empty() {
-            return value;
-        }
-    }
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -267,7 +244,7 @@ fn snapshot(args: &[String]) -> CommandResult {
     let mut unreadable = Vec::new();
     for path in &paths {
         let resolved = resolve_path(&cwd, path);
-        let key = surface_key(&cwd, &resolved);
+        let key = surface_key(&resolved);
         let observed = collect(&resolved);
         for mut entry in observed.unreadable {
             entry["surface"] = json!(&key);
@@ -372,7 +349,7 @@ fn verify(args: &[String]) -> CommandResult {
                 "snapshot surface entries must be JSON objects",
             ));
         };
-        let observed = collect(&surface_path(&cwd, surface));
+        let observed = collect(&surface_path(surface));
         let unobservable = entry_paths(&observed.unreadable);
         let recorded = entry_paths(
             &unknown

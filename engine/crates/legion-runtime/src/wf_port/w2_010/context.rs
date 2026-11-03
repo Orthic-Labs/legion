@@ -226,7 +226,7 @@ fn resolve_context(cwd: &Path, options: &TargetOptions) -> ContextResolution {
         None
     };
 
-    let mut product_path = project_context_dir
+    let product_path = project_context_dir
         .as_deref()
         .and_then(|d| first_existing(d, &PRODUCT_NAMES))
         .or_else(|| {
@@ -234,7 +234,7 @@ fn resolve_context(cwd: &Path, options: &TargetOptions) -> ContextResolution {
                 .as_deref()
                 .and_then(|d| first_existing(d, &PRODUCT_NAMES))
         });
-    let mut design_path = project_context_dir
+    let design_path = project_context_dir
         .as_deref()
         .and_then(|d| first_existing(d, &DESIGN_NAMES))
         .or_else(|| {
@@ -242,15 +242,6 @@ fn resolve_context(cwd: &Path, options: &TargetOptions) -> ContextResolution {
                 .as_deref()
                 .and_then(|d| first_existing(d, &DESIGN_NAMES))
         });
-
-    let mut env_context_dir = None;
-    if product_path.is_none() && design_path.is_none() {
-        env_context_dir = resolve_env_context_dir(&abs_cwd);
-        if let Some(dir) = &env_context_dir {
-            product_path = first_existing(dir, &PRODUCT_NAMES);
-            design_path = first_existing(dir, &DESIGN_NAMES);
-        }
-    }
 
     let context_dir = product_path
         .as_deref()
@@ -260,7 +251,6 @@ fn resolve_context(cwd: &Path, options: &TargetOptions) -> ContextResolution {
                 .as_deref()
                 .and_then(|p| p.parent().map(Path::to_path_buf))
         })
-        .or(env_context_dir)
         .unwrap_or_else(|| project.project_root.clone());
 
     ContextResolution {
@@ -318,20 +308,6 @@ fn resolve_local_context_dir(root: &Path) -> Option<PathBuf> {
         }
     }
     None
-}
-
-fn resolve_env_context_dir(cwd: &Path) -> Option<PathBuf> {
-    let env_dir = std::env::var("IMPECCABLE_CONTEXT_DIR").ok()?;
-    let trimmed = env_dir.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    let p = Path::new(trimmed);
-    Some(if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        cwd.join(p)
-    })
 }
 
 fn resolve_target_dir(cwd: &Path, options: &TargetOptions) -> PathBuf {

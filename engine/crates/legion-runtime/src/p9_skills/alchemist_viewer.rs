@@ -90,8 +90,7 @@ pub trait RunsDir {
 }
 
 /// Production [`RunsDir`] backed by a real directory on disk (defaults to
-/// `$ALCHEMIST_RUN_DIR` or `~/.alchemist/runs`, matching `RUNS_DIR`'s default and
-/// `--runs-dir` override).
+/// `~/.alchemist/runs`, matching `RUNS_DIR`'s default and `--runs-dir` override).
 pub struct RealRunsDir {
     pub dir: PathBuf,
 }
