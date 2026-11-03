@@ -206,7 +206,7 @@ pub(super) fn plan(
         fail(plan, "mobile-macos-sdk-unbound");
         return;
     };
-    let enrollment = match enrollment::descriptor(root) {
+    let enrollment = match enrollment::descriptor(root, None) {
         Ok(value) => value,
         Err(_) => {
             fail(plan, "mobile-native-enrollment-invalid");
@@ -467,7 +467,7 @@ pub(super) fn snapshot(command: &Planned) -> Result<Value, String> {
     if binding
         .get("nativeEnrollment")
         .is_some_and(|value| !value.is_null())
-        && enrollment::descriptor(root)?.as_ref() != binding.get("nativeEnrollment")
+        && enrollment::descriptor(root, None)?.as_ref() != binding.get("nativeEnrollment")
     {
         return Err("mobile-native-enrollment-changed".into());
     }

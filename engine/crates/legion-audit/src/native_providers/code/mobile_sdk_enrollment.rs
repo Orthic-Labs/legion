@@ -5,7 +5,7 @@ use std::io::Read;
 
 /// Name the qualification test uses for its enrollment file location. Nothing
 /// outside the test reads it (Orthic-Labs/legion#127).
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 pub(super) const ENV: &str = "LEGION_MOBILE_SDK_ENROLLMENT";
 
 const MAX_NODES: usize = 500_000;

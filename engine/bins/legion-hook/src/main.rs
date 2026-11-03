@@ -202,7 +202,18 @@ fn pre_effect_response(request: HookRequest) -> HookResponse {
     };
 
     let actor = resolve_hook_actor_context(&request);
-    authorize_effect(request.event_type, &effect, actor, &application)
+    let response = authorize_effect(request.event_type.clone(), &effect, actor, &application);
+    // Every other gate has run, so a refusal above always wins; only a command
+    // that would otherwise proceed is handed to the host prompt for a branch
+    // deletion, which the operator answers.
+    if response.allowed && branch_delete_requires_confirmation(&request.payload) {
+        return HookResponse::ask(
+            request.event_type,
+            "ARC_USER_CONFIRMATION_REQUIRED",
+            "Guard needs your confirmation: this command deletes git branches. Approve only if you asked for this deletion; deleting the default branch, rewriting history and deleting a repository stay refused.",
+        );
+    }
+    response
 }
 
 fn deterministic_arcane_control(request: &HookRequest) -> Option<HookResponse> {
@@ -1006,11 +1017,6 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
 
     let source_revision = first_string(source, &["sourceRevision", "source_revision"])
         .or_else(|| first_string(payload, &["sourceRevision", "source_revision"]))
-        .or_else(|| {
-            std::env::var("LEGION_SOURCE_REVISION")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
         .or_else(|| resolve_source_revision(payload))
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| "source revision is missing".to_owned())?;
@@ -2162,10 +2168,14 @@ fn command_has_rewrite_flag(command: Option<&str>) -> bool {
 
 fn command_pushes_rewrite(command: &str) -> bool {
     command_segments(command).iter().any(|segment| {
-        let stripped = strip_command_prefixes(segment);
+        let (stripped, via_xargs) = strip_launchers(segment);
         let unwrapped = unwrap_shell_command(stripped);
         if unwrapped != stripped {
             return command_pushes_rewrite(unwrapped);
+        }
+        // A push that only deletes ordinary branches is confirmed, not refused.
+        if !via_xargs && branch_delete_verdict(&shell_words(stripped)) == Some(BranchDelete::Ask) {
+            return false;
         }
         push_arguments(stripped)
             .is_some_and(|arguments| arguments.iter().any(|token| push_argument_rewrites(token)))
@@ -2208,6 +2218,301 @@ fn rewrite_push_requires_approval(payload: &Value) -> bool {
         return false;
     };
     command_pushes_rewrite(&command)
+}
+
+/// How a command that deletes git branches is judged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BranchDelete {
+    /// Only ordinary branches go; the operator confirms in the host prompt.
+    Ask,
+    /// The default branch is named; the command stays refused.
+    Deny,
+}
+
+/// The branch every repository keeps: `main`, `master`, or `HEAD`, which is
+/// the remote's default branch under another name. The hook sees only the
+/// command line, so the remote's configured default is not consulted.
+fn is_default_branch_name(name: &str) -> bool {
+    let name = name.strip_prefix("refs/heads/").unwrap_or(name);
+    let name = name.strip_prefix("heads/").unwrap_or(name);
+    ["main", "master", "HEAD"]
+        .iter()
+        .any(|default| name.eq_ignore_ascii_case(default))
+}
+
+/// A plain branch name: no shell expansion, glob, force marker or `..`.
+fn is_plain_branch_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with(['-', '/', '+', ':'])
+        && !name.ends_with(['/', '.'])
+        && !name.contains("..")
+        && !name.contains("//")
+        && !name.ends_with(".lock")
+        && name.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || matches!(character, '-' | '_' | '.' | '/' | '@' | '=' | ',')
+        })
+}
+
+/// The branch a deletion operand names, without `refs/heads/` (or, for a
+/// remote-tracking branch, without `refs/remotes/<remote>/`). `None` for any
+/// other ref, such as a tag.
+fn branch_operand_name(operand: &str, remote_tracking: bool) -> Option<&str> {
+    if remote_tracking {
+        let operand = operand.strip_prefix("refs/remotes/").unwrap_or(operand);
+        return operand.split_once('/').map(|(_, branch)| branch);
+    }
+    let operand = operand.strip_prefix("refs/heads/").unwrap_or(operand);
+    (!operand.starts_with("refs/")).then_some(operand)
+}
+
+/// Judges the deletion of the named branches: `Deny` when any is a default
+/// branch, `Ask` when every one is a plain branch name, else `None`.
+fn branches_delete_verdict(operands: &[&str], remote_tracking: bool) -> Option<BranchDelete> {
+    let names: Vec<Option<&str>> = operands
+        .iter()
+        .map(|operand| branch_operand_name(operand, remote_tracking))
+        .collect();
+    let default = operands.iter().zip(&names).any(|(operand, name)| {
+        is_default_branch_name(name.unwrap_or(operand)) || is_default_branch_name(operand)
+    });
+    if default {
+        return Some(BranchDelete::Deny);
+    }
+    names
+        .iter()
+        .all(|name| name.is_some_and(is_plain_branch_name))
+        .then_some(BranchDelete::Ask)
+}
+
+/// `git branch -d|-D|--delete [-r] [-f] <branch>...`. Any other option, or no
+/// operand, is not understood and gets no verdict.
+fn local_branch_delete_verdict(arguments: &[&str]) -> Option<BranchDelete> {
+    let mut delete = false;
+    let mut remote_tracking = false;
+    let mut operands = Vec::new();
+    let mut options_done = false;
+    for &argument in arguments {
+        if options_done || !argument.starts_with('-') {
+            operands.push(argument);
+        } else if argument == "--" {
+            options_done = true;
+        } else if let Some(long) = argument.strip_prefix("--") {
+            match long {
+                "delete" => delete = true,
+                "remotes" => remote_tracking = true,
+                "force" | "quiet" => {}
+                _ => return None,
+            }
+        } else if argument.len() == 1 {
+            return None;
+        } else {
+            for letter in argument[1..].chars() {
+                match letter {
+                    'd' | 'D' => delete = true,
+                    'r' => remote_tracking = true,
+                    'f' | 'q' => {}
+                    _ => return None,
+                }
+            }
+        }
+    }
+    if !delete || operands.is_empty() {
+        return None;
+    }
+    branches_delete_verdict(&operands, remote_tracking)
+}
+
+/// `refs/heads/*:refs/heads/*`, the refspec `git push --prune` compares.
+fn is_heads_glob_refspec(refspec: &str) -> bool {
+    matches!(refspec, "refs/heads/*" | "refs/heads/*:refs/heads/*")
+}
+
+/// A remote named by word: a name or URL, with no expansion or option shape.
+fn is_plain_remote_word(word: &str) -> bool {
+    !word.is_empty()
+        && !word.starts_with(['-', '+', ':'])
+        && word.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || matches!(character, '-' | '_' | '.' | '/' | '@' | ':' | '~' | '=' | '%')
+        })
+}
+
+/// `git push <remote> --delete|-d <branch>...`, `git push <remote> :<branch>...`
+/// and `git push --prune [<remote> [refs/heads/*:refs/heads/*]]`. Any force
+/// option, `+refspec`, mirror, tag or other ref, or an option this does not
+/// know, is not understood and gets no verdict, so today's refusal stands.
+fn push_branch_delete_verdict(arguments: &[&str]) -> Option<BranchDelete> {
+    let mut delete = false;
+    let mut prune = false;
+    let mut positionals = Vec::new();
+    let mut options_done = false;
+    for &argument in arguments {
+        if options_done || !argument.starts_with('-') {
+            positionals.push(argument);
+        } else if argument == "--" {
+            options_done = true;
+        } else if let Some(long) = argument.strip_prefix("--") {
+            match long {
+                "delete" => delete = true,
+                "prune" => prune = true,
+                "quiet" | "verbose" | "dry-run" | "no-verify" | "atomic" => {}
+                _ => return None,
+            }
+        } else if argument.len() == 1 {
+            return None;
+        } else {
+            for letter in argument[1..].chars() {
+                match letter {
+                    'd' => delete = true,
+                    'q' | 'v' | 'n' => {}
+                    _ => return None,
+                }
+            }
+        }
+    }
+    let (remote, refspecs) = match positionals.split_first() {
+        Some((remote, refspecs)) => (Some(*remote), refspecs),
+        None => (None, &positionals[..]),
+    };
+    if remote.is_some_and(|remote| !is_plain_remote_word(remote)) {
+        return None;
+    }
+    let mut branches = Vec::new();
+    let mut deletes = delete || (prune && refspecs.is_empty());
+    for &refspec in refspecs {
+        if delete {
+            branches.push(refspec);
+        } else if let Some(branch) = refspec.strip_prefix(':') {
+            deletes = true;
+            branches.push(branch);
+        } else if prune && is_heads_glob_refspec(refspec) {
+            deletes = true;
+        } else {
+            return None;
+        }
+    }
+    if !deletes || (delete && branches.is_empty()) {
+        return None;
+    }
+    if branches.is_empty() {
+        return Some(BranchDelete::Ask);
+    }
+    // A tag named bare cannot be told from a branch; `tag` is the git keyword.
+    if branches.contains(&"tag") {
+        return None;
+    }
+    branches_delete_verdict(&branches, false)
+}
+
+/// Words of a command with redirections (`2>&1`, `> file`, `&>log`) removed.
+fn without_redirections(arguments: &[String]) -> Vec<&str> {
+    let mut kept = Vec::new();
+    let mut skip_target = false;
+    for argument in arguments {
+        let argument = argument.as_str();
+        if skip_target {
+            skip_target = false;
+            continue;
+        }
+        let redirect = argument.trim_start_matches(|c: char| c.is_ascii_digit());
+        if redirect.starts_with(['>', '<']) || argument.starts_with("&>") {
+            // `>` or `2>>` alone takes the next word as its target.
+            skip_target = redirect.chars().all(|c| matches!(c, '>' | '<'));
+            continue;
+        }
+        kept.push(argument);
+    }
+    kept
+}
+
+/// The verdict for one segment's words, when it is a `git branch` or `git push`
+/// that deletes branches.
+fn branch_delete_verdict(words: &[String]) -> Option<BranchDelete> {
+    let (subcommand, arguments) = program_subcommand(words, "git", &GIT_VALUE_FLAGS)?;
+    let arguments = without_redirections(arguments);
+    match subcommand {
+        "branch" => local_branch_delete_verdict(&arguments),
+        "push" => push_branch_delete_verdict(&arguments),
+        _ => None,
+    }
+}
+
+/// Whether some segment of `command` deletes ordinary branches and so needs the
+/// operator's confirmation. A list piped to `xargs` is never confirmable: the
+/// branches it names are not on the command line.
+fn command_deletes_branches(command: &str) -> bool {
+    command_segments(command).iter().any(|segment| {
+        let trimmed = segment.trim_start();
+        let (stripped, via_xargs) = strip_launchers(trimmed);
+        if stripped.len() != trimmed.len() && stripped.contains([';', '&', '|', '\n', '(']) {
+            return command_deletes_branches(stripped);
+        }
+        let unwrapped = unwrap_shell_command(stripped);
+        if unwrapped != stripped {
+            return command_deletes_branches(unwrapped);
+        }
+        !via_xargs && branch_delete_verdict(&shell_words(stripped)) == Some(BranchDelete::Ask)
+    })
+}
+
+fn branch_delete_requires_confirmation(payload: &Value) -> bool {
+    let Some(object) = payload.as_object() else {
+        return false;
+    };
+    command_value(object).is_some_and(|command| command_deletes_branches(&command))
+}
+
+/// Deleting a whole repository: `gh repo delete`, or a `DELETE` of
+/// `repos/<owner>/<repo>` (or `repositories/<id>`) through `gh api`, `curl`,
+/// `wget` or an HTTP client. Never confirmable. `words` are lowercased.
+fn repository_delete_is_destructive(words: &[String]) -> bool {
+    let Some(program) = words.first().map(|word| program_name(word)) else {
+        return false;
+    };
+    if let Some(("repo", arguments)) = program_subcommand(words, "gh", &["-R", "--repo"]) {
+        return arguments
+            .iter()
+            .map(String::as_str)
+            .find(|argument| !argument.starts_with('-'))
+            == Some("delete");
+    }
+    if !matches!(program, "gh" | "curl" | "wget" | "http" | "https" | "xh") {
+        return false;
+    }
+    let method_delete = words.iter().enumerate().any(|(index, word)| {
+        matches!(
+            word.as_str(),
+            "-xdelete" | "--method=delete" | "--request=delete" | "-x=delete"
+        ) || (word == "delete"
+            && (matches!(program, "http" | "https" | "xh")
+                || index
+                    .checked_sub(1)
+                    .and_then(|previous| words.get(previous))
+                    .is_some_and(|previous| {
+                        matches!(previous.as_str(), "-x" | "--method" | "--request")
+                    })))
+    });
+    method_delete && words.iter().skip(1).any(|word| names_a_repository(word))
+}
+
+/// `repos/<owner>/<repo>` or `repositories/<id>` with nothing below it, in
+/// any of the shapes an API call spells it: bare, rooted, or a full URL.
+fn names_a_repository(word: &str) -> bool {
+    let word = word.trim_matches(|c| c == '"' || c == '\'');
+    let word = word.split_once("://").map_or(word, |(_, rest)| rest);
+    let word = word.split(['?', '#']).next().unwrap_or(word);
+    let mut components: Vec<&str> = word
+        .trim_start_matches('/')
+        .trim_end_matches('/')
+        .split('/')
+        .collect();
+    // A host (`api.github.com/repos/o/r`) is not part of the API path.
+    if components.first().is_some_and(|first| first.contains('.')) {
+        components.remove(0);
+    }
+    matches!(components.as_slice(), ["repos", owner, repo] if !owner.is_empty() && !repo.is_empty())
+        || matches!(components.as_slice(), ["repositories", id] if !id.is_empty())
 }
 
 /// Whether `flag` (lowercased) is the option that hands a shell its command.
@@ -2678,6 +2983,24 @@ fn segment_is_destructive(segment: &str) -> bool {
     // `xargs rm` deletes a list that is not on the command line.
     if via_xargs && words.first().map(|word| program_name(word)) == Some("rm") {
         return true;
+    }
+    if repository_delete_is_destructive(&words) {
+        return true;
+    }
+    // Branch deletion is confirmed by the operator, never refused outright,
+    // except for the default branch. A push is refused or confirmed by
+    // `command_pushes_rewrite`; here only `git branch` is judged.
+    if !via_xargs {
+        match branch_delete_verdict(&original_words) {
+            Some(BranchDelete::Ask) => return false,
+            Some(BranchDelete::Deny)
+                if program_subcommand(&original_words, "git", &GIT_VALUE_FLAGS)
+                    .is_some_and(|(subcommand, _)| subcommand == "branch") =>
+            {
+                return true;
+            }
+            _ => {}
+        }
     }
     if windows_delete_is_destructive(segment)
         || find_is_destructive(&words)
@@ -5061,7 +5384,8 @@ mod tests {
             "git  push --delete origin main",
             "git push -f origin main",
             "git push origin +main",
-            "git push origin :stale-branch",
+            "git push origin :main",
+            "git push --force --delete origin stale-branch",
         ] {
             let response = dispatch(pre_effect(command));
             assert!(!response.allowed, "a rewrite must stay refused: {command}");
@@ -5072,6 +5396,120 @@ mod tests {
                 "a rewrite must block, not prompt: {command}"
             );
         }
+    }
+
+    /// What the hook answers for a Bash command: `allow`, `ask` or `deny`.
+    fn bash_outcome(command: &str) -> &'static str {
+        let response = dispatch(pre_effect(command));
+        if response.allowed {
+            "allow"
+        } else if response.ask {
+            "ask"
+        } else {
+            "deny"
+        }
+    }
+
+    /// Deleting a branch is the operator's to approve in the host prompt, not a
+    /// refusal: every form asks, and Codex, which has no ask outcome, fails closed.
+    #[test]
+    fn deleting_ordinary_branches_asks_for_confirmation() {
+        for command in [
+            "git push origin --delete stale-branch",
+            "git push --delete origin stale-branch",
+            "git push -d origin stale-branch",
+            "git push origin :stale-branch",
+            "git push origin :refs/heads/stale-branch",
+            "git push origin --delete one two three",
+            "git push origin :one :two",
+            "git push origin --delete feature/x --quiet",
+            "git push --prune origin",
+            "git push --prune origin 'refs/heads/*:refs/heads/*'",
+            "git branch -d merged",
+            "git branch -D stale-branch",
+            "git branch --delete stale-branch",
+            "git branch --delete --force stale-branch",
+            "git branch -Df one two",
+            "git branch -d -r origin/stale-branch",
+            "git -C repo branch -D stale-branch",
+            "git -c user.name=x push origin --delete stale-branch",
+            "git push origin --delete 'stale-branch' 2>&1",
+            "sudo git branch -D stale-branch",
+            "bash -c 'git branch -D stale-branch'",
+            "echo ok && git push origin --delete stale-branch",
+        ] {
+            assert_asks("Bash", json!({"command": command}));
+        }
+    }
+
+    /// The default branch, a rewrite and a whole repository stay refused, and
+    /// a branch deletion never softens what else the line does.
+    #[test]
+    fn default_branch_rewrites_and_repository_deletion_stay_denied() {
+        for command in [
+            "git push origin --delete main",
+            "git push origin --delete master",
+            "git push origin --delete HEAD",
+            "git push origin --delete refs/heads/main",
+            "git push origin :main",
+            "git push origin :refs/heads/master",
+            "git push origin --delete stale main",
+            "git push origin :stale :main",
+            "git branch -d main",
+            "git branch -D master",
+            "git branch -D refs/heads/main",
+            "git branch -d stale main",
+            "git branch -dr origin/main",
+            "git push --force origin main",
+            "git push -f origin main",
+            "git push --force-with-lease origin main",
+            "git push origin +main",
+            "git push --force --delete origin stale-branch",
+            "git push -fd origin stale-branch",
+            "git push --delete origin stale-branch +other",
+            "git push --mirror",
+            "git push origin --delete refs/tags/v1",
+            "git push origin --delete tag v1",
+            "git push origin 'refs/heads/*:refs/heads/*' --force --prune",
+            "git ls-files | xargs git push origin --delete",
+            "git branch -D 'x$(id)'",
+            "git branch -D $(git branch --show-current)",
+            "git branch -D stale-branch && rm -rf /tmp/x",
+            "git push origin --delete stale-branch; git push --force origin main",
+            "git push origin --delete stale-branch && git reset --hard",
+            "git branch -D stale-branch; git clean -fd",
+            "gh repo delete o/r --yes",
+            "gh repo delete",
+            "gh api -X DELETE repos/o/r",
+            "gh api --method DELETE /repos/o/r",
+            "gh api repos/o/r -XDELETE",
+            "curl -X DELETE https://api.github.com/repos/o/r",
+            "git push origin --delete stale-branch && gh repo delete o/r --yes",
+        ] {
+            assert_eq!(bash_outcome(command), "deny", "must stay denied: {command}");
+        }
+        assert_eq!(
+            dispatch(pre_effect("git push origin --delete main"))
+                .code
+                .as_deref(),
+            Some("ARC_APPROVAL_REQUIRED")
+        );
+        assert_eq!(
+            dispatch(pre_effect("git branch -D main")).code.as_deref(),
+            Some("ARC_EFFECT_CLASS_UNAUTHORIZED")
+        );
+    }
+
+    /// Tags and other commands are untouched by the branch rule.
+    #[test]
+    fn branch_deletion_rule_leaves_tags_and_ordinary_commands_alone() {
+        assert_eq!(bash_outcome("git tag -d v1"), "deny");
+        assert_eq!(bash_outcome("git push origin :refs/tags/v1"), "deny");
+        assert_eq!(bash_outcome("git branch feature"), "allow");
+        assert_eq!(bash_outcome("git branch --list"), "allow");
+        assert_eq!(bash_outcome("git push origin main"), "allow");
+        assert_eq!(bash_outcome("git push -u origin feature"), "allow");
+        assert_eq!(bash_outcome("echo git branch -D feature"), "allow");
     }
 
     #[test]
@@ -5582,9 +6020,15 @@ mod tests {
             "truncate -s 0 data.db",
             "truncate --size=0 data.db",
             "dd if=/dev/zero of=disk.img",
-            "git branch -D feature",
-            "git branch --delete --force feature",
-            "git -C repo branch -D feature",
+            "git branch -D main",
+            "git branch -d master",
+            "git branch --delete --force refs/heads/main",
+            "git -C repo branch -D feature main",
+            "git branch -D $(git branch --show-current)",
+            "gh repo delete o/r --yes",
+            "gh api -X DELETE repos/o/r",
+            "gh api repos/o/r --method DELETE",
+            "curl -X DELETE https://api.github.com/repos/o/r",
             "git tag -d v1",
             "git stash drop",
             "git stash clear",
@@ -5607,7 +6051,12 @@ mod tests {
             "truncate -s 10 data.db",
             "dd if=disk.img of=/dev/null",
             "git branch -d merged",
+            "git branch -D feature",
+            "git branch --delete --force feature",
+            "git -C repo branch -D feature",
             "git branch feature",
+            "gh api -X DELETE repos/o/r/git/refs/heads/feature",
+            "gh api repos/o/r",
             "git tag v1",
             "git stash",
             "git stash list",
@@ -5715,8 +6164,8 @@ mod tests {
         for command in [
             "git push -fu origin main",
             "git push --mirror",
-            "git push --prune origin",
-            "git push origin --delete old",
+            "git push --mirror origin",
+            "git push origin --delete main",
             "git push origin +main:main",
             "git -C repo push --force",
             "git -c user.name=x push -f",
@@ -5740,6 +6189,8 @@ mod tests {
             "git push -u origin main",
             "git push origin main && echo -f",
             "git log --prune",
+            "git push --prune origin",
+            "git push origin --delete old",
         ] {
             assert!(
                 !rewrite_push_requires_approval(

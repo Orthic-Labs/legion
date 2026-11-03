@@ -176,6 +176,7 @@ fn json_of(label: &str, output: &Output) -> Value {
 }
 
 #[test]
+#[ignore = "needs the installed native provider registry; a target/ test binary has none"]
 fn audit_then_verify_an_ordinary_run() {
     let fixture = Fixture::new();
     let repo = fixture.repo.to_str().unwrap();
@@ -391,6 +392,7 @@ fn audit_then_verify_an_ordinary_run() {
 }
 
 #[test]
+#[ignore = "needs the installed native provider registry; a target/ test binary has none"]
 fn plan_only_with_out_holds_the_plan_key_in_host_state_not_the_run_dir() {
     let fixture = Fixture::new();
     let repo = fixture.repo.to_str().unwrap();
@@ -439,6 +441,7 @@ fn plan_only_with_out_holds_the_plan_key_in_host_state_not_the_run_dir() {
 }
 
 #[test]
+#[ignore = "needs the installed native provider registry; a target/ test binary has none"]
 fn plan_only_without_out_still_requires_the_host_key() {
     let fixture = Fixture::new();
     let repo = fixture.repo.to_str().unwrap();
