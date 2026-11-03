@@ -67,8 +67,8 @@ pub fn run(args: CommonArgs) -> CommandResult {
             "budget inspect requires --task <T-#(.#)*>",
         ));
     }
-    let (key_dir, _) = rightkit_evidence_governance::key_ring::resolve_key_dir(None)
-        .map_err(map_arcane_error)?;
+    let (key_dir, _) =
+        rightkit_evidence_governance::key_ring::resolve_key_dir(None).map_err(map_arcane_error)?;
     let cwd = std::env::current_dir().map_err(super::io_error)?;
     let arcane_root = state_root(&cwd);
     let key_ring = KeyRing::load_dir(&key_dir).map_err(map_arcane_error)?;

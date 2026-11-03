@@ -92,7 +92,10 @@ impl Freshness {
             ),
             ("checkoutVersion", string_or_null(&self.checkout_version)),
             ("installedCommit", string_or_null(&self.installed_commit)),
-            ("commitsBehind", self.commits_behind.map_or(Value::Null, Value::from)),
+            (
+                "commitsBehind",
+                self.commits_behind.map_or(Value::Null, Value::from),
+            ),
             (
                 "commitState",
                 self.commit_state
@@ -659,9 +662,8 @@ mod tests {
 
     #[test]
     fn installed_commit_must_be_a_plain_hex_revision() {
-        let manifest = |revision: Value| {
-            json!({"releaseVersion": "0.3.23", "sourceRevision": revision})
-        };
+        let manifest =
+            |revision: Value| json!({"releaseVersion": "0.3.23", "sourceRevision": revision});
         let full = "4c1a414269d8ffdb95b4b1e685440bd34784b41b";
         assert_eq!(
             installed_commit_from_manifest(&manifest(json!(" 14b630ca9f1e "))),
@@ -698,9 +700,7 @@ mod tests {
             None
         );
         assert_eq!(
-            installed_commit_from_manifest(
-                &json!({"rightkitAx": {"sourceCommit": full}})
-            ),
+            installed_commit_from_manifest(&json!({"rightkitAx": {"sourceCommit": full}})),
             None,
             "the RightKit commit is not the Legion commit"
         );
@@ -720,7 +720,13 @@ mod tests {
         for freshness in [
             assess("0.3.23", None, None, None, None),
             assess("0.3.23", None, Some("garbage".into()), None, None),
-            assess("dev-build", Some(("v9.9.9".into(), "git-tag")), None, None, None),
+            assess(
+                "dev-build",
+                Some(("v9.9.9".into(), "git-tag")),
+                None,
+                None,
+                None,
+            ),
         ] {
             assert_eq!(freshness.behind, None);
             assert_eq!(freshness.remediation, None);

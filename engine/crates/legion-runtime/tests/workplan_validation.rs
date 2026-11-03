@@ -206,7 +206,10 @@ fn three_writer_chain_on_one_file_is_rejected() {
 fn disjoint_writers_pass_and_stay_parallel() {
     let plan = fixture();
     // The two writers own different files and neither depends on the other.
-    assert_ne!(plan.units[0].write_scopes[0].path, plan.units[1].write_scopes[0].path);
+    assert_ne!(
+        plan.units[0].write_scopes[0].path,
+        plan.units[1].write_scopes[0].path
+    );
     assert!(plan.units[0].depends_on.is_empty());
     assert!(plan.units[1].depends_on.is_empty());
     let assessment = validate_work_plan(&plan).expect("disjoint write scopes are valid");
