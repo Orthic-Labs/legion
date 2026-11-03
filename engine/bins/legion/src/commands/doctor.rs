@@ -110,7 +110,7 @@ pub(super) fn command_path(command: &str) -> Option<PathBuf> {
 }
 
 fn runtime_toolchains() -> Value {
-    let tools = ["git", "cargo", "node", "swift"]
+    let tools = ["git", "node", "swift"]
         .into_iter()
         .filter_map(|name| {
             let executable = command_path(name)?;
