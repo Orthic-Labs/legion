@@ -1,7 +1,7 @@
 //! Port of `qa.mjs`'s `freePort()` and `waitForHttp()` (lines 218-252): pure retry/backoff logic
 //! behind traits for the actual TCP connect / HTTP GET, so it is testable without real sockets.
 
-/// Abstracts "is something already listening on 127.0.0.1:<port>?" (the `createConnection`
+/// Abstracts "is something already listening on 127.0.0.1:`<port>`?" (the `createConnection`
 /// probe in `freePort`, qa.mjs lines 218-236: `connect` means taken, `error` means free).
 pub trait PortProbe {
     fn is_taken(&mut self, port: u32) -> bool;

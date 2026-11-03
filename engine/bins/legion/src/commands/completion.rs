@@ -188,7 +188,7 @@ fn claim(root: &Path, _a: &[String], file: &str, b: &Value, s: &str, k: KeyRing)
             "completion-claim",
             event["observedAuthority"].as_str().unwrap(),
         )
-        .map_err(|e| CommandError::incomplete(e))?;
+        .map_err(CommandError::incomplete)?;
     let claim = json!({"schemaVersion":1,"kind":"arcane-terminal-operation-claim","claimId":format!("claim_{}",hash(&format!("{}:{}",b["runId"],canonical_digest(&outcome).unwrap_or_default()))),"invocationProofDigest":canonical_digest(&proof).unwrap_or_default(),"producerAuthority":event["observedAuthority"],"runId":b["runId"],"taskId":b["taskId"],"contractId":b["contractId"],"contractVersion":b["contractVersion"],"contractDigest":b["contractDigest"],"sourceRevision":seal(root,b)?["sourceRevision"],"outcomeSummaryDigest":canonical_digest(outcome.get("outcomeSummary").unwrap()).unwrap_or_default(),"artifactStateDigest":canonical_digest(outcome.get("artifactState").unwrap()).unwrap_or_default(),"turnCorrelationDigest":event["turnCorrelationDigest"],"expectedStopOrdinal":event["stopOrdinal"].as_u64().unwrap_or_default()+1});
     let dir = root.join(".audit/arcane/terminal-operations");
     fs::create_dir_all(&dir).map_err(super::io_error)?;
@@ -201,7 +201,7 @@ fn claim(root: &Path, _a: &[String], file: &str, b: &Value, s: &str, k: KeyRing)
     }
     issuer
         .consume(&proof, Some(&canonical_digest(&claim).unwrap_or_default()))
-        .map_err(|e| CommandError::incomplete(e))?;
+        .map_err(CommandError::incomplete)?;
     fs::write(path, serde_json::to_vec(&claim).map_err(super::io_error)?)
         .map_err(super::io_error)?;
     Ok(json!({"claimId":claim["claimId"],"invocationProofDigest":claim["invocationProofDigest"]}))
@@ -261,7 +261,7 @@ fn evidence(
     );
     let proof = issuer
         .issue(event, b, "completion-claim", "oracle")
-        .map_err(|e| CommandError::incomplete(e))?;
+        .map_err(CommandError::incomplete)?;
     let obs = json!({"acceptanceId":aid,"requirementId":item["requirementId"],"productionSymbol":item["productionSymbol"],"liveConsumer":item["liveConsumer"],"acceptanceSurface":item["acceptanceSurface"],"contractVersion":b["contractVersion"],"contractDigest":b["contractDigest"],"sourceRevision":se["sourceRevision"],"authorityProofDigest":canonical_digest(&proof).unwrap_or_default(),"validUntil":item["validUntil"]});
     let deps = json!([]);
     let mut rec = json!({"schemaVersion":1,"kind":"legion-evidence-capability-receipt","evidenceId":format!("evidence_{}",hash(&format!("{}:{}",b["runId"],aid))),"runId":b["runId"],"taskId":b["taskId"],"contractId":b["contractId"],"producerAuthority":"oracle","capability":"oracle-acceptance-observation","observation":obs,"evidenceClass":"deterministic","sourceRevision":se["sourceRevision"],"dependsOn":deps,"observedAt":now()});
@@ -279,7 +279,7 @@ fn evidence(
     let digest = canonical_digest(&rec).unwrap_or_default();
     issuer
         .consume(&proof, Some(&digest))
-        .map_err(|e| CommandError::incomplete(e))?;
+        .map_err(CommandError::incomplete)?;
     rs.append(&rec);
     Ok(json!({"evidenceId":rec["evidenceId"],"acceptanceId":aid}))
 }

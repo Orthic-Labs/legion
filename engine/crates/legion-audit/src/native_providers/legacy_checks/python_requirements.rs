@@ -122,6 +122,12 @@ impl Prepared {
     }
 }
 
+/// Windows-only: sets the read-only attribute, which cleanup needs to clear.
+#[cfg(windows)]
+fn set_readonly_attribute(permissions: &mut fs::Permissions, readonly: bool) {
+    permissions.set_readonly(readonly);
+}
+
 // Windows read-only attributes prevent scratch cleanup. Restore only owned
 // regular snapshots; never follow a replacement symlink during cleanup.
 #[cfg(windows)]
@@ -131,7 +137,7 @@ impl Drop for Prepared {
             if let Ok(meta) = fs::symlink_metadata(path) {
                 if meta.is_file() && !meta.file_type().is_symlink() {
                     let mut permissions = meta.permissions();
-                    permissions.set_readonly(false);
+                    set_readonly_attribute(&mut permissions, false);
                     let _ = fs::set_permissions(path, permissions);
                 }
             }

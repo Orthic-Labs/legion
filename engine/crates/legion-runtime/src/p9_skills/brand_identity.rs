@@ -5,10 +5,10 @@
 //! standard formulas so callers never report a contrast grade or OKLCH value from memory.
 //!
 //! CLI surface ported 1:1 (`legion brand-identity color <verb>`):
-//!   contrast <fg-hex> <bg-hex>       -> ratio + AA/AAA verdict
-//!   oklch <hex>                      -> sRGB hex -> OKLCH (L C H)
-//!   oklch-to-hex <L> <C> <H>         -> OKLCH -> nearest in-gamut sRGB hex
-//!   audit '<json>'                   -> [{name,fg,bg,min?}] -> pass/fail table
+//!   `contrast <fg-hex> <bg-hex>`       -> ratio + AA/AAA verdict
+//!   `oklch <hex>`                      -> sRGB hex -> OKLCH (L C H)
+//!   `oklch-to-hex <L> <C> <H>`         -> OKLCH -> nearest in-gamut sRGB hex
+//!   `audit '<json>'`                   -> [{name,fg,bg,min?}] -> pass/fail table
 
 use serde::{Deserialize, Serialize};
 

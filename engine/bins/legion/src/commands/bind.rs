@@ -551,7 +551,7 @@ fn build_harness(root: &Path, name: &str, receipt: Option<&Value>) -> HarnessPla
         .filter(|path| {
             tracked
                 .as_ref()
-                .map_or(true, |tracked| !tracked.contains(path))
+                .is_none_or(|tracked| !tracked.contains(path))
         })
         .collect::<Vec<_>>();
     let managed = targets

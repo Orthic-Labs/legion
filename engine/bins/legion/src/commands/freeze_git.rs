@@ -80,10 +80,6 @@ fn finish(hash: Sha256) -> String {
     hex::encode(hash.finalize())
 }
 
-pub fn exact_patch_digest(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
-}
-
 pub fn definition_digest(selectors: &[Selector]) -> Result<String, String> {
     let mut hash = Sha256::new();
     frame(&mut hash, b"legion-closure-definition-v1");
@@ -170,10 +166,6 @@ impl GitRepository {
     /// Canonical enrolled repository objects, never candidate scratch objects.
     pub fn object_directory(&self) -> &Path {
         &self.primary_objects
-    }
-
-    pub fn open(path: &Path) -> Result<Self, String> {
-        Self::open_with_binary(path, Path::new("/usr/bin/git"))
     }
 
     pub fn open_with_binary(path: &Path, binary: &Path) -> Result<Self, String> {
@@ -645,20 +637,4 @@ pub fn parse_pre_push(bytes: &[u8]) -> Result<Vec<PushUpdate>, String> {
         });
     }
     Ok(updates)
-}
-
-/// Frozen pushes deny deletions until caller provides a separate explicit policy.
-pub fn outgoing_tips(updates: &[PushUpdate]) -> Result<Vec<String>, String> {
-    if updates.is_empty() {
-        return Err("frozen push needs at least one outgoing tip".into());
-    }
-    if updates.iter().any(|u| zero_oid(&u.local_oid)) {
-        return Err("frozen push deletion requires explicit disposition".into());
-    }
-    Ok(updates
-        .iter()
-        .map(|u| u.local_oid.clone())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect())
 }

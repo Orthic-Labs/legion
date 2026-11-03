@@ -373,7 +373,7 @@ pub fn console_errors_flag(new_errors: &[String]) -> Option<String> {
 // Report assembly (mirrors `main`'s tail: honesty checks + final report)
 // ---------------------------------------------------------------------
 
-/// One `findings[]` entry, as built by [`assemble_finding`]. `flags`
+/// One `findings[]` entry, as built by `assemble_finding`. `flags`
 /// accumulates in the exact order `measureSurface` pushes them:
 /// overflow, typed, clicked, console, a11y.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]

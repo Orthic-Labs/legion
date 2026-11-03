@@ -170,9 +170,9 @@ fn list(args: ListArgs) -> CommandResult {
         .filter(|record| {
             args.repository
                 .as_ref()
-                .map_or(true, |repository| &record.repository_id == repository)
+                .is_none_or(|repository| &record.repository_id == repository)
         })
-        .filter(|record| status_filter.map_or(true, |status| record.current_status == status))
+        .filter(|record| status_filter.is_none_or(|status| record.current_status == status))
         .collect();
     Ok(json!({
         "schemaVersion": 1,

@@ -106,9 +106,7 @@ fn reachability_allowed(lifecycle: &Value) -> bool {
             "closePath",
         ];
         if steps.iter().any(|k| {
-            r.get(*k)
-                .map_or(false, |v| v.is_null() || v == &json!(false))
-                || r.get(*k).is_none()
+            r.get(*k).is_some_and(|v| v.is_null() || v == &json!(false)) || r.get(*k).is_none()
         }) {
             return false;
         }
@@ -148,10 +146,10 @@ fn reachability_allowed(lifecycle: &Value) -> bool {
                 == Some("sensitive")
                 && (capability
                     .and_then(|v| v.get("retention"))
-                    .map_or(true, Value::is_null)
+                    .is_none_or(Value::is_null)
                     || capability
                         .and_then(|v| v.get("deletionOwner"))
-                        .map_or(true, Value::is_null))
+                        .is_none_or(Value::is_null))
             {
                 return false;
             }
@@ -178,12 +176,11 @@ fn issue(code: &str, msg: impl Into<String>) -> CommandError {
 }
 fn is_string(v: Option<&Value>, min: usize) -> bool {
     v.and_then(Value::as_str)
-        .map_or(false, |s| s.chars().count() >= min)
+        .is_some_and(|s| s.chars().count() >= min)
 }
 fn id(s: &str, p: &str) -> bool {
-    s.strip_prefix(p).map_or(false, |x| {
-        !x.is_empty() && x.chars().all(|c| c.is_ascii_digit())
-    })
+    s.strip_prefix(p)
+        .is_some_and(|x| !x.is_empty() && x.chars().all(|c| c.is_ascii_digit()))
 }
 fn typ(v: &Value) -> &'static str {
     if v.is_boolean() {
@@ -197,7 +194,7 @@ fn typ(v: &Value) -> &'static str {
     }
 }
 fn digest_shape(v: Option<&Value>) -> bool {
-    v.and_then(Value::as_str).map_or(false, |s| {
+    v.and_then(Value::as_str).is_some_and(|s| {
         s.len() == 71
             && s.starts_with("sha256:")
             && s[7..]
@@ -307,7 +304,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
     if !o
         .get("contractId")
         .and_then(Value::as_str)
-        .map_or(false, |s| id(s, "EC-"))
+        .is_some_and(|s| id(s, "EC-"))
     {
         e.push((
             "SCHEMA".into(),
@@ -317,7 +314,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
     }
     if o.get("version")
         .and_then(Value::as_u64)
-        .map_or(true, |v| v < 1)
+        .is_none_or(|v| v < 1)
     {
         e.push((
             "SCHEMA".into(),
@@ -358,7 +355,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
         "rollback",
         "openQuestions",
     ] {
-        if !o.get(k).map_or(false, Value::is_array) {
+        if !o.get(k).is_some_and(Value::is_array) {
             e.push((
                 "SCHEMA".into(),
                 format!("$.{k}"),
@@ -384,7 +381,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
                         format!("$.{key}[{i}]"),
                         format!("$.{key}[{i}]: invalid {key} entry"),
                     ));
-                } else if !item["id"].as_str().map_or(false, |s| id(s, id_prefix)) {
+                } else if !item["id"].as_str().is_some_and(|s| id(s, id_prefix)) {
                     e.push((
                         "SCHEMA".into(),
                         format!("$.{key}[{i}].id"),
@@ -396,7 +393,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
     }
     let scope = o.get("scope").and_then(Value::as_object);
     for k in ["own", "read", "forbidden"] {
-        if scope.map_or(true, |x| !x.get(k).map_or(false, Value::is_array)) {
+        if scope.is_none_or(|x| !x.get(k).is_some_and(Value::is_array)) {
             e.push((
                 "SCHEMA".into(),
                 format!("$.scope.{k}"),
@@ -406,7 +403,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
     }
     let arts = o.get("artifacts").and_then(Value::as_object);
     for k in ["exact", "bounded"] {
-        if arts.map_or(true, |x| !x.get(k).map_or(false, Value::is_array)) {
+        if arts.is_none_or(|x| !x.get(k).is_some_and(Value::is_array)) {
             e.push((
                 "SCHEMA".into(),
                 format!("$.artifacts.{k}"),
@@ -416,7 +413,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
     }
     if o.get("openQuestions")
         .and_then(Value::as_array)
-        .map_or(true, |a| !a.is_empty())
+        .is_none_or(|a| !a.is_empty())
     {
         e.push((
             "EXEC_OPEN_QUESTIONS_NONEMPTY".into(),
@@ -468,7 +465,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
                 } else {
                     if u.get("locked")
                         .and_then(Value::as_array)
-                        .map_or(true, |a| a.is_empty())
+                        .is_none_or(|a| a.is_empty())
                     {
                         e.push((
                             "EXEC_BOUNDED_LOCKED_EMPTY".into(),
@@ -478,7 +475,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
                     }
                     if u.get("freedom")
                         .and_then(Value::as_array)
-                        .map_or(true, |a| a.is_empty())
+                        .is_none_or(|a| a.is_empty())
                     {
                         e.push((
                             "EXEC_BOUNDED_FREEDOM_EMPTY".into(),
@@ -494,7 +491,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
         for (i, d) in ds.iter().enumerate() {
             if d.get("reason").and_then(Value::as_str) == Some("shared-mutable-resource")
                 && d.get("resourceKey")
-                    .map_or(true, |v| v.is_null() || v.as_str() == Some(""))
+                    .is_none_or(|v| v.is_null() || v.as_str() == Some(""))
             {
                 e.push((
                     "EXEC_RESOURCE_KEY_MISSING".into(),
@@ -506,7 +503,7 @@ fn executable_errors(c: &Value) -> Vec<(String, String, String)> {
     }
     if let Some(tasks) = o.get("tasks").and_then(Value::as_array) {
         for (i, task) in tasks.iter().enumerate() {
-            if !task.as_str().map_or(false, |s| {
+            if !task.as_str().is_some_and(|s| {
                 let tail = s.strip_prefix("T-").unwrap_or("");
                 !tail.is_empty()
                     && tail
@@ -693,8 +690,7 @@ fn verify_codex(
         .map_err(|e| issue(e.code(), e.to_string()))?;
         let pd = prior
             .as_ref()
-            .map(|p: &Value| canonical_digest(p).ok())
-            .flatten();
+            .and_then(|p: &Value| canonical_digest(p).ok());
         if !v.allowed
             || r["eventSequence"] != json!((i + 1) as u64)
             || r.get("previousDigest").and_then(Value::as_str) != pd.as_deref()
@@ -723,7 +719,7 @@ fn verify_codex(
                 )
                 && matches!(r["observedAuthority"].as_str(), Some("legion" | "sage"))
         })
-        .last();
+        .next_back();
     if cur.and_then(|x| x.get("eventId")) != b.get("observedEventId") {
         return Err(issue(
             "ARC_AUTHORITY_NOT_ASSERTED",
@@ -918,7 +914,7 @@ fn amendment_proof(
         fs::write(transition, serde_json::to_vec(&json!({"state":"ISSUED","proofDigest":canonical_digest(&p).map_err(|e|CommandError::integrity(e.to_string()))?,"at":p["issuedAt"]})).map_err(super::io_error)?)
             .map_err(super::io_error)?;
     }
-    Ok(canonical_digest(&p).map_err(|e| CommandError::integrity(e.to_string()))?)
+    canonical_digest(&p).map_err(|e| CommandError::integrity(e.to_string()))
 }
 
 pub fn run(args: CommonArgs) -> CommandResult {
@@ -1077,11 +1073,11 @@ pub fn run(args: CommonArgs) -> CommandResult {
             || bo
                 .get("legionBlastMapCapMs")
                 .and_then(Value::as_u64)
-                .map_or(true, |v| v < 1)
+                .is_none_or(|v| v < 1)
             || bo
                 .get("sagePlanningCapMs")
                 .and_then(Value::as_u64)
-                .map_or(true, |v| v < 1)
+                .is_none_or(|v| v < 1)
             || bo.get("maxContractVersions") != Some(&json!(2))
         {
             return Err(issue("ARC_SCHEMA_INVALID", "invalid budget binding"));
@@ -1138,15 +1134,15 @@ pub fn run(args: CommonArgs) -> CommandResult {
             TaskBudgetSealStore::new(state_root(&cwd).join("task-budget-seals"), ring.clone());
         for s in tasks {
             let task = s["taskId"].as_str().unwrap_or_default();
-            if s["ownScope"].as_array().map_or(true, |a| a.is_empty())
-                || s["activeTimeCapMs"].as_u64().map_or(true, |v| v < 1)
-                || s["progressDeadlineMs"].as_u64().map_or(true, |v| v < 1)
-                || s["evidenceReferences"].as_array().map_or(true, |a| {
-                    a.is_empty() || a.iter().any(|v| !is_string(Some(v), 1))
-                })
+            if s["ownScope"].as_array().is_none_or(|a| a.is_empty())
+                || s["activeTimeCapMs"].as_u64().is_none_or(|v| v < 1)
+                || s["progressDeadlineMs"].as_u64().is_none_or(|v| v < 1)
+                || s["evidenceReferences"]
+                    .as_array()
+                    .is_none_or(|a| a.is_empty() || a.iter().any(|v| !is_string(Some(v), 1)))
                 || s["ownScope"]
                     .as_array()
-                    .map_or(true, |a| a.iter().any(|v| !v.is_string()))
+                    .is_none_or(|a| a.iter().any(|v| !v.is_string()))
             {
                 return Err(issue(
                     "ARC_SCHEMA_INVALID",

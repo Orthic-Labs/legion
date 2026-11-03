@@ -65,6 +65,7 @@ struct NativeTransport;
 
 struct ChildGuard {
     child: Child,
+    #[cfg(unix)]
     process_group: Option<u32>,
     armed: bool,
 }
@@ -72,6 +73,7 @@ struct ChildGuard {
 impl ChildGuard {
     fn new(child: Child) -> Self {
         Self {
+            #[cfg(unix)]
             process_group: child.id(),
             child,
             armed: true,

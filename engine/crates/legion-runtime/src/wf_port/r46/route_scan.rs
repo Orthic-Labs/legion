@@ -6,7 +6,7 @@
 //! **Pitfall note**: the Python source's `MANAGED_RUST_TOOL_RE` uses
 //! lookaround (`(?<!...)`/`(?!...)`) to assert that a matched tool name is
 //! not itself part of a larger dotted/hyphenated/word-joined token. The
-//! `regex` crate has no lookaround support, so [`find_tool_tokens`]
+//! `regex` crate has no lookaround support, so `find_tool_tokens`
 //! reimplements the same "not preceded/followed by a word/`.`/`-`
 //! character" boundary check manually by inspecting the characters
 //! immediately surrounding each plain `cargo|rustc|rustdoc` match.

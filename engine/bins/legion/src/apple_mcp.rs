@@ -276,10 +276,6 @@ fn trusted_target_paths(
         .collect()
 }
 
-fn canonical_target(raw: &str, base: &CanonicalPath) -> Result<CanonicalPath, String> {
-    canonical_target_with_cwd(raw, base, None)
-}
-
 fn canonical_target_with_cwd(
     raw: &str,
     base: &CanonicalPath,

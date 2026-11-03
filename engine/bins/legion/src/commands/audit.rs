@@ -442,20 +442,19 @@ fn continuation_output_path(
 
 fn reject_accepted_continuation_receipts(parent: &std::path::Path) -> Result<(), CommandError> {
     let receipts = parent.join("lens-receipts");
-    if receipts.try_exists().map_err(super::io_error)? {
-        if std::fs::symlink_metadata(&receipts)
+    if receipts.try_exists().map_err(super::io_error)?
+        && (std::fs::symlink_metadata(&receipts)
             .map_err(super::io_error)?
             .file_type()
             .is_symlink()
             || std::fs::read_dir(receipts)
                 .map_err(super::io_error)?
                 .next()
-                .is_some()
-        {
-            return Err(CommandError::incomplete(
-                "continuation version 1 cannot rematerialize accepted semantic receipts",
-            ));
-        }
+                .is_some())
+    {
+        return Err(CommandError::incomplete(
+            "continuation version 1 cannot rematerialize accepted semantic receipts",
+        ));
     }
     Ok(())
 }
@@ -1761,6 +1760,7 @@ fn findings_command(args: &AuditArgs) -> CommandResult {
 ///   result into the follow-up and recomputes the parent report, whose
 ///   `security-variant-analysis-pending` gap clears only when the follow-up is
 ///   complete and its digest chain verifies.
+///
 /// `legion audit next --run <dir>`: the resumable dispatch driver (see
 /// `legion_audit::next`). Lease length defaults to 20 minutes;
 /// `LEGION_AUDIT_LEASE_MINUTES` overrides it.
@@ -2645,28 +2645,6 @@ fn audit_dir_ignore_notice(root: &std::path::Path) -> Option<String> {
     })
 }
 
-fn validate_output_dir(
-    root: &std::path::Path,
-    requested: &std::path::Path,
-) -> Result<(), CommandError> {
-    let base = std::env::current_dir().map_err(super::io_error)?;
-    let output = if requested.is_absolute() {
-        requested.to_path_buf()
-    } else {
-        base.join(requested)
-    };
-    let output = lexical_normalize(&output);
-    let scope = lexical_normalize(&root.join(".audit"));
-    if output == scope || !output.starts_with(&scope) {
-        return Err(CommandError::usage(format!(
-            "--out must stay under the run-owned .audit scope ({}); received {}",
-            scope.display(),
-            output.display()
-        )));
-    }
-    Ok(())
-}
-
 fn lexical_normalize(path: &std::path::Path) -> std::path::PathBuf {
     let mut normalized = std::path::PathBuf::new();
     for component in path.components() {
@@ -2792,7 +2770,7 @@ fn native_audit_parity_gaps(
         gaps.push("native-provider-plan-not-fully-executed".into());
     }
     if !plan_digest.starts_with("sha256:")
-        || plan_signature.map_or(true, |signature| signature.trim().is_empty())
+        || plan_signature.is_none_or(|signature| signature.trim().is_empty())
     {
         gaps.push("native-provider-plan-not-signed-and-sealed".into());
     }
@@ -3596,57 +3574,7 @@ fn valid_runtime_probe_action(action: &Value) -> bool {
     }
 }
 
-fn loopback_http_url(value: &str) -> bool {
-    if value
-        .chars()
-        .any(|character| character.is_whitespace() || character.is_control())
-    {
-        return false;
-    }
-    let lower = value.to_ascii_lowercase();
-    let authority = if lower.starts_with("http://") {
-        &value[7..]
-    } else if lower.starts_with("https://") {
-        &value[8..]
-    } else {
-        return false;
-    };
-    let authority = authority.split(['/', '?', '#']).next().unwrap_or("");
-    if authority.is_empty() || authority.contains('@') {
-        return false;
-    }
-    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
-        let Some(end) = rest.find(']') else {
-            return false;
-        };
-        let suffix = &rest[end + 1..];
-        let port = if suffix.is_empty() {
-            None
-        } else if let Some(port) = suffix.strip_prefix(':') {
-            Some(port)
-        } else {
-            return false;
-        };
-        (&rest[..end], port)
-    } else {
-        match authority.split_once(':') {
-            Some((host, port)) if !port.contains(':') => (host, Some(port)),
-            Some(_) => return false,
-            None => (authority, None),
-        }
-    };
-    if port.is_some_and(|port| {
-        port.is_empty()
-            || !port.bytes().all(|byte| byte.is_ascii_digit())
-            || port.parse::<u16>().is_err()
-    }) {
-        return false;
-    }
-    matches!(
-        host.to_ascii_lowercase().as_str(),
-        "localhost" | "127.0.0.1" | "::1"
-    )
-}
+type RuntimeSurfaceInputs = (Vec<(String, String)>, Vec<String>);
 
 /// `--surfaces` is either a comma-separated list of origin-relative paths
 /// (`/settings`) or absolute http(s) URLs, or a JSON array file whose entries
@@ -3656,7 +3584,7 @@ fn loopback_http_url(value: &str) -> bool {
 fn runtime_surface_inputs(
     args: &AuditArgs,
     base_url: &str,
-) -> Result<(Vec<(String, String)>, Vec<String>), CommandError> {
+) -> Result<RuntimeSurfaceInputs, CommandError> {
     let Some(raw) = args
         .surfaces
         .as_deref()
@@ -3708,9 +3636,7 @@ fn resolve_surface_url(base_url: &str, target: &str) -> Result<String, CommandEr
     if target.starts_with('/') && !target.starts_with("//") {
         if let Some(scheme_end) = base_url.find("://").map(|at| at + 3) {
             let rest = &base_url[scheme_end..];
-            let origin_len = rest
-                .find(|c| c == '/' || c == '?' || c == '#')
-                .unwrap_or(rest.len());
+            let origin_len = rest.find(['/', '?', '#']).unwrap_or(rest.len());
             return Ok(format!(
                 "{}{}{}",
                 &base_url[..scheme_end],
@@ -3901,13 +3827,6 @@ impl AuditScope {
                 || scope_type_selects_changes(&self.scope_type))
     }
 
-    /// The changed-file set the frozen denominator is restricted to, or
-    /// `None` for a whole-repository (or `--dir`-only) run.
-    fn inventory_filter(&self) -> Option<std::collections::BTreeSet<String>> {
-        self.narrows_inventory()
-            .then(|| self.changed_files.iter().cloned().collect())
-    }
-
     fn plan_json(&self) -> Value {
         let mut scope = json!({
             "mode": self.mode,
@@ -3942,10 +3861,6 @@ impl AuditScope {
         }
         scope
     }
-
-    fn ref_is_valid(reference: &Option<String>) -> bool {
-        crate::commands::audit::git_ref_is_valid(reference)
-    }
 }
 
 fn clean_path(input: &str) -> Option<String> {
@@ -3972,155 +3887,10 @@ fn clean_path(input: &str) -> Option<String> {
     }
 }
 
-fn in_scope(file: &str, dir: Option<&str>) -> bool {
-    match dir {
-        None => true,
-        Some(dir) => file == dir || file.starts_with(&format!("{dir}/")),
-    }
-}
-
-fn validate_git_ref(reference: &str) -> bool {
-    !reference.is_empty()
-        && reference
-            .chars()
-            .next()
-            .is_some_and(|first| first.is_ascii_alphanumeric())
-        && reference.chars().all(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '/' | '@' | '-')
-        })
-}
-
-fn git_ref_is_valid(reference: &Option<String>) -> bool {
-    reference
-        .as_deref()
-        .map_or(true, |reference| validate_git_ref(reference))
-}
-
 fn git_stdout(root: &std::path::Path, git_args: &[&str]) -> Option<String> {
     legion_audit::scope::GitRunner::new(root)
         .text(git_args)
         .ok()
-}
-
-fn push_changed_files(files: &mut Vec<String>, root: &std::path::Path, git_args: &[&str]) {
-    if let Some(stdout) = git_stdout(root, git_args) {
-        files.extend(stdout.split('\n').filter_map(clean_path));
-    }
-}
-
-fn audit_changed_files(
-    root: &std::path::Path,
-    scope_type: &str,
-    scope_base: Option<&str>,
-    scope_base_commit: Option<&str>,
-    scope_dir: Option<&str>,
-) -> Vec<String> {
-    let mut files = Vec::new();
-    if scope_type == "local" {
-        push_changed_files(&mut files, root, &["diff", "--name-only", "HEAD"]);
-        push_changed_files(
-            &mut files,
-            root,
-            &["ls-files", "--others", "--exclude-standard"],
-        );
-        let upstream = git_stdout(
-            root,
-            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-        )
-        .map(|reference| reference.trim().to_string())
-        .filter(|reference| !reference.is_empty());
-        if let Some(upstream) = upstream {
-            let range = format!("{upstream}..HEAD");
-            push_changed_files(&mut files, root, &["diff", "--name-only", &range]);
-        }
-        files.retain(|file| !file.starts_with(".audit/") && !is_generated_or_vendored_path(file));
-    } else if let Some(commit) = scope_base_commit {
-        push_changed_files(&mut files, root, &["diff", "--name-only", commit]);
-    } else if let Some(base) = scope_base {
-        let range = format!("{base}...HEAD");
-        push_changed_files(&mut files, root, &["diff", "--name-only", &range]);
-    } else if scope_type == "uncommitted" {
-        push_changed_files(&mut files, root, &["diff", "--name-only"]);
-    } else if scope_type == "committed" {
-        push_changed_files(&mut files, root, &["diff", "--name-only", "HEAD~1..HEAD"]);
-    }
-    files.retain(|file| in_scope(file, scope_dir));
-    files.sort();
-    files.dedup();
-    files
-}
-
-/// Node collect-facts isGeneratedOrVendoredPath: applied only to the `local`
-/// scope's changed-file set, exactly as Node does.
-fn is_generated_or_vendored_path(file: &str) -> bool {
-    file.starts_with("vendor/")
-        || file.starts_with("qwik/")
-        || file.starts_with("dist/")
-        || file.starts_with("src-tauri/gen/")
-        || file.starts_with("src/generated/")
-        || file.contains("/src/generated/")
-        || file.contains("/drizzle/")
-}
-
-fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
-    let scope_type = args.r#type.clone().unwrap_or_else(|| "all".into());
-    let scope_dir = args
-        .dir
-        .as_ref()
-        .and_then(|dir| clean_path(&dir.to_string_lossy()));
-    let scope_base = args.base.clone();
-    let scope_base_commit = args.base_commit.clone();
-    let refs_valid =
-        AuditScope::ref_is_valid(&scope_base) && AuditScope::ref_is_valid(&scope_base_commit);
-    let scoped = scope_dir.is_some()
-        || scope_base.is_some()
-        || scope_base_commit.is_some()
-        || scope_type != "all";
-    let changed_files = if refs_valid {
-        audit_changed_files(
-            root,
-            &scope_type,
-            scope_base.as_deref(),
-            scope_base_commit.as_deref(),
-            scope_dir.as_deref(),
-        )
-    } else {
-        Vec::new()
-    };
-    let narrows = refs_valid
-        && (scope_base.is_some()
-            || scope_base_commit.is_some()
-            || scope_type_selects_changes(&scope_type));
-    let changed_hunks = if narrows {
-        audit_changed_hunks(
-            root,
-            &scope_type,
-            scope_base.as_deref(),
-            scope_base_commit.as_deref(),
-            scope_dir.as_deref(),
-        )
-    } else {
-        std::collections::BTreeMap::new()
-    };
-    let head = if narrows {
-        git_stdout(root, &["rev-parse", "HEAD"])
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty())
-    } else {
-        None
-    };
-    AuditScope {
-        mode: if scoped { "diff" } else { "whole-repo" },
-        scope_type,
-        base: scope_base,
-        base_commit: scope_base_commit,
-        dir: scope_dir,
-        changed_files,
-        changed_hunks,
-        head,
-        facts_unavailable: !refs_valid,
-        snapshot: None,
-    }
 }
 
 /// The inventory restriction a persisted run's facts record: `Some(changed
@@ -4144,82 +3914,6 @@ pub(super) fn inventory_filter_from_facts(
             .map(ToOwned::to_owned)
             .collect(),
     )
-}
-
-/// Merges `git diff -U0` hunk headers (`@@ -a,b +c,d @@` under `+++ b/path`)
-/// into per-path new-file line ranges. A pure deletion (`d == 0`) is anchored
-/// at the line it follows. Pure function over the diff text.
-fn parse_diff_hunks(
-    diff: &str,
-    hunks: &mut std::collections::BTreeMap<String, Vec<(usize, usize)>>,
-) {
-    let mut current: Option<String> = None;
-    for line in diff.lines() {
-        if let Some(path) = line.strip_prefix("+++ ") {
-            current = path
-                .strip_prefix("b/")
-                .and_then(clean_path)
-                .filter(|_| path != "/dev/null");
-        } else if line.starts_with("@@ ") {
-            let Some(path) = current.as_ref() else {
-                continue;
-            };
-            let Some(new) = line.split_whitespace().find(|part| part.starts_with('+')) else {
-                continue;
-            };
-            let mut numbers = new[1..].split(',');
-            let start = numbers.next().and_then(|n| n.parse::<usize>().ok());
-            let count = numbers.next().map_or(Some(1), |n| n.parse::<usize>().ok());
-            if let (Some(start), Some(count)) = (start, count) {
-                let start = start.max(1);
-                let end = if count == 0 { start } else { start + count - 1 };
-                hunks.entry(path.clone()).or_default().push((start, end));
-            }
-        }
-    }
-}
-
-fn audit_changed_hunks(
-    root: &std::path::Path,
-    scope_type: &str,
-    scope_base: Option<&str>,
-    scope_base_commit: Option<&str>,
-    scope_dir: Option<&str>,
-) -> std::collections::BTreeMap<String, Vec<(usize, usize)>> {
-    let mut hunks = std::collections::BTreeMap::new();
-    let mut add = |git_args: &[&str]| {
-        if let Some(diff) = git_stdout(root, git_args) {
-            parse_diff_hunks(&diff, &mut hunks);
-        }
-    };
-    if scope_type == "local" {
-        add(&["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"]);
-        let upstream = git_stdout(
-            root,
-            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-        )
-        .map(|reference| reference.trim().to_string())
-        .filter(|reference| !reference.is_empty());
-        if let Some(upstream) = upstream {
-            let range = format!("{upstream}..HEAD");
-            add(&["diff", "-U0", "--no-color", "--no-ext-diff", &range]);
-        }
-    } else if let Some(commit) = scope_base_commit {
-        add(&["diff", "-U0", "--no-color", "--no-ext-diff", commit]);
-    } else if let Some(base) = scope_base {
-        let range = format!("{base}...HEAD");
-        add(&["diff", "-U0", "--no-color", "--no-ext-diff", &range]);
-    } else if scope_type == "uncommitted" {
-        add(&["diff", "-U0", "--no-color", "--no-ext-diff"]);
-    } else if scope_type == "committed" {
-        add(&["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD~1..HEAD"]);
-    }
-    hunks.retain(|path, ranges| {
-        ranges.sort_unstable();
-        ranges.dedup();
-        in_scope(path, scope_dir)
-    });
-    hunks
 }
 
 fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {

@@ -58,8 +58,8 @@ pub fn run(args: CommonArgs) -> CommandResult {
         .as_ref()
         .and_then(|path| KeyRing::load_dir(path).ok());
     let authenticated = key_ring.is_some();
-    let capability = JudgmentControlCapability::from_cwd(&cwd, key_ring)
-        .map_err(|error| CommandError::incomplete(error))?;
+    let capability =
+        JudgmentControlCapability::from_cwd(&cwd, key_ring).map_err(CommandError::incomplete)?;
     if requires_authenticated_stores(operation) && !authenticated {
         return Ok(compact(auth_unavailable_result()));
     }

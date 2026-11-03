@@ -353,7 +353,7 @@ fn naming_contract(root: &Path) -> Value {
                 );
             }
         }
-        let Some(text) = std::fs::read(&root.join(&path)).ok().and_then(|bytes| {
+        let Some(text) = std::fs::read(root.join(&path)).ok().and_then(|bytes| {
             if bytes.contains(&0) {
                 return None;
             }
@@ -560,7 +560,7 @@ fn last_observed_hook_event(dirs: &[PathBuf]) -> Option<(PathBuf, SystemTime)> {
         let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
             return;
         };
-        if newest.as_ref().map_or(true, |(_, t)| modified > *t) {
+        if newest.as_ref().is_none_or(|(_, t)| modified > *t) {
             newest = Some((path, modified));
         }
     };
@@ -1014,7 +1014,7 @@ fn host_requirements(index: &Path) -> Value {
     if !index.is_file() {
         return json!({"present":false,"state":"missing-projection","skills":[]});
     }
-    let Some(value) = read_json(&index) else {
+    let Some(value) = read_json(index) else {
         return json!({"present":false,"state":"invalid-registry","detail":"installed capability registry is unavailable","skills":[]});
     };
     let mut skills = Vec::new();

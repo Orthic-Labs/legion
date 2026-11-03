@@ -58,6 +58,11 @@ fn fixture_snapshot(root: &std::path::Path) -> legion_audit::snapshot::FrozenSna
     )
     .unwrap()
 }
+/// Windows-only: clears or sets the read-only attribute so fixtures can be deleted.
+#[cfg(not(unix))]
+fn set_readonly_attribute(permissions: &mut std::fs::Permissions, readonly: bool) {
+    permissions.set_readonly(readonly);
+}
 fn remove_fixture(root: &std::path::Path) {
     let Ok(meta) = std::fs::symlink_metadata(root) else {
         return;
@@ -70,7 +75,7 @@ fn remove_fixture(root: &std::path::Path) {
             permissions.set_mode(permissions.mode() | 0o700);
         }
         #[cfg(not(unix))]
-        permissions.set_readonly(false);
+        set_readonly_attribute(&mut permissions, false);
         std::fs::set_permissions(root, permissions).unwrap();
         for entry in std::fs::read_dir(root).unwrap() {
             remove_fixture(&entry.unwrap().path());
@@ -80,7 +85,7 @@ fn remove_fixture(root: &std::path::Path) {
         #[cfg(not(unix))]
         {
             let mut permissions = meta.permissions();
-            permissions.set_readonly(false);
+            set_readonly_attribute(&mut permissions, false);
             std::fs::set_permissions(root, permissions).unwrap();
         }
         std::fs::remove_file(root).unwrap();

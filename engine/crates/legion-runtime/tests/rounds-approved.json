@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "currentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "currentBase": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "implementer": "implementer-agent",
+  "maxRounds": 3,
+  "rounds": [{
+    "number": 1,
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "scope": "full",
+    "priorDigest": null,
+    "reviewer": "oracle-agent",
+    "status": "complete",
+    "evidenceRefs": ["review/456"],
+    "findings": []
+  }]
+}

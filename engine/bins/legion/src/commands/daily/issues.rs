@@ -295,11 +295,14 @@ pub fn sync(
         let fp = &g.fp;
         match known.get(g.repo).map(|issues| issues.get(fp)) {
             Some(Some(issue)) => done.extend(follow_up(g, issue, gh)),
-            Some(None) if !ledger.issues.contains_key(fp) && ledger.qualifies(fp) => {
-                if creates < MAX_CREATES && !fp.ends_with("/unclassified") {
-                    creates += 1;
-                    done.push(create(g, ledger, gh));
-                }
+            Some(None)
+                if !ledger.issues.contains_key(fp)
+                    && ledger.qualifies(fp)
+                    && creates < MAX_CREATES
+                    && !fp.ends_with("/unclassified") =>
+            {
+                creates += 1;
+                done.push(create(g, ledger, gh));
             }
             _ => {}
         }

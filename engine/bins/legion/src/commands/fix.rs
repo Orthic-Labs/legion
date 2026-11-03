@@ -298,7 +298,7 @@ fn select_actions(classes: &[FixClass], apply: bool, only: Option<&str>) -> Vec<
         chosen.retain(|index| {
             classes[*index]
                 .covered_by
-                .map_or(true, |cover| !ids.contains(&cover))
+                .is_none_or(|cover| !ids.contains(&cover))
         });
     }
     chosen
@@ -315,10 +315,8 @@ struct SetupInvocation {
 /// registry.
 pub(super) async fn run_setup(argv: Vec<String>, cancellation: CancellationToken) -> CommandResult {
     use clap::Parser;
-    let parsed = SetupInvocation::try_parse_from(
-        std::iter::once("setup".to_owned()).chain(argv.into_iter()),
-    )
-    .map_err(|error| CommandError::usage(error.to_string()))?;
+    let parsed = SetupInvocation::try_parse_from(std::iter::once("setup".to_owned()).chain(argv))
+        .map_err(|error| CommandError::usage(error.to_string()))?;
     super::setup::run(parsed.inner, cancellation).await
 }
 

@@ -1306,10 +1306,7 @@ fn designer_detect(args: &[String]) -> i32 {
     } else {
         r07::Platform::Other
     };
-    let executable = match r07::find_browser_executable(platform, &env, &fs_lookup) {
-        Ok(p) => Some(p),
-        Err(_) => None,
-    };
+    let executable = r07::find_browser_executable(platform, &env, &fs_lookup).ok();
     let registry = r07::RegistryLookup;
     let fetcher = r08::sweep_live::ReqwestFetcher::default();
     let providers: Vec<String> = Vec::new();

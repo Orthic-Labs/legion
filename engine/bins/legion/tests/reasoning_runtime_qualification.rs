@@ -278,6 +278,7 @@ impl Drop for Fixture {
 }
 
 #[test]
+#[ignore = "needs the installed native provider registry (LEGION_PROVIDER_REGISTRY was a dev switch and is gone); run by the installed-product lane"]
 fn reasoning_runtime_production_no_call_contract() {
     let binary = TestedBinary::prepare();
     let mut author_seats = 0;
@@ -418,6 +419,7 @@ fn reasoning_runtime_production_no_call_contract() {
 }
 
 #[test]
+#[ignore = "needs the installed native provider registry (LEGION_PROVIDER_REGISTRY was a dev switch and is gone); run by the installed-product lane"]
 fn tested_binary_rejects_same_length_replacement() {
     let path = std::env::temp_dir().join(format!("legion-tested-binary-{}", std::process::id()));
     assert!(!path.exists());

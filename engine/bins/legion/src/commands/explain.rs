@@ -14,7 +14,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
                 index += 1;
                 run_dir = argv
                     .get(index)
-                    .map(|value| PathBuf::from(value))
+                    .map(PathBuf::from)
                     .filter(|path| !path.as_os_str().is_empty());
                 if run_dir.is_none() {
                     return Err(CommandError::usage("explain --run requires a directory"));

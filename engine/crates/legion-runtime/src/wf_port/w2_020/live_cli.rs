@@ -1,5 +1,5 @@
 //! Port of the pure logic in `skills/designer/engine/scripts/live.mjs`, plus
-//! (packet r19) [`live_cli`]/[`run`] — the full `liveCli()` orchestration.
+//! (packet r19) [`live_cli`]/`run` — the full `liveCli()` orchestration.
 //!
 //! `liveCli()` drives sibling scripts/modules that now have their own Rust
 //! ports elsewhere in `engine/`:

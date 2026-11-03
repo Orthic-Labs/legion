@@ -29,7 +29,7 @@
 //!   so the scan logic is testable with a fake — no network or real browser
 //!   launch in this crate's tests), plus [`real::RealChromeDriver`], the
 //!   `headless_chrome`-backed implementation.
-//! - [`detect_url`]: `detectUrl`/`detectUrlCdp`/`createBrowserDetector` —
+//! - [`detect_url`](mod@detect_url): `detectUrl`/`detectUrlCdp`/`createBrowserDetector` —
 //!   options, design-system serialization for the injected page, the
 //!   load/inject/evaluate/collect sequence, and provider filtering.
 //! - [`findings`]: `finding()` and `filterByProviders()` from

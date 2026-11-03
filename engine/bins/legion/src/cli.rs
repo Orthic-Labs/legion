@@ -69,7 +69,7 @@ enum Command {
     /// Produce the frozen audit provider plan for a repository.
     Plan(commands::plan::PlanArgs),
     /// Run an evidence-governed repository audit or a frozen reasoning run.
-    Audit(AuditCommandArgs),
+    Audit(Box<AuditCommandArgs>),
     /// Verify audit facts against a sealed provider plan.
     Verify(commands::verify::VerifyArgs),
     /// Explain an audit finding or coverage gap by id (not capabilities).
@@ -378,6 +378,7 @@ impl M1CompositionConfig {
                 self.schema_version
             )));
         }
+        self.provider_count()?;
         if self.kind != "legion-m1-composition" {
             return Err(commands::CommandError::usage(
                 "M1 composition kind must be legion-m1-composition",

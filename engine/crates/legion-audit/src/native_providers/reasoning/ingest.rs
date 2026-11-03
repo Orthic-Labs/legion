@@ -2224,13 +2224,16 @@ fn locate_packet(
 /// `<provider>.part-NNNN.json` for one part of a partitioned lens).
 ///
 /// Result shape (`kind: legion-lens-result`):
-/// `{schemaVersion:1, kind, provider, packetDigest, planDigest, complete:true,
+///
+/// ```text
+/// {schemaVersion:1, kind, provider, packetDigest, planDigest, complete:true,
 ///   findings:[{...lens schema fields, anchor:{path,line,text}}],
 ///   withdrawn:[{id, reason, disproof:{path,line,text}}],
 ///   verdicts:[{candidateId, verdict, ...}]  (legacy.security.adjudication only:
-///     exactly one per packet `scannerCandidates` entry; a surviving verdict
-///     also needs a finding with id `adjudicated:<candidateId>`),
-///   details:{semanticReview?, changeRisk?}}`
+///     exactly one per packet scannerCandidates entry; a surviving verdict
+///     also needs a finding with id adjudicated:<candidateId>),
+///   details:{semanticReview?, changeRisk?}}
+/// ```
 ///
 /// `complete:true` only attests the submitter finished. Examined coverage is
 /// computed from the paths the packet carried: omitted or truncated excerpts

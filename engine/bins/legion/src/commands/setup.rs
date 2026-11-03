@@ -886,8 +886,8 @@ async fn validate_client_evidence(
         let command_path = std::fs::canonicalize(command_ref).map_err(io_error)?;
         let qualification_path = std::fs::canonicalize(qualification_ref).map_err(io_error)?;
         if command_path == qualification_path
-            || !command_path.starts_with(&qualification_root)
-            || !qualification_path.starts_with(&qualification_root)
+            || !command_path.starts_with(qualification_root)
+            || !qualification_path.starts_with(qualification_root)
         {
             return Err(CommandError::usage(
                 "client command and qualification proofs must be distinct files inside Legion platform state",
@@ -2621,7 +2621,7 @@ fn setup_health_for_action(
                 projection
                     .get("clientId")
                     .and_then(Value::as_str)
-                    .or_else(|| match client.as_str() {
+                    .or(match client.as_str() {
                         "claudeCodeLegacy" | "claudePlugin" => {
                             Some(legion_host::setup_registry::CLIENT_CLAUDE)
                         }
@@ -3797,22 +3797,15 @@ async fn reconcile_native_marketplace(
         || pending_refresh
             .as_ref()
             .is_some_and(|record| record.was_enabled == Some(false));
-    if binding.client == legion_host::MarketplaceClient::ClaudeCode
+    let resumable_claude_refresh = binding.client == legion_host::MarketplaceClient::ClaudeCode
         && !was_installed
-        && pending_refresh.is_some()
         && matches!(
             request.action,
             legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
-        )
-    {
-        return resume_interrupted_claude_refresh(
-            &cli,
-            binding,
-            request,
-            pending_refresh.as_ref().expect("checked pending refresh"),
-            cancellation,
-        )
-        .await;
+        );
+    if let (true, Some(pending)) = (resumable_claude_refresh, pending_refresh.as_ref()) {
+        return resume_interrupted_claude_refresh(&cli, binding, request, pending, cancellation)
+            .await;
     }
     let registered = before["nativeMarketplaceRegistered"] == true;
     let source_current = before["marketplaceSourceCurrent"] == true;

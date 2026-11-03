@@ -205,7 +205,7 @@ pub struct SubjectIdentity {
     /// Deployed server revision for server-side journeys.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_revision: Option<String>,
-    /// Exact cargo/build feature selection (sorted by [`normalized_features`]).
+    /// Exact cargo/build feature selection (sorted by `normalized_features`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub features: Vec<String>,
     /// Isolated environment id (never a production URL).

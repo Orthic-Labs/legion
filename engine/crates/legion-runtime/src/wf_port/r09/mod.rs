@@ -13,7 +13,7 @@
 //! The remaining pieces (previously left unported) are implemented below:
 //! `resolveVarRefs`/`resolveLengthPx` (`resolve_var_refs` here;
 //! `resolveLengthPx` is reused directly from
-//! [`crate::wf_port::w2_011::design_system::resolve_length_px`], which is
+//! `crate::wf_port::w2_011::design_system::resolve_length_px`, which is
 //! the same `checks.mjs` function already ported for that packet — one
 //! canonical port, not a second copy), `normalizeStaticCssValue`,
 //! `collectStaticCssRules` (a small hand-written recursive-descent CSS

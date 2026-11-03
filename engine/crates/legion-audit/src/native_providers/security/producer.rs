@@ -792,7 +792,7 @@ impl<'a> Run<'a> {
         #[cfg(unix)]
         let process = rightkit_evidence_effects::platform::unix::UnixProcess::new();
         #[cfg(windows)]
-        let process = rightkit_evidence_effects::platform::windows::WindowsProcess::default();
+        let process = rightkit_evidence_effects::platform::windows::WindowsProcess;
         let effects = rightkit_evidence_effects::EffectExecutor::new(
             process,
             rightkit_evidence_effects::ArtifactWriter::new(&self.scratch.path),

@@ -1022,7 +1022,7 @@ pub fn invalid_manual_apply_result(reason: &str, event_id: &str, extra: Value) -
 
 /// Port of `validateManualApplyResultMessage(msg, deferred)`. `deferred`'s
 /// batch is passed as `deferred_batch` since the full deferred bookkeeping
-/// object is ported separately as [`DeferredApply`].
+/// object is ported separately as `DeferredApply`.
 pub fn validate_manual_apply_result_message(
     msg: &Value,
     deferred_event_id: Option<&str>,

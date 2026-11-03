@@ -37,7 +37,7 @@ pub fn format_finding_summary(count: usize) -> String {
 ///
 /// `json_mode = true` returns a JSON array via `serde_json` (mirrors
 /// `JSON.stringify(findings, null, 2)` field-for-field, built explicitly
-/// per finding by [`finding_to_json`], 2-space indented). Text mode groups
+/// per finding by `finding_to_json`, 2-space indented). Text mode groups
 /// findings by `file`
 /// (JS uses `Object.entries` on an object keyed by insertion order, which
 /// V8 preserves for string keys — reproduced here with an explicit

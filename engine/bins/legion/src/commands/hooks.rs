@@ -110,7 +110,7 @@ fn parse_options(argv: &[String]) -> Result<Options, CommandError> {
 fn status_value(home: &Path, client: Option<&str>) -> Value {
     let hosts = hook_registrations(home)
         .into_iter()
-        .filter(|row| client.map_or(true, |client| row["host"] == client))
+        .filter(|row| client.is_none_or(|client| row["host"] == client))
         .collect::<Vec<_>>();
     let registered = hosts.iter().any(|row| row["registered"] == true);
     json!({
@@ -257,7 +257,7 @@ fn hook_registrations_with_codex_home(home: &Path, codex_home: &Path) -> Vec<Val
     }
 
     let codex_config = codex_home.join("config.toml");
-    let codex_lookup = legion_host::find_codex_plugin_cache(&codex_config, &codex_home);
+    let codex_lookup = legion_host::find_codex_plugin_cache(&codex_config, codex_home);
     let (codex_cache_state, codex_plugin) = match &codex_lookup {
         Ok(legion_host::CodexCacheLookup::NotConfigured) => ("not-configured", None),
         Ok(legion_host::CodexCacheLookup::Missing) => ("missing", None),

@@ -253,7 +253,7 @@ fn sorted_dedup(mut errors: Vec<String>) -> Vec<String> {
 ///
 /// `path` need not exist on disk — mirrors the Python `Path.resolve(strict=False)`
 /// behaviour used throughout. `platform_windows` selects the `os.name == "nt"` path-
-/// comparison semantics (see [`normalized`]); pass `false` on macOS/Linux.
+/// comparison semantics (see `normalized`); pass `false` on macOS/Linux.
 pub fn validate_packet(
     text: &str,
     path: &Path,

@@ -106,8 +106,7 @@ impl ProviderExecutor for NativeRuleProviderExecutor {
         evaluate_native_rules(
             &self.root,
             &self.manifest,
-            &provider.id,
-            provider.required,
+            provider,
             &selector,
             &packs,
             self.max_file_bytes,
@@ -119,14 +118,13 @@ impl ProviderExecutor for NativeRuleProviderExecutor {
 fn evaluate_native_rules(
     root: &Path,
     manifest_path: &Path,
-    provider_id: &str,
-    required: bool,
+    audit_provider: &AuditProvider,
     selector: &Value,
     packs: &[String],
     max_file_bytes: u64,
     inventory: &InventoryEnvelope,
 ) -> Result<ProviderResult, AuditError> {
-    let provider = ProviderId::new(provider_id).map_err(AuditError::from)?;
+    let provider = ProviderId::new(&audit_provider.id).map_err(AuditError::from)?;
     let manifest = std::fs::read_to_string(manifest_path).map_err(|error| {
         AuditError::Provider(format!("native rule manifest unavailable: {error}"))
     })?;
@@ -229,7 +227,7 @@ fn evaluate_native_rules(
         schema_version: 1,
         provider,
         applicable: true,
-        required,
+        required: audit_provider.required,
         status: if complete {
             ProviderStatus::Complete
         } else {

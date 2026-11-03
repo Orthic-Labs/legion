@@ -632,7 +632,7 @@ fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
 /// Top-level CLI entry point, equivalent to the module-level script body
 /// (argv dispatch: `--help`/`-h`, `stop`, `--background`, otherwise start).
 /// `--background` re-execs `std::env::current_exe()` (see
-/// [`run_background`]) rather than a separately-tracked binary path.
+/// `run_background`) rather than a separately-tracked binary path.
 pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!("{HELP_TEXT}");

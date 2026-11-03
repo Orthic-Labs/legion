@@ -4,7 +4,7 @@
 //! Kept separate from `cli.rs` so the CLI dispatch loop can be tested
 //! against a fake [`super::cli::Detectors`] without touching real regex/DOM
 //! work, matching this port's "I/O behind a trait, tested with fakes" rule
-//! for the URL/site-sweep lanes ([`RealDetectors::detect_url`] takes a
+//! for the URL/site-sweep lanes (`RealDetectors::detect_url` takes a
 //! [`ChromeDriver`] + [`AntipatternLookup`] generically for exactly this
 //! reason).
 //!
@@ -81,8 +81,8 @@ fn dedupe(findings: Vec<CliFinding>) -> Vec<CliFinding> {
 /// undeduped — matching `detectText`'s own `deduped.push(...analyzer
 /// results)` after its dedup loop. This function itself does not apply
 /// `filterByProviders` (it takes no registry/providers) — that gating is
-/// applied by [`RealDetectors::detect_text`], the `Detectors::detect_text`
-/// impl, via [`filter_cli_findings_by_providers`], now that the antipattern
+/// applied by `RealDetectors::detect_text`, the `Detectors::detect_text`
+/// impl, via `filter_cli_findings_by_providers`, now that the antipattern
 /// registry is ported (`wf_port::w2_014::antipatterns`,
 /// `wf_port::r07::RegistryLookup`).
 pub fn detect_text(
@@ -457,7 +457,7 @@ where
     pub fetcher: &'a Fe,
     pub browser_script: &'a str,
     /// CLI-wide `--gpt`/`--gemini` providers, applied by `detect_text`/
-    /// `detect_html` (via [`filter_cli_findings_by_providers`]) the same
+    /// `detect_html` (via `filter_cli_findings_by_providers`) the same
     /// way `options.providers` gates every call in one `main.mjs`
     /// invocation; `detect_url` gets its own copy per-call through
     /// `UrlScanOptions`, matching `detectUrl`'s own `options.providers`.

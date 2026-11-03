@@ -671,9 +671,7 @@ fn lifecycle(action: &str, a: &[String]) -> CommandResult {
             &root.join(".audit/arcane/contract-seals"),
         )
     };
-    Ok(
-        json!({"kind":"legion-contract-transition","receipt":r.map_err(|e|CommandError::incomplete(e))?}),
-    )
+    Ok(json!({"kind":"legion-contract-transition","receipt":r.map_err(CommandError::incomplete)?}))
 }
 fn now() -> String {
     SystemTime::now()

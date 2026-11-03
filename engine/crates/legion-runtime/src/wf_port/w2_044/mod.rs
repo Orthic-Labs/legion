@@ -14,7 +14,7 @@
 //! pre-execution audit contract, the `worker` packet capsule/projection
 //! checks, and — previously entirely un-ported and un-noted — the `sage`/
 //! `oracle`/`seer`/`alchemist` branches are now all implemented in
-//! [`authority_packet::direct_packet_errors`] and
+//! `authority_packet::direct_packet_errors` and
 //! [`authority_packet::authority_packet_errors`]'s `packet_type` match.
 //! Packet r46 also separately ported `managed_rust_route_errors()` in full,
 //! under `wf_port::r46`.

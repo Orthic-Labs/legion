@@ -22,7 +22,7 @@
 //!
 //! **Known gap 2**: Python's `uuid.UUID(run_id)` accepts many input forms
 //! (hyphenated, bare 32-hex, braced, `urn:uuid:` prefixed, mixed case).
-//! [`is_uuid`] only accepts the canonical hyphenated 8-4-4-4-12 form
+//! `is_uuid` only accepts the canonical hyphenated 8-4-4-4-12 form
 //! (case-insensitive), which is what every existing GoalRoute artifact in
 //! this repository uses; the other forms are PORTED-PARTIAL.
 

@@ -88,7 +88,7 @@ fn plan_cli_returns_a_structured_dependency_error() {
 
 #[test]
 fn stale_review_and_pr_observations_are_not_successful_cli_results() {
-    let mut review = read(&fixture("legion-review", "rounds-approved.json"));
+    let mut review = read(&fixture("legion-runtime", "rounds-approved.json"));
     review["currentDigest"] = json!("c".repeat(64));
     let file = InputFile::new(&review);
     let output = run("review-loop", "assess", &file.0);

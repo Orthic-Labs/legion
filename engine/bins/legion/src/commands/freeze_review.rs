@@ -1,20 +1,25 @@
 //! Protected broker transport: fresh, tool-less native sessions, never imported votes.
 //! Caller enrolls config under root ownership & supplies one fresh scratch directory.
+#[cfg(unix)]
 use rightkit_child_process::OwnedCommand;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+#[cfg(unix)]
 use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
+#[cfg(unix)]
 use std::{
     fs,
     io::{Read, Write},
-    path::{Path, PathBuf},
     process::Stdio,
     sync::mpsc,
     thread,
     time::Duration,
 };
 
+#[cfg(unix)]
 const MAX_OUTPUT: usize = 2 * 1024 * 1024;
+#[cfg(unix)]
 const SCHEMA: &str = r#"{"type":"object","additionalProperties":false,"required":["decision","reason"],"properties":{"decision":{"type":"string","enum":["necessary","unnecessary","agree","disagree"]},"reason":{"type":"string","minLength":1,"maxLength":8192}}}"#;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,6 +34,7 @@ pub enum ReviewPurpose {
     Necessity,
     Agreement,
 }
+#[cfg(unix)]
 impl ReviewPurpose {
     fn instruction(self) -> &'static str {
         match self {
@@ -62,6 +68,7 @@ fn default_timeout() -> u64 {
     180
 }
 
+#[cfg(unix)]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Vote {
@@ -85,12 +92,14 @@ pub struct CapturedReview {
     pub process_id: u32,
 }
 
+#[cfg(unix)]
 fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 fn unavailable(message: impl std::fmt::Display) -> String {
     format!("review unavailable: {message}")
 }
+#[cfg(unix)]
 fn canonical(path: &Path) -> Result<(), String> {
     if !path.is_absolute() || fs::canonicalize(path).map_err(unavailable)? != path {
         return Err(unavailable("path must be absolute, canonical & existing"));
@@ -201,6 +210,7 @@ fn validate(config: &ReviewerConfig, scratch: &Path, repository: &Path) -> Resul
     Ok(uid)
 }
 
+#[cfg(unix)]
 fn reader<R: Read + Send + 'static>(mut source: R) -> mpsc::Receiver<Result<Vec<u8>, String>> {
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
@@ -228,6 +238,7 @@ fn reader<R: Read + Send + 'static>(mut source: R) -> mpsc::Receiver<Result<Vec<
     rx
 }
 
+#[cfg(unix)]
 fn receive(rx: mpsc::Receiver<Result<Vec<u8>, String>>) -> Result<Vec<u8>, String> {
     rx.recv_timeout(Duration::from_secs(3))
         .map_err(|_| unavailable("native stream did not close"))?
@@ -409,7 +420,9 @@ pub fn invoke_for(
     ))
 }
 
+#[cfg(unix)]
 type Parsed = (String, Vote, Option<Value>, Vec<u8>);
+#[cfg(unix)]
 fn vote(value: Value) -> Result<Vote, String> {
     let vote: Vote = serde_json::from_value(value).map_err(unavailable)?;
     if !matches!(
@@ -423,6 +436,7 @@ fn vote(value: Value) -> Result<Vote, String> {
     }
     Ok(vote)
 }
+#[cfg(unix)]
 fn session(value: Option<&str>) -> Result<String, String> {
     let value = value.ok_or_else(|| unavailable("native session identity missing"))?;
     if value.is_empty()
@@ -435,6 +449,7 @@ fn session(value: Option<&str>) -> Result<String, String> {
     }
     Ok(value.into())
 }
+#[cfg(unix)]
 fn parse_claude(stdout: &str, model: &str) -> Result<Parsed, String> {
     let raw: Value = serde_json::from_str(stdout).map_err(unavailable)?;
     if raw.get("type").and_then(Value::as_str) != Some("result")
@@ -467,6 +482,7 @@ fn parse_claude(stdout: &str, model: &str) -> Result<Parsed, String> {
     ))
 }
 
+#[cfg(unix)]
 fn parse_codex(stdout: &str, stderr: &str, model: &str) -> Result<Parsed, String> {
     // Non-JSON mode exposes native startup identity, unlike JSONL. Parse only
     // first CLI header, never user/assistant text printed after its closing line.

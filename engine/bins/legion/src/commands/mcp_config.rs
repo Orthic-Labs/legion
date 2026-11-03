@@ -83,7 +83,7 @@ async fn install(
     }
     let existing = super::hooks::mcp_registrations(home, project)
         .into_iter()
-        .filter(|item| client.as_deref().map_or(true, |client| client == item.host))
+        .filter(|item| client.as_deref().is_none_or(|client| client == item.host))
         .collect::<Vec<_>>();
     let rows = existing
         .iter()

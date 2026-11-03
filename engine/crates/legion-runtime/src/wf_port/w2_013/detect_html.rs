@@ -33,7 +33,7 @@
 //!   [`find_broken_images`], which walks every `<img>` the same way the JS
 //!   `STATIC_ELEMENT_RULES` entry for `broken-image` does
 //!   (`document.querySelectorAll('img')`).
-//! - [`StaticStylesheet`]/[`resolve_typography_style`] — a real (not
+//! - [`StaticStylesheet`]/`resolve_typography_style` — a real (not
 //!   hand-waved) CSS cascade limited to the two properties
 //!   `checkStaticPageTypography` reads (`font-family`, `font-size`):
 //!   `<style>` block parsing, selector specificity via

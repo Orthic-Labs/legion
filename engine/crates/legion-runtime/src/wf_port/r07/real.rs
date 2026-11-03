@@ -5,7 +5,7 @@
 //! WebSocket client rather than a re-implementation of it.
 //!
 //! Not exercised by this crate's tests (per the packet's "no real browser in
-//! tests" rule) — only [`super::detect_url`]'s pure logic, against a fake
+//! tests" rule) — only [`super::detect_url`](mod@super::detect_url)'s pure logic, against a fake
 //! driver, is tested here.
 
 use headless_chrome::{Browser, LaunchOptions};
