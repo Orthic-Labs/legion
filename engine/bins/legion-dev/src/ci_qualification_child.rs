@@ -3,142 +3,14 @@ use rightkit_child_process::{sweep, AdoptedIdentity, OwnedCommand, ReapOutcome};
 use serde_json::json;
 use std::{
     ffi::OsString,
-    path::Path,
     process::{ExitStatus, Stdio},
     time::{Duration, Instant},
 };
 
 const CLEANUP_TIMEOUT: Duration = Duration::from_secs(3);
-
-fn command_timeout(argv: &[OsString]) -> Duration {
-    // Run39394355495 macOS seq44 completed in816.08s (snapshot SHA56fb2...).
-    // Only complete source-owned selectors get matrix deadlines; native calls stay120s.
-    let mobile = [
-        "test",
-        "--locked",
-        "-p",
-        "legion-audit",
-        "--lib",
-        "native_providers::code::tools::mobile_sdk::tests::native::native_mobile_sdk_controls",
-        "--",
-        "--ignored",
-        "--exact",
-        "--nocapture",
-        "--test-threads=1",
-    ];
-    let javascript = [
-        "test",
-        "--locked",
-        "-p",
-        "legion-audit",
-        "--test",
-        "real_javascript_sdk_accuracy",
-        "real_javascript_sdk_accuracy",
-        "--",
-        "--ignored",
-        "--exact",
-        "--nocapture",
-        "--test-threads=1",
-    ];
-    let rust = [
-        "test",
-        "--locked",
-        "-p",
-        "legion-audit",
-        "--test",
-        "real_rust_code_accuracy",
-        "real_rust_code_accuracy",
-        "--",
-        "--ignored",
-        "--exact",
-        "--nocapture",
-        "--test-threads=1",
-    ];
-    // Run39520170497 macOS seq57: the .NET harness (three language SDK builds)
-    // exceeded the 300s default (exit124); run 39550845440 took 1297s of 1500s.
-    let dotnet = [
-        "test",
-        "--locked",
-        "-p",
-        "legion-audit",
-        "--lib",
-        "native_providers::code::tools::dotnet_sdk_accuracy::original_dotnet_sdk_contract_has_real_language_task_and_boundary_controls",
-        "--",
-        "--ignored",
-        "--exact",
-        "--nocapture",
-        "--test-threads=1",
-    ];
-    // Run40060030080 macOS seq31 (and run39839571253 seq31): the JVM harness
-    // (15 sequential child controls, each re-driving Gradle/Kotlin/Scala builds
-    // cold) hit the 300s default (exit124) after finishing only its first
-    // control; that `positive` child alone took 206.55s (retained
-    // child.stdout.log). 15 x 206.55s = 3098s bounds the span if every control
-    // were as slow as the slowest one seen, so the deadline is 3600s. The
-    // receipt's elapsedMillis from the next full run replaces this bound.
-    let jvm = [
-        "test",
-        "--locked",
-        "-p",
-        "legion-audit",
-        "--test",
-        "real_jvm_sdk_accuracy",
-        "real_jvm_sdk_accuracy",
-        "--",
-        "--ignored",
-        "--exact",
-        "--nocapture",
-        "--test-threads=1",
-    ];
-    // The .NET span runs cargo through its recording child
-    // (`python3 run-dotnet-sdk-qualification-child.py --output-root DIR -- cargo ...`);
-    // the deadline belongs to the cargo command after the separator.
-    let child_wrapped = argv.len() > 4
-        && Path::new(&argv[0])
-            .file_name()
-            .is_some_and(|name| name == "python3" || name == "python3.exe" || name == "python")
-        && Path::new(&argv[1])
-            .file_name()
-            .is_some_and(|name| name == "run-dotnet-sdk-qualification-child.py")
-        && argv[2] == "--output-root"
-        && argv[4] == "--";
-    let argv: &[OsString] = if child_wrapped { &argv[5..] } else { argv };
-    // Run39526093982 macOS seq92: the Rust SDK validator (python) reads and
-    // re-derives the whole retained record and timed out at the 300s default.
-    let python_validator = argv.len() >= 2
-        && Path::new(&argv[0])
-            .file_name()
-            .is_some_and(|name| name == "python3" || name == "python3.exe" || name == "python")
-        && Path::new(&argv[1])
-            .file_name()
-            .is_some_and(|name| name == "audit-rust-code-sdk-accuracy.py");
-    if python_validator {
-        return Duration::from_secs(1500);
-    }
-    let cargo = argv
-        .first()
-        .and_then(|value| Path::new(value).file_name())
-        .is_some_and(|name| name == "cargo" || name == "cargo.exe");
-    if cargo {
-        for (selector, seconds) in [
-            (mobile.as_slice(), 1200),
-            (javascript.as_slice(), 1800),
-            (rust.as_slice(), 2400),
-            (dotnet.as_slice(), 2400),
-            (jvm.as_slice(), 3600),
-        ] {
-            if argv.len() == selector.len() + 1
-                && argv[1..]
-                    .iter()
-                    .zip(selector)
-                    .all(|(value, expected)| value == *expected)
-            {
-                return Duration::from_secs(seconds);
-            }
-        }
-    }
-    Duration::from_secs(300)
-}
+// Every managed qualification command gets the default deadline. The per-selector
+// matrix deadlines belonged to test selectors that no longer exist.
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[cfg(unix)]
 fn signal(status: ExitStatus) -> Option<i32> {
@@ -277,7 +149,7 @@ pub fn run(sequence: u64, argv: &[OsString]) -> u8 {
         eprintln!("CI qualification child requires managed native CI & original span");
         return 125;
     }
-    let timeout = command_timeout(argv);
+    let timeout = COMMAND_TIMEOUT;
     let recorded_argv: Vec<_> = argv.iter().map(|value| value.to_string_lossy()).collect();
     let started = Instant::now();
     let mut command = OwnedCommand::new(&argv[0]);
