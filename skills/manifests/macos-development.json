@@ -1029,7 +1029,7 @@
     {
       "path": "references/tool-setup.md",
       "uri": "legion-skill://macos-development/references/tool-setup.md",
-      "digest": "sha256:9ebfa873ca9eb64f35524ae3e2243f4a7b27c4f463cfbf9c1996f4b5d87bb242"
+      "digest": "sha256:31b729586e40136b2903373417412548fc17420523faecda04f1ebbed0c1354d"
     },
     {
       "path": "references/toolchain.md",

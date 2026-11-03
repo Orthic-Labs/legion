@@ -51,7 +51,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://handoff/SKILL.md",
-      "digest": "sha256:bed02682d77df08aa291daf9a8694ee3b1e39926951e294bb7c9baa723209bf7"
+      "digest": "sha256:ea519e6874d79ddea32ad883d469ed5dcf1aaf68da3b2cf6ee185ec538b62dbb"
     },
     {
       "path": "agents/openai.yaml",
@@ -61,7 +61,7 @@
     {
       "path": "assets/handoff-template.md",
       "uri": "legion-skill://handoff/assets/handoff-template.md",
-      "digest": "sha256:f70b3fa761b37c0f26dd565636cdd4fd1a6adb82761a6f604ea42f6fff1ba74f"
+      "digest": "sha256:c5c593675be9fdace3ed473c6d397569d492037b14884efaaa3de12d25fdaf47"
     },
     {
       "path": "dependencies.json",
@@ -86,7 +86,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://handoff/references/manual.md",
-      "digest": "sha256:367a1e7537b6970d856aecae010c45d5909ab990f92e606c0177299e94822f4a"
+      "digest": "sha256:f1eaa1c3baec8959209939fa9083e4bdf15c68a7693f4a2125803eedd0e7fbfb"
     }
   ]
 }

@@ -1105,7 +1105,7 @@
     {
       "id": "qa",
       "name": "qa",
-      "description": "Write tests only for native, backend, or web behavior, or add, run, or audit local web or Tauri app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks.",
+      "description": "Write tests only for native, backend, or web behavior, or add, run, or audit web app QA with hidden servers, deterministic mocks, functional/browser assertions, viewport evidence, and runtime checks. Desktop and Tauri app QA runs through RightKit QA on the real installed build.",
       "kind": "domain-capability",
       "discoverability": "public",
       "invocation": {

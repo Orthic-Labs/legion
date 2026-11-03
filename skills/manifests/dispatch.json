@@ -58,7 +58,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:2808a9713b79cffcbd39c2e8a3fab97cf15318e0ef7c481c0e12977eb4344f7c"
+      "digest": "sha256:396510b0b47c127096eb8e096175fcf42a77ce0cbf1cfc11a1dac554c14b40c6"
     },
     {
       "path": "agents/openai.yaml",
@@ -158,17 +158,17 @@
     {
       "path": "references/agent-routing.md",
       "uri": "legion-skill://dispatch/references/agent-routing.md",
-      "digest": "sha256:e1a46732afb175619fa649764f121b39682e07d6178fa0f42d64c9bfeb01f5cb"
+      "digest": "sha256:dee4fa55ce2d4de3967b04cb60e59a6c58caba7999eb98a5f7dbe79052cd72c6"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
-      "digest": "sha256:7a8c9b8fcfb597a41c7337b61fa554443210e9f9de00a3b030bd0807f7c1018a"
+      "digest": "sha256:d6c33cc168f4582bead7aea0f8148c6e3e8832d01fbe16415541dfe7eda1d421"
     },
     {
       "path": "references/work-plan.md",
       "uri": "legion-skill://dispatch/references/work-plan.md",
-      "digest": "sha256:1500f30bb602129641279d8da49f9b72420295874fb1f7cd2bf0b605d09a44f4"
+      "digest": "sha256:c9a0994542786b5c8ab44fc5099a93d641e1538786f6c52aa16fbbf9f5d36dfb"
     }
   ]
 }
