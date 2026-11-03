@@ -108,7 +108,9 @@ fn plan_for(
 
 /// Real effect executor & Unix backend with explicit in-process SDK fixture
 /// admission; this proves parser behavior, not production admission.
-fn real_external_tool(scratch: &AuditScratch) -> Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
+fn real_external_tool(
+    scratch: &AuditScratch,
+) -> Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
     let policy = rightkit_evidence_effects::StaticPolicy {
         decision: rightkit_evidence_effects::PolicyDecision {
             allowed: true,

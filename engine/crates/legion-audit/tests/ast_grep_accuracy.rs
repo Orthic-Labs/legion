@@ -11,7 +11,9 @@ use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventorySource, ProviderExecutor,
 };
 use rightkit_evidence_contracts::ProviderSpec;
-use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_evidence_effects::{
+    ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -342,7 +344,10 @@ fn source_binding(root: &Path) -> Value {
     json!({"repositoryRoot":fs::canonicalize(root).unwrap(),"roots":roots,"files":files,"providerSpec":spec,"providerSpecDigest":provider_spec_digest})
 }
 
-fn artifact_text(root: &Path, receipt: &Option<rightkit_evidence_effects::ArtifactRecord>) -> String {
+fn artifact_text(
+    root: &Path,
+    receipt: &Option<rightkit_evidence_effects::ArtifactRecord>,
+) -> String {
     let record = receipt.as_ref().expect("actual SDK stream artifact");
     let bytes = fs::read(root.join(&record.path)).unwrap();
     assert_eq!(bytes.len(), record.bytes);

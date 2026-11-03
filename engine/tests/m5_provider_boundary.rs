@@ -1,6 +1,9 @@
 //! Deterministic M5 adversarial corpus for the effects-owned provider seam.
 
 use async_trait::async_trait;
+use rightkit_code_audit_provider_sdk::{
+    EffectInterface, ExternalProjectTool, ProviderContext, ProviderError, SourceInterface,
+};
 use rightkit_evidence_contracts::{
     agent::BudgetCeiling, task::RequestEnvelope, AgentId, EffectRequest, InvocationGrant, Latitude,
     Plan, PlanId, RequestId, TaskId, TaskSpec, TaskStatus,
@@ -13,9 +16,6 @@ use rightkit_evidence_effects::{
     receipt::{ExecutionReceipt, ExecutionState, PolicyEvidence, ProcessTreeEvidence},
     request::ExternalToolRequest,
     ExecutableIdentity,
-};
-use rightkit_code_audit_provider_sdk::{
-    EffectInterface, ExternalProjectTool, ProviderContext, ProviderError, SourceInterface,
 };
 use serde_json::Value;
 use std::{

@@ -572,7 +572,10 @@ fn unmet_reasons(report: &rightkit_evidence_contracts::ReportV1) -> String {
         .join(" | ")
 }
 
-fn release_report_for(plan: &FrozenPlan, exec: &ExecutionReport) -> rightkit_evidence_contracts::ReportV1 {
+fn release_report_for(
+    plan: &FrozenPlan,
+    exec: &ExecutionReport,
+) -> rightkit_evidence_contracts::ReportV1 {
     canonical_report_assured("/frozen/source", plan, exec, &[], &[], NOW).unwrap()
 }
 

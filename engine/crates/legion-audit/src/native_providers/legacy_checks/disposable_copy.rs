@@ -15,10 +15,10 @@ use std::{
 };
 
 use super::attested_runs::{self, AdapterEnrollment, AttestedRunsEnrollment};
-use rightkit_evidence_contracts::{Coverage, FindingId, FindingRef, ProviderStatus};
 use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
+use rightkit_evidence_contracts::{Coverage, FindingId, FindingRef, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;

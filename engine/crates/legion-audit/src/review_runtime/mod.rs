@@ -2115,7 +2115,8 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
     let complete = final_status == "done"
         && matches!(
             recomputed.report.status,
-            rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
+            rightkit_evidence_contracts::ReportStatus::Clean
+                | rightkit_evidence_contracts::ReportStatus::Findings
         )
         && recomputed.report.gaps.is_empty()
         && controller.snapshot.manifest.gaps.is_empty();
@@ -2741,10 +2742,11 @@ mod tests {
         }
         let mut shared_proof = proof.clone();
         shared_proof["transportEncoding"] = json!("shared-audit-packet-reference-v1");
-        shared_proof["reconstructedPacketBytes"] =
-            json!(rightkit_evidence_contracts::canonical_json_bytes(&projected)
+        shared_proof["reconstructedPacketBytes"] = json!(
+            rightkit_evidence_contracts::canonical_json_bytes(&projected)
                 .unwrap()
-                .len());
+                .len()
+        );
         shared_proof["sharedContextDigest"] = batch["sharedContextDigest"].clone();
         shared_proof["reconstruction"] = json!({"sharedContext":batch["sharedContext"],"compactPacket":batch["lenses"][0]["packet"]});
         reasoning::validate_delivery_evidence(&original, &shared_proof).unwrap();

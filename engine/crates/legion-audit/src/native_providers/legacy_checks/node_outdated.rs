@@ -348,7 +348,9 @@ async fn probe(
         .as_ref()
         .and_then(|a| readable_artifact(&[roots[0].as_path(), roots[1].as_path()], a));
     let state = match receipt.state {
-        rightkit_code_audit_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
+        rightkit_code_audit_provider_sdk::ExecutionState::Completed => {
+            LegacyCheckProcessState::Completed
+        }
         rightkit_code_audit_provider_sdk::ExecutionState::MissingExecutable => {
             LegacyCheckProcessState::MissingExecutable
         }
@@ -358,8 +360,12 @@ async fn probe(
         | rightkit_code_audit_provider_sdk::ExecutionState::UnsealedExecutable => {
             LegacyCheckProcessState::Unauthorized
         }
-        rightkit_code_audit_provider_sdk::ExecutionState::Timeout => LegacyCheckProcessState::Timeout,
-        rightkit_code_audit_provider_sdk::ExecutionState::Cancelled => LegacyCheckProcessState::Cancelled,
+        rightkit_code_audit_provider_sdk::ExecutionState::Timeout => {
+            LegacyCheckProcessState::Timeout
+        }
+        rightkit_code_audit_provider_sdk::ExecutionState::Cancelled => {
+            LegacyCheckProcessState::Cancelled
+        }
         rightkit_code_audit_provider_sdk::ExecutionState::OutputLimited => {
             LegacyCheckProcessState::OutputLimited
         }

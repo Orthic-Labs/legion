@@ -409,7 +409,9 @@ impl rightkit_code_audit_provider_sdk::ExternalProjectTool for RecordingTool {
     }
 }
 
-fn real_external_tool(root: &Path) -> std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
+fn real_external_tool(
+    root: &Path,
+) -> std::sync::Arc<dyn rightkit_code_audit_provider_sdk::ExternalProjectTool> {
     let policy = rightkit_evidence_effects::StaticPolicy {
         decision: rightkit_evidence_effects::PolicyDecision {
             allowed: true,
@@ -1514,7 +1516,8 @@ fn bench_recall_qualification_receipt() {
         "measuredAtUnixMs": SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock").as_millis(),
         "results": results,
     });
-    receipt["qualificationDigest"] = json!(rightkit_evidence_contracts::canonical_digest(&receipt).unwrap());
+    receipt["qualificationDigest"] =
+        json!(rightkit_evidence_contracts::canonical_digest(&receipt).unwrap());
     // One original JSON envelope in harness stdout, before any all-class
     // assertion. Consumers still require this entire test's terminal success.
     println!(

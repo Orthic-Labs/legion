@@ -359,7 +359,8 @@ fn verify_execution_structure(report: &ExecutionReport) -> Result<(), AuditError
         if item.result.complete
             && !matches!(
                 item.result.status,
-                rightkit_evidence_contracts::ProviderStatus::Ok | rightkit_evidence_contracts::ProviderStatus::Complete
+                rightkit_evidence_contracts::ProviderStatus::Ok
+                    | rightkit_evidence_contracts::ProviderStatus::Complete
             )
         {
             return Err(AuditError::Invalid(
@@ -594,7 +595,8 @@ mod effect_artifact_tests {
         fs::write(run.join("artifacts/original/stdout.bin"), bytes).unwrap();
         let stored = report(json!("artifacts"));
         let mut execution = execution(record(bytes));
-        let native_provider = rightkit_evidence_contracts::ProviderId::new("legacy.native.fixture").unwrap();
+        let native_provider =
+            rightkit_evidence_contracts::ProviderId::new("legacy.native.fixture").unwrap();
         let mut native_result = execution.results[0].result.clone();
         native_result.provider = native_provider.clone();
         native_result.details.insert(

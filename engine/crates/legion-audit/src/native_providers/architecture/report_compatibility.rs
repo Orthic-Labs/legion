@@ -193,8 +193,8 @@ impl NativeReportObservation {
             .map_err(|e| e.to_string())?;
             let wire: Value = serde_json::from_str(&produced).map_err(|e| e.to_string())?;
             let consumed = Report::read_any(&wire).map_err(|e| e.to_string())?;
-            let rendered =
-                rightkit_evidence_report::render_json_schema(&consumed, schema).map_err(|e| e.to_string())?;
+            let rendered = rightkit_evidence_report::render_json_schema(&consumed, schema)
+                .map_err(|e| e.to_string())?;
             let reread = Report::read_any(
                 &serde_json::from_str::<Value>(&rendered).map_err(|e| e.to_string())?,
             )

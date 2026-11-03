@@ -41,8 +41,8 @@ pub fn audit_cache_root(repository: &Path) -> io::Result<PathBuf> {
         // operation normalize away `..`, so reject lexical traversal before delegation.
         validate_state_root(Path::new(root))?;
     }
-    let receipts =
-        rightkit_evidence_contracts::state_root::receipts_root_for_cwd(&repository).ok_or_else(|| {
+    let receipts = rightkit_evidence_contracts::state_root::receipts_root_for_cwd(&repository)
+        .ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::NotFound,
                 "Legion user state root unavailable",

@@ -10,11 +10,11 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use rightkit_evidence_contracts::{ProviderSpec, ProviderStatus};
 use rightkit_browser::{
     chrome_for_testing_path, ActionKind, AdmissionHook, BrowserPage, BrowserRequest,
     BrowserSession, Decision, LaunchOptions, NetworkPolicy, PolicyDecision, ProfileSpec,
 };
+use rightkit_evidence_contracts::{ProviderSpec, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{

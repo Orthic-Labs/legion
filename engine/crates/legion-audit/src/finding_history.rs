@@ -970,7 +970,8 @@ pub fn apply_history_gate(
         .collect();
     let complete = matches!(
         report.status,
-        rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
+        rightkit_evidence_contracts::ReportStatus::Clean
+            | rightkit_evidence_contracts::ReportStatus::Findings
     ) && report.gaps.is_empty();
     let digest = sha256_value(&json!({"id": report.report_id.as_str(), "findings": present}));
     let digest = if digest.starts_with("sha256:") {
@@ -1002,7 +1003,8 @@ pub fn apply_history_gate(
 fn downgrade(report: &mut rightkit_evidence_contracts::ReportV1) {
     if matches!(
         report.status,
-        rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
+        rightkit_evidence_contracts::ReportStatus::Clean
+            | rightkit_evidence_contracts::ReportStatus::Findings
     ) {
         report.status = rightkit_evidence_contracts::ReportStatus::Incomplete;
     }

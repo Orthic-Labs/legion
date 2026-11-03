@@ -128,7 +128,9 @@ fn finding_message(message: Option<&str>, capability: Option<&str>, owner: Optio
 }
 
 /// ProviderExecutor-facing entrypoint.
-pub fn execute(input: &ProviderInput<'_>) -> Result<rightkit_evidence_contracts::ProviderResult, AuditError> {
+pub fn execute(
+    input: &ProviderInput<'_>,
+) -> Result<rightkit_evidence_contracts::ProviderResult, AuditError> {
     execute_bound(input, "unbound-sdk:ownership-scan")
 }
 

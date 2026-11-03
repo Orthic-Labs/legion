@@ -2,12 +2,12 @@
 
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
+use rightkit_evidence_contracts::canonical_digest;
 use rightkit_evidence_governance::{
     sign_record, state_paths::state_file, state_root, BudgetGovernanceStore, KeyRing,
     TaskBudgetSealStore, AMENDED_BUDGET_BOUND_FIELDS, BUDGET_AMENDMENT_BOUND_FIELDS,
     BUDGET_BOUND_FIELDS,
 };
-use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Map, Value};
 use std::{
     fs,
@@ -1023,14 +1023,15 @@ pub fn run(args: CommonArgs) -> CommandResult {
     };
     let cwd = std::env::current_dir().map_err(super::io_error)?;
     let kd = option(tail, "--key-dir")?;
-    let ring = rightkit_evidence_governance::key_ring::resolve_key_dir(kd.as_deref().map(Path::new))
-        .and_then(|(dir, _)| KeyRing::load_dir(&dir))
-        .map_err(|e| {
-            issue(
-                e.code(),
-                format!("host keyring unavailable — a seal cannot be minted without one: {e}"),
-            )
-        })?;
+    let ring =
+        rightkit_evidence_governance::key_ring::resolve_key_dir(kd.as_deref().map(Path::new))
+            .and_then(|(dir, _)| KeyRing::load_dir(&dir))
+            .map_err(|e| {
+                issue(
+                    e.code(),
+                    format!("host keyring unavailable — a seal cannot be minted without one: {e}"),
+                )
+            })?;
     let b = binding(&cwd, &adapter, &session, agent.as_deref())?;
     verify_codex(&cwd, &ring, &adapter, &session, &b)?;
     let auth = b["authority"].as_str().unwrap_or_default();

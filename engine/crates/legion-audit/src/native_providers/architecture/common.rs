@@ -1,4 +1,6 @@
-use rightkit_evidence_contracts::{Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus};
+use rightkit_evidence_contracts::{
+    Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
@@ -120,8 +122,8 @@ pub fn provider_result(
             .and_then(Value::as_str)
             .unwrap_or("warning")
             .to_owned();
-        let finding_id =
-            rightkit_evidence_contracts::FindingId::new(id.clone()).map_err(|error| error.to_string())?;
+        let finding_id = rightkit_evidence_contracts::FindingId::new(id.clone())
+            .map_err(|error| error.to_string())?;
         finding_refs.push(FindingRef {
             id: finding_id,
             severity,

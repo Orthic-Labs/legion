@@ -101,7 +101,9 @@ pub(super) fn authenticate_qualification_sandbox(
     executable: &str,
     args: &[String],
     cwd: &str,
-) -> Option<Result<rightkit_evidence_effects::SandboxAuthentication, rightkit_evidence_effects::SandboxGap>> {
+) -> Option<
+    Result<rightkit_evidence_effects::SandboxAuthentication, rightkit_evidence_effects::SandboxGap>,
+> {
     if !qualification_applies(ctx.dotnet_qualification_loopback, ctx.provider_id, task) {
         return None;
     }
@@ -114,10 +116,12 @@ pub(super) fn authenticate_qualification_sandbox(
         let hash = sha256_text(profile.as_bytes());
         let hash = hash.trim_start_matches("sha256:");
         let path = ctx.scratch.sandbox_dir().join(format!("audit-{hash}.sb"));
-        fs::create_dir_all(ctx.scratch.sandbox_dir())
-            .map_err(|e| rightkit_evidence_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
-        fs::write(&path, &profile)
-            .map_err(|e| rightkit_evidence_effects::SandboxGap::ProfileWriteFailed(e.to_string()))?;
+        fs::create_dir_all(ctx.scratch.sandbox_dir()).map_err(|e| {
+            rightkit_evidence_effects::SandboxGap::ProfileWriteFailed(e.to_string())
+        })?;
+        fs::write(&path, &profile).map_err(|e| {
+            rightkit_evidence_effects::SandboxGap::ProfileWriteFailed(e.to_string())
+        })?;
         let mut wrapped_args = vec!["-f".into(), string(&path), "--".into(), executable.into()];
         wrapped_args.extend_from_slice(args);
         // VSTest propagates diagnostics to testhost; retain both logs in this

@@ -14,6 +14,15 @@ use legion_audit::{
     FrozenPlan, InventoryEnvelope, InventorySource, ProviderExecutor,
 };
 use legion_catalog::{Catalog, CatalogError};
+use legion_runtime::{
+    ContextRequest, EffectPolicy, EngineOutcome, Invocation, LegionEngine, RouteCandidate,
+    RuntimeError,
+};
+use rightkit_code_audit_provider_sdk::{
+    EffectInterface, ExternalProjectTool, ImplementationRegistry, Provider, ProviderContext,
+    ProviderDefinition, ProviderError, ProviderErrorKind, ProviderRegistry,
+    ProviderRegistryDocument, SourceInterface,
+};
 use rightkit_evidence_contracts::task::RequestEnvelope;
 use rightkit_evidence_contracts::{
     AgentDefinition, AgentId, BudgetCeiling, Coverage, EffectRequest, HookActorContext,
@@ -21,20 +30,13 @@ use rightkit_evidence_contracts::{
     ProviderStatus, ReportId, ReportStatus, ReportV1, RequestId, RoutingCeiling, TaskSpec,
     TaskStatus, ToolCeiling,
 };
-use rightkit_code_audit_provider_sdk::{
-    EffectInterface, ExternalProjectTool, ImplementationRegistry, Provider, ProviderContext,
-    ProviderDefinition, ProviderError, ProviderErrorKind, ProviderRegistry,
-    ProviderRegistryDocument, SourceInterface,
-};
 use rightkit_evidence_report::ReportError;
-use legion_runtime::{
-    ContextRequest, EffectPolicy, EngineOutcome, Invocation, LegionEngine, RouteCandidate,
-    RuntimeError,
-};
 use thiserror::Error;
 
+use rightkit_policy_rules::model::{
+    DecisionOutcome, PolicyContext, PolicyPack as ArcanePolicyPack,
+};
 use rightkit_policy_rules::rules::{PolicyEvaluation, PolicyEvaluator, PolicyReceipt};
-use rightkit_policy_rules::model::{DecisionOutcome, PolicyContext, PolicyPack as ArcanePolicyPack};
 
 /// Read-only catalog access supplied by the composition owner.
 pub trait CatalogSource: Send + Sync {

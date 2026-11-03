@@ -2993,9 +2993,11 @@ fn active_guard_policy_digest() -> Option<String> {
             .ok()
             .and_then(|bytes| rightkit_evidence_contracts::canonical_digest(&bytes).ok()),
         Ok(_) => None,
-        Err(std::env::VarError::NotPresent) => rightkit_evidence_contracts::canonical_default_policy_pack()
-            .digest()
-            .ok(),
+        Err(std::env::VarError::NotPresent) => {
+            rightkit_evidence_contracts::canonical_default_policy_pack()
+                .digest()
+                .ok()
+        }
         Err(_) => None,
     }
 }
@@ -3111,7 +3113,8 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
     let l1_invoked = traces
         .iter()
         .filter(|trace| {
-            trace.challenge.invoked && trace.challenge.level == rightkit_evidence_contracts::ChallengeLevel::L1
+            trace.challenge.invoked
+                && trace.challenge.level == rightkit_evidence_contracts::ChallengeLevel::L1
         })
         .count();
     let l1_improved = traces

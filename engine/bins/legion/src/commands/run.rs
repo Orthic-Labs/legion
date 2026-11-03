@@ -1,11 +1,11 @@
 //! Native, filesystem-backed `legion run` implementation.
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
+use rightkit_evidence_contracts::canonical_digest;
 use rightkit_evidence_governance::{
     BudgetGovernanceStore, ContractLifecycle, KeyRing, ReceiptStore, SessionBindingStore,
     TaskBudgetSealStore,
 };
-use rightkit_evidence_contracts::canonical_digest;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{

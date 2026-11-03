@@ -4,11 +4,11 @@
 //! adapters remain deliberately unaware of host policy; every execute request
 //! therefore crosses this gate before reaching `legion_apple`.
 
-use rightkit_policy_rules::rules::{PolicyEvaluator, PolicyPack};
+use legion_runtime::RuntimeError;
 use rightkit_policy_rules::model::{
     CanonicalPath, DecisionOutcome, EffectClass, PathOperation, PolicyContext, SymlinkState,
 };
-use legion_runtime::RuntimeError;
+use rightkit_policy_rules::rules::{PolicyEvaluator, PolicyPack};
 use serde_json::{json, Value};
 use std::{
     env, fs,

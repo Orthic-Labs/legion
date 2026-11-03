@@ -156,7 +156,9 @@ pub fn analyze(input: &ProviderInput<'_>) -> Result<serde_json::Value, AuditErro
 /// ProviderExecutor-facing entrypoint. Governance is artifact-driven rather
 /// than source-file-driven, so its frozen selector denominator is used only as
 /// the contract binding and not as policy evidence itself.
-pub fn execute(input: &ProviderInput<'_>) -> Result<rightkit_evidence_contracts::ProviderResult, AuditError> {
+pub fn execute(
+    input: &ProviderInput<'_>,
+) -> Result<rightkit_evidence_contracts::ProviderResult, AuditError> {
     let denominator = denominator(input)?;
     let analyzed = analyze(input)?;
     let gaps = analyzed

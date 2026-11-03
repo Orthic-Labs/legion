@@ -280,7 +280,9 @@ fn verify_ledger(
         if verify_record(&value, keys, HEAD_FIELDS).is_err()
             || value.get("eventSequence") != last.get("eventSequence")
             || value.get("digest").and_then(Value::as_str)
-                != rightkit_evidence_contracts::canonical_digest(last).ok().as_deref()
+                != rightkit_evidence_contracts::canonical_digest(last)
+                    .ok()
+                    .as_deref()
         {
             return (false, Vec::new(), Some("ARC_STORE_CORRUPT"));
         }

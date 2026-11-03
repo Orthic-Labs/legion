@@ -8,7 +8,9 @@ use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
 use rightkit_evidence_contracts::ProviderSpec;
-use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
+use rightkit_evidence_effects::{
+    ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -708,7 +710,8 @@ fn case(base: &Path, id: &str, control: &str) -> Value {
         assert!(result.coverage_gaps.is_empty() && result.degradation.is_empty());
         assert!(matches!(
             result.status,
-            rightkit_evidence_contracts::ProviderStatus::Ok | rightkit_evidence_contracts::ProviderStatus::Complete
+            rightkit_evidence_contracts::ProviderStatus::Ok
+                | rightkit_evidence_contracts::ProviderStatus::Complete
         ));
         let coverage = result.coverage.as_ref().unwrap();
         assert_eq!(

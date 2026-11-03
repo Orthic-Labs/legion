@@ -41,11 +41,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use registry::AbsenceOutcome;
+use rightkit_code_audit_provider_sdk::{ExternalProjectTool, ExternalToolRequest};
 use rightkit_evidence_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
-use rightkit_code_audit_provider_sdk::{ExternalProjectTool, ExternalToolRequest};
-use registry::AbsenceOutcome;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::sync::{
@@ -116,7 +116,9 @@ where
                     ResolveError::MissingExecutable(_) | ResolveError::NotConfigured(_) => {
                         rightkit_code_audit_provider_sdk::ExecutionState::MissingExecutable
                     }
-                    ResolveError::Unavailable(_) => rightkit_code_audit_provider_sdk::ExecutionState::Internal,
+                    ResolveError::Unavailable(_) => {
+                        rightkit_code_audit_provider_sdk::ExecutionState::Internal
+                    }
                 };
                 return rightkit_code_audit_provider_sdk::ExecutionReceipt::failure(
                     &request,
@@ -412,7 +414,9 @@ impl AuditScratch {
         self.owner_authorizer.set(authorizer).is_ok()
     }
 
-    pub(crate) fn owner_authorizer(&self) -> Option<Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>> {
+    pub(crate) fn owner_authorizer(
+        &self,
+    ) -> Option<Arc<dyn rightkit_evidence_effects::PolicyAuthorizer>> {
         self.owner_authorizer.get().cloned()
     }
 
@@ -1976,7 +1980,9 @@ fn execution_from_receipt(
     test_command_source: Option<Value>,
 ) -> LegacyCheckExecution {
     let state = match receipt.state {
-        rightkit_code_audit_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
+        rightkit_code_audit_provider_sdk::ExecutionState::Completed => {
+            LegacyCheckProcessState::Completed
+        }
         rightkit_code_audit_provider_sdk::ExecutionState::MissingExecutable => {
             LegacyCheckProcessState::MissingExecutable
         }
@@ -1986,8 +1992,12 @@ fn execution_from_receipt(
         | rightkit_code_audit_provider_sdk::ExecutionState::UnsealedExecutable => {
             LegacyCheckProcessState::Unauthorized
         }
-        rightkit_code_audit_provider_sdk::ExecutionState::Timeout => LegacyCheckProcessState::Timeout,
-        rightkit_code_audit_provider_sdk::ExecutionState::Cancelled => LegacyCheckProcessState::Cancelled,
+        rightkit_code_audit_provider_sdk::ExecutionState::Timeout => {
+            LegacyCheckProcessState::Timeout
+        }
+        rightkit_code_audit_provider_sdk::ExecutionState::Cancelled => {
+            LegacyCheckProcessState::Cancelled
+        }
         rightkit_code_audit_provider_sdk::ExecutionState::OutputLimited => {
             LegacyCheckProcessState::OutputLimited
         }

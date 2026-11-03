@@ -23,7 +23,9 @@ use legion_audit::{
     review_runtime::{probe_host_executable, validate_host_executable, RuntimeOptions},
     FilesystemInventorySource, InventorySource,
 };
-use rightkit_evidence_effects::{owner_process::InvocationClass, ExternalToolRequest, PolicyAuthorizer};
+use rightkit_evidence_effects::{
+    owner_process::InvocationClass, ExternalToolRequest, PolicyAuthorizer,
+};
 use sha2::{Digest, Sha256};
 
 static SEQ: AtomicU64 = AtomicU64::new(0);

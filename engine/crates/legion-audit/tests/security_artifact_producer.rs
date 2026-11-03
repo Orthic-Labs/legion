@@ -368,7 +368,10 @@ fn default_admission_denies_scanner_version_probe_and_target_even_without_sandbo
         !marker.exists(),
         "neither --version nor target command may run"
     );
-    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
+    assert_eq!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Partial
+    );
     assert!(!result.complete);
     assert_eq!(
         result.details["availability"]["reason"],
@@ -540,7 +543,10 @@ fn source_inventory_never_substitutes_for_native_dual_sbom() {
     // Provenance cannot come from a source tree: the gap stays visible.
     assert!(gaps.contains("supply-chain-provenance-invalid"), "{gaps}");
     assert!(!result.complete);
-    assert_ne!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
+    assert_ne!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Failed
+    );
 }
 
 #[test]
@@ -564,7 +570,10 @@ fn unavailable_osv_still_reports_the_selected_manifests() {
     );
     assert_eq!(analysis(&result)["denominator"]["expected"], json!(1));
     assert_eq!(analysis(&result)["denominator"]["examined"], json!(0));
-    assert_ne!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
+    assert_ne!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Failed
+    );
 }
 
 #[test]

@@ -27,7 +27,9 @@ use legion_audit::{
     AuditError, AuditPlan, AuditProvider, ExecutionReport, FilesystemInventorySource, FrozenPlan,
     InventoryEnvelope, InventorySource, ProofState, ProviderExecutor,
 };
-use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{
+    Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
+};
 use serde_json::{json, Value};
 
 const KEY: &[u8] = b"journal-wiring-plan-key";

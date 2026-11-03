@@ -150,7 +150,10 @@ fn producer(root: &Path, run_dir: &Path, bin: &Path) -> ArtifactProducer {
             },
         }))
 }
-fn execute(root: &Path, producer: &ArtifactProducer) -> rightkit_evidence_contracts::ProviderResult {
+fn execute(
+    root: &Path,
+    producer: &ArtifactProducer,
+) -> rightkit_evidence_contracts::ProviderResult {
     let inventory = inventory(root);
     SecurityProviderExecutor::default()
         .with_producer(producer.clone())

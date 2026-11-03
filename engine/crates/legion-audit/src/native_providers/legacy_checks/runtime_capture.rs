@@ -40,15 +40,15 @@ use std::{
     sync::atomic::Ordering,
 };
 
-use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
-use rightkit_code_audit_provider_sdk::{
-    ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
-};
 use rightkit_browser::{
     actions_digest as fixture_actions_digest, FixtureAction, FixtureAttestation, FixtureBundle,
     FixtureCancellation, FixtureFile, FixtureIntent, FixtureOutcome, FixtureOutcomeStatus,
     FixtureRunFailure, FixtureServer, FixtureSession, FIXTURE_SCHEMA,
 };
+use rightkit_code_audit_provider_sdk::{
+    ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
+};
+use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderStatus};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
@@ -505,8 +505,9 @@ fn validate_frozen_fixture_files(files: &[Value], expected_digest: &str) -> Resu
                     .as_bytes(),
             )
     });
-    let actual_digest = rightkit_evidence_contracts::canonical_digest(&json!({"files":digest_files}))
-        .map_err(|error| format!("runtime-interaction-fixture-canonical:{error}"))?;
+    let actual_digest =
+        rightkit_evidence_contracts::canonical_digest(&json!({"files":digest_files}))
+            .map_err(|error| format!("runtime-interaction-fixture-canonical:{error}"))?;
     if actual_digest != expected_digest {
         return Err("runtime-interaction-fixture-digest-mismatch".into());
     }
@@ -2519,30 +2520,31 @@ mod tests {
             }],
         )
         .unwrap();
-        let provider_spec: rightkit_evidence_contracts::ProviderSpec = serde_json::from_value(json!({
-            "schemaVersion":2,
-            "id":"legacy.runtime.app",
-            "providerVersion":"2.0.0",
-            "family":"performance",
-            "role":"deterministic",
-            "phase":"runtime",
-            "lensIds":["runtime"],
-            "dependsOn":[],
-            "consumes":[],
-            "produces":["provider-result"],
-            "selector":{"op":"always"},
-            "denominatorKind":"runnable app",
-            "runner":{"kind":"legacy-check","check":"runtime","runtime":params.to_value()},
-            "hostCapabilities":[],
-            "execution":{},
-            "reasoning":{},
-            "benchmark":{"status":"unproven","requiredForCleanClaim":false},
-            "cleanClaim":"evidence-only",
-            "controlIds":[],
-            "scopes":[],
-            "selectable":true
-        }))
-        .unwrap();
+        let provider_spec: rightkit_evidence_contracts::ProviderSpec =
+            serde_json::from_value(json!({
+                "schemaVersion":2,
+                "id":"legacy.runtime.app",
+                "providerVersion":"2.0.0",
+                "family":"performance",
+                "role":"deterministic",
+                "phase":"runtime",
+                "lensIds":["runtime"],
+                "dependsOn":[],
+                "consumes":[],
+                "produces":["provider-result"],
+                "selector":{"op":"always"},
+                "denominatorKind":"runnable app",
+                "runner":{"kind":"legacy-check","check":"runtime","runtime":params.to_value()},
+                "hostCapabilities":[],
+                "execution":{},
+                "reasoning":{},
+                "benchmark":{"status":"unproven","requiredForCleanClaim":false},
+                "cleanClaim":"evidence-only",
+                "controlIds":[],
+                "scopes":[],
+                "selectable":true
+            }))
+            .unwrap();
         let plan = crate::plan::AuditPlan::compile(&inventory, &[provider_spec])
             .unwrap()
             .freeze(Some(b"fixture-only-runtime"))

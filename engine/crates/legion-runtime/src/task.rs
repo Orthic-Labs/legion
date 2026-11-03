@@ -3,9 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+use rightkit_code_audit_provider_sdk::{EffectInterface, ExternalProjectTool, SourceInterface};
 use rightkit_evidence_contracts::task::RequestEnvelope;
 use rightkit_evidence_contracts::{InvocationGrant, TaskSpec};
-use rightkit_code_audit_provider_sdk::{EffectInterface, ExternalProjectTool, SourceInterface};
 use tokio_util::sync::CancellationToken;
 
 use crate::error::RuntimeError;

@@ -11,8 +11,8 @@ pub mod security;
 use crate::{
     execution::ExecutionContext, AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor,
 };
-use rightkit_evidence_contracts::ProviderResult;
 use rightkit_code_audit_provider_sdk::ExternalProjectTool;
+use rightkit_evidence_contracts::ProviderResult;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 

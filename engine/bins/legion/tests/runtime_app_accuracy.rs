@@ -11,9 +11,11 @@ use legion_audit::{
     execute_with_cancellation, AuditPlan, FilesystemInventorySource, InventorySource,
     NativeProviderRegistry,
 };
-use rightkit_evidence_contracts::ProviderSpec;
-use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
+    ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -457,11 +459,13 @@ fn real_runtime_app_accuracy() {
         let native = if id == "owner-denied" {
             NativeProviderRegistry::new(&fixture)
                 .with_scratch(scratch.clone())
-                .with_external_project_tool(Arc::new(rightkit_evidence_effects::EffectExecutor::new(
-                    rightkit_evidence_effects::platform::unix::UnixProcess::new(),
-                    rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
-                    legion_audit::execution_policy::OwnerAdmissionRequired,
-                )))
+                .with_external_project_tool(Arc::new(
+                    rightkit_evidence_effects::EffectExecutor::new(
+                        rightkit_evidence_effects::platform::unix::UnixProcess::new(),
+                        rightkit_evidence_effects::ArtifactWriter::new(scratch.artifacts_dir()),
+                        legion_audit::execution_policy::OwnerAdmissionRequired,
+                    ),
+                ))
         } else {
             let tool = MappingTool {
                 output: output.clone(),

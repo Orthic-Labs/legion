@@ -2224,7 +2224,8 @@ mod tests {
         candidate["result"]["details"]["candidates"] = json!([{"path":"src/session.ts","line":4}]);
         let report = rightkit_evidence_contracts::ReportV1 {
             schema_version: 1,
-            report_id: rightkit_evidence_contracts::ReportId::new("benchmark-wire-fixture").unwrap(),
+            report_id: rightkit_evidence_contracts::ReportId::new("benchmark-wire-fixture")
+                .unwrap(),
             status: rightkit_evidence_contracts::ReportStatus::Clean,
             findings: Vec::new(),
             gaps: Vec::new(),

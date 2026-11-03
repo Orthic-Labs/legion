@@ -1,9 +1,11 @@
 //! Authenticated completion claim and Oracle evidence persistence.
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
-use rightkit_evidence_governance::receipt_auth::{sign_record, verify_record};
-use rightkit_evidence_governance::{AuthorityInvocationProofIssuer, KeyRing, ReceiptStore, SessionBindingStore};
 use rightkit_evidence_contracts::canonical_digest;
+use rightkit_evidence_governance::receipt_auth::{sign_record, verify_record};
+use rightkit_evidence_governance::{
+    AuthorityInvocationProofIssuer, KeyRing, ReceiptStore, SessionBindingStore,
+};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::{

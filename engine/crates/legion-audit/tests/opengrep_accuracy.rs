@@ -10,9 +10,11 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use rightkit_evidence_contracts::ProviderSpec;
-use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use rightkit_code_audit_provider_sdk::ExternalProjectTool;
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
+    ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -269,7 +271,11 @@ fn retained(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -
 fn artifact_metadata(artifact: &rightkit_evidence_effects::ArtifactRecord) -> Value {
     json!({"path":artifact.path,"digest":artifact.digest,"bytes":artifact.bytes,"immutable":artifact.immutable})
 }
-fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt, artifacts: &Path, raw: bool) -> Value {
+fn receipt_json(
+    receipt: &rightkit_evidence_effects::ExecutionReceipt,
+    artifacts: &Path,
+    raw: bool,
+) -> Value {
     json!({"schemaVersion": receipt.schema_version, "receiptId": receipt.receipt_id,
         "requestId": receipt.request_id, "providerId": receipt.provider_id, "planId": receipt.plan_id,
         "policyId": receipt.policy_id, "policy": receipt.policy.as_ref().map(|p| json!({"id":p.id,"version":p.version,"digest":p.digest,"allowed":p.allowed,"reason":p.reason})),

@@ -68,7 +68,8 @@ pub fn event_digest(event: &AuditEvent) -> Result<String, AuditError> {
     if let Value::Object(map) = &mut value {
         map.remove("digest");
     }
-    rightkit_evidence_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
+    rightkit_evidence_contracts::canonical_digest(&value)
+        .map_err(|e| AuditError::Invalid(e.to_string()))
 }
 
 /// Digest used as the payload of the failure event that closes a provider

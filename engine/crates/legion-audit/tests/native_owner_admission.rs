@@ -495,7 +495,10 @@ fn symlink_escapes_are_denied() {
 
 struct CountingPlatform(Arc<AtomicUsize>);
 impl PlatformProcess for CountingPlatform {
-    fn run<'a>(&'a self, _: ProcessLaunch) -> rightkit_evidence_effects::platform::ProcessFuture<'a> {
+    fn run<'a>(
+        &'a self,
+        _: ProcessLaunch,
+    ) -> rightkit_evidence_effects::platform::ProcessFuture<'a> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Box::pin(async {
             Ok(ProcessOutput {

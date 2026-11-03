@@ -126,7 +126,8 @@ fn run_blocking(args: RunReasoningArgs) -> CommandResult {
     }
     let complete = matches!(
         reconciled.report.status,
-        rightkit_evidence_contracts::ReportStatus::Clean | rightkit_evidence_contracts::ReportStatus::Findings
+        rightkit_evidence_contracts::ReportStatus::Clean
+            | rightkit_evidence_contracts::ReportStatus::Findings
     ) && reconciled.report.gaps.is_empty()
         && reconciled.pending.is_empty();
     output["complete"] = json!(complete);

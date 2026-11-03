@@ -7,9 +7,11 @@ use legion_audit::{
     native_providers::legacy_checks::{resolve_request, AuditExternalProjectTool, AuditScratch},
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use rightkit_evidence_contracts::ProviderSpec;
-use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
+    ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -713,7 +715,10 @@ fn case(base: &Path, control: &str) -> Value {
         if control == "process-error" {
             assert_eq!(actual["exitCode"], 1);
             // Accepted process completion retains Ok; coverage proves analysis incomplete.
-            assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Ok);
+            assert_eq!(
+                result.status,
+                rightkit_evidence_contracts::ProviderStatus::Ok
+            );
             assert!(!result.complete && candidates.is_empty());
             assert_eq!(
                 result.coverage_gaps,

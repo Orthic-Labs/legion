@@ -20,10 +20,10 @@ pub mod xcode_bridge;
 pub mod xcode_targets;
 
 use crate::{AuditError, AuditProvider, InventoryEnvelope, ProviderExecutor};
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use rightkit_evidence_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
-use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};

@@ -456,7 +456,10 @@ pub fn run(args: RulesArgs) -> CommandResult {
 fn select_packs(
     compiled: std::collections::BTreeMap<String, rightkit_policy_rules::analysis::CompiledRules>,
     requested: &[String],
-) -> Result<std::collections::BTreeMap<String, rightkit_policy_rules::analysis::CompiledRules>, CommandError> {
+) -> Result<
+    std::collections::BTreeMap<String, rightkit_policy_rules::analysis::CompiledRules>,
+    CommandError,
+> {
     if requested.is_empty() {
         return Ok(compiled);
     }

@@ -373,7 +373,10 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
         !result.complete,
         "runtime provider remains incomplete under its coverage contract"
     );
-    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
+    assert_eq!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Partial
+    );
     assert!(!result
         .coverage_gaps
         .iter()
@@ -403,7 +406,10 @@ fn good_capture_records_screenshot_digest_console_findings_and_stays_incomplete(
         "http://127.0.0.1:1422/settings"
     );
     assert!(!first.shell && !first.requires_network_sandbox);
-    assert_eq!(first.origin, rightkit_evidence_effects::ToolOrigin::LegionOwned);
+    assert_eq!(
+        first.origin,
+        rightkit_evidence_effects::ToolOrigin::LegionOwned
+    );
     assert!(Path::new(&first.cwd).is_absolute());
     assert!(!Path::new(&first.cwd).starts_with(&run.root));
 
@@ -669,7 +675,10 @@ fn tool_failure_to_load_the_page_is_a_failed_provider_with_a_named_gap() {
     let result = &run.result;
     assert_valid_not_rejected(result);
     assert!(!result.complete);
-    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Failed);
+    assert_eq!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Failed
+    );
     assert!(result
         .coverage_gaps
         .contains(&"runtime-surface-load-failed:entry".to_owned()));
@@ -691,7 +700,10 @@ fn missing_browser_is_typed_unavailable() {
     let result = &run.result;
     assert_valid_not_rejected(result);
     assert!(!result.complete);
-    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
+    assert_eq!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Partial
+    );
     assert!(result
         .coverage_gaps
         .contains(&"unavailable:browser-not-found".to_owned()));
@@ -744,7 +756,10 @@ fn without_a_url_the_provider_is_unavailable_and_starts_nothing() {
     assert_valid_not_rejected(result);
     assert!(run.calls.is_empty(), "no process may start without a URL");
     assert!(!result.complete);
-    assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
+    assert_eq!(
+        result.status,
+        rightkit_evidence_contracts::ProviderStatus::Partial
+    );
     assert!(result
         .coverage_gaps
         .contains(&"unavailable:runtime-url-not-supplied".to_owned()));

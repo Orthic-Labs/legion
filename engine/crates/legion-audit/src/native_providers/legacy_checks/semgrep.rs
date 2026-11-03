@@ -203,7 +203,9 @@ pub(super) fn valid_envelope(value: &Value) -> bool {
             .and_then(Value::as_array)
             .is_some_and(Vec::is_empty)
 }
-pub(super) fn receipt_rules_valid(receipt: &rightkit_code_audit_provider_sdk::ExecutionReceipt) -> bool {
+pub(super) fn receipt_rules_valid(
+    receipt: &rightkit_code_audit_provider_sdk::ExecutionReceipt,
+) -> bool {
     receipt.command.as_ref().is_some_and(|command| {
         let args = &command.args;
         args.iter()

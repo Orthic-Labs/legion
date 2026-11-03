@@ -10,8 +10,10 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use rightkit_code_audit_provider_sdk::{
+    ExecutionReceipt, ExternalProjectTool, ExternalToolRequest,
+};
 use rightkit_evidence_contracts::{ProviderResult, ProviderStatus};
-use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool, ExternalToolRequest};
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 

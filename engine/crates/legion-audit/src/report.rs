@@ -456,7 +456,9 @@ fn detail_string(
 mod tests {
     use super::*;
     use crate::execution::ProviderExecution;
-    use rightkit_evidence_contracts::{Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus};
+    use rightkit_evidence_contracts::{
+        Coverage, FindingRef, ProviderId, ProviderResult, ProviderStatus,
+    };
 
     fn execution(results: Vec<ProviderExecution>) -> ExecutionReport {
         ExecutionReport {

@@ -29,15 +29,15 @@ pub use engine::{
 pub use error::RuntimeError;
 pub use escalation::{validate_target, EscalationGrant};
 pub use grant::EffectiveGrant;
-pub use rightkit_evidence_contracts::{
-    AgentDefinition, BudgetCeiling, InvocationGrant as CapabilityGrant, TaskSpec,
-};
 pub use plan::{compile_plan, FrozenPlan};
 pub use profile::AgentProfile;
 pub use release_binding::{
     load_release_manifest, verify_release_binding, DeclarativeAssets, DevelopmentExecutionContext,
     ReleaseBindingError, ReleaseBindingInputs, ReleaseManifest, RightkitAxIdentity,
     RuntimeIdentity, VerifiedReleaseBinding, REPAIR_COMMAND,
+};
+pub use rightkit_evidence_contracts::{
+    AgentDefinition, BudgetCeiling, InvocationGrant as CapabilityGrant, TaskSpec,
 };
 pub use route::{select_route, RouteCandidate, SelectedRoute};
 pub use scheduler::{

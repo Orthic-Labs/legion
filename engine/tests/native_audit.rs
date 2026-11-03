@@ -31,7 +31,12 @@ fn provider(id: &str, dependencies: &[&str]) -> AuditProvider {
     }
 }
 
-fn spec(id: &str, role: &str, runner: &str, selector: Value) -> rightkit_evidence_contracts::ProviderSpec {
+fn spec(
+    id: &str,
+    role: &str,
+    runner: &str,
+    selector: Value,
+) -> rightkit_evidence_contracts::ProviderSpec {
     rightkit_evidence_contracts::ProviderSpec {
         schema_version: 2,
         id: ProviderId::new(id).unwrap(),
@@ -110,7 +115,8 @@ fn native_class_a_pack_manifest_compiles_exactly() {
             .join("../../../packs/native/manifest.v1.json"),
     )
     .unwrap();
-    let compiled = rightkit_policy_rules::analysis::RuleCompiler::compile_manifest_json(&manifest).unwrap();
+    let compiled =
+        rightkit_policy_rules::analysis::RuleCompiler::compile_manifest_json(&manifest).unwrap();
     assert_eq!(compiled.len(), 11);
     assert_eq!(
         compiled
@@ -721,7 +727,10 @@ fn unsigned_diagnostic_runs_providers_but_never_certifies() {
     assert!(legion_audit::verify_source_diagnostic(&report, &plan).is_ok());
     assert!(legion_audit::verify_execution(&report).is_err());
     let rendered = legion_audit::canonical_report("fixture", &report).unwrap();
-    assert_eq!(rendered.status, rightkit_evidence_contracts::ReportStatus::Incomplete);
+    assert_eq!(
+        rendered.status,
+        rightkit_evidence_contracts::ReportStatus::Incomplete
+    );
     let mut drifted = report.clone();
     drifted.generation = "forged".into();
     assert!(legion_audit::verify_source_diagnostic(&drifted, &plan).is_err());

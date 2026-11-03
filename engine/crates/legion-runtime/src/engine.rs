@@ -7,10 +7,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+use rightkit_code_audit_provider_sdk::ProviderRegistry;
 use rightkit_evidence_contracts::{
     AgentId, EffectRequest, InvocationGrant, InvocationId, ProviderResult, TaskSpec,
 };
-use rightkit_code_audit_provider_sdk::ProviderRegistry;
 
 use crate::{
     error::RuntimeError,

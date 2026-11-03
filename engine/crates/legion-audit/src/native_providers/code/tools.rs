@@ -51,10 +51,10 @@ use crate::{
         security::producer::SandboxPolicy,
     },
 };
+use regex::Regex;
 use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
-use regex::Regex;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::{

@@ -1603,13 +1603,15 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 .insert("auditStatus".into(), json!(report_status));
             report.claims.insert(
                 "qualityGate".into(),
-                json!(if report.status != rightkit_evidence_contracts::ReportStatus::Clean {
-                    "unproven"
-                } else if sampled_run {
-                    "sampled"
-                } else {
-                    "proven"
-                }),
+                json!(
+                    if report.status != rightkit_evidence_contracts::ReportStatus::Clean {
+                        "unproven"
+                    } else if sampled_run {
+                        "sampled"
+                    } else {
+                        "proven"
+                    }
+                ),
             );
             report
                 .claims
@@ -1658,7 +1660,8 @@ pub async fn run(mut args: AuditArgs, cancellation: CancellationToken) -> Comman
                 ),
                 args.report_schema,
             )?;
-            let report_sarif = rightkit_evidence_report::render_sarif(&report).map_err(super::io_error)?;
+            let report_sarif =
+                rightkit_evidence_report::render_sarif(&report).map_err(super::io_error)?;
             if let Some(out) = &args.out {
                 let native_plan = native_plan_document(
                     &lens_basis,
@@ -2226,7 +2229,10 @@ fn run_report_scope(
     scope
 }
 
-fn report_scope(report: &rightkit_evidence_contracts::ReportV1, spec: &str) -> rightkit_evidence_contracts::ReportScope {
+fn report_scope(
+    report: &rightkit_evidence_contracts::ReportV1,
+    spec: &str,
+) -> rightkit_evidence_contracts::ReportScope {
     rightkit_evidence_contracts::ReportScope {
         spec: spec.into(),
         base_ref_oid: None,
@@ -2968,7 +2974,8 @@ fn native_facts_document(
 
 fn provider_status_name(status: &rightkit_evidence_contracts::ProviderStatus) -> &'static str {
     match status {
-        rightkit_evidence_contracts::ProviderStatus::Ok | rightkit_evidence_contracts::ProviderStatus::Complete => "pass",
+        rightkit_evidence_contracts::ProviderStatus::Ok
+        | rightkit_evidence_contracts::ProviderStatus::Complete => "pass",
         rightkit_evidence_contracts::ProviderStatus::Partial => "partial",
         rightkit_evidence_contracts::ProviderStatus::Failed => "fail",
         rightkit_evidence_contracts::ProviderStatus::Cancelled => "skipped",
@@ -3336,11 +3343,12 @@ fn read_runtime_interactions(
             ));
         }
         let expected = json_text(probe, "actionsDigest").unwrap_or_default();
-        let action_digest = rightkit_evidence_contracts::canonical_digest(actions).map_err(|error| {
-            CommandError::usage(format!(
-                "runtime interaction actions cannot be canonicalized: {error}"
-            ))
-        })?;
+        let action_digest =
+            rightkit_evidence_contracts::canonical_digest(actions).map_err(|error| {
+                CommandError::usage(format!(
+                    "runtime interaction actions cannot be canonicalized: {error}"
+                ))
+            })?;
         if action_digest != expected {
             return Err(CommandError::usage(
                 "runtime interaction actionsDigest does not match actions",
@@ -3556,10 +3564,12 @@ fn read_runtime_fixture_manifest(
                         .as_bytes(),
                 )
         });
-        let source_digest = rightkit_evidence_contracts::canonical_digest(&json!({"files":digest_files}))
-            .map_err(|error| {
-                CommandError::usage(format!("runtime fixture cannot be canonicalized: {error}"))
-            })?;
+        let source_digest = rightkit_evidence_contracts::canonical_digest(
+            &json!({"files":digest_files}),
+        )
+        .map_err(|error| {
+            CommandError::usage(format!("runtime fixture cannot be canonicalized: {error}"))
+        })?;
         let (expected_digest, exact_path) = referenced.get(id).expect("referenced fixture");
         if &source_digest != expected_digest {
             return Err(CommandError::usage(format!(
@@ -6517,7 +6527,8 @@ mod closure_tests {
         .unwrap();
         assert!(read_runtime_interactions(&args, &args.root, url, &[]).is_err());
         let unsupported_actions = json!([{"type":"assertStyle","selector":"button","property":"display","value":"block"}]);
-        let unsupported_digest = rightkit_evidence_contracts::canonical_digest(&unsupported_actions).unwrap();
+        let unsupported_digest =
+            rightkit_evidence_contracts::canonical_digest(&unsupported_actions).unwrap();
         std::fs::write(
             &file,
             serde_json::to_vec(&descriptor(

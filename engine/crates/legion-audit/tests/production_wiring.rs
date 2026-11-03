@@ -277,7 +277,8 @@ fn spec_provider(id: &str) -> AuditProvider {
         .iter()
         .find(|item| item["id"] == id)
         .unwrap();
-    let spec: rightkit_evidence_contracts::ProviderSpec = serde_json::from_value(item.clone()).unwrap();
+    let spec: rightkit_evidence_contracts::ProviderSpec =
+        serde_json::from_value(item.clone()).unwrap();
     AuditProvider {
         id: spec.id.to_string(),
         version: spec.provider_version.clone(),

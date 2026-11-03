@@ -6,7 +6,9 @@
 
 use std::path::Path;
 
-use rightkit_evidence_contracts::provider_result::{normalize_provider_result, validate_provider_result};
+use rightkit_evidence_contracts::provider_result::{
+    normalize_provider_result, validate_provider_result,
+};
 use serde_json::json;
 
 fn read_json(path: &Path) -> Result<serde_json::Value, String> {

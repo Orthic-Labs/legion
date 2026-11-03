@@ -7,9 +7,11 @@ use legion_audit::{
     native_providers::legacy_checks::{resolve_request, AuditExternalProjectTool, AuditScratch},
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
-use rightkit_evidence_contracts::ProviderSpec;
-use rightkit_evidence_effects::{ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin};
 use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
+use rightkit_evidence_contracts::ProviderSpec;
+use rightkit_evidence_effects::{
+    ExternalToolRequest, PolicyAuthorizer, PolicyDecision, ToolOrigin,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{

@@ -14,8 +14,8 @@ use rightkit_evidence_contracts::source_anchor::{
     PrDiffFile, PrProjection, PrProjectionReason, ReanchorOutcome, SourceSide, SpanLocation,
 };
 use rightkit_evidence_contracts::{
-    position_anchor_canonical, CanonicalAnchorParams, DiffTag, Finding, FindingId, LiftContext, LineRange, Report,
-    ReportId, ReportScope, ReportStatus, ReportV2,
+    position_anchor_canonical, CanonicalAnchorParams, DiffTag, Finding, FindingId, LiftContext,
+    LineRange, Report, ReportId, ReportScope, ReportStatus, ReportV2,
 };
 use serde_json::{json, Value};
 
@@ -246,7 +246,8 @@ fn anchor06_beyond_diff_finding_remains_in_summary() {
     let report = canonical_report("src/caller.rs:2", b"fn caller() {\n    target();\n}\n");
     // Caller unchanged in the PR: no prDiff entry for it at all.
     let payload: Value =
-        serde_json::from_str(&rightkit_evidence_report::render_github_review(&report).unwrap()).unwrap();
+        serde_json::from_str(&rightkit_evidence_report::render_github_review(&report).unwrap())
+            .unwrap();
     assert_eq!(payload["comments"].as_array().unwrap().len(), 0);
     let body = payload["body"].as_str().unwrap();
     assert!(

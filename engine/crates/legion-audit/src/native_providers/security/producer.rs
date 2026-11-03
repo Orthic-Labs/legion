@@ -45,10 +45,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use regex::Regex;
 use rightkit_code_audit_provider_sdk::{
     ExecutionReceipt, ExecutionState, ExternalProjectTool, ExternalToolRequest,
 };
-use regex::Regex;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 use walkdir::WalkDir;
@@ -133,7 +133,10 @@ impl std::fmt::Debug for ArtifactProducer {
 
 struct ProducerAuthorizer<'a>(&'a ArtifactProducer);
 impl rightkit_evidence_effects::PolicyAuthorizer for ProducerAuthorizer<'_> {
-    fn authorize(&self, request: &ExternalToolRequest) -> rightkit_evidence_effects::PolicyDecision {
+    fn authorize(
+        &self,
+        request: &ExternalToolRequest,
+    ) -> rightkit_evidence_effects::PolicyDecision {
         match &self.0.authorizer {
             Some(authorizer) => authorizer.authorize(request),
             None => rightkit_evidence_effects::PolicyAuthorizer::authorize(
@@ -716,37 +719,38 @@ impl<'a> Run<'a> {
         if scratch.parent() != Some(parent.as_path()) || parent.starts_with(&project) {
             return Err(invalid());
         }
-        let stream = |record: Option<&rightkit_evidence_effects::ArtifactRecord>| -> Result<Value, String> {
-            let Some(record) = record else {
-                return Ok(Value::Null);
-            };
-            let original = Path::new(&record.path);
-            let original = if original.is_absolute() {
-                original.to_path_buf()
-            } else {
-                scratch.join(original)
-            };
-            let metadata = fs::symlink_metadata(&original).map_err(|_| invalid())?;
-            let canonical = fs::canonicalize(&original).map_err(|_| invalid())?;
-            if !record.immutable
-                || !metadata.is_file()
-                || metadata.file_type().is_symlink()
-                || !canonical.starts_with(&scratch)
-                || metadata.len() != record.bytes as u64
-                || record.bytes > self.producer.output_limit
-            {
-                return Err(invalid());
-            }
-            let bytes = fs::read(&canonical).map_err(|_| invalid())?;
-            if bytes.len() != record.bytes || digest(&bytes) != record.digest {
-                return Err(invalid());
-            }
-            Ok(
-                json!({"originalPath":record.path,"originalAbsolutePath":original,
+        let stream =
+            |record: Option<&rightkit_evidence_effects::ArtifactRecord>| -> Result<Value, String> {
+                let Some(record) = record else {
+                    return Ok(Value::Null);
+                };
+                let original = Path::new(&record.path);
+                let original = if original.is_absolute() {
+                    original.to_path_buf()
+                } else {
+                    scratch.join(original)
+                };
+                let metadata = fs::symlink_metadata(&original).map_err(|_| invalid())?;
+                let canonical = fs::canonicalize(&original).map_err(|_| invalid())?;
+                if !record.immutable
+                    || !metadata.is_file()
+                    || metadata.file_type().is_symlink()
+                    || !canonical.starts_with(&scratch)
+                    || metadata.len() != record.bytes as u64
+                    || record.bytes > self.producer.output_limit
+                {
+                    return Err(invalid());
+                }
+                let bytes = fs::read(&canonical).map_err(|_| invalid())?;
+                if bytes.len() != record.bytes || digest(&bytes) != record.digest {
+                    return Err(invalid());
+                }
+                Ok(
+                    json!({"originalPath":record.path,"originalAbsolutePath":original,
                 "digest":record.digest,"bytes":record.bytes,"immutable":record.immutable,
                 "raw":std::str::from_utf8(&bytes).ok(),"rawBytes":bytes}),
-            )
-        };
+                )
+            };
         let mut diagnostic = json!({"schema":"legion-native-scanner-diagnostic/1",
             "provider":self.provider.id,"inventoryDigest":self.inventory.digest,
             "originalArtifactRoot":scratch,"receipt":crate::execution_policy::receipt_json(receipt),
@@ -1782,7 +1786,10 @@ impl<'a> Run<'a> {
     }
 }
 
-fn read_artifact(root: &Path, artifact: &rightkit_evidence_effects::ArtifactRecord) -> Option<Vec<u8>> {
+fn read_artifact(
+    root: &Path,
+    artifact: &rightkit_evidence_effects::ArtifactRecord,
+) -> Option<Vec<u8>> {
     if !artifact.immutable {
         return None;
     }

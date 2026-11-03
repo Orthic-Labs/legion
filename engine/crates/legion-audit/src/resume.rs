@@ -96,7 +96,8 @@ impl ResumePlan {
     }
 
     pub fn digest(&self) -> Result<String, AuditError> {
-        rightkit_evidence_contracts::canonical_digest(self).map_err(|e| AuditError::Invalid(e.to_string()))
+        rightkit_evidence_contracts::canonical_digest(self)
+            .map_err(|e| AuditError::Invalid(e.to_string()))
     }
 }
 
@@ -646,7 +647,8 @@ impl RunRecorder {
     }
 
     fn payload(value: serde_json::Value) -> Result<String, AuditError> {
-        rightkit_evidence_contracts::canonical_digest(&value).map_err(|e| AuditError::Invalid(e.to_string()))
+        rightkit_evidence_contracts::canonical_digest(&value)
+            .map_err(|e| AuditError::Invalid(e.to_string()))
     }
 
     pub fn started(&self, provider: &str) -> Result<(), AuditError> {

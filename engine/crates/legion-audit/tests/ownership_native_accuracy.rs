@@ -12,12 +12,12 @@ use legion_audit::{
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
     ProviderExecutor,
 };
+use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
 use rightkit_evidence_contracts::ProviderSpec;
 use rightkit_evidence_effects::{
     platform::unix::UnixProcess, ArtifactWriter, EffectExecutor, ExternalToolRequest,
     PolicyAuthorizer, PolicyDecision,
 };
-use rightkit_code_audit_provider_sdk::{ExecutionReceipt, ExternalProjectTool};
 use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,

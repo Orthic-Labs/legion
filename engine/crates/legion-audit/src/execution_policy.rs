@@ -127,14 +127,17 @@ pub(crate) fn receipt_json(receipt: &rightkit_evidence_effects::ExecutionReceipt
 }
 
 /// Obtain an actual policy decision receipt for a blocked native operation.
-pub(crate) async fn deny(request: &ExternalToolRequest) -> rightkit_evidence_effects::ExecutionReceipt {
+pub(crate) async fn deny(
+    request: &ExternalToolRequest,
+) -> rightkit_evidence_effects::ExecutionReceipt {
     struct NoArtifacts;
     impl rightkit_evidence_effects::ArtifactSink for NoArtifacts {
         fn write(
             &self,
             _: &str,
             _: &[u8],
-        ) -> Result<rightkit_evidence_effects::ArtifactRecord, rightkit_evidence_effects::EffectError> {
+        ) -> Result<rightkit_evidence_effects::ArtifactRecord, rightkit_evidence_effects::EffectError>
+        {
             Err(rightkit_evidence_effects::EffectError::ArtifactFailed(
                 "denied operation has no process artifacts".into(),
             ))
@@ -315,7 +318,8 @@ mod tests {
             &self,
             _: &str,
             _: &[u8],
-        ) -> Result<rightkit_evidence_effects::ArtifactRecord, rightkit_evidence_effects::EffectError> {
+        ) -> Result<rightkit_evidence_effects::ArtifactRecord, rightkit_evidence_effects::EffectError>
+        {
             panic!("denied admission must not produce process artifacts")
         }
     }
@@ -334,10 +338,13 @@ mod tests {
                 .into_owned(),
             ..ExternalToolRequest::default()
         };
-        let receipt =
-            rightkit_evidence_effects::EffectExecutor::new(NeverRun, NeverWrite, OwnerAdmissionRequired)
-                .execute(&request)
-                .await;
+        let receipt = rightkit_evidence_effects::EffectExecutor::new(
+            NeverRun,
+            NeverWrite,
+            OwnerAdmissionRequired,
+        )
+        .execute(&request)
+        .await;
         assert_eq!(
             receipt.state,
             rightkit_evidence_effects::ExecutionState::UnauthorizedEffect

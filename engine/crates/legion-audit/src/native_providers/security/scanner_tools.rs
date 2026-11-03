@@ -424,15 +424,17 @@ mod tests {
     use super::*;
 
     fn fixture_producer(root: &Path) -> ArtifactProducer {
-        ArtifactProducer::new(root).with_policy_authorizer(Arc::new(rightkit_evidence_effects::StaticPolicy {
-            decision: rightkit_evidence_effects::PolicyDecision {
-                allowed: true,
-                policy_id: "scanner-fixture".into(),
-                policy_version: 1,
-                policy_digest: format!("sha256:{}", "f".repeat(64)),
-                reason: None,
+        ArtifactProducer::new(root).with_policy_authorizer(Arc::new(
+            rightkit_evidence_effects::StaticPolicy {
+                decision: rightkit_evidence_effects::PolicyDecision {
+                    allowed: true,
+                    policy_id: "scanner-fixture".into(),
+                    policy_version: 1,
+                    policy_digest: format!("sha256:{}", "f".repeat(64)),
+                    reason: None,
+                },
             },
-        }))
+        ))
     }
 
     fn provider(id: &str, selector: Value) -> AuditProvider {

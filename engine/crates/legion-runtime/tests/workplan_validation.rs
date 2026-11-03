@@ -1,9 +1,9 @@
-use rightkit_evidence_contracts::{AgentId, TaskId};
 use legion_runtime::workplan::{
     parse_work_plan_json, validate_work_plan, CompletionEvidence, EvidenceAssurance,
     EvidenceOutcome, WorkPlan, WorkPlanReasonCode as Code, WorkUnit, WorkUnitAccess,
     WorkUnitStatus, WriteScopeKind, MAX_WORK_PLAN_BYTES, MAX_WORK_UNITS,
 };
+use rightkit_evidence_contracts::{AgentId, TaskId};
 
 fn fixture() -> WorkPlan {
     parse_work_plan_json(include_bytes!("workplan-ready.json")).expect("typed fixture")

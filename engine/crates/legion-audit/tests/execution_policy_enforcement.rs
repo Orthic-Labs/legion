@@ -20,7 +20,9 @@ use legion_audit::{
     FilesystemInventorySource, FrozenPlan, InventoryEnvelope, InventorySource, ProofState,
     ProviderExecutor, RunState,
 };
-use rightkit_evidence_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
+use rightkit_evidence_contracts::{
+    Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus,
+};
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 

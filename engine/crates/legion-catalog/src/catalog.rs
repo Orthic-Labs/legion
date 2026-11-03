@@ -349,7 +349,9 @@ impl CatalogEntry {
         })
     }
 
-    pub fn agent_definition(&self) -> Result<rightkit_evidence_contracts::AgentDefinition, CatalogError> {
+    pub fn agent_definition(
+        &self,
+    ) -> Result<rightkit_evidence_contracts::AgentDefinition, CatalogError> {
         if self.kind != CatalogKind::Agent {
             return Err(CatalogError::InvalidCatalog {
                 path: self.source_path.clone(),

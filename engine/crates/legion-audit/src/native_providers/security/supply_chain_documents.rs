@@ -4,7 +4,10 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn digest_json(value: &Value) -> String {
-    digest(&rightkit_evidence_contracts::canonical_json_bytes(value).expect("JSON policy is canonicalizable"))
+    digest(
+        &rightkit_evidence_contracts::canonical_json_bytes(value)
+            .expect("JSON policy is canonicalizable"),
+    )
 }
 
 pub const SYFT_CONFIGURATION: &str = "check-for-app-update: false\njavascript:\n  include-dev-dependencies: true\n  search-remote-licenses: false\nexclude: []\n";

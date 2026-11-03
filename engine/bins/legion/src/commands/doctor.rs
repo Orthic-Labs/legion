@@ -1295,8 +1295,8 @@ fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> V
     .collect::<Vec<_>>();
     // One resolution (--key-dir is not applicable here): ARCANE_KEY_DIR, else
     // the canonical `$HOME/.codex/arcane-keys`; shared with keys init, seal and run open.
-    let (canonical_key_dir, key_dir_source) = rightkit_evidence_governance::key_ring::resolve_key_dir(None)
-        .unwrap_or_else(|_| {
+    let (canonical_key_dir, key_dir_source) =
+        rightkit_evidence_governance::key_ring::resolve_key_dir(None).unwrap_or_else(|_| {
             (
                 codex_home_dir(&home).join("arcane-keys"),
                 rightkit_evidence_governance::key_ring::KeyDirSource::Canonical,

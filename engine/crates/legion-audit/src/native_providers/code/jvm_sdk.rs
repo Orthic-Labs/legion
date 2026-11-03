@@ -3,8 +3,8 @@
 use super::tools::{self, Outcome, ToolContext, ToolEvidence};
 use crate::inventory::InventoryEntry;
 use crate::native_providers::security::producer::SandboxPolicy;
-use rightkit_code_audit_provider_sdk::ExternalToolRequest;
 use regex::Regex;
+use rightkit_code_audit_provider_sdk::ExternalToolRequest;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -376,9 +376,11 @@ impl Inputs {
         if tree(&stage, MAX_PROJECT_BYTES, false)? != original {
             return Err(error("stage-drift"));
         }
-        let mut confinement =
-            rightkit_evidence_effects::GradleBindOnlySandbox::create(&ctx.scratch.cache_dir(), &stage)
-                .map_err(|e| error(&e.as_str()))?;
+        let mut confinement = rightkit_evidence_effects::GradleBindOnlySandbox::create(
+            &ctx.scratch.cache_dir(),
+            &stage,
+        )
+        .map_err(|e| error(&e.as_str()))?;
         fs::create_dir_all(confinement.path().join("tmp")).map_err(|_| error("owned-temp"))?;
         let installed = home.join(DIST).join("gradle-9.2.1");
         copy_tree(&roots["gradle"], &installed)?;

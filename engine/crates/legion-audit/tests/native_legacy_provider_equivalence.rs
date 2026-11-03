@@ -850,7 +850,10 @@ fn every_provider_binds_exact_selector_denominator_and_correct_route() {
                 "{id} no process"
             );
             if id == "legacy.quality.test" {
-                assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
+                assert_eq!(
+                    result.status,
+                    rightkit_evidence_contracts::ProviderStatus::Partial
+                );
                 assert!(result.coverage.as_ref().unwrap().expected > 0);
                 assert_eq!(
                     result.details["executionReceipt"]["state"],
@@ -1039,7 +1042,10 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
                 .unwrap();
             let coverage = result.coverage.as_ref().unwrap();
             assert!(!result.complete, "managed tests need enrolled trust");
-            assert_eq!(result.status, rightkit_evidence_contracts::ProviderStatus::Partial);
+            assert_eq!(
+                result.status,
+                rightkit_evidence_contracts::ProviderStatus::Partial
+            );
             assert!(coverage.expected > 0);
             assert_eq!(coverage.examined, 0);
             assert_eq!(

@@ -331,7 +331,10 @@ fn signed_host_result_is_bound_and_reaches_report_execution() {
         .details
         .contains_key("executionReceipt"));
     let rendered = legion_audit::canonical_report("fixture-repository", &report).unwrap();
-    assert_eq!(rendered.status, rightkit_evidence_contracts::ReportStatus::Clean);
+    assert_eq!(
+        rendered.status,
+        rightkit_evidence_contracts::ReportStatus::Clean
+    );
     assert_eq!(report.lenses_ran, vec!["fixture-lens"]);
 }
 

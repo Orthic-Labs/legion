@@ -9,12 +9,12 @@ use legion_audit::{
     },
     AuditPlan, FilesystemInventorySource, InventorySource, NativeProviderRegistry,
 };
+use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use rightkit_evidence_contracts::ProviderSpec;
 use rightkit_evidence_effects::{
     ArtifactRecord, ExecutionReceipt, ExternalToolRequest, PolicyAuthorizer, PolicyDecision,
     ToolOrigin,
 };
-use rightkit_code_audit_provider_sdk::ExternalProjectTool;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -1004,7 +1004,8 @@ fn real_jvm_sdk_accuracy() {
         && cases.iter().all(|c| c["matched"] == true)
         && child_executions.iter().all(|c| c["success"] == true);
     let mut record = json!({"schema":"legion-jvm-sdk-accuracy/1","provider":"code.jvm","operationContract":"jvm/v1","harness":HARNESS,"qualificationEligible":eligible,"productionQualification":false,"scope":"constructed frozen Gradle JVM/v1 controls on macOS arm64; compiler diagnostic lint only; no arbitrary-project or production owner-admission claim","providerSpec":spec(),"originalContract":{"extensions":code::jvm::CONFIG.extensions,"variants":code::jvm::CONFIG.variants,"tools":code::jvm::CONFIG.tools,"context":code::jvm::CONFIG.required_context},"sourceClosure":source_before,"sourceUnchanged":unchanged,"confinement":{"file":"confinement.json","digest":digest(&confinement_bytes),"bytes":confinement_bytes.len()},"enrollment":{"file":"enrollment.json","digest":digest(&enrollment_bytes),"bytes":enrollment_bytes.len()},"controls":CONTROLS,"cases":cases,"childExecutions":child_executions});
-    record["sandboxAdmission"] = json!(rightkit_evidence_effects::gradle_sandbox::QUALIFICATION_ADMISSION);
+    record["sandboxAdmission"] =
+        json!(rightkit_evidence_effects::gradle_sandbox::QUALIFICATION_ADMISSION);
     record["qualificationDigest"] = json!(digest(&canonical(&record)));
     let bytes = serde_json::to_vec_pretty(&record).unwrap();
     fs::write(retained.join("code_jvm.json"), &bytes).unwrap();
