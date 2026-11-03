@@ -6,7 +6,7 @@
   "productionQualification": false,
   "platform": "macos-arm64",
   "viewport": {"width": 640, "height": 480},
-  "browser": {"version": "155.0.8059.39", "platform": "mac-arm64", "archiveUrl": "https://storage.googleapis.com/chrome-for-testing-public/155.0.8059.39/mac-arm64/chrome-mac-arm64.zip", "archiveSha256": "529a71bd61aaa2ef266a4d4bd300ae9572ba6a3468a8d55c3023ffeffb5b6b4e"},
+  "browser": {"version": "156.0.8078.47", "platform": "mac-arm64", "archiveUrl": "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/mac-arm64/chrome-mac-arm64.zip", "archiveSha256": "ad7f2b49a4dc679af286b1b1b386670d93ca7868079f69012d21ba0ac8293df3"},
   "axe": {"path": "engine/crates/legion-audit/assets/axe-core-4.14.0.min.js", "version": "4.14.0", "tags": ["wcag2a", "wcag2aa"]},
   "capture": {"route": ["script", "qa/qa-functional"], "actions": ["navigation-check", "viewport-screenshot", "performance", "axe"], "timeoutMs": 120000, "stdoutLimit": 8388608, "stderrLimit": 8388608},
   "cases": [

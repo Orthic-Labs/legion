@@ -404,7 +404,7 @@ fn real_runtime_app_accuracy() {
         .unwrap();
     assert!(browser_version.status.success());
     let browser_banner = String::from_utf8(browser_version.stdout).unwrap();
-    assert!(browser_banner.contains("155.0.8059.39"));
+    assert!(browser_banner.contains("156.0.8078.47"));
     let clean = fs::read(root.join("bench/fixtures/runtime-app/clean.html")).unwrap();
     let planted = fs::read(root.join("bench/fixtures/runtime-app/planted.html")).unwrap();
     let server = Server::new(clean, planted);

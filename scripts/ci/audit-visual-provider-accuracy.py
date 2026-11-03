@@ -16,9 +16,9 @@ import re
 ID = "legacy.visual.core"
 SOURCE = "engine/crates/legion-audit/tests/visual_accuracy.rs"
 LABEL = "visual.regression|viewport|shots/viewport.png|artifact"
-VERSION = "155.0.8059.39"
+VERSION = "156.0.8078.47"
 URL = f"https://storage.googleapis.com/chrome-for-testing-public/{VERSION}/mac-arm64/chrome-mac-arm64.zip"
-ARCHIVE = "529a71bd61aaa2ef266a4d4bd300ae9572ba6a3468a8d55c3023ffeffb5b6b4e"
+ARCHIVE = "ad7f2b49a4dc679af286b1b1b386670d93ca7868079f69012d21ba0ac8293df3"
 ROOTS = ["engine/crates/legion-audit/src", "engine/crates/legion-provider-sdk/src",
          "engine/crates/legion-contracts/src", "engine/crates/legion-effects/src",
          "engine/crates/legion-rules/src", "src/registry/rules", "src/registry/controls"]
@@ -125,7 +125,7 @@ def capture(captured, name, planted, session, artifacts=None):
     frame_completion(observed)
     require(observed["ready"] == "complete" and observed["background"] == ("rgb(255, 0, 0)" if planted else "rgb(0, 0, 255)")
             and observed["width"] == 64 and observed["height"] == 48 and observed["devicePixelRatio"] == 1
-            and "HeadlessChrome/155." in observed["userAgent"]
+            and "HeadlessChrome/156." in observed["userAgent"]
             and any(b["brand"] == "Chromium" and b["version"] == VERSION for b in observed["fullVersionList"]), "renderer observation differs")
     if artifacts is not None:
         source = relative(artifacts, name + "/index.html")
