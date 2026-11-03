@@ -5,8 +5,14 @@
   "fixtures": [
     "engine/crates/legion-audit/tests/fixtures/cargo-deny",
     "engine/crates/legion-audit/tests/fixtures/cargo-geiger",
-    "engine/crates/legion-audit/tests/fixtures/xcode-targets",
     "scripts/ci/fixtures/audit-rust-code-sdk",
     "scripts/ci/fixtures/audit-code-python-sdk-accuracy"
-  ]
+  ],
+  "swift": {
+    "engine/crates/legion-audit/tests/fixtures/xcode-targets/macos-swiftpm": {
+      "qualifyOnly": {
+        "reason": "Audit test fixture: an executable SwiftPM package whose type-check leaves no object file for the executable target, so swift build rejects the input; it is never built by Legion itself."
+      }
+    }
+  }
 }
