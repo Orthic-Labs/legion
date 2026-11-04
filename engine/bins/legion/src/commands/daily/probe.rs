@@ -432,7 +432,8 @@ fn etime(text: &str) -> Option<i64> {
 /// it is both the identity text and the start.
 #[cfg(windows)]
 fn processes() -> Option<BTreeMap<u32, Proc>> {
-    let script = "Get-CimInstance Win32_Process -OperationTimeoutSec 1 | ForEach-Object { '{0}|{1}|{2}|{3}' -f \
+    let script = "Get-CimInstance Win32_Process -OperationTimeoutSec 1 | \
+        ForEach-Object { '{0}|{1}|{2}|{3}' -f \
         $_.ProcessId, $_.ParentProcessId, \
         ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds(), $_.Name }";
     let mut ps = Command::new("powershell");
