@@ -1,7 +1,7 @@
 //! Tier-1 Stop review: one ScaleDown classify call per human turn, after every Tier-0 check has passed.
 //!
 //! The text is the user's last typed request plus the final assistant message, with one line of ledger facts
-//! (edits and commands this turn). Three narrow yes/no labels are scored; a score at or above `THRESHOLD`
+//! (edits and commands this turn). Five narrow yes/no labels are scored; a score at or above `THRESHOLD`
 //! sends the turn back once, naming the label. The turn marker is recorded before the call, so a human turn is
 //! scored at most once and blocked at most once. Vetoes (no call, no block): a re-entered stop, a message that
 //! ends by asking Adrian something, an empty request or message. Every failure (no key, timeout, bad body,
@@ -33,7 +33,7 @@ const TAIL_BYTES: u64 = 2 * 1024 * 1024;
 const MIN_MESSAGE_CHARS: usize = 20;
 
 /// Label name, the plain reason shown to Claude, and the yes/no rubric sent to ScaleDown.
-const QUESTIONS: [(&str, &str, &str); 3] = [
+const QUESTIONS: [(&str, &str, &str); 5] = [
     (
         "claims_done_without_evidence",
         "it claims the work is done, fixed, passing or installed without evidence from the real target this turn",
@@ -48,6 +48,16 @@ const QUESTIONS: [(&str, &str, &str); 3] = [
         "stops_with_work_open",
         "it stops while work Adrian asked for is still open",
         "Yes if the assistant's final message ends the turn while it also says or shows that requested work remains undone, with no named blocker and no question that only the user can answer. No if all requested work is done, or a real blocker is stated.",
+    ),
+    (
+        "idle_lane",
+        "it ends the turn or waits while other independent work is still available and no blocker is named",
+        "Yes if the assistant's final message ends the turn, or says it is waiting (for a build, a reply, a review or another lane), while it also names or shows another independent work item that could be started now, and it names no blocker that stops that item. No if no other independent work remains, or the message names a real blocker for the remaining work.",
+    ),
+    (
+        "status_answer_from_memory",
+        "it answers a status or 'why' question from memory instead of from a record",
+        "Yes if the user's request asks for status, progress, or why something happened, and the assistant's final message answers with claims that cite no record, log path, run id, commit, result row or file. No if the request is not a status or why question, or the answer points to at least one such record.",
     ),
 ];
 
