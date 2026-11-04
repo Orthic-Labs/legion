@@ -3,9 +3,11 @@
 //! scan phase only, and `scans[]` holds `id`, `class`, `coverage` (`hit`, `ran`, `skipped`),
 //! `status`, `key`, `reason` and an optional `code`. A keyed row that ran is a reusable row whose
 //! cache missed. A rerun of an identical commit should hit every keyed row it passed before,
-//! so misses there are the flag. The report carries no per-scan time, environment hash or
-//! broker request ids, so none of those are derived here; a missing or unreadable report is
-//! unknown, never a pass.
+//! so misses there are the flag. A gate that adds `timing` to a row (`invocationId`,
+//! `elapsedMs`, `cacheLookupMs`, `executionMs`) gives per-scan time; rows sharing one
+//! `invocationId` are one execution and count once, and `batchAttempts` counts batch tries.
+//! Without `timing` the time stays unknown. No environment hash or broker request id is
+//! derived; a missing or unreadable report is unknown, never a pass.
 use super::{time, warmth};
 use serde_json::Value;
 use std::{
@@ -29,6 +31,16 @@ struct Counts {
     timeouts: u64,
 }
 
+/// Per-scan time from rows that carry `timing`, summed once per invocation.
+#[derive(Default)]
+struct Timing {
+    rows: u64,
+    invocations: BTreeMap<String, (f64, f64, f64)>,
+    batch_attempts: u64,
+    /// The slowest invocations as (elapsed ms, scan id).
+    slowest: Vec<(f64, String)>,
+}
+
 #[derive(Default)]
 pub struct Repo {
     runs: u64,
@@ -42,6 +54,7 @@ pub struct Repo {
     reruns: u64,
     /// Failed rows by `code` (or `status` when no code).
     failed: BTreeMap<String, u64>,
+    timing: Timing,
 }
 
 #[derive(Default)]
@@ -99,6 +112,23 @@ fn count(report: &Value, repo: &mut Repo) -> Counts {
         if is_timeout(row) {
             counts.timeouts += 1;
         }
+        let ms = |key: &str| row["timing"][key].as_f64().unwrap_or(0.0);
+        if let Some(invocation) = row["timing"]["invocationId"].as_str() {
+            let t = &mut repo.timing;
+            t.rows += 1;
+            let elapsed = ms("elapsedMs");
+            let id = row["id"].as_str().unwrap_or("?").to_owned();
+            if !t.invocations.contains_key(invocation) {
+                t.slowest.push((elapsed, id));
+                t.slowest.sort_by(|a, b| b.0.total_cmp(&a.0));
+                t.slowest.truncate(3);
+            }
+            t.invocations.insert(
+                invocation.to_owned(),
+                (elapsed, ms("cacheLookupMs"), ms("executionMs")),
+            );
+        }
+        repo.timing.batch_attempts += row["batchAttempts"].as_array().map_or(0, |a| a.len() as u64);
         let status = row["status"].as_str().unwrap_or("?");
         if !matches!(status, "pass" | "not-in-pass" | "skipped") {
             let code = row["code"].as_str().unwrap_or(status);
@@ -238,9 +268,31 @@ pub fn report(host: &Host) -> Vec<String> {
         } else {
             failed.join(", ")
         };
+        let tm = &repo.timing;
+        let timing = if tm.rows == 0 {
+            "per-scan timing not in the reports".to_owned()
+        } else {
+            let sum = |pick: fn(&(f64, f64, f64)) -> f64| {
+                tm.invocations.values().map(pick).sum::<f64>() as u64
+            };
+            let slowest: Vec<String> =
+                tm.slowest.iter().map(|(ms, id)| format!("{id} {}", millis(*ms as u64))).collect();
+            format!(
+                "{} timed rows in {} invocations: scans {}, cache lookup {}, execution {}, \
+                 {} batch attempts; slowest {}",
+                tm.rows,
+                tm.invocations.len(),
+                millis(sum(|t| t.0)),
+                millis(sum(|t| t.1)),
+                millis(sum(|t| t.2)),
+                tm.batch_attempts,
+                slowest.join(", ")
+            )
+        };
         rows.push(format!(
             "{} {name}: {} runs over {} commits ({} reruns), {phase}; Class A {} ran, {} hit; \
-             keyed rows {} hit of {} (reruns {} of {}); {} timeouts; failed rows: {failed}",
+             keyed rows {} hit of {} (reruns {} of {}); {} timeouts; failed rows: {failed}; \
+             {timing}",
             host.name,
             repo.runs,
             repo.commits.len(),

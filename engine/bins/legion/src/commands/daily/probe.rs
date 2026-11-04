@@ -19,9 +19,13 @@
 //!   broker receipts of the jobs the lease names. Nothing is read from log text; a missing
 //!   join stays unknown.
 //!
-//! macOS and Windows. macOS signals INT, TERM, then KILL. Windows has no INT for a
-//! process with no console, so it asks `taskkill` to end each owned pid (no `/T`, so a shared
-//! broker started as a child is never caught), then forces it; every child runs with no window.
+//! macOS and Windows. macOS signals INT, TERM, then KILL. Windows follows the proven Dell
+//! harness (`rk-hr-performance-sweep/controls/dell-gate-safe.ps1`): the gate is `node` running
+//! the host entry `.mjs` directly, so the root is a held child handle; on cancel the root is
+//! killed through that handle, then each owned descendant is killed only through a handle whose
+//! start time equals the creation time recorded when it was first seen (never by pid alone,
+//! never a tree, never a broker). The RustRight client is its runtime executable, not the shim.
+//! Every child runs with no window.
 use super::{gate, time};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -57,8 +61,9 @@ mod paths {
 }
 #[cfg(windows)]
 mod paths {
-    pub const HOST_GATE: &str = r"D:\.rightkit-managed\agent-bin\rightkit-host-gate.cmd";
-    pub const RUSTRIGHT: &str = r"D:\.rightkit-managed\agent-bin\rustright.cmd";
+    /// Run by `node` (from `PATH`), as the Dell harness does.
+    pub const HOST_GATE: &str = r"D:\.rightkit-managed\agent-bin\rightkit-host-gate.mjs";
+    pub const RUSTRIGHT: &str = r"D:\.rustright\runtime\rustright.exe";
     pub const OWNERSHIP: &str = r"D:\.rightkit-managed\build-ownership";
     pub const RECEIPTS: &str = r"D:\.rightkit-managed\rightkit-build-control\receipts";
     pub const COVERAGE: &str = r"D:\.rightkit-managed\runs\rightkit-gate-coverage";
@@ -365,6 +370,8 @@ fn identity(repo: &Path) -> Value {
         }
     }
     let gate = fs::canonicalize(HOST_GATE).ok();
+    // On macOS `rustright` is found on PATH, so there is no fixed client file to hash.
+    let client = fs::canonicalize(RUSTRIGHT).ok();
     json!({
         "head": git_text(repo, &["rev-parse", "HEAD"]).ok(),
         "tree": git_text(repo, &["rev-parse", "HEAD^{tree}"]).ok(),
@@ -375,7 +382,27 @@ fn identity(repo: &Path) -> Value {
         "hostEntryResolved": gate.as_ref().map(|p| p.display().to_string()),
         "hostEntrySha256": gate.as_deref().and_then(digest_file),
         "gate": gate_identity(repo, gate.as_deref()),
+        "rustrightClient": RUSTRIGHT,
+        "rustrightClientSha256": client.as_deref().and_then(digest_file),
+        "node": node_version(),
+        "brokerPids": broker_pids(),
     })
+}
+
+fn node_version() -> Option<String> {
+    let out = bounded(Command::new("node").arg("--version"), Duration::from_secs(5)).ok()?;
+    Some(String::from_utf8_lossy(&out).trim().to_owned())
+}
+
+/// The running broker processes as `pid@start`: a restarted broker changes the identity.
+fn broker_pids() -> Option<Vec<String>> {
+    let rows = processes()?;
+    let brokers = rows
+        .iter()
+        .filter(|(_, row)| row.comm.to_lowercase().contains("rustright-broker"))
+        .map(|(pid, row)| format!("{pid}@{}", row.lstart))
+        .collect();
+    Some(brokers)
 }
 
 /// One `ps` row: `lstart` is the identity text, `start_ms` the start from `etime`.
@@ -405,7 +432,7 @@ fn etime(text: &str) -> Option<i64> {
 /// it is both the identity text and the start.
 #[cfg(windows)]
 fn processes() -> Option<BTreeMap<u32, Proc>> {
-    let script = "Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}|{3}' -f \
+    let script = "Get-CimInstance Win32_Process -OperationTimeoutSec 1 | ForEach-Object { '{0}|{1}|{2}|{3}' -f \
         $_.ProcessId, $_.ParentProcessId, \
         ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds(), $_.Name }";
     let mut ps = Command::new("powershell");
@@ -573,27 +600,52 @@ impl Tracker {
             if rows[&pid].comm.to_lowercase().contains("rustright-broker") {
                 continue;
             }
-            let _ = bounded(&mut kill(signal, pid), Duration::from_secs(5));
+            let start = self.owned.get(&pid).map_or(0, |(_, start)| *start);
+            if let Some(mut command) = kill(signal, pid, start) {
+                let _ = bounded(&mut command, Duration::from_secs(5));
+            }
         }
     }
 }
 
-/// `kill -s <signal>`; on Windows `taskkill` for INT and TERM, `taskkill /F` for KILL, one pid,
-/// never its tree.
+/// macOS: `kill -s <signal> <pid>` (the pid's start was checked by the caller's `ps` read).
+/// Windows: only KILL acts. One PowerShell process opens the pid, kills it only when its start
+/// time is the recorded creation time and its name is not the broker, all on the one handle,
+/// so a reused pid is never touched. INT and TERM have no console to reach, so they do nothing.
 #[cfg(windows)]
-fn kill(signal: &str, pid: u32) -> Command {
-    let mut command = Command::new("taskkill");
-    command.args(["/PID", &pid.to_string()]);
-    if signal == "KILL" {
-        command.arg("/F");
+fn kill(signal: &str, pid: u32, start_ms: i64) -> Option<Command> {
+    if signal != "KILL" {
+        return None;
     }
+    let script = format!(
+        "$ErrorActionPreference='Stop'; $p = Get-Process -Id {pid}; $h = $p.Handle; \
+         if (([DateTimeOffset]$p.StartTime).ToUnixTimeMilliseconds() -eq {start_ms} \
+         -and $p.ProcessName -ne 'rustright-broker') {{ $p.Kill() }}"
+    );
+    let mut command = Command::new("powershell");
+    command.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
+    Some(command)
+}
+
+#[cfg(not(windows))]
+fn kill(signal: &str, pid: u32, _start_ms: i64) -> Option<Command> {
+    let mut command = Command::new("kill");
+    command.args(["-s", signal]).arg(pid.to_string());
+    Some(command)
+}
+
+/// The gate process: the host entry itself on macOS, `node <entry.mjs>` on Windows.
+#[cfg(windows)]
+fn gate_command(argv: &[String]) -> Command {
+    let mut command = Command::new("node");
+    command.args(argv);
     command
 }
 
 #[cfg(not(windows))]
-fn kill(signal: &str, pid: u32) -> Command {
-    let mut command = Command::new("kill");
-    command.args(["-s", signal]).arg(pid.to_string());
+fn gate_command(argv: &[String]) -> Command {
+    let mut command = Command::new(&argv[0]);
+    command.args(&argv[1..]);
     command
 }
 
@@ -794,8 +846,8 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
         log: dir.join("ownership.jsonl"),
         overhead: Duration::ZERO,
     };
-    let mut command = Command::new(&argv[0]);
-    detach(command.args(&argv[1..]).current_dir(&cwd));
+    let mut command = gate_command(&argv);
+    detach(command.current_dir(&cwd));
     command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     for (key, _) in std::env::vars_os() {
         let key = key.to_string_lossy().into_owned();
@@ -853,6 +905,10 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
         }
         tracker.signal("TERM");
         thread::sleep(Duration::from_secs(1).min(cleanup_end - Instant::now().min(cleanup_end)));
+        // The root through the handle this probe holds, then the descendants by identity.
+        if let Some(root) = child.as_mut() {
+            let _ = root.kill();
+        }
         tracker.signal("KILL");
     }
     let exit = child.as_mut().and_then(|c| {
