@@ -45,10 +45,15 @@ mod paths {
     pub const RECEIPTS: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
     pub const COVERAGE: &str = "/Volumes/D/.rightkit-managed/runs/rightkit-gate-coverage";
     pub const TRUSTED_GATES: &str = "/Volumes/D/.rightkit-managed/trusted-gates";
-    /// The broker's config: base variable, then the path under it.
-    pub const BROKER_CONFIG: (&str, &str) =
-        ("HOME", "Library/Application Support/RightKit/build-control/config.json");
     pub const REPOS: &str = "/Volumes/D/claude/";
+    /// RustRight's default roots (`rustright-config` `managed_roots` and `identity`): the
+    /// legacy data root, the renamed data root, and the control roots under the home.
+    pub const LEGACY_DATA: &str = "/Volumes/D/.rightkit-managed";
+    pub const RENAMED_DATA: &str = "/Volumes/D/.rustright";
+    pub const CONTROL_UNDER_HOME: [&str; 2] = [
+        "Library/Application Support/RightKit/build-control",
+        "Library/Application Support/RustRight/broker",
+    ];
 }
 #[cfg(windows)]
 mod paths {
@@ -58,13 +63,13 @@ mod paths {
     pub const RECEIPTS: &str = r"D:\.rightkit-managed\rightkit-build-control\receipts";
     pub const COVERAGE: &str = r"D:\.rightkit-managed\runs\rightkit-gate-coverage";
     pub const TRUSTED_GATES: &str = r"D:\.rightkit-managed\trusted-gates";
-    pub const BROKER_CONFIG: (&str, &str) =
-        ("LOCALAPPDATA", r"RightKit\build-control\config.json");
     pub const REPOS: &str = r"d:\claude\";
+    pub const LEGACY_DATA: &str = r"D:\.rightkit-managed";
+    pub const RENAMED_DATA: &str = r"D:\.rustright";
+    /// Under `%LOCALAPPDATA%` (else `%USERPROFILE%\AppData\Local`).
+    pub const CONTROL_UNDER_HOME: [&str; 1] = [r"RightKit\build-control"];
 }
-use paths::{
-    BROKER_CONFIG, COVERAGE, HOST_GATE, OWNERSHIP, RECEIPTS, REPOS, RUSTRIGHT, TRUSTED_GATES,
-};
+use paths::{COVERAGE, HOST_GATE, OWNERSHIP, RECEIPTS, REPOS, RUSTRIGHT, TRUSTED_GATES};
 const DEADLINE_SECS: u64 = 900;
 const CLEANUP_SECS: u64 = 60;
 /// The only environment a plan may set.
@@ -88,6 +93,10 @@ struct Cell {
     #[serde(default)]
     cwd: Option<PathBuf>,
     argv: Vec<String>,
+    /// When set, the cell runs only if the checkout's HEAD is this commit (a full or abbreviated
+    /// hash); otherwise it is skipped, never moved.
+    #[serde(default)]
+    commit: Option<String>,
     #[serde(default)]
     env: BTreeMap<String, String>,
     deadline_seconds: u64,
@@ -134,6 +143,12 @@ fn validate(plan: &Plan) -> Result<(), String> {
         }
         if cell.env.keys().any(|key| !KNOBS.contains(&key.as_str())) {
             return Err(format!("{}: env may set only {}", cell.id, KNOBS.join(", ")));
+        }
+        let pin_ok = cell.commit.as_deref().is_none_or(|pin| {
+            pin.len() >= 7 && pin.len() <= 40 && pin.bytes().all(|b| b.is_ascii_hexdigit())
+        });
+        if !pin_ok {
+            return Err(format!("{}: commit must be 7-40 hex characters", cell.id));
         }
         if cell.deadline_seconds != DEADLINE_SECS {
             return Err(format!("{}: deadline_seconds must be {DEADLINE_SECS}", cell.id));
@@ -282,15 +297,59 @@ fn gate_identity(repo: &Path, host: Option<&Path>) -> Value {
             trusted.insert(name, digest_file(&entry.path()));
         }
     }
-    let (base, under) = BROKER_CONFIG;
-    let config = std::env::var_os(base).map(|base| PathBuf::from(base).join(under));
+    let candidates = broker_config_candidates();
+    let resolved = candidates.iter().find(|path| path.is_file());
+    let listed: Vec<Value> = candidates
+        .iter()
+        .map(|path| json!({"path": path.display().to_string(), "exists": path.is_file()}))
+        .collect();
     json!({
         "selectedGate": selected.as_ref().map(|p| p.display().to_string()),
         "selectedGateSha256": selected.as_deref().and_then(digest_file),
         "selectedPackageSha256": package.as_deref().and_then(digest_file),
         "trustedManifests": trusted,
-        "brokerConfigSha256": config.as_deref().and_then(digest_file),
+        "brokerConfig": {
+            "resolved": resolved.map(|p| p.display().to_string()),
+            "sha256": resolved.and_then(|p| digest_file(p)),
+            "candidates": listed,
+        },
     })
+}
+
+/// `config.json` under each root RustRight would try, in its order: the control root it is
+/// told (`RUSTRIGHT_`/`RIGHTKIT_CONTROL_ROOT`), the platform's control root under the home, the
+/// data root it is told (`DATA_ROOT`, `MANAGED_ROOT`, `EXTERNAL_ROOT`), the legacy data root
+/// (the Windows legacy control root), then the renamed roots.
+fn broker_config_candidates() -> Vec<PathBuf> {
+    let named = |name: &str| {
+        ["RUSTRIGHT_", "RIGHTKIT_"]
+            .iter()
+            .find_map(|prefix| std::env::var_os(format!("{prefix}{name}")))
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+    };
+    let home = if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").filter(|v| !v.is_empty()).map(PathBuf::from).or_else(
+            || std::env::var_os("USERPROFILE").map(|p| PathBuf::from(p).join(r"AppData\Local")),
+        )
+    } else {
+        std::env::var_os("HOME").map(PathBuf::from)
+    };
+    let mut roots: Vec<PathBuf> = named("CONTROL_ROOT").into_iter().collect();
+    if let Some(home) = &home {
+        roots.extend(paths::CONTROL_UNDER_HOME.iter().map(|under| home.join(under)));
+    }
+    roots.extend(["DATA_ROOT", "MANAGED_ROOT", "EXTERNAL_ROOT"].iter().filter_map(|n| named(n)));
+    roots.push(PathBuf::from(paths::LEGACY_DATA));
+    roots.push(PathBuf::from(paths::RENAMED_DATA));
+    let mut seen = Vec::new();
+    for root in roots {
+        let config = root.join("config.json");
+        if !seen.contains(&config) {
+            seen.push(config);
+        }
+    }
+    seen
 }
 
 /// What must not change during a cell: the commit, tree, tracked edits, lockfiles, the host
@@ -916,6 +975,12 @@ pub fn run(plan_path: &Path, out: &Path) -> Result<Vec<Value>, String> {
             records.push(record);
             continue;
         };
+        if let Some(pin) = cell.commit.as_deref().filter(|pin| !commit.starts_with(*pin)) {
+            let record = skip("skipped", format!("HEAD is {commit}; the plan pins {pin}"));
+            append(&results, &record);
+            records.push(record);
+            continue;
+        }
         let workspace = cell.repo.to_string_lossy().to_lowercase();
         let busy = match broker_jobs() {
             Err(e) => Some(format!("broker list unreadable: {e}")),
