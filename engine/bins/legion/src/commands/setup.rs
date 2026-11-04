@@ -4772,6 +4772,9 @@ async fn apply_host_integrations(
     if let Some(value) = refresh_codex_role_projections(request, &inputs) {
         integrations.insert("codexRoleProjections".into(), value);
     }
+    if let Some(value) = remove_codex_role_projections(request, &inputs)? {
+        integrations.insert("codexRoleProjectionsRemoval".into(), value);
+    }
     Ok(Value::Object(integrations))
 }
 
@@ -4797,18 +4800,62 @@ fn refresh_codex_role_projections(
     if !should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
         return Some(skipped("codex-absent"));
     }
-    // Development contexts substitute their own home; only an installed run follows CODEX_HOME.
     let home = codex.home.clone();
-    let codex_dir = if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
-        home.join(".codex")
-    } else {
-        codex_home(&home)
-    };
+    let codex_dir = codex_user_dir(request, &home);
     Some(
         super::bind::refresh_codex_user_projections(&home, &codex_dir, true).unwrap_or_else(
             |error| json!({"state":"failed","codexHome":codex_dir,"error":error.message}),
         ),
     )
+}
+
+/// The Codex directory bind projects into. Development contexts substitute their own home; only
+/// an installed run follows CODEX_HOME.
+fn codex_user_dir(request: &legion_host::SetupRequest, home: &Path) -> PathBuf {
+    if request.origin == legion_host::setup_registry::ORIGIN_DEVELOPMENT {
+        home.join(".codex")
+    } else {
+        codex_home(home)
+    }
+}
+
+/// On remove and purge, take out what `legion bind` projected for Codex (the managed block in
+/// `config.toml` and the generated `agents/*.toml`), the counterpart of
+/// `refresh_codex_role_projections`. Apply and repair never reach it: they re-project instead.
+/// Anything whose ownership cannot be proven is left in place and fails the removal closed.
+fn remove_codex_role_projections(
+    request: &legion_host::SetupRequest,
+    inputs: &HostIntegrationInputs,
+) -> Result<Option<Value>, CommandError> {
+    if !matches!(
+        request.action,
+        legion_host::SetupAction::Remove | legion_host::SetupAction::Purge
+    ) {
+        return Ok(None);
+    }
+    let Some(codex) = inputs.codex.as_ref() else {
+        return Ok(None);
+    };
+    if !should_process_client(request, legion_host::setup_registry::CLIENT_CODEX) {
+        return Ok(None);
+    }
+    let codex_dir = codex_user_dir(request, &codex.home);
+    let outcome = legion_host::setup_registry::remove_codex_bind_projections(&codex_dir)
+        .map_err(setup_error)?;
+    if !outcome.preserved.is_empty() {
+        let kept = outcome
+            .preserved
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(CommandError::incomplete(format!(
+            "Codex role projections written by legion bind could not be proven Legion's and were left in place: {kept}"
+        )));
+    }
+    Ok(Some(
+        json!({"state":"removed","codexHome":codex_dir,"removed":outcome.removed}),
+    ))
 }
 
 fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -> bool {
