@@ -188,17 +188,20 @@ export default {
 	},
 	development: {
 		targets: {
+			// Release profile only: the broker refuses any other (RK_PROFILE_REFUSED; Adrian,
+			// 2026-11-03, rustright BROKER-CONTRACT interface item 17: "i want all dev completely
+			// gone. all debug too ... single build dir per app").
 			mac: {
 				build: [
 					{
 						name: "unsigned native Legion binaries",
 						cmd: "rustright",
-						args: ["cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "-p", "xtask", "--message-format=json-render-diagnostics"],
+						args: ["cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "release", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "-p", "xtask", "--message-format=json-render-diagnostics"],
 					},
 					{
 						name: "assemble unsigned development payload",
 						cmd: "rustright",
-						args: ["cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "dev", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "debug", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
+						args: ["cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "release", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "release", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
 					},
 				],
 				install: {
