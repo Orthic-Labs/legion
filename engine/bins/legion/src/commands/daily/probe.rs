@@ -10,9 +10,11 @@
 //!   time) are signalled, never a broker. The broker itself is never cancelled: it cancels a
 //!   disconnected gate client's job, and a coalesced job may belong to other clients.
 //! - The gate's snapshot ownership record (pid and start time verified) gives the lease to
-//!   check; every lease must be `REAPED` before the next cell starts. A Class A-only run that
-//!   never reached the broker has no lease; that passes only when no ownership record names a
-//!   probe pid and the broker has no job in the workspace (`leaseState: never-submitted`).
+//!   check. The next cell starts only on proof of no active owned work, which needs all four:
+//!   `rustright list` shows no job in flight and `broker.tokens.held` 0; every observed lease's
+//!   members are empty or all `REAPED`; no ownership record remains for a probe process; no
+//!   probe process is alive. Anything less is unknown and halts the run. An owner record's
+//!   `broker.submitted: false` is a sample, not proof that nothing was submitted.
 //! - The record joins the cell's coverage report (file named by the gate's own pid) and the
 //!   broker receipts of the jobs the lease names. Nothing is read from log text; a missing
 //!   join stays unknown.
@@ -444,17 +446,22 @@ fn append(path: &Path, record: &Value) {
     }
 }
 
-/// The broker's in-flight jobs as `(id, workspace)`, or why they are unknown.
-fn broker_jobs() -> Result<Vec<(String, String)>, String> {
+/// The broker's in-flight jobs as `(id, workspace)` and `broker.tokens.held`, or why they are
+/// unknown.
+type Broker = (Vec<(String, String)>, Option<u64>);
+
+fn broker_jobs() -> Result<Broker, String> {
     let out = bounded(Command::new("rustright").arg("list"), Duration::from_secs(2))?;
     let listing: Value = serde_json::from_slice(&out).map_err(|e| e.to_string())?;
     let rows = listing["inFlight"].as_array().ok_or("inFlight is not a list")?;
-    rows.iter()
+    let jobs = rows
+        .iter()
         .map(|row| match (row["id"].as_str(), row["workspace"].as_str()) {
             (Some(id), Some(workspace)) => Ok((id.to_owned(), workspace.to_owned())),
             _ => Err("an in-flight job has no id or workspace".to_owned()),
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok((jobs, listing["broker"]["tokens"]["held"].as_u64()))
 }
 
 /// The lease of one ownership record, checked against its snapshot and handle.
@@ -701,41 +708,37 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
             leases.insert(handle.clone(), lease(owner, left.min(Duration::from_secs(2))));
         }
         let reaped = leases.len() == tracker.owners.len()
-            && leases.values().all(|l| l["state"] == "REAPED");
+            && leases.values().all(|l| {
+                l["ok"] == true
+                    && l["members"]
+                        .as_array()
+                        .is_some_and(|members| members.iter().all(|m| m["state"] == "REAPED"))
+            });
         if reaped {
             break;
         }
         thread::sleep(Duration::from_secs(1).min(cleanup_end - Instant::now().min(cleanup_end)));
     }
-    let leases_reaped = !tracker.owners.is_empty()
-        && leases.len() == tracker.owners.len()
-        && leases.values().all(|l| l["state"] == "REAPED");
-    let owner_files_released = !tracker.owners.is_empty()
-        && tracker.owners.values().all(|o| !Path::new(&o.file).exists());
+    // No active owned work, proven only by all four checks together.
     let broker_after = broker_jobs();
-    // A Class A-only run that never reached the broker holds no lease. That is proven only when
-    // no ownership record was seen for this run, none names a probe pid now, and the broker has
-    // no job in this workspace; anything else is a lease still pending, so unknown.
-    let workspace = cell.repo.to_string_lossy().to_lowercase();
-    let never_submitted = tracker.owners.is_empty()
-        && !owner_record_names(&tracker.owned)
-        && broker_after
-            .as_ref()
-            .is_ok_and(|jobs| !jobs.iter().any(|(_, w)| w.to_lowercase().starts_with(&workspace)));
-    let lease_state = if leases_reaped && owner_files_released {
-        "reaped"
-    } else if never_submitted {
-        "never-submitted"
-    } else {
-        "pending-or-unknown"
-    };
+    let broker_idle = broker_after
+        .as_ref()
+        .is_ok_and(|(jobs, held)| jobs.is_empty() && *held == Some(0));
+    let leases_clear = leases.len() == tracker.owners.len()
+        && leases.values().all(|l| {
+            l["ok"] == true
+                && l["members"]
+                    .as_array()
+                    .is_some_and(|members| members.iter().all(|m| m["state"] == "REAPED"))
+        });
+    let owner_records_removed = tracker.owners.values().all(|o| !Path::new(&o.file).exists())
+        && !owner_record_names(&tracker.owned);
+    let no_owned_alive = remaining == json!([]);
+    let no_active_owned_work =
+        broker_idle && leases_clear && owner_records_removed && no_owned_alive;
     let after = identity(&cell.repo);
     let identity_changed = before != after;
-    let status = if remaining != json!([])
-        || streams_open
-        || lease_state == "pending-or-unknown"
-        || broker_after.is_err()
-    {
+    let status = if streams_open || !no_active_owned_work {
         "halt_process_uncertain"
     } else if error.is_some() {
         "error"
@@ -759,10 +762,11 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
         "exitCode": exit, "timedOut": timed_out, "cancelled": cancelled, "error": error,
         "remainingOwnedPids": remaining, "streamsOpen": streams_open,
         "ownership": tracker.owners.values().collect::<Vec<_>>(), "leases": leases,
-        "leaseState": lease_state, "leasesReaped": leases_reaped,
-        "ownerFilesReleased": owner_files_released,
+        "activeOwnedWork": if no_active_owned_work { "none" } else { "unknown" },
+        "activeOwnedWorkChecks": {"brokerIdle": broker_idle, "leasesClear": leases_clear,
+            "ownerRecordsRemoved": owner_records_removed, "noOwnedProcessAlive": no_owned_alive},
         "brokerAfter": broker_after.map_or_else(|e| json!({"ok": false, "error": e}),
-            |jobs| json!({"ok": true, "inFlight": jobs.len()})),
+            |(jobs, held)| json!({"ok": true, "inFlight": jobs.len(), "tokensHeld": held})),
         "identityBefore": before, "identityAfter": after, "identityChanged": identity_changed,
         "coverage": coverage_of(&tracker, start_ms),
         "brokerJobs": broker_refs(&leases),
@@ -799,7 +803,7 @@ pub fn run(plan_path: &Path, out: &Path) -> Result<Vec<Value>, String> {
         let workspace = cell.repo.to_string_lossy().to_lowercase();
         let busy = match broker_jobs() {
             Err(e) => Some(format!("broker list unreadable: {e}")),
-            Ok(jobs) => jobs
+            Ok((jobs, _)) => jobs
                 .iter()
                 .find(|(_, w)| w.to_lowercase().starts_with(&workspace))
                 .map(|(id, _)| format!("broker job {id} already runs in this workspace")),
