@@ -1,5 +1,10 @@
 //! `legion daily`: the daily closed loop (Orthic-Labs/legion#138, fix-plan M9).
 //!
+//! Requirement (Adrian, typed 2026-11-04T11:16:05Z in the Bottlenecks chat, one of his "few
+//! things that are non negotiable"): "warm cache measure daily by legion scan that also checks
+//! for other inefficiencies in gate and broker". The active warm probe (`--probe`) measures; the
+//! gate coverage and broker receipt readers report the other inefficiencies.
+//!
 //! Reads the last day of Claude Code and Codex transcripts and the broker receipts on the Mac
 //! and the Dell (copied read-only into scratch), finds the failures (a corrected agent turn, a
 //! hook denial, a red build, an `UNRESOLVED:` line), buckets them B1-B11, measures broker
