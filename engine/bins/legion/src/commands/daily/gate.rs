@@ -5,9 +5,10 @@
 //! cache missed. A rerun of an identical commit should hit every keyed row it passed before,
 //! so misses there are the flag. A gate that adds `timing` to a row (`invocationId`,
 //! `elapsedMs`, `cacheLookupMs`, `executionMs`) gives per-scan time; rows sharing one
-//! `invocationId` are one execution and count once, and `batchAttempts` counts batch tries.
-//! Without `timing` the time stays unknown. No environment hash or broker request id is
-//! derived; a missing or unreadable report is unknown, never a pass.
+//! `invocationId` are one execution and count once. A null field is unknown, not zero: each
+//! sum says how many invocations it covers. `batchAttempts` counts batch tries and a numeric
+//! `retries` is summed. Without `timing` the time stays unknown. No environment hash or broker
+//! request id is derived; a missing or unreadable report is unknown, never a pass.
 use super::{time, warmth};
 use serde_json::Value;
 use std::{
@@ -35,8 +36,9 @@ struct Counts {
 #[derive(Default)]
 struct Timing {
     rows: u64,
-    invocations: BTreeMap<String, (f64, f64, f64)>,
+    invocations: BTreeMap<String, [Option<f64>; 3]>,
     batch_attempts: u64,
+    retries: u64,
     /// The slowest invocations as (elapsed ms, scan id).
     slowest: Vec<(f64, String)>,
 }
@@ -112,11 +114,11 @@ fn count(report: &Value, repo: &mut Repo) -> Counts {
         if is_timeout(row) {
             counts.timeouts += 1;
         }
-        let ms = |key: &str| row["timing"][key].as_f64().unwrap_or(0.0);
+        let ms = |key: &str| row["timing"][key].as_f64();
         if let Some(invocation) = row["timing"]["invocationId"].as_str() {
             let t = &mut repo.timing;
             t.rows += 1;
-            let elapsed = ms("elapsedMs");
+            let elapsed = ms("elapsedMs").unwrap_or(0.0);
             let id = row["id"].as_str().unwrap_or("?").to_owned();
             if !t.invocations.contains_key(invocation) {
                 t.slowest.push((elapsed, id));
@@ -125,9 +127,10 @@ fn count(report: &Value, repo: &mut Repo) -> Counts {
             }
             t.invocations.insert(
                 invocation.to_owned(),
-                (elapsed, ms("cacheLookupMs"), ms("executionMs")),
+                [ms("elapsedMs"), ms("cacheLookupMs"), ms("executionMs")],
             );
         }
+        repo.timing.retries += row["retries"].as_u64().unwrap_or(0);
         repo.timing.batch_attempts += row["batchAttempts"].as_array().map_or(0, |a| a.len() as u64);
         let status = row["status"].as_str().unwrap_or("?");
         if !matches!(status, "pass" | "not-in-pass" | "skipped") {
@@ -272,20 +275,27 @@ pub fn report(host: &Host) -> Vec<String> {
         let timing = if tm.rows == 0 {
             "per-scan timing not in the reports".to_owned()
         } else {
-            let sum = |pick: fn(&(f64, f64, f64)) -> f64| {
-                tm.invocations.values().map(pick).sum::<f64>() as u64
+            let total = tm.invocations.len();
+            let sum = |field: usize| {
+                let known: Vec<f64> = tm.invocations.values().filter_map(|t| t[field]).collect();
+                let ms = millis(known.iter().sum::<f64>() as u64);
+                if known.len() == total {
+                    ms
+                } else {
+                    format!("{ms} ({} of {total} known)", known.len())
+                }
             };
             let slowest: Vec<String> =
                 tm.slowest.iter().map(|(ms, id)| format!("{id} {}", millis(*ms as u64))).collect();
             format!(
-                "{} timed rows in {} invocations: scans {}, cache lookup {}, execution {}, \
-                 {} batch attempts; slowest {}",
+                "{} timed rows in {total} invocations: scans {}, cache lookup {}, execution {}, \
+                 {} batch attempts, {} retries; slowest {}",
                 tm.rows,
-                tm.invocations.len(),
-                millis(sum(|t| t.0)),
-                millis(sum(|t| t.1)),
-                millis(sum(|t| t.2)),
+                sum(0),
+                sum(1),
+                sum(2),
                 tm.batch_attempts,
+                tm.retries,
                 slowest.join(", ")
             )
         };
