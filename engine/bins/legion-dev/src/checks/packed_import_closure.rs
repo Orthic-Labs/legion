@@ -141,12 +141,22 @@ fn pnpm_pack(root: &Path) -> Result<std::path::PathBuf, String> {
     ));
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     // Run the package manager that launched this check (as the JS did via
-    // npm_execpath); Windows cannot spawn the bare `pnpm` shim.
+    // npm_execpath); Windows cannot spawn the bare `pnpm` shim. pnpm 12 ships
+    // as a native executable, so `npm_execpath` is run with node only when it
+    // names a JavaScript entry; a native binary is executed directly.
     let mut command = match std::env::var_os("npm_execpath") {
         Some(exec) if !exec.is_empty() => {
-            let mut c = std::process::Command::new("node");
-            c.arg(exec);
-            c
+            let script = Path::new(&exec)
+                .extension()
+                .and_then(|x| x.to_str())
+                .is_some_and(|x| matches!(x, "js" | "cjs" | "mjs"));
+            if script {
+                let mut c = std::process::Command::new("node");
+                c.arg(exec);
+                c
+            } else {
+                std::process::Command::new(exec)
+            }
         }
         _ if cfg!(windows) => {
             let mut c = std::process::Command::new("cmd");
