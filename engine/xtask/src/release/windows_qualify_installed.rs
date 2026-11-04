@@ -638,16 +638,7 @@ fn assert_unrelated_client_config_preserved(seeded: &[(PathBuf, String)]) -> Rel
     Ok(())
 }
 
-/// Mirrors `disappears`: polls until `path` no longer exists or `timeout` elapses.
-fn disappears(path: &Path, timeout: Duration) -> bool {
-    let deadline = Instant::now() + timeout;
-    while path.exists() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    !path.exists()
-}
-
-/// Like `disappears`, but an install root that holds only Inno's own `unins*` files counts as gone.
+/// Polls until `path` no longer exists or `timeout` elapses; an install root that holds only Inno's own `unins*` files counts as gone.
 fn disappears_but_uninstaller(path: &Path, timeout: Duration) -> bool {
     let only_uninstaller = |path: &Path| {
         fs::read_dir(path).is_ok_and(|entries| {
