@@ -179,7 +179,7 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
         id: id.chars().take(8).collect(),
         what,
     });
-    repo.worst.sort_by(|a, b| b.ms.cmp(&a.ms));
+    repo.worst.sort_by_key(|job| std::cmp::Reverse(job.ms));
     repo.worst.truncate(WORST);
     if matches!(reuse["status"].as_str(), Some("PROVEN" | "MIXED" | "MISS")) {
         repo.hits += reuse["hits"].as_u64().unwrap_or(0);
