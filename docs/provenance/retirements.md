@@ -325,5 +325,6 @@ Owner decision (Adrian, 2026-10-23): "get rid of things we don't need". Removed 
 
 | Path or rule | Retired in commit | Successor | Reason |
 |---|---|---|---|
+| `scripts/release/local-build-route.mjs` | 2026-11-04 (this commit) | none: compile is always local and a busy host queues in the broker (Orthic-Labs/legion#107); the 30-minute route that forced GitHub CI contradicted it | intentionally dropped |
 | `scripts/ci/tests`, `scripts/release/local-build-route.test.mjs` | 14f9031a | none: Adrian ruled no unit tests, only end-to-end; the checks they covered run through the built binary and the gate | intentionally dropped |
 | `engine/bins/legion/src/commands/daily/clock.rs`, `engine/bins/legion/src/commands/daily/impact.rs`, `engine/bins/legion/src/commands/daily/ledger.rs`, `engine/bins/legion/src/commands/daily/proc.rs`, `engine/bins/legion/src/commands/daily/receipts.rs`, `engine/bins/legion/src/commands/daily/remote.rs`, `engine/bins/legion/src/commands/daily/text.rs`, `engine/bins/legion/src/commands/daily/transcripts.rs` | 71d3527f | none: `legion daily` was cut to the fix plan M9 scope (broker warmth, scan, buckets, issues, digest); these helpers served the dropped parts | intentionally dropped |

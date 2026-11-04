@@ -1,14 +1,15 @@
 # Windows unsigned installer development
 
-Before any local build/check/test, inspect `rustright list` once. Another queued or
-running build, or any build processed within preceding **30 minutes**, forces
-GitHub CI. Include completed, failed & cancelled work; inspect completion/activity
-timestamps rather than current running state alone. Missing inventory/timestamps
-also select CI. Never poll, wait for local capacity, or queue another local build.
-`scripts/release/local-build-route.mjs` enforces this at local native-check &
-installer entry points.
+Compile is always local, through the gate and the RustRight broker (Adrian; Orthic-Labs/legion#107;
+`docs/rules/rightkit.md`, public-repository execution policy). A busy host queues in the broker,
+which lends and reclaims units; it never hands the compile to CI. The former 30-minute
+local-build route that forced GitHub CI is retired.
 
-CI route: push exact owned source to the existing `main` branch, or use an
+Signing: every build, dev included, is signed with the same identity (workspace rule). This
+route builds an unsigned installer, so it is not run until RightKit's portable development
+install signs the payload; see the readiness note in the daily-probe work (Orthic-Labs/legion#138).
+
+CI qualifies only: push exact owned source to the existing `main` branch, or use an
 explicitly authorized branch through manual dispatch. Do not create a branch
 solely for this route. `.github/workflows/ci.yml` checks Windows & macOS. It checks whole
 native workspace/all targets, tests native Codex Stop transport, builds unsigned
@@ -73,11 +74,10 @@ These rules moved here from the always-loaded Package Rules; they apply only to 
 installer work.
 
 - Before any Windows installer build, check whole native workspace/all targets on the selected
-  build host. The GitHub development workflow includes this gate; the local path uses
-  `pnpm run native:check:local` only after idle admission.
-- For Windows installer development, use `.github/workflows/ci.yml` when local
-  admission is refused or CI is requested. Otherwise use `pnpm run release:local:win:unsigned`
-  from the primary checkout after the native check passes. Both routes require unsigned
+  build host with `pnpm run native:check:local`; a busy broker queues it.
+- For Windows installer development, use `pnpm run release:local:win:unsigned` from the
+  primary checkout after the native check passes. `.github/workflows/ci.yml` qualifies; it is
+  not a fallback for a busy host. Both routes require unsigned
   installer, isolated installed qualification, then exact stable-`current` install.
 - Use `pnpm run release:build:win:unsigned` only when build output is requested without install
   or qualification. Focused local tests supporting this route are allowed.

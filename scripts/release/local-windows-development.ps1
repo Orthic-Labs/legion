@@ -29,8 +29,6 @@ try {
         $compiler = 'cargo'
         $compilerPrefix = @()
     } else {
-        & node (Join-Path $PSScriptRoot 'local-build-route.mjs')
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $compiler = 'rightkit'
         $compilerPrefix = @('cargo')
     }
