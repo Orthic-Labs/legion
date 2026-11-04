@@ -1112,8 +1112,11 @@ pub fn run(plan_path: &Path, out: &Path) -> Result<Vec<Value>, String> {
     validate(&plan)?;
     fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let lock = File::create(out.join("probe.lock")).map_err(|e| e.to_string())?;
-    lock.try_lock()
-        .map_err(|_| "another probe holds the lock".to_owned())?;
+    // `File::try_lock` (Rust 1.89) is newer than the clippy MSRV (1.85); the toolchain is newer
+    // still, and the OS lock dies with the process, so a crashed probe never leaves it stuck.
+    #[allow(clippy::incompatible_msrv)]
+    let locked = lock.try_lock();
+    locked.map_err(|_| "another probe holds the lock".to_owned())?;
     // Named by date so the Mac can copy the Dell's file without a name collision.
     let results = out.join(format!("probe-results-{}.jsonl", time::date(time::now())));
     let mut records = Vec::new();
