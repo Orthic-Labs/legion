@@ -638,6 +638,79 @@ fn assert_unrelated_client_config_preserved(seeded: &[(PathBuf, String)]) -> Rel
     Ok(())
 }
 
+/// Legion-owned client entries that `setup repair` writes once a client profile
+/// directory exists: the Claude skills-directory plugin manifest, Legion's
+/// Codex MCP entry in `config.toml` and its Codex plugin directory, and a
+/// Legion MCP entry in `.claude.json`. Each is `(label, path, needle)`; a file
+/// entry is present when it exists and (if `needle` is set) mentions it, a
+/// directory entry when it exists and is non-empty.
+fn legion_client_entry_candidates(
+    profile: &Path,
+) -> Vec<(&'static str, PathBuf, Option<&'static str>)> {
+    vec![
+        (
+            "claude-code plugin manifest .claude/skills/legion/.claude-plugin/plugin.json",
+            profile
+                .join(".claude")
+                .join("skills")
+                .join("legion")
+                .join(".claude-plugin")
+                .join("plugin.json"),
+            None,
+        ),
+        (
+            "claude-code MCP entry in .claude.json",
+            profile.join(".claude.json"),
+            Some("legion"),
+        ),
+        (
+            "codex MCP entry in .codex/config.toml",
+            profile.join(".codex").join("config.toml"),
+            Some("legion"),
+        ),
+        (
+            "codex plugin directory .codex/plugins/legion",
+            profile.join(".codex").join("plugins").join("legion"),
+            None,
+        ),
+    ]
+}
+
+fn legion_client_entry_present(path: &Path, needle: Option<&str>) -> bool {
+    if path.is_dir() {
+        return fs::read_dir(path).is_ok_and(|mut entries| entries.next().is_some());
+    }
+    match (fs::read_to_string(path), needle) {
+        (Ok(text), Some(needle)) => text.to_ascii_lowercase().contains(needle),
+        (Ok(_), None) => true,
+        (Err(_), _) => false,
+    }
+}
+
+/// Legion's own client entries that exist right now.
+fn present_legion_client_entries(
+    profile: &Path,
+) -> Vec<(&'static str, PathBuf, Option<&'static str>)> {
+    legion_client_entry_candidates(profile)
+        .into_iter()
+        .filter(|(_, path, needle)| legion_client_entry_present(path, *needle))
+        .collect()
+}
+
+fn assert_legion_client_entries_removed(
+    registered: &[(&'static str, PathBuf, Option<&'static str>)],
+) -> ReleaseResult<()> {
+    for (label, path, needle) in registered {
+        if legion_client_entry_present(path, *needle) {
+            return Err(fail(format!(
+                "uninstall left Legion's native client entry behind: {label} ({})",
+                path.display()
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Polls until `path` no longer exists or `timeout` elapses; an install root that holds only Inno's own `unins*` files counts as gone.
 fn disappears_but_uninstaller(path: &Path, timeout: Duration) -> bool {
     let only_uninstaller = |path: &Path| {
@@ -2166,6 +2239,38 @@ throw 'Receipt fault did not interrupt activation'
         let native_clients = native_clients_unobserved(&profile, &repair, &status)?;
         let unrelated_client_config = seed_unrelated_client_config(&profile)?;
 
+        // The seeded client profile directories make setup detect both clients,
+        // so a repair now writes Legion's own client entries. Capture them so
+        // the uninstall assertion below cannot pass vacuously.
+        let registration_run = step("register-seeded-clients", &mut || {
+            execute(
+                runner,
+                &executable,
+                &[
+                    "--json".into(),
+                    "setup".into(),
+                    "repair".into(),
+                    "--confirm".into(),
+                ],
+                &install_root_opts,
+                "installed legion setup repair with seeded client profiles",
+            )
+        })?;
+        setup_payload(
+            &registration_run,
+            "legion-setup-execution",
+            &executable,
+            "installed legion setup repair with seeded client profiles",
+            &[],
+            &[],
+        )?;
+        let registered_legion_entries = present_legion_client_entries(&profile);
+        if registered_legion_entries.is_empty() {
+            return Err(fail(
+                "setup repair wrote no Legion client entries into the seeded client profiles; the uninstall deregistration check would be vacuous",
+            ));
+        }
+
         let uninstaller = install_root.join("unins000.exe");
         if !uninstaller.is_file() {
             return Err(fail(format!(
@@ -2211,6 +2316,7 @@ throw 'Receipt fault did not interrupt activation'
         }
         // Uninstall deregisters Legion's native client entries while leaving
         // every unrelated client entry byte-for-byte intact.
+        assert_legion_client_entries_removed(&registered_legion_entries)?;
         assert_unrelated_client_config_preserved(&unrelated_client_config)?;
 
         let evidence_path = output.join("qualification.json");
