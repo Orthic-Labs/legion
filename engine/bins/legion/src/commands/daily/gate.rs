@@ -288,7 +288,8 @@ pub fn report(host: &Host) -> Vec<String> {
             let slowest: Vec<String> =
                 tm.slowest.iter().map(|(ms, id)| format!("{id} {}", millis(*ms as u64))).collect();
             format!(
-                "{} timed rows in {total} invocations: scans {}, cache lookup {}, execution {}, \
+                "{} timed rows in {total} invocations: aggregate scan service time {} (rows run \
+                 concurrently and overlap: not wall time), cache lookup {}, execution {}, \
                  {} batch attempts, {} retries; slowest {}",
                 tm.rows,
                 sum(0),
