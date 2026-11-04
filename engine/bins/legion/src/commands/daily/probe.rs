@@ -10,7 +10,9 @@
 //!   time) are signalled, never a broker. The broker itself is never cancelled: it cancels a
 //!   disconnected gate client's job, and a coalesced job may belong to other clients.
 //! - The gate's snapshot ownership record (pid and start time verified) gives the lease to
-//!   check; every lease must be `REAPED` before the next cell starts.
+//!   check; every lease must be `REAPED` before the next cell starts. A Class A-only run that
+//!   never reached the broker has no lease; that passes only when no ownership record names a
+//!   probe pid and the broker has no job in the workspace (`leaseState: never-submitted`).
 //! - The record joins the cell's coverage report (file named by the gate's own pid) and the
 //!   broker receipts of the jobs the lease names. Nothing is read from log text; a missing
 //!   join stays unknown.
@@ -36,6 +38,9 @@ const HOST_GATE: &str = "/Volumes/D/.rightkit-managed/agent-bin/rightkit-host-ga
 const OWNERSHIP: &str = "/Volumes/D/.rightkit-managed/build-ownership";
 const RECEIPTS: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
 const COVERAGE: &str = "/Volumes/D/.rightkit-managed/runs/rightkit-gate-coverage";
+const TRUSTED_GATES: &str = "/Volumes/D/.rightkit-managed/trusted-gates";
+/// The broker's config under `$HOME`.
+const BROKER_CONFIG: &str = "Library/Application Support/RightKit/build-control/config.json";
 const REPOS: &str = "/Volumes/D/claude/";
 const DEADLINE_SECS: u64 = 900;
 const CLEANUP_SECS: u64 = 60;
@@ -188,7 +193,42 @@ fn git_text(repo: &Path, args: &[&str]) -> Result<String, String> {
     git(repo, args).map(|out| String::from_utf8_lossy(&out).trim().to_owned())
 }
 
-/// What must not change during a cell: the commit, tree, tracked edits, lockfiles and gate.
+/// The gate the host entry selects (`trustedGate()` of the host gate module), its package
+/// manifest, the trusted-gate manifests and the broker config, each by digest.
+fn gate_identity(repo: &Path, host: Option<&Path>) -> Value {
+    let selected = host.and_then(|host| {
+        let script = "const m = await import(process.argv[1]); console.log(m.trustedGate())";
+        let url = format!("file://{}", host.display());
+        let mut node = Command::new("node");
+        node.args(["--input-type=module", "-e", script, &url]).current_dir(repo);
+        let out = bounded(&mut node, Duration::from_secs(30)).ok()?;
+        let path = PathBuf::from(String::from_utf8_lossy(&out).trim());
+        fs::canonicalize(path).ok()
+    });
+    let package = selected
+        .as_deref()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .map(|dir| dir.join("package.json"));
+    let mut trusted = BTreeMap::new();
+    for entry in fs::read_dir(TRUSTED_GATES).into_iter().flatten().flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.ends_with(".manifest.txt") {
+            trusted.insert(name, digest_file(&entry.path()));
+        }
+    }
+    let config = std::env::var_os("HOME").map(|home| PathBuf::from(home).join(BROKER_CONFIG));
+    json!({
+        "selectedGate": selected.as_ref().map(|p| p.display().to_string()),
+        "selectedGateSha256": selected.as_deref().and_then(digest_file),
+        "selectedPackageSha256": package.as_deref().and_then(digest_file),
+        "trustedManifests": trusted,
+        "brokerConfigSha256": config.as_deref().and_then(digest_file),
+    })
+}
+
+/// What must not change during a cell: the commit, tree, tracked edits, lockfiles, the host
+/// gate entry that is executed and the gate, trust and broker config it resolves to.
 fn identity(repo: &Path) -> Value {
     let tracked = git(repo, &["diff", "--binary", "HEAD", "--"]).map(|d| hex(&Sha256::digest(d)));
     let mut locks = BTreeMap::new();
@@ -206,8 +246,10 @@ fn identity(repo: &Path) -> Value {
         "status": git_text(repo, &["status", "--porcelain=v1", "-uno"]).ok(),
         "trackedDiffSha256": tracked.ok(),
         "locks": locks,
-        "gatePath": gate.as_ref().map(|p| p.display().to_string()),
-        "gateSha256": gate.as_deref().and_then(digest_file),
+        "hostEntry": HOST_GATE,
+        "hostEntryResolved": gate.as_ref().map(|p| p.display().to_string()),
+        "hostEntrySha256": gate.as_deref().and_then(digest_file),
+        "gate": gate_identity(repo, gate.as_deref()),
     })
 }
 
@@ -377,6 +419,22 @@ impl Tracker {
             let _ = bounded(&mut kill, Duration::from_secs(2));
         }
     }
+}
+
+/// True when any ownership record names a pid this probe started, whatever its start time.
+fn owner_record_names(owned: &BTreeMap<u32, (String, i64)>) -> bool {
+    let Ok(dirs) = fs::read_dir(OWNERSHIP) else {
+        // Unreadable: a record cannot be ruled out.
+        return true;
+    };
+    dirs.flatten().any(|dir| {
+        fs::read_to_string(dir.path().join("owner.json"))
+            .ok()
+            .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+            .and_then(|record| record["pid"].as_u64())
+            .and_then(|pid| u32::try_from(pid).ok())
+            .is_some_and(|pid| owned.contains_key(&pid))
+    })
 }
 
 fn append(path: &Path, record: &Value) {
@@ -655,10 +713,28 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
     let owner_files_released = !tracker.owners.is_empty()
         && tracker.owners.values().all(|o| !Path::new(&o.file).exists());
     let broker_after = broker_jobs();
+    // A Class A-only run that never reached the broker holds no lease. That is proven only when
+    // no ownership record was seen for this run, none names a probe pid now, and the broker has
+    // no job in this workspace; anything else is a lease still pending, so unknown.
+    let workspace = cell.repo.to_string_lossy().to_lowercase();
+    let never_submitted = tracker.owners.is_empty()
+        && !owner_record_names(&tracker.owned)
+        && broker_after
+            .as_ref()
+            .is_ok_and(|jobs| !jobs.iter().any(|(_, w)| w.to_lowercase().starts_with(&workspace)));
+    let lease_state = if leases_reaped && owner_files_released {
+        "reaped"
+    } else if never_submitted {
+        "never-submitted"
+    } else {
+        "pending-or-unknown"
+    };
     let after = identity(&cell.repo);
     let identity_changed = before != after;
-    let status = if remaining != json!([]) || streams_open || !leases_reaped
-        || !owner_files_released || broker_after.is_err()
+    let status = if remaining != json!([])
+        || streams_open
+        || lease_state == "pending-or-unknown"
+        || broker_after.is_err()
     {
         "halt_process_uncertain"
     } else if error.is_some() {
@@ -683,7 +759,8 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
         "exitCode": exit, "timedOut": timed_out, "cancelled": cancelled, "error": error,
         "remainingOwnedPids": remaining, "streamsOpen": streams_open,
         "ownership": tracker.owners.values().collect::<Vec<_>>(), "leases": leases,
-        "leasesReaped": leases_reaped, "ownerFilesReleased": owner_files_released,
+        "leaseState": lease_state, "leasesReaped": leases_reaped,
+        "ownerFilesReleased": owner_files_released,
         "brokerAfter": broker_after.map_or_else(|e| json!({"ok": false, "error": e}),
             |jobs| json!({"ok": true, "inFlight": jobs.len()})),
         "identityBefore": before, "identityAfter": after, "identityChanged": identity_changed,
