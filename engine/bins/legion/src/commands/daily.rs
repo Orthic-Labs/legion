@@ -31,6 +31,9 @@ use std::{
 const BROKER: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
 const OUT: &str = "/Volumes/D/scratch/legion-daily";
 const REPO: &str = "/Volumes/D/claude/legion";
+/// The broker's control root on the Mac, under `$HOME`; its `logs/lifecycle.ndjson` records
+/// admission pauses. The Dell's is `%LOCALAPPDATA%\RightKit\build-control` (see `dell.rs`).
+const MAC_CONTROL: &str = "Library/Application Support/RightKit/build-control";
 
 #[derive(Debug, Args)]
 pub struct DailyArgs {
@@ -108,6 +111,7 @@ impl Collect {
         name: &'static str,
         files: [Vec<PathBuf>; 2],
         receipts: &Path,
+        lifecycle: &Path,
         disk: Option<u64>,
     ) -> HostRun {
         let found = scan::scan(name, &files, self.window);
@@ -116,13 +120,19 @@ impl Collect {
             self.note(format!("{name}: warmth state {e}; no baseline"));
             warmth::State::default()
         });
-        let host = warmth::measure(name, receipts, self.window, disk, &state).unwrap_or_else(|e| {
-            self.note(format!("{name}: {e}"));
-            warmth::Host {
-                name: name.to_owned(),
-                ..warmth::Host::default()
-            }
-        });
+        let host = warmth::measure(name, receipts, self.window, disk, &state, Some(lifecycle))
+            .unwrap_or_else(|e| {
+                self.note(format!("{name}: {e}"));
+                warmth::Host {
+                    name: name.to_owned(),
+                    ..warmth::Host::default()
+                }
+            });
+        if host.pauses.is_none() {
+            self.note(format!(
+                "{name}: broker lifecycle log not read; admission pauses unknown"
+            ));
+        }
         let run = HostRun { host, state, path };
         self.failures.extend(found);
         run
@@ -206,6 +216,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
         "mac",
         mac_files(&home, since),
         Path::new(BROKER),
+        &home.join(MAC_CONTROL).join("logs/lifecycle.ndjson"),
         mac_disk_free(),
     )];
     let mut complete = false;
@@ -222,6 +233,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
                 "dell",
                 [claude, codex],
                 &copy.join("receipts"),
+                &copy.join("lifecycle/lifecycle.ndjson"),
                 dell.disk_free,
             ));
         }
@@ -281,6 +293,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
         }
     }
 
+    let jobs: Vec<String> = hosts.iter().flat_map(|h| warmth::report(&h.host)).collect();
     let hosts: Vec<String> = hosts.iter().map(host_line).collect();
     let mode = if apply {
         "Applied."
@@ -301,6 +314,10 @@ pub fn run(args: DailyArgs) -> CommandResult {
             digest::bullets(&fixed),
         ),
         ("Impact of changes in the last 7 days", impact),
+        (
+            "Broker jobs in repositories with warmth flags",
+            digest::bullets(&jobs),
+        ),
         (actions, digest::bullets(&results)),
         ("Notes", digest::bullets(&col.notes)),
     ];

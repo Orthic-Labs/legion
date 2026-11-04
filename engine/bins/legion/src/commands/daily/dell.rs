@@ -18,6 +18,7 @@ function L($tag,$items){ $items | Where-Object { $_.LastWriteTimeUtc -ge $s } |
 L 'claude' (Get-ChildItem -Path "$h\.claude\projects\*\*.jsonl" -File);
 L 'claude' (Get-ChildItem -Path "$h\ClaudeProfiles\*\.claude\projects\*\*.jsonl" -File);
 L 'codex' (Get-ChildItem -Path "$h\.codex\sessions" -Recurse -Filter '*.jsonl' -File);
+L 'lifecycle' (Get-ChildItem -Path "$env:LOCALAPPDATA\RightKit\build-control\logs\lifecycle.ndjson" -File);
 L 'receipts' (Get-ChildItem -Filter '*.json' -File
   -LiteralPath 'D:\.rightkit-managed\rightkit-build-control\receipts')"#;
 
@@ -43,7 +44,7 @@ fn parse(listing: &str) -> Vec<(&str, u64, &str)> {
             continue;
         };
         if let (true, Ok(length)) = (
-            ["claude", "codex", "receipts"].contains(&tag),
+            ["claude", "codex", "lifecycle", "receipts"].contains(&tag),
             length.trim().parse(),
         ) {
             rows.push((tag, length, path));

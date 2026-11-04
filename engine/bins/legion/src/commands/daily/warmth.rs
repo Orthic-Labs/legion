@@ -1,7 +1,9 @@
 //! Broker warmth per host and repository, from the build-control receipts (read-only). Only
 //! what is off becomes a flag: unexplained cold starts and rebuilt units, rebuilds with no
 //! source, lockfile, toolchain or feature change, a warm target that went cold or shrank, a low
-//! or falling cache hit rate against the previous run, low disk, and refusals by code.
+//! or falling cache hit rate against the previous run, low disk, and refusals by code. Each
+//! repository also counts its jobs and keeps its slowest ones, and the broker's lifecycle log
+//! gives the admission pauses (`ADMISSION_PAUSED` / `ADMISSION_RESUMED`).
 use super::time;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -36,8 +38,24 @@ pub struct Mark {
 /// `~/.legion/daily/warmth-<host>.json`: each repository's baseline at the previous run.
 pub type State = BTreeMap<String, Mark>;
 
+/// One job kept for the report: the slowest by `totalMs`.
+struct Worst {
+    ms: u64,
+    id: String,
+    what: String,
+}
+
+/// Jobs kept per repository as its worst.
+const WORST: usize = 3;
+
 #[derive(Default)]
 pub struct Repo {
+    jobs: u64,
+    /// Cold starts of any cause (`odd` holds only the unexplained ones).
+    cold: u64,
+    worst: Vec<Worst>,
+    /// `(now, previous)` when the warm target's unit count fell since the previous run.
+    lost: Option<(u64, u64)>,
     hits: u64,
     misses: u64,
     units: Option<u64>,
@@ -73,10 +91,24 @@ impl Flag {
     }
 }
 
+/// Admission pauses in the window, from the broker's lifecycle log.
+#[derive(Default)]
+pub struct Pauses {
+    /// `ADMISSION_PAUSED` events inside the window.
+    count: usize,
+    /// Seconds paused inside the window (an unresumed pause runs to the window's end).
+    secs: i64,
+    /// Pauses with no `ADMISSION_RESUMED` logged after them.
+    unresumed: usize,
+    reasons: BTreeSet<String>,
+}
+
 #[derive(Default)]
 pub struct Host {
     pub name: String,
     pub receipts: usize,
+    /// `None` when the lifecycle log was not readable, so pauses are unknown, not absent.
+    pub pauses: Option<Pauses>,
     pub repos: BTreeMap<String, Repo>,
     pub flags: Vec<Flag>,
 }
@@ -134,6 +166,21 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
     let workspace = receipt["workspace"].as_str().unwrap_or("");
     let repo = repos.entry(repo_of(workspace)).or_default();
     let (fresh, reuse) = (&receipt["freshness"], &receipt["cache"]["reuse"]);
+    repo.jobs += 1;
+    let what = format!(
+        "{} {}, {} not fresh",
+        receipt["stage"]["name"].as_str().unwrap_or("job"),
+        receipt["status"].as_str().unwrap_or("?").to_lowercase(),
+        fresh["notFresh"].as_u64().unwrap_or(0)
+    );
+    let id = receipt["id"].as_str().unwrap_or("?");
+    repo.worst.push(Worst {
+        ms: receipt["totalMs"].as_u64().unwrap_or(0),
+        id: id.chars().take(8).collect(),
+        what,
+    });
+    repo.worst.sort_by(|a, b| b.ms.cmp(&a.ms));
+    repo.worst.truncate(WORST);
     if matches!(reuse["status"].as_str(), Some("PROVEN" | "MIXED" | "MISS")) {
         repo.hits += reuse["hits"].as_u64().unwrap_or(0);
         repo.misses += reuse["misses"].as_u64().unwrap_or(0);
@@ -153,6 +200,7 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
         ));
     }
     if receipt["coldStart"] == true {
+        repo.cold += 1;
         let reason = fresh["coldCause"]
             .as_str()
             .or(receipt["coldStartReason"].as_str());
@@ -185,6 +233,7 @@ fn flags(
     repos: &BTreeMap<String, Repo>,
     disk: Option<u64>,
     prior: &State,
+    pauses: Option<&Pauses>,
 ) -> Vec<Flag> {
     let mut flags = Vec::new();
     let mut flag = |repo: &str, slug: String, detail: String| {
@@ -219,11 +268,7 @@ fn flags(
                 );
             }
         }
-        let lost = repo
-            .units
-            .zip(saved.and_then(|mark| mark.units))
-            .filter(|(now, was)| was > now);
-        if let Some((now, was)) = lost {
+        if let Some((now, was)) = repo.lost {
             let verdict = if now == 0 {
                 ", went cold"
             } else if now * 2 < was {
@@ -257,6 +302,27 @@ fn flags(
             flag(name, slug, format!("{code}: {count} job(s)"));
         }
     }
+    if let Some(paused) = pauses.filter(|p| p.count > 0 || p.unresumed > 0) {
+        let reasons: Vec<&str> = paused.reasons.iter().map(String::as_str).collect();
+        let reason = if reasons.is_empty() {
+            String::new()
+        } else {
+            format!(": {}", reasons.join("; "))
+        };
+        let open = match paused.unresumed {
+            0 => String::new(),
+            n => format!(", {n} with no resume logged"),
+        };
+        flag(
+            host,
+            "admission-paused".into(),
+            format!(
+                "{} admission pause(s), {} paused{open}{reason}",
+                paused.count,
+                duration(paused.secs)
+            ),
+        );
+    }
     if let Some(free) = disk.filter(|free| *free < DISK_FLOOR) {
         flag(
             host,
@@ -267,6 +333,102 @@ fn flags(
     flags
 }
 
+/// Seconds as `42s`, `7m05s` or `2h03m`.
+fn duration(secs: i64) -> String {
+    match secs {
+        s if s < 60 => format!("{s}s"),
+        s if s < 3600 => format!("{}m{:02}s", s / 60, s % 60),
+        s => format!("{}h{:02}m", s / 3600, s % 3600 / 60),
+    }
+}
+
+/// Milliseconds as `640ms`, `41s` or `7m05s`.
+fn millis(ms: u64) -> String {
+    if ms < 1000 {
+        format!("{ms}ms")
+    } else {
+        duration((ms / 1000) as i64)
+    }
+}
+
+/// The admission pauses in `window` from the broker's `lifecycle.ndjson`. The broker writes
+/// `{"at", "type": "ADMISSION_PAUSED" | "ADMISSION_RESUMED", "reason", "holderPid"}` for every
+/// pause and resume; the log is also full of heartbeats, so only lines naming `ADMISSION_` are
+/// parsed. A pause that began before the window counts for the time it overlaps. A dead holder
+/// may lift a pause without a resume event, so "no resume logged" is all that is claimed.
+fn read_pauses(log: &Path, window: (i64, i64)) -> Option<Pauses> {
+    let text = fs::read_to_string(log).ok()?;
+    let mut found = Pauses::default();
+    let mut open: Option<i64> = None;
+    let close = |found: &mut Pauses, from: i64, to: i64| {
+        found.secs += (to.min(window.1) - from.max(window.0)).max(0);
+    };
+    for line in text.lines().filter(|line| line.contains("\"ADMISSION_")) {
+        let Ok(event) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        let Some(at) = event["at"].as_str().and_then(time::parse) else {
+            continue;
+        };
+        match event["type"].as_str() {
+            Some("ADMISSION_PAUSED") if at <= window.1 => {
+                if let Some(from) = open.replace(at) {
+                    close(&mut found, from, at);
+                }
+                if at >= window.0 {
+                    found.count += 1;
+                    let pid = event["holderPid"].as_u64();
+                    let by = pid.map_or(String::new(), |pid| format!(" (holder pid {pid})"));
+                    let why = event["reason"].as_str().unwrap_or("no reason given");
+                    found.reasons.insert(format!("{}{by}", why.trim()));
+                }
+            }
+            Some("ADMISSION_RESUMED") if at <= window.1 => {
+                if let Some(from) = open.take() {
+                    close(&mut found, from, at);
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(from) = open {
+        close(&mut found, from, window.1);
+        found.unresumed = 1;
+    }
+    Some(found)
+}
+
+/// One row per repository that has a flag on `host`: its jobs, cold starts, unexplained
+/// rebuilt units, units lost since the previous run, and its slowest jobs.
+pub fn report(host: &Host) -> Vec<String> {
+    let mut rows = Vec::new();
+    for (name, repo) in &host.repos {
+        if !host.flags.iter().any(|flag| flag.repo == *name) {
+            continue;
+        }
+        let odd = |slug: &str| repo.odd.get(slug).copied().unwrap_or(0);
+        let lost = repo
+            .lost
+            .map_or("0".to_owned(), |(now, was)| (was - now).to_string());
+        let worst: Vec<String> = repo
+            .worst
+            .iter()
+            .map(|job| format!("{} {} ({})", job.id, millis(job.ms), job.what))
+            .collect();
+        rows.push(format!(
+            "{} {name}: {} jobs, {} cold starts ({} unexplained), {} unexplained rebuilt units, \
+             {lost} units lost since the previous run; worst: {}",
+            host.name,
+            repo.jobs,
+            repo.cold,
+            odd("unexplained-cold-starts"),
+            odd("unexplained-rebuilt-units"),
+            worst.join("; ")
+        ));
+    }
+    rows
+}
+
 /// Measure one host from the receipts in `dir` submitted inside `window`.
 pub fn measure(
     name: &str,
@@ -274,6 +436,7 @@ pub fn measure(
     window: (i64, i64),
     disk: Option<u64>,
     prior: &State,
+    lifecycle: Option<&Path>,
 ) -> Result<Host, String> {
     let entries = fs::read_dir(dir).map_err(|e| format!("receipts at {}: {e}", dir.display()))?;
     let (mut repos, mut receipts) = (BTreeMap::new(), 0);
@@ -296,10 +459,16 @@ pub fn measure(
             tally(&mut repos, &receipt);
         }
     }
-    let flags = flags(name, &repos, disk, prior);
+    for (repo_name, repo) in &mut repos {
+        let was = prior.get(repo_name).and_then(|mark| mark.units);
+        repo.lost = repo.units.zip(was).filter(|(now, was)| was > now);
+    }
+    let pauses = lifecycle.and_then(|log| read_pauses(log, window));
+    let flags = flags(name, &repos, disk, prior, pauses.as_ref());
     Ok(Host {
         name: name.to_owned(),
         receipts,
+        pauses,
         repos,
         flags,
     })
