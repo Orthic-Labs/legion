@@ -3,13 +3,15 @@
 //! Reads the last day of Claude Code and Codex transcripts and the broker receipts on the Mac
 //! and the Dell (copied read-only into scratch), finds the failures (a corrected agent turn, a
 //! hook denial, a red build, an `UNRESOLVED:` line), buckets them B1-B11, measures broker
-//! warmth, matches each fingerprint to a GitHub issue, and writes one short digest. A dry run
-//! unless `--apply`; it never builds or changes broker state.
+//! warmth and gate cache reuse (`rightkit.gate-coverage/1` reports), matches each fingerprint
+//! to a GitHub issue, and writes one short digest. A dry run unless `--apply`; it never builds
+//! or changes broker or gate state.
 //!
 //! A scheduled task runs: `legion daily --since 24h --apply`
 mod buckets;
 mod dell;
 mod digest;
+mod gate;
 mod issues;
 mod scan;
 pub(super) mod time;
@@ -31,6 +33,10 @@ use std::{
 const BROKER: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
 const OUT: &str = "/Volumes/D/scratch/legion-daily";
 const REPO: &str = "/Volumes/D/claude/legion";
+/// Gate coverage reports on the Mac. The Dell's default is
+/// `D:\.rightkit-managed\runs\rightkit-gate-coverage` (see `dell.rs`); a gate run with
+/// `RIGHTKIT_SCRATCH_ROOT` or a moved data root writes elsewhere, which this scan does not see.
+const GATE_COVERAGE: &str = "/Volumes/D/.rightkit-managed/runs/rightkit-gate-coverage";
 /// The broker's control root on the Mac, under `$HOME`; its `logs/lifecycle.ndjson` records
 /// admission pauses. The Dell's is `%LOCALAPPDATA%\RightKit\build-control` (see `dell.rs`).
 const MAC_CONTROL: &str = "Library/Application Support/RightKit/build-control";
@@ -88,6 +94,7 @@ fn save<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
 /// One host's scan and warmth, and the warmth baseline file it came from.
 struct HostRun {
     host: warmth::Host,
+    gate: gate::Host,
     state: warmth::State,
     path: PathBuf,
 }
@@ -110,7 +117,7 @@ impl Collect {
         &mut self,
         name: &'static str,
         files: [Vec<PathBuf>; 2],
-        receipts: &Path,
+        (receipts, coverage): (&Path, &Path),
         lifecycle: &Path,
         disk: Option<u64>,
     ) -> HostRun {
@@ -133,7 +140,26 @@ impl Collect {
                 "{name}: broker lifecycle log not read; admission pauses unknown"
             ));
         }
-        let run = HostRun { host, state, path };
+        let gate = gate::measure(name, coverage, self.window).unwrap_or_else(|e| {
+            self.note(format!("{name}: {e}; gate reuse unknown"));
+            gate::Host {
+                name: name.to_owned(),
+                ..gate::Host::default()
+            }
+        });
+        if gate.unreadable > 0 {
+            self.note(format!(
+                "{name}: {} gate coverage report(s) unreadable or not {}",
+                gate.unreadable,
+                gate::SCHEMA
+            ));
+        }
+        let run = HostRun {
+            host,
+            gate,
+            state,
+            path,
+        };
         self.failures.extend(found);
         run
     }
@@ -180,11 +206,16 @@ fn groups(failures: &[Failure], hosts: &[HostRun], ledger: &Ledger, until: i64) 
         groups.push(Group::new(fp, issues::LEGION, title, lines, ledger, &today));
     }
     let mut flags: BTreeMap<String, Vec<&warmth::Flag>> = BTreeMap::new();
-    for flag in hosts.iter().flat_map(|h| &h.host.flags) {
+    for flag in hosts.iter().flat_map(|h| h.host.flags.iter().chain(&h.gate.flags)) {
         flags.entry(flag.fingerprint()).or_default().push(flag);
     }
     for (fp, list) in flags {
-        let title = format!("[daily] broker warmth: {} ({})", list[0].slug, list[0].repo);
+        let what = if list[0].kind == "gate" {
+            "gate cache"
+        } else {
+            "broker warmth"
+        };
+        let title = format!("[daily] {what}: {} ({})", list[0].slug, list[0].repo);
         let text = |f: &&warmth::Flag| {
             format!("{} {} {}: {}", time::stamp(until), f.host, f.repo, f.detail)
         };
@@ -215,7 +246,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
     let mut hosts = vec![col.host(
         "mac",
         mac_files(&home, since),
-        Path::new(BROKER),
+        (Path::new(BROKER), Path::new(GATE_COVERAGE)),
         &home.join(MAC_CONTROL).join("logs/lifecycle.ndjson"),
         mac_disk_free(),
     )];
@@ -232,7 +263,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
             hosts.push(col.host(
                 "dell",
                 [claude, codex],
-                &copy.join("receipts"),
+                (copy.join("receipts").as_path(), copy.join("coverage").as_path()),
                 &copy.join("lifecycle/lifecycle.ndjson"),
                 dell.disk_free,
             ));
@@ -294,6 +325,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
     }
 
     let jobs: Vec<String> = hosts.iter().flat_map(|h| warmth::report(&h.host)).collect();
+    let gates: Vec<String> = hosts.iter().flat_map(|h| gate::report(&h.gate)).collect();
     let hosts: Vec<String> = hosts.iter().map(host_line).collect();
     let mode = if apply {
         "Applied."
@@ -318,6 +350,10 @@ pub fn run(args: DailyArgs) -> CommandResult {
             "Broker jobs in repositories with warmth flags",
             digest::bullets(&jobs),
         ),
+        (
+            "Gate runs and cache reuse (scan phase only; no per-scan time or broker join)",
+            digest::bullets(&gates),
+        ),
         (actions, digest::bullets(&results)),
         ("Notes", digest::bullets(&col.notes)),
     ];
@@ -340,9 +376,10 @@ pub fn run(args: DailyArgs) -> CommandResult {
 /// One host's summary line for the digest.
 fn host_line(h: &HostRun) -> String {
     format!(
-        "{}: {} receipts read, {} flags",
+        "{}: {} receipts and {} gate coverage reports read, {} flags",
         h.host.name,
         h.host.receipts,
-        h.host.flags.len()
+        h.gate.reports,
+        h.host.flags.len() + h.gate.flags.len()
     )
 }

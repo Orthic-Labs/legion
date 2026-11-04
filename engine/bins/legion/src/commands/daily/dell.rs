@@ -20,7 +20,9 @@ L 'claude' (Get-ChildItem -Path "$h\ClaudeProfiles\*\.claude\projects\*\*.jsonl"
 L 'codex' (Get-ChildItem -Path "$h\.codex\sessions" -Recurse -Filter '*.jsonl' -File);
 L 'lifecycle' (Get-ChildItem -Path "$env:LOCALAPPDATA\RightKit\build-control\logs\lifecycle.ndjson" -File);
 L 'receipts' (Get-ChildItem -Filter '*.json' -File
-  -LiteralPath 'D:\.rightkit-managed\rightkit-build-control\receipts')"#;
+  -LiteralPath 'D:\.rightkit-managed\rightkit-build-control\receipts');
+L 'coverage' (Get-ChildItem -Filter '*.json' -File
+  -LiteralPath 'D:\.rightkit-managed\runs\rightkit-gate-coverage')"#;
 
 #[derive(Default)]
 pub struct Dell {
@@ -44,7 +46,7 @@ fn parse(listing: &str) -> Vec<(&str, u64, &str)> {
             continue;
         };
         if let (true, Ok(length)) = (
-            ["claude", "codex", "lifecycle", "receipts"].contains(&tag),
+            ["claude", "codex", "lifecycle", "receipts", "coverage"].contains(&tag),
             length.trim().parse(),
         ) {
             rows.push((tag, length, path));

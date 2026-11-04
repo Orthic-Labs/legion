@@ -63,6 +63,10 @@ pub struct Repo {
     /// Units `notFresh` in receipts whose inputs and cause verdict show no change.
     clean_not_fresh: u64,
     refused: BTreeMap<String, u64>,
+    /// Broker queue wait summed over the repository's jobs.
+    queue_ms: u64,
+    /// `requestFingerprint` -> (succeeded compiler jobs, their summed `runMs`).
+    requests: BTreeMap<String, (u64, u64)>,
     /// Flag slug -> how many (jobs or units).
     odd: BTreeMap<&'static str, u64>,
 }
@@ -78,6 +82,8 @@ impl Repo {
 }
 
 pub struct Flag {
+    /// `warmth` for broker receipts, `gate` for gate coverage; the fingerprint's first part.
+    pub kind: &'static str,
     pub host: String,
     pub repo: String,
     pub slug: String,
@@ -87,7 +93,7 @@ pub struct Flag {
 
 impl Flag {
     pub fn fingerprint(&self) -> String {
-        format!("warmth/{}/{}", self.repo, self.slug)
+        format!("{}/{}/{}", self.kind, self.repo, self.slug)
     }
 }
 
@@ -221,6 +227,33 @@ fn tally(repos: &mut BTreeMap<String, Repo>, receipt: &Value) {
     if let Some(code) = refusal(receipt) {
         *repo.refused.entry(code).or_default() += 1;
     }
+    repo.queue_ms += receipt["queueMs"].as_u64().unwrap_or(0);
+    let diagnostics = &receipt["diagnostics"];
+    if diagnostics["evidenceTimedOut"] == true || diagnostics["ownershipScanTimedOut"] == true {
+        *repo.odd.entry("diagnostic-timeouts").or_default() += 1;
+    }
+    // A repeated identical request: the same request fingerprint succeeding again as its own
+    // compiler job. Coalesced clients share one execution, so they are not repeats.
+    let fingerprint = receipt["requestFingerprint"].as_str().unwrap_or("");
+    if receipt["status"] == "SUCCEEDED"
+        && receipt["compilerRequired"] == true
+        && !fingerprint.is_empty()
+    {
+        let seen = repo.requests.entry(fingerprint.to_owned()).or_default();
+        seen.0 += 1;
+        seen.1 += receipt["runMs"].as_u64().unwrap_or(0);
+    }
+}
+
+/// `(extra jobs, their estimated runMs)` over requests that succeeded more than once; the
+/// estimate is each repeated request's mean run time times its extra runs.
+fn repeats(repo: &Repo) -> (u64, u64) {
+    repo.requests
+        .values()
+        .filter(|(runs, _)| *runs > 1)
+        .fold((0, 0), |(jobs, ms), (runs, total)| {
+            (jobs + runs - 1, ms + total / runs * (runs - 1))
+        })
 }
 
 fn rate((hits, misses): (u64, u64)) -> Option<f64> {
@@ -243,6 +276,7 @@ fn flags(
             RUSTRIGHT
         };
         flags.push(Flag {
+            kind: "warmth",
             host: host.to_owned(),
             repo: repo.to_owned(),
             slug,
@@ -294,6 +328,18 @@ fn flags(
                 format!(
                     "{} units rebuilt with no source, lockfile, toolchain or feature change",
                     repo.clean_not_fresh
+                ),
+            );
+        }
+        let (extra, wasted) = repeats(repo);
+        if extra > 0 {
+            flag(
+                name,
+                "repeated-identical-builds".into(),
+                format!(
+                    "{extra} compiler job(s) repeated an identical request that had already \
+                     succeeded, about {} of run time",
+                    millis(wasted)
                 ),
             );
         }
@@ -417,12 +463,15 @@ pub fn report(host: &Host) -> Vec<String> {
             .collect();
         rows.push(format!(
             "{} {name}: {} jobs, {} cold starts ({} unexplained), {} unexplained rebuilt units, \
-             {lost} units lost since the previous run; worst: {}",
+             {lost} units lost since the previous run, {} queued, {} repeated identical jobs; \
+             worst: {}",
             host.name,
             repo.jobs,
             repo.cold,
             odd("unexplained-cold-starts"),
             odd("unexplained-rebuilt-units"),
+            millis(repo.queue_ms),
+            repeats(repo).0,
             worst.join("; ")
         ));
     }
