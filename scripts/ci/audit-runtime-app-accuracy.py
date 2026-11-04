@@ -180,7 +180,7 @@ def validate_record(root, row, live=False, retained=None):
     require(browser["installerMarker"]["version"] == definition["browser"]["version"]
             and browser["installerMarker"]["platform"] == "mac-arm64"
             and browser["installerMarker"]["files"] == [{"kind": "chrome", "url": definition["browser"]["archiveUrl"], "sha256": definition["browser"]["archiveSha256"]}]
-            and re.fullmatch(r"Google Chrome for Testing 155\.0\.8059\.39\s*", browser["versionOutput"]) is not None,
+            and re.fullmatch(r"Google Chrome for Testing 156\.0\.8078\.47\s*", browser["versionOutput"]) is not None,
             "runtime browser pin/provisioning differs")
     tree = browser["installedTree"]
     require(tree["digest"] == digest(encoded(tree["files"])) and len({item["path"] for item in tree["files"]}) == len(tree["files"]), "runtime browser tree seal differs")
