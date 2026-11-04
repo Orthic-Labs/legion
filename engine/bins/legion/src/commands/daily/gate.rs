@@ -131,7 +131,9 @@ fn count(report: &Value, repo: &mut Repo) -> Counts {
             );
         }
         repo.timing.retries += row["retries"].as_u64().unwrap_or(0);
-        repo.timing.batch_attempts += row["batchAttempts"].as_array().map_or(0, |a| a.len() as u64);
+        repo.timing.batch_attempts += row["batchAttempts"]
+            .as_array()
+            .map_or(0, |a| a.len() as u64);
         let status = row["status"].as_str().unwrap_or("?");
         if !matches!(status, "pass" | "not-in-pass" | "skipped") {
             let code = row["code"].as_str().unwrap_or(status);
@@ -285,8 +287,11 @@ pub fn report(host: &Host) -> Vec<String> {
                     format!("{ms} ({} of {total} known)", known.len())
                 }
             };
-            let slowest: Vec<String> =
-                tm.slowest.iter().map(|(ms, id)| format!("{id} {}", millis(*ms as u64))).collect();
+            let slowest: Vec<String> = tm
+                .slowest
+                .iter()
+                .map(|(ms, id)| format!("{id} {}", millis(*ms as u64)))
+                .collect();
             format!(
                 "{} timed rows in {total} invocations: aggregate scan service time {} (rows run \
                  concurrently and overlap: not wall time), cache lookup {}, execution {}, \
@@ -327,8 +332,14 @@ mod tests {
 
     #[test]
     fn repo_from_file_name() {
-        assert_eq!(repo_of("heardright-2026-11-04T11-46-33-239Z-68995.json"), Some("heardright"));
-        assert_eq!(repo_of("rk-agent-2026-11-04T10-04-02-870Z-1.json"), Some("rk-agent"));
+        assert_eq!(
+            repo_of("heardright-2026-11-04T11-46-33-239Z-68995.json"),
+            Some("heardright")
+        );
+        assert_eq!(
+            repo_of("rk-agent-2026-11-04T10-04-02-870Z-1.json"),
+            Some("rk-agent")
+        );
         assert_eq!(repo_of("notes.json"), None);
     }
 
@@ -362,7 +373,10 @@ mod tests {
         let host = measure("mac", &dir, (start, time::now() + 60)).unwrap();
         let _ = fs::remove_dir_all(&dir);
         let repo = &host.repos["heardright"];
-        assert_eq!((repo.runs, repo.reruns, repo.rerun_ran, repo.rerun_hit), (2, 1, 30, 0));
+        assert_eq!(
+            (repo.runs, repo.reruns, repo.rerun_ran, repo.rerun_hit),
+            (2, 1, 30, 0)
+        );
         assert!(host.flags.iter().any(|f| f.slug == "rerun-cache-miss"));
     }
 }

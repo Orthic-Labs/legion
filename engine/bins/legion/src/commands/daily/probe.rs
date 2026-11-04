@@ -123,9 +123,15 @@ fn validate(plan: &Plan) -> Result<(), String> {
     let mut ids = Vec::new();
     for cell in &plan.cells {
         let id_ok = !cell.id.is_empty()
-            && cell.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+            && cell
+                .id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
         if !id_ok || ids.contains(&cell.id) {
-            return Err(format!("probe cell id {:?} is empty, invalid or repeated", cell.id));
+            return Err(format!(
+                "probe cell id {:?} is empty, invalid or repeated",
+                cell.id
+            ));
         }
         ids.push(cell.id.clone());
         let repo = cell.repo.to_string_lossy();
@@ -135,19 +141,37 @@ fn validate(plan: &Plan) -> Result<(), String> {
             repo.starts_with(REPOS)
         };
         if !under || repo.contains("..") {
-            return Err(format!("{}: repo must be a primary checkout under {REPOS}", cell.id));
+            return Err(format!(
+                "{}: repo must be a primary checkout under {REPOS}",
+                cell.id
+            ));
         }
-        if cell.cwd.as_ref().is_some_and(|cwd| !cwd.starts_with(&cell.repo)) {
+        if cell
+            .cwd
+            .as_ref()
+            .is_some_and(|cwd| !cwd.starts_with(&cell.repo))
+        {
             return Err(format!("{}: cwd must be inside the repo", cell.id));
         }
         if cell.argv.first().map(String::as_str) != Some(HOST_GATE) {
             return Err(format!("{}: argv[0] must be {HOST_GATE}", cell.id));
         }
-        if cell.argv.iter().any(|arg| arg.contains("no-cache") || arg.contains("cold")) {
-            return Err(format!("{}: a probe never runs a no-cache or cold build", cell.id));
+        if cell
+            .argv
+            .iter()
+            .any(|arg| arg.contains("no-cache") || arg.contains("cold"))
+        {
+            return Err(format!(
+                "{}: a probe never runs a no-cache or cold build",
+                cell.id
+            ));
         }
         if cell.env.keys().any(|key| !KNOBS.contains(&key.as_str())) {
-            return Err(format!("{}: env may set only {}", cell.id, KNOBS.join(", ")));
+            return Err(format!(
+                "{}: env may set only {}",
+                cell.id,
+                KNOBS.join(", ")
+            ));
         }
         let pin_ok = cell.commit.as_deref().is_none_or(|pin| {
             pin.len() >= 7 && pin.len() <= 40 && pin.bytes().all(|b| b.is_ascii_hexdigit())
@@ -156,7 +180,10 @@ fn validate(plan: &Plan) -> Result<(), String> {
             return Err(format!("{}: commit must be 7-40 hex characters", cell.id));
         }
         if cell.deadline_seconds != DEADLINE_SECS {
-            return Err(format!("{}: deadline_seconds must be {DEADLINE_SECS}", cell.id));
+            return Err(format!(
+                "{}: deadline_seconds must be {DEADLINE_SECS}",
+                cell.id
+            ));
         }
         if !(1..=30).contains(&cell.grace_seconds) {
             return Err(format!("{}: grace_seconds must be 1-30", cell.id));
@@ -175,7 +202,12 @@ fn now_ms() -> i64 {
 fn utc() -> String {
     let ms = now_ms();
     let secs = (ms / 1000).rem_euclid(86_400);
-    let clock = format!("{:02}:{:02}:{:02}", secs / 3600, secs % 3600 / 60, secs % 60);
+    let clock = format!(
+        "{:02}:{:02}:{:02}",
+        secs / 3600,
+        secs % 3600 / 60,
+        secs % 60
+    );
     format!("{}T{clock}.{:03}Z", time::date(ms / 1000), ms % 1000)
 }
 
@@ -262,7 +294,10 @@ fn detach(command: &mut Command) -> &mut Command {
 /// A `file://` URL for a local path (drive letters get the third slash).
 fn file_url(path: &Path) -> String {
     let text = path.display().to_string();
-    let text = text.strip_prefix(r"\\?\").unwrap_or(&text).replace('\\', "/");
+    let text = text
+        .strip_prefix(r"\\?\")
+        .unwrap_or(&text)
+        .replace('\\', "/");
     if text.starts_with('/') {
         format!("file://{text}")
     } else {
@@ -271,7 +306,10 @@ fn file_url(path: &Path) -> String {
 }
 
 fn git(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
-    bounded(Command::new("git").arg("-C").arg(repo).args(args), Duration::from_secs(30))
+    bounded(
+        Command::new("git").arg("-C").arg(repo).args(args),
+        Duration::from_secs(30),
+    )
 }
 
 fn git_text(repo: &Path, args: &[&str]) -> Result<String, String> {
@@ -285,7 +323,8 @@ fn gate_identity(repo: &Path, host: Option<&Path>) -> Value {
         let script = "const m = await import(process.argv[1]); console.log(m.trustedGate())";
         let url = file_url(host);
         let mut node = Command::new("node");
-        node.args(["--input-type=module", "-e", script, &url]).current_dir(repo);
+        node.args(["--input-type=module", "-e", script, &url])
+            .current_dir(repo);
         let out = bounded(&mut node, Duration::from_secs(30)).ok()?;
         let path = PathBuf::from(String::from_utf8_lossy(&out).trim());
         fs::canonicalize(path).ok()
@@ -334,17 +373,28 @@ fn broker_config_candidates() -> Vec<PathBuf> {
             .map(PathBuf::from)
     };
     let home = if cfg!(windows) {
-        std::env::var_os("LOCALAPPDATA").filter(|v| !v.is_empty()).map(PathBuf::from).or_else(
-            || std::env::var_os("USERPROFILE").map(|p| PathBuf::from(p).join(r"AppData\Local")),
-        )
+        std::env::var_os("LOCALAPPDATA")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("USERPROFILE").map(|p| PathBuf::from(p).join(r"AppData\Local"))
+            })
     } else {
         std::env::var_os("HOME").map(PathBuf::from)
     };
     let mut roots: Vec<PathBuf> = named("CONTROL_ROOT").into_iter().collect();
     if let Some(home) = &home {
-        roots.extend(paths::CONTROL_UNDER_HOME.iter().map(|under| home.join(under)));
+        roots.extend(
+            paths::CONTROL_UNDER_HOME
+                .iter()
+                .map(|under| home.join(under)),
+        );
     }
-    roots.extend(["DATA_ROOT", "MANAGED_ROOT", "EXTERNAL_ROOT"].iter().filter_map(|n| named(n)));
+    roots.extend(
+        ["DATA_ROOT", "MANAGED_ROOT", "EXTERNAL_ROOT"]
+            .iter()
+            .filter_map(|n| named(n)),
+    );
     roots.push(PathBuf::from(paths::LEGACY_DATA));
     roots.push(PathBuf::from(paths::RENAMED_DATA));
     let mut seen = Vec::new();
@@ -390,7 +440,11 @@ fn identity(repo: &Path) -> Value {
 }
 
 fn node_version() -> Option<String> {
-    let out = bounded(Command::new("node").arg("--version"), Duration::from_secs(5)).ok()?;
+    let out = bounded(
+        Command::new("node").arg("--version"),
+        Duration::from_secs(5),
+    )
+    .ok()?;
     Some(String::from_utf8_lossy(&out).trim().to_owned())
 }
 
@@ -445,9 +499,11 @@ fn processes() -> Option<BTreeMap<u32, Proc>> {
         let &[pid, ppid, start, name] = fields.as_slice() else {
             continue;
         };
-        let (Ok(pid), Ok(ppid), Ok(start)) =
-            (pid.parse::<u32>(), ppid.parse::<u32>(), start.parse::<i64>())
-        else {
+        let (Ok(pid), Ok(ppid), Ok(start)) = (
+            pid.parse::<u32>(),
+            ppid.parse::<u32>(),
+            start.parse::<i64>(),
+        ) else {
             continue;
         };
         let row = Proc {
@@ -473,9 +529,11 @@ fn processes() -> Option<BTreeMap<u32, Proc>> {
         if fields.len() < 9 {
             continue;
         }
-        let (Ok(pid), Ok(ppid), Some(age)) =
-            (fields[0].parse::<u32>(), fields[1].parse::<u32>(), etime(fields[2]))
-        else {
+        let (Ok(pid), Ok(ppid), Some(age)) = (
+            fields[0].parse::<u32>(),
+            fields[1].parse::<u32>(),
+            etime(fields[2]),
+        ) else {
             continue;
         };
         rows.insert(
@@ -542,7 +600,9 @@ impl Tracker {
     }
 
     fn find_owners(&mut self, rows: &BTreeMap<u32, Proc>) {
-        let Ok(dirs) = fs::read_dir(OWNERSHIP) else { return };
+        let Ok(dirs) = fs::read_dir(OWNERSHIP) else {
+            return;
+        };
         for dir in dirs.flatten() {
             let file = dir.path().join("owner.json");
             let Some(record) = fs::read_to_string(&file)
@@ -551,7 +611,9 @@ impl Tracker {
             else {
                 continue;
             };
-            let pid = record["pid"].as_u64().and_then(|pid| u32::try_from(pid).ok());
+            let pid = record["pid"]
+                .as_u64()
+                .and_then(|pid| u32::try_from(pid).ok());
             let (Some(pid), Some(started), Some(handle), Some(snapshot)) = (
                 pid,
                 record["startedMs"].as_f64().map(|ms| ms as i64),
@@ -680,13 +742,17 @@ type Broker = (Vec<(String, String)>, Option<u64>);
 fn broker_jobs() -> Result<Broker, String> {
     let out = bounded(Command::new(RUSTRIGHT).arg("list"), Duration::from_secs(2))?;
     let listing: Value = serde_json::from_slice(&out).map_err(|e| e.to_string())?;
-    let rows = listing["inFlight"].as_array().ok_or("inFlight is not a list")?;
+    let rows = listing["inFlight"]
+        .as_array()
+        .ok_or("inFlight is not a list")?;
     let jobs = rows
         .iter()
-        .map(|row| match (row["id"].as_str(), row["workspace"].as_str()) {
-            (Some(id), Some(workspace)) => Ok((id.to_owned(), workspace.to_owned())),
-            _ => Err("an in-flight job has no id or workspace".to_owned()),
-        })
+        .map(
+            |row| match (row["id"].as_str(), row["workspace"].as_str()) {
+                (Some(id), Some(workspace)) => Ok((id.to_owned(), workspace.to_owned())),
+                _ => Err("an in-flight job has no id or workspace".to_owned()),
+            },
+        )
         .collect::<Result<Vec<_>, String>>()?;
     Ok((jobs, listing["broker"]["tokens"]["held"].as_u64()))
 }
@@ -739,7 +805,10 @@ fn pump(stream: impl Read + Send + 'static, raw: PathBuf, stamped: PathBuf) -> J
         };
         let mut reader = BufReader::new(stream);
         let mut line = Vec::new();
-        while reader.read_until(b'\n', &mut line).is_ok_and(|read| read > 0) {
+        while reader
+            .read_until(b'\n', &mut line)
+            .is_ok_and(|read| read > 0)
+        {
             let _ = raw.write_all(&line);
             let text = String::from_utf8_lossy(&line);
             let _ = writeln!(stamped, "{} {}", utc(), text.trim_end_matches('\n'));
@@ -767,9 +836,9 @@ fn coverage_of(tracker: &Tracker, since_ms: i64) -> Value {
         let report = fs::read_to_string(entry.path())
             .ok()
             .and_then(|text| serde_json::from_str::<Value>(&text).ok());
-        let Some(report) = report.filter(|r| {
-            r["schema"] == gate::SCHEMA && r["commit"] == tracker.commit.as_str()
-        }) else {
+        let Some(report) = report
+            .filter(|r| r["schema"] == gate::SCHEMA && r["commit"] == tracker.commit.as_str())
+        else {
             continue;
         };
         let (mut keyed_hit, mut keyed_ran) = (0, 0);
@@ -800,7 +869,9 @@ fn broker_refs(leases: &BTreeMap<String, Value>) -> Value {
     let mut refs = Vec::new();
     for lease in leases.values() {
         for member in lease["members"].as_array().into_iter().flatten() {
-            let Some(job) = member["job"].as_str() else { continue };
+            let Some(job) = member["job"].as_str() else {
+                continue;
+            };
             let path = Path::new(RECEIPTS).join(format!("{job}.json"));
             let receipt = fs::read_to_string(&path)
                 .ok()
@@ -838,7 +909,11 @@ fn wait_bounded(child: &mut Child, until: Instant) -> Option<i32> {
 fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
     let dir = out.join(&cell.id);
     let _ = fs::create_dir_all(&dir);
-    let argv: Vec<String> = cell.argv.iter().map(|a| a.replace("{HEAD}", commit)).collect();
+    let argv: Vec<String> = cell
+        .argv
+        .iter()
+        .map(|a| a.replace("{HEAD}", commit))
+        .collect();
     let cwd = cell.cwd.clone().unwrap_or_else(|| cell.repo.clone());
     let mut tracker = Tracker {
         owned: BTreeMap::new(),
@@ -849,7 +924,10 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
     };
     let mut command = gate_command(&argv);
     detach(command.current_dir(&cwd));
-    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     for (key, _) in std::env::vars_os() {
         let key = key.to_string_lossy().into_owned();
         if key.starts_with("RK_GATE_") || key == "RUSTRIGHT_CANCEL_ON_DISCONNECT" {
@@ -875,10 +953,18 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
             None => error = Some("cannot establish the gate process identity".into()),
         }
         if let Some(stdout) = child.stdout.take() {
-            streams.push(pump(stdout, dir.join("stdout.log"), dir.join("stdout.stamped.log")));
+            streams.push(pump(
+                stdout,
+                dir.join("stdout.log"),
+                dir.join("stdout.stamped.log"),
+            ));
         }
         if let Some(stderr) = child.stderr.take() {
-            streams.push(pump(stderr, dir.join("stderr.log"), dir.join("stderr.stamped.log")));
+            streams.push(pump(
+                stderr,
+                dir.join("stderr.log"),
+                dir.join("stderr.stamped.log"),
+            ));
         }
         while error.is_none() && matches!(child.try_wait(), Ok(None)) {
             tracker.observe();
@@ -893,7 +979,9 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
 
     // One cleanup budget for everything after the workload.
     let cleanup_end = Instant::now() + Duration::from_secs(CLEANUP_SECS);
-    let running = child.as_mut().is_some_and(|c| matches!(c.try_wait(), Ok(None)));
+    let running = child
+        .as_mut()
+        .is_some_and(|c| matches!(c.try_wait(), Ok(None)));
     let cancelled = running || timed_out || error.is_some();
     if cancelled && child.is_some() {
         tracker.signal("INT");
@@ -916,7 +1004,9 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
         let until = cleanup_end.min(Instant::now() + Duration::from_secs(2));
         let code = wait_bounded(c, until);
         if code.is_none() {
-            error.get_or_insert_with(String::new).push_str(" gate not reaped");
+            error
+                .get_or_insert_with(String::new)
+                .push_str(" gate not reaped");
         }
         code
     });
@@ -936,7 +1026,10 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
             if left.is_zero() {
                 break;
             }
-            leases.insert(handle.clone(), lease(owner, left.min(Duration::from_secs(2))));
+            leases.insert(
+                handle.clone(),
+                lease(owner, left.min(Duration::from_secs(2))),
+            );
         }
         let reaped = leases.len() == tracker.owners.len()
             && leases.values().all(|l| {
@@ -962,7 +1055,10 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
                     .as_array()
                     .is_some_and(|members| members.iter().all(|m| m["state"] == "REAPED"))
         });
-    let owner_records_removed = tracker.owners.values().all(|o| !Path::new(&o.file).exists())
+    let owner_records_removed = tracker
+        .owners
+        .values()
+        .all(|o| !Path::new(&o.file).exists())
         && !owner_record_names(&tracker.owned);
     let no_owned_alive = remaining == json!([]);
     let no_active_owned_work =
@@ -1016,7 +1112,8 @@ pub fn run(plan_path: &Path, out: &Path) -> Result<Vec<Value>, String> {
     validate(&plan)?;
     fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let lock = File::create(out.join("probe.lock")).map_err(|e| e.to_string())?;
-    lock.try_lock().map_err(|_| "another probe holds the lock".to_owned())?;
+    lock.try_lock()
+        .map_err(|_| "another probe holds the lock".to_owned())?;
     // Named by date so the Mac can copy the Dell's file without a name collision.
     let results = out.join(format!("probe-results-{}.jsonl", time::date(time::now())));
     let mut records = Vec::new();
@@ -1032,7 +1129,11 @@ pub fn run(plan_path: &Path, out: &Path) -> Result<Vec<Value>, String> {
             records.push(record);
             continue;
         };
-        if let Some(pin) = cell.commit.as_deref().filter(|pin| !commit.starts_with(*pin)) {
+        if let Some(pin) = cell
+            .commit
+            .as_deref()
+            .filter(|pin| !commit.starts_with(*pin))
+        {
             let record = skip("skipped", format!("HEAD is {commit}; the plan pins {pin}"));
             append(&results, &record);
             records.push(record);
@@ -1078,7 +1179,9 @@ pub fn rows(records: &[Value]) -> Vec<String> {
                 r["exitCode"],
                 joined("coverage"),
                 r["brokerJobs"].as_array().map_or(0, Vec::len),
-                r["detail"].as_str().map_or(String::new(), |d| format!(" ({d})")),
+                r["detail"]
+                    .as_str()
+                    .map_or(String::new(), |d| format!(" ({d})")),
             )
         })
         .collect()

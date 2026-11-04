@@ -227,7 +227,10 @@ fn groups(failures: &[Failure], hosts: &[HostRun], ledger: &Ledger, until: i64) 
         groups.push(Group::new(fp, issues::LEGION, title, lines, ledger, &today));
     }
     let mut flags: BTreeMap<String, Vec<&warmth::Flag>> = BTreeMap::new();
-    for flag in hosts.iter().flat_map(|h| h.host.flags.iter().chain(&h.gate.flags)) {
+    for flag in hosts
+        .iter()
+        .flat_map(|h| h.host.flags.iter().chain(&h.gate.flags))
+    {
         flags.entry(flag.fingerprint()).or_default().push(flag);
     }
     for (fp, list) in flags {
@@ -310,7 +313,10 @@ pub fn run(args: DailyArgs) -> CommandResult {
             hosts.push(col.host(
                 "dell",
                 [claude, codex],
-                (copy.join("receipts").as_path(), copy.join("coverage").as_path()),
+                (
+                    copy.join("receipts").as_path(),
+                    copy.join("coverage").as_path(),
+                ),
                 &copy.join("lifecycle/lifecycle.ndjson"),
                 dell.disk_free,
             ));
@@ -425,12 +431,16 @@ pub fn run(args: DailyArgs) -> CommandResult {
 fn dell_probe_rows(dir: &Path) -> Vec<String> {
     let mut rows = Vec::new();
     for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
-        let Ok(text) = fs::read_to_string(entry.path()) else { continue };
+        let Ok(text) = fs::read_to_string(entry.path()) else {
+            continue;
+        };
         for line in text.lines() {
             if let Ok(record) = serde_json::from_str::<serde_json::Value>(line) {
-                rows.extend(probe_rows(std::slice::from_ref(&record)).into_iter().map(|row| {
-                    format!("dell {row}")
-                }));
+                rows.extend(
+                    probe_rows(std::slice::from_ref(&record))
+                        .into_iter()
+                        .map(|row| format!("dell {row}")),
+                );
             }
         }
     }

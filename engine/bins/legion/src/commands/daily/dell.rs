@@ -47,7 +47,15 @@ fn parse(listing: &str) -> Vec<(&str, u64, &str)> {
             continue;
         };
         if let (true, Ok(length)) = (
-            ["claude", "codex", "lifecycle", "receipts", "coverage", "probe"].contains(&tag),
+            [
+                "claude",
+                "codex",
+                "lifecycle",
+                "receipts",
+                "coverage",
+                "probe",
+            ]
+            .contains(&tag),
             length.trim().parse(),
         ) {
             rows.push((tag, length, path));
