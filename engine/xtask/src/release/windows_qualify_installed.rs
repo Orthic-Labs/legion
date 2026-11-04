@@ -647,6 +647,22 @@ fn disappears(path: &Path, timeout: Duration) -> bool {
     !path.exists()
 }
 
+/// Like `disappears`, but an install root that holds only Inno's own `unins*` files counts as gone.
+fn disappears_but_uninstaller(path: &Path, timeout: Duration) -> bool {
+    let only_uninstaller = |path: &Path| {
+        fs::read_dir(path).is_ok_and(|entries| {
+            entries
+                .flatten()
+                .all(|e| e.file_name().to_string_lossy().starts_with("unins"))
+        })
+    };
+    let deadline = Instant::now() + timeout;
+    while path.exists() && !only_uninstaller(path) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    !path.exists() || only_uninstaller(path)
+}
+
 /// Installed-tree inventory captured before cleanup. Stable-pointer defects
 /// are invisible without link types and resolved targets, and the workspace
 /// that holds them is deleted right after this qualification run.
@@ -2185,7 +2201,9 @@ throw 'Receipt fault did not interrupt activation'
         // `setup remove` (bounded at 120s by InitializeUninstall) before it
         // deletes the payload, so removal is observable only well after the
         // launcher exits.
-        if !disappears(&install_root, Duration::from_secs(240)) {
+        // Inno deletes `unins000.exe` itself only after the uninstaller process exits, so
+        // an install root holding nothing but `unins*` entries is a finished uninstall.
+        if !disappears_but_uninstaller(&install_root, Duration::from_secs(240)) {
             let remaining: Vec<String> = fs::read_dir(&install_root)
                 .map(|entries| {
                     entries
