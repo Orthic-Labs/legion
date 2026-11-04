@@ -497,6 +497,17 @@
       },
       "class": "maintainer-daily-job",
       "reason": "the daily maintainer loop (M9) reads the maintainer hosts' agent-volume layout and is run only there"
+    },
+    {
+      "path": "engine/bins/legion/src/commands/daily/probe.rs",
+      "patterns": [
+        "developer-workspace"
+      ],
+      "occurrences": {
+        "developer-workspace": 2
+      },
+      "class": "maintainer-daily-job",
+      "reason": "the daily warm-cache probe (M9) runs the gate only in the maintainer hosts' primary checkouts and refuses any other root"
     }
   ]
 }

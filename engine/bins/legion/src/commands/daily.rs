@@ -13,6 +13,8 @@ mod dell;
 mod digest;
 mod gate;
 mod issues;
+#[cfg(target_os = "macos")]
+mod probe;
 mod scan;
 pub(super) mod time;
 mod warmth;
@@ -54,6 +56,13 @@ pub struct DailyArgs {
     /// Skip the Dell.
     #[arg(long)]
     pub no_dell: bool,
+    /// First run the bounded warm-cache probe cells of the plan (macOS only). This runs real
+    /// gate builds, so it is run only where builds are approved.
+    #[arg(long)]
+    pub probe: bool,
+    /// The probe plan; default `~/.legion/daily/probe-plan.json`.
+    #[arg(long)]
+    pub probe_plan: Option<PathBuf>,
 }
 
 /// Run a child process (no stdin) and return its stdout, or its exit status and stderr.
@@ -242,6 +251,16 @@ pub fn run(args: DailyArgs) -> CommandResult {
         notes: vec![],
     };
 
+    // Probe first, so the scan below also reads the receipts and coverage it produced.
+    let mut probes = Vec::new();
+    if args.probe {
+        let plan = args
+            .probe_plan
+            .clone()
+            .unwrap_or_else(|| dir.join("probe-plan.json"));
+        probes = run_probe(&plan, &out.join("probe"), &mut col);
+    }
+
     // Collect: this Mac, then the Dell copied read-only into scratch.
     let mut hosts = vec![col.host(
         "mac",
@@ -350,6 +369,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
             "Broker jobs in repositories with warmth flags",
             digest::bullets(&jobs),
         ),
+        ("Warm-cache probe", digest::bullets(&probes)),
         (
             "Gate runs and cache reuse (scan phase only; no per-scan time or broker join)",
             digest::bullets(&gates),
@@ -371,6 +391,24 @@ pub fn run(args: DailyArgs) -> CommandResult {
         json!({"digest": file, "written": written.is_ok(), "failures": groups.len(),
         "actions": results, "fixed": fixed, "notes": col.notes}),
     )
+}
+
+/// Run the probe plan and return its digest rows; a probe that cannot start is a note.
+#[cfg(target_os = "macos")]
+fn run_probe(plan: &Path, out: &Path, col: &mut Collect) -> Vec<String> {
+    match probe::run(plan, out) {
+        Ok(records) => probe::rows(&records),
+        Err(e) => {
+            col.note(format!("probe: {e}; nothing ran"));
+            Vec::new()
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn run_probe(_plan: &Path, _out: &Path, col: &mut Collect) -> Vec<String> {
+    col.note("probe: not supported on this host (cancellation is macOS only); nothing ran".into());
+    Vec::new()
 }
 
 /// One host's summary line for the digest.
