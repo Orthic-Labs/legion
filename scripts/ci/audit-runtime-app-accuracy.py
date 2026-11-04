@@ -240,7 +240,7 @@ def validate_record(root, row, live=False, retained=None):
             remapped = dict(original, executable=bound["mappedExecutable"]["path"], expectedDigest=bound["mappedExecutable"]["sha256"])
             same(mapped, remapped, "runtime mapping changed more than one executable identity")
             require(mapped["providerId"] == ID and mapped["planId"] == case["planDigest"] and mapped["taskId"] == "runtime"
-                    and mapped["origin"] == "LegionOwned" and mapped["shell"] is False and mapped["acceptedExitCodes"] == [0]
+                    and mapped["origin"] == "HostOwned" and mapped["shell"] is False and mapped["acceptedExitCodes"] == [0]
                     and mapped["versionArgs"] == ["--version"] and mapped["skipVersionProbe"] is False
                     and mapped["versionRequirement"] is None and mapped["timeoutMs"] == 120000
                     and mapped["stdoutLimit"] == mapped["stderrLimit"] == 8388608
