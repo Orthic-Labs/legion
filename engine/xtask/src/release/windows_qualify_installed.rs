@@ -702,9 +702,23 @@ fn assert_legion_client_entries_removed(
 ) -> ReleaseResult<()> {
     for (label, path, needle) in registered {
         if legion_client_entry_present(path, *needle) {
+            // The qualification profile is a throwaway sandbox: print what is left, and the
+            // uninstaller's own `setup remove` result, so the next failure is diagnosable.
+            let leftover: String = fs::read_to_string(path)
+                .unwrap_or_default()
+                .chars()
+                .take(3000)
+                .collect();
+            let removal = std::env::temp_dir().join("legion-uninstall-setup-remove.json");
+            let removal: String = fs::read_to_string(&removal)
+                .unwrap_or_else(|error| format!("<{}: {error}>", removal.display()))
+                .chars()
+                .take(3000)
+                .collect();
             return Err(fail(format!(
-                "uninstall left Legion's native client entry behind: {label} ({})",
-                path.display()
+                "uninstall left Legion's native client entry behind: {label} ({})\n--- leftover ---\n{leftover}\n--- setup remove result ({}) ---\n{removal}",
+                path.display(),
+                std::env::temp_dir().display()
             )));
         }
     }
