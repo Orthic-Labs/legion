@@ -19,7 +19,9 @@
 //!   broker receipts of the jobs the lease names. Nothing is read from log text; a missing
 //!   join stays unknown.
 //!
-//! macOS only: cancellation on Windows is not implemented, so no cell is started there.
+//! macOS and Windows. macOS signals INT, TERM, then KILL. Windows has no INT for a
+//! process with no console, so it asks `taskkill` to end each owned pid (no `/T`, so a shared
+//! broker started as a child is never caught), then forces it; every child runs with no window.
 use super::{gate, time};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -28,7 +30,6 @@ use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
     io::{BufRead, BufReader, Read, Write},
-    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     thread::{self, JoinHandle},
@@ -36,14 +37,34 @@ use std::{
 };
 
 pub const PLAN_SCHEMA: &str = "legion.daily-probe-plan/1";
-const HOST_GATE: &str = "/Volumes/D/.rightkit-managed/agent-bin/rightkit-host-gate";
-const OWNERSHIP: &str = "/Volumes/D/.rightkit-managed/build-ownership";
-const RECEIPTS: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
-const COVERAGE: &str = "/Volumes/D/.rightkit-managed/runs/rightkit-gate-coverage";
-const TRUSTED_GATES: &str = "/Volumes/D/.rightkit-managed/trusted-gates";
-/// The broker's config under `$HOME`.
-const BROKER_CONFIG: &str = "Library/Application Support/RightKit/build-control/config.json";
-const REPOS: &str = "/Volumes/D/claude/";
+#[cfg(not(windows))]
+mod paths {
+    pub const HOST_GATE: &str = "/Volumes/D/.rightkit-managed/agent-bin/rightkit-host-gate";
+    pub const RUSTRIGHT: &str = "rustright";
+    pub const OWNERSHIP: &str = "/Volumes/D/.rightkit-managed/build-ownership";
+    pub const RECEIPTS: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
+    pub const COVERAGE: &str = "/Volumes/D/.rightkit-managed/runs/rightkit-gate-coverage";
+    pub const TRUSTED_GATES: &str = "/Volumes/D/.rightkit-managed/trusted-gates";
+    /// The broker's config: base variable, then the path under it.
+    pub const BROKER_CONFIG: (&str, &str) =
+        ("HOME", "Library/Application Support/RightKit/build-control/config.json");
+    pub const REPOS: &str = "/Volumes/D/claude/";
+}
+#[cfg(windows)]
+mod paths {
+    pub const HOST_GATE: &str = r"D:\.rightkit-managed\agent-bin\rightkit-host-gate.cmd";
+    pub const RUSTRIGHT: &str = r"D:\.rightkit-managed\agent-bin\rustright.cmd";
+    pub const OWNERSHIP: &str = r"D:\.rightkit-managed\build-ownership";
+    pub const RECEIPTS: &str = r"D:\.rightkit-managed\rightkit-build-control\receipts";
+    pub const COVERAGE: &str = r"D:\.rightkit-managed\runs\rightkit-gate-coverage";
+    pub const TRUSTED_GATES: &str = r"D:\.rightkit-managed\trusted-gates";
+    pub const BROKER_CONFIG: (&str, &str) =
+        ("LOCALAPPDATA", r"RightKit\build-control\config.json");
+    pub const REPOS: &str = r"d:\claude\";
+}
+use paths::{
+    BROKER_CONFIG, COVERAGE, HOST_GATE, OWNERSHIP, RECEIPTS, REPOS, RUSTRIGHT, TRUSTED_GATES,
+};
 const DEADLINE_SECS: u64 = 900;
 const CLEANUP_SECS: u64 = 60;
 /// The only environment a plan may set.
@@ -94,7 +115,12 @@ fn validate(plan: &Plan) -> Result<(), String> {
         }
         ids.push(cell.id.clone());
         let repo = cell.repo.to_string_lossy();
-        if !repo.starts_with(REPOS) || repo.contains("..") {
+        let under = if cfg!(windows) {
+            repo.to_lowercase().starts_with(REPOS)
+        } else {
+            repo.starts_with(REPOS)
+        };
+        if !under || repo.contains("..") {
             return Err(format!("{}: repo must be a primary checkout under {REPOS}", cell.id));
         }
         if cell.cwd.as_ref().is_some_and(|cwd| !cwd.starts_with(&cell.repo)) {
@@ -154,7 +180,7 @@ fn digest_file(path: &Path) -> Option<String> {
 /// Run a short command with a deadline; stdout on success. A command still running at the
 /// deadline is killed and reported as a timeout.
 fn bounded(command: &mut Command, limit: Duration) -> Result<Vec<u8>, String> {
-    let mut child = command
+    let mut child = quiet(command)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -187,6 +213,43 @@ fn bounded(command: &mut Command, limit: Duration) -> Result<Vec<u8>, String> {
     }
 }
 
+/// No console window on Windows (`CREATE_NO_WINDOW`); nothing elsewhere.
+#[cfg(windows)]
+fn quiet(command: &mut Command) -> &mut Command {
+    use std::os::windows::process::CommandExt;
+    command.creation_flags(0x0800_0000)
+}
+
+#[cfg(not(windows))]
+fn quiet(command: &mut Command) -> &mut Command {
+    command
+}
+
+/// The gate in its own process group, with no window on Windows.
+#[cfg(windows)]
+fn detach(command: &mut Command) -> &mut Command {
+    use std::os::windows::process::CommandExt;
+    // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    command.creation_flags(0x0000_0200 | 0x0800_0000)
+}
+
+#[cfg(not(windows))]
+fn detach(command: &mut Command) -> &mut Command {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0)
+}
+
+/// A `file://` URL for a local path (drive letters get the third slash).
+fn file_url(path: &Path) -> String {
+    let text = path.display().to_string();
+    let text = text.strip_prefix(r"\\?\").unwrap_or(&text).replace('\\', "/");
+    if text.starts_with('/') {
+        format!("file://{text}")
+    } else {
+        format!("file:///{text}")
+    }
+}
+
 fn git(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     bounded(Command::new("git").arg("-C").arg(repo).args(args), Duration::from_secs(30))
 }
@@ -200,7 +263,7 @@ fn git_text(repo: &Path, args: &[&str]) -> Result<String, String> {
 fn gate_identity(repo: &Path, host: Option<&Path>) -> Value {
     let selected = host.and_then(|host| {
         let script = "const m = await import(process.argv[1]); console.log(m.trustedGate())";
-        let url = format!("file://{}", host.display());
+        let url = file_url(host);
         let mut node = Command::new("node");
         node.args(["--input-type=module", "-e", script, &url]).current_dir(repo);
         let out = bounded(&mut node, Duration::from_secs(30)).ok()?;
@@ -219,7 +282,8 @@ fn gate_identity(repo: &Path, host: Option<&Path>) -> Value {
             trusted.insert(name, digest_file(&entry.path()));
         }
     }
-    let config = std::env::var_os("HOME").map(|home| PathBuf::from(home).join(BROKER_CONFIG));
+    let (base, under) = BROKER_CONFIG;
+    let config = std::env::var_os(base).map(|base| PathBuf::from(base).join(under));
     json!({
         "selectedGate": selected.as_ref().map(|p| p.display().to_string()),
         "selectedGateSha256": selected.as_deref().and_then(digest_file),
@@ -265,6 +329,7 @@ struct Proc {
 }
 
 /// `[[dd-]hh:]mm:ss` as seconds.
+#[cfg(not(windows))]
 fn etime(text: &str) -> Option<i64> {
     let (days, rest) = match text.split_once('-') {
         Some((days, rest)) => (days.parse::<i64>().ok()?, rest),
@@ -277,6 +342,39 @@ fn etime(text: &str) -> Option<i64> {
     Some(days * 86_400 + secs)
 }
 
+/// Every process from CIM: `pid|ppid|creation epoch ms|name`. The creation time is exact, so
+/// it is both the identity text and the start.
+#[cfg(windows)]
+fn processes() -> Option<BTreeMap<u32, Proc>> {
+    let script = "Get-CimInstance Win32_Process | ForEach-Object { '{0}|{1}|{2}|{3}' -f \
+        $_.ProcessId, $_.ParentProcessId, \
+        ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds(), $_.Name }";
+    let mut ps = Command::new("powershell");
+    ps.args(["-NoProfile", "-NonInteractive", "-Command", script]);
+    let out = bounded(&mut ps, Duration::from_secs(15)).ok()?;
+    let mut rows = BTreeMap::new();
+    for line in String::from_utf8_lossy(&out).lines() {
+        let fields: Vec<&str> = line.trim().splitn(4, '|').collect();
+        let &[pid, ppid, start, name] = fields.as_slice() else {
+            continue;
+        };
+        let (Ok(pid), Ok(ppid), Ok(start)) =
+            (pid.parse::<u32>(), ppid.parse::<u32>(), start.parse::<i64>())
+        else {
+            continue;
+        };
+        let row = Proc {
+            ppid,
+            lstart: start.to_string(),
+            start_ms: start,
+            comm: name.to_owned(),
+        };
+        rows.insert(pid, row);
+    }
+    (!rows.is_empty()).then_some(rows)
+}
+
+#[cfg(not(windows))]
 fn processes() -> Option<BTreeMap<u32, Proc>> {
     let mut ps = Command::new("ps");
     ps.args(["-axo", "pid=,ppid=,etime=,lstart=,comm="]);
@@ -416,11 +514,28 @@ impl Tracker {
             if rows[&pid].comm.to_lowercase().contains("rustright-broker") {
                 continue;
             }
-            let mut kill = Command::new("kill");
-            kill.args(["-s", signal]).arg(pid.to_string());
-            let _ = bounded(&mut kill, Duration::from_secs(2));
+            let _ = bounded(&mut kill(signal, pid), Duration::from_secs(5));
         }
     }
+}
+
+/// `kill -s <signal>`; on Windows `taskkill` for INT and TERM, `taskkill /F` for KILL, one pid,
+/// never its tree.
+#[cfg(windows)]
+fn kill(signal: &str, pid: u32) -> Command {
+    let mut command = Command::new("taskkill");
+    command.args(["/PID", &pid.to_string()]);
+    if signal == "KILL" {
+        command.arg("/F");
+    }
+    command
+}
+
+#[cfg(not(windows))]
+fn kill(signal: &str, pid: u32) -> Command {
+    let mut command = Command::new("kill");
+    command.args(["-s", signal]).arg(pid.to_string());
+    command
 }
 
 /// True when any ownership record names a pid this probe started, whatever its start time.
@@ -451,7 +566,7 @@ fn append(path: &Path, record: &Value) {
 type Broker = (Vec<(String, String)>, Option<u64>);
 
 fn broker_jobs() -> Result<Broker, String> {
-    let out = bounded(Command::new("rustright").arg("list"), Duration::from_secs(2))?;
+    let out = bounded(Command::new(RUSTRIGHT).arg("list"), Duration::from_secs(2))?;
     let listing: Value = serde_json::from_slice(&out).map_err(|e| e.to_string())?;
     let rows = listing["inFlight"].as_array().ok_or("inFlight is not a list")?;
     let jobs = rows
@@ -466,7 +581,7 @@ fn broker_jobs() -> Result<Broker, String> {
 
 /// The lease of one ownership record, checked against its snapshot and handle.
 fn lease(owner: &Owner, limit: Duration) -> Value {
-    let mut command = Command::new("rustright");
+    let mut command = Command::new(RUSTRIGHT);
     command.args(["snapshot-lease", "status", "--snapshot", &owner.snapshot]);
     command.args(["--ownership", &owner.handle]);
     let checked = bounded(&mut command, limit).and_then(|out| {
@@ -621,7 +736,7 @@ fn run_cell(cell: &Cell, commit: &str, out: &Path, before: Value) -> Value {
         overhead: Duration::ZERO,
     };
     let mut command = Command::new(&argv[0]);
-    command.args(&argv[1..]).current_dir(&cwd).process_group(0);
+    detach(command.args(&argv[1..]).current_dir(&cwd));
     command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     for (key, _) in std::env::vars_os() {
         let key = key.to_string_lossy().into_owned();
@@ -786,7 +901,8 @@ pub fn run(plan_path: &Path, out: &Path) -> Result<Vec<Value>, String> {
     fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let lock = File::create(out.join("probe.lock")).map_err(|e| e.to_string())?;
     lock.try_lock().map_err(|_| "another probe holds the lock".to_owned())?;
-    let results = out.join("results.jsonl");
+    // Named by date so the Mac can copy the Dell's file without a name collision.
+    let results = out.join(format!("probe-results-{}.jsonl", time::date(time::now())));
     let mut records = Vec::new();
     for cell in &plan.cells {
         let skip = |status: &str, detail: String| {
@@ -855,7 +971,7 @@ mod tests {
     }
 
     fn cell() -> Value {
-        json!({"id": "rk", "repo": "/Volumes/D/claude/rightkit",
+        json!({"id": "rk", "repo": format!("{REPOS}rightkit"),
             "argv": [HOST_GATE, "--to", "compile", "--commit", "{HEAD}"],
             "env": {"RK_GATE_JOBS": "8"}, "deadline_seconds": 900})
     }
@@ -877,6 +993,7 @@ mod tests {
         assert!(validate(&plan(repo)).is_err());
     }
 
+    #[cfg(not(windows))]
     #[test]
     fn elapsed_time_forms() {
         assert_eq!(etime("05"), Some(5));

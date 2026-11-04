@@ -22,7 +22,8 @@ L 'lifecycle' (Get-ChildItem -Path "$env:LOCALAPPDATA\RightKit\build-control\log
 L 'receipts' (Get-ChildItem -Filter '*.json' -File
   -LiteralPath 'D:\.rightkit-managed\rightkit-build-control\receipts');
 L 'coverage' (Get-ChildItem -Filter '*.json' -File
-  -LiteralPath 'D:\.rightkit-managed\runs\rightkit-gate-coverage')"#;
+  -LiteralPath 'D:\.rightkit-managed\runs\rightkit-gate-coverage');
+L 'probe' (Get-ChildItem -Path 'D:\scratch\legion-daily\*\probe\probe-results-*.jsonl' -File)"#;
 
 #[derive(Default)]
 pub struct Dell {
@@ -46,7 +47,7 @@ fn parse(listing: &str) -> Vec<(&str, u64, &str)> {
             continue;
         };
         if let (true, Ok(length)) = (
-            ["claude", "codex", "lifecycle", "receipts", "coverage"].contains(&tag),
+            ["claude", "codex", "lifecycle", "receipts", "coverage", "probe"].contains(&tag),
             length.trim().parse(),
         ) {
             rows.push((tag, length, path));

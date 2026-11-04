@@ -13,7 +13,7 @@ mod dell;
 mod digest;
 mod gate;
 mod issues;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 mod probe;
 mod scan;
 pub(super) mod time;
@@ -33,7 +33,10 @@ use std::{
 };
 
 const BROKER: &str = "/Volumes/D/.rightkit-managed/rightkit-build-control/receipts";
+#[cfg(not(windows))]
 const OUT: &str = "/Volumes/D/scratch/legion-daily";
+#[cfg(windows)]
+const OUT: &str = r"D:\scratch\legion-daily";
 const REPO: &str = "/Volumes/D/claude/legion";
 /// Gate coverage reports on the Mac. The Dell's default is
 /// `D:\.rightkit-managed\runs\rightkit-gate-coverage` (see `dell.rs`); a gate run with
@@ -63,6 +66,10 @@ pub struct DailyArgs {
     /// The probe plan; default `~/.legion/daily/probe-plan.json`.
     #[arg(long)]
     pub probe_plan: Option<PathBuf>,
+    /// Run the probe and stop: no transcript scan, no GitHub, no warmth state. The Dell's
+    /// scheduled entry uses this; the Mac's daily scan copies its probe results.
+    #[arg(long, requires = "probe")]
+    pub probe_only: bool,
 }
 
 /// Run a child process (no stdin) and return its stdout, or its exit status and stderr.
@@ -237,7 +244,9 @@ fn groups(failures: &[Failure], hosts: &[HostRun], ledger: &Ledger, until: i64) 
 pub fn run(args: DailyArgs) -> CommandResult {
     let message = format!("--since {:?} is not 90m, 24h, 2d or 1w", args.since);
     let span = time::duration(&args.since).ok_or_else(|| CommandError::usage(message))?;
-    let home = std::env::var_os("HOME").map(PathBuf::from);
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from);
     let home = home.ok_or_else(|| CommandError::incomplete("HOME is not set"))?;
     let until = time::now();
     let (since, today, apply) = (until - span, time::date(until), args.apply);
@@ -260,6 +269,19 @@ pub fn run(args: DailyArgs) -> CommandResult {
             .unwrap_or_else(|| dir.join("probe-plan.json"));
         probes = run_probe(&plan, &out.join("probe"), &mut col);
     }
+    if args.probe_only {
+        let text = format!(
+            "# Legion daily probe {today}\n\n{}\n\n## Notes\n\n{}\n",
+            digest::bullets(&probes).join("\n"),
+            digest::bullets(&col.notes).join("\n")
+        );
+        let path = out.join("probe").join("probe-digest.md");
+        let written = fs::create_dir_all(out.join("probe")).and_then(|()| fs::write(&path, &text));
+        if let Err(e) = written {
+            return Err(CommandError::incomplete(format!("{}: {e}", path.display())));
+        }
+        return Ok(json!({"__raw": format!("{text}\nDigest: {}\n", path.display())}));
+    }
 
     // Collect: this Mac, then the Dell copied read-only into scratch.
     let mut hosts = vec![col.host(
@@ -279,6 +301,7 @@ pub fn run(args: DailyArgs) -> CommandResult {
             let (mut claude, mut codex) = (Vec::new(), Vec::new());
             scan::files(&copy.join("claude"), 1, since, &mut claude);
             scan::files(&copy.join("codex"), 1, since, &mut codex);
+            probes.extend(dell_probe_rows(&copy.join("probe")));
             hosts.push(col.host(
                 "dell",
                 [claude, codex],
@@ -393,8 +416,34 @@ pub fn run(args: DailyArgs) -> CommandResult {
     )
 }
 
+/// The Dell's probe records copied into `dir`, one row each, marked as the Dell's.
+fn dell_probe_rows(dir: &Path) -> Vec<String> {
+    let mut rows = Vec::new();
+    for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
+        let Ok(text) = fs::read_to_string(entry.path()) else { continue };
+        for line in text.lines() {
+            if let Ok(record) = serde_json::from_str::<serde_json::Value>(line) {
+                rows.extend(probe_rows(std::slice::from_ref(&record)).into_iter().map(|row| {
+                    format!("dell {row}")
+                }));
+            }
+        }
+    }
+    rows
+}
+
+#[cfg(any(target_os = "macos", windows))]
+fn probe_rows(records: &[serde_json::Value]) -> Vec<String> {
+    probe::rows(records)
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
+fn probe_rows(_records: &[serde_json::Value]) -> Vec<String> {
+    Vec::new()
+}
+
 /// Run the probe plan and return its digest rows; a probe that cannot start is a note.
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", windows))]
 fn run_probe(plan: &Path, out: &Path, col: &mut Collect) -> Vec<String> {
     match probe::run(plan, out) {
         Ok(records) => probe::rows(&records),
@@ -405,9 +454,9 @@ fn run_probe(plan: &Path, out: &Path, col: &mut Collect) -> Vec<String> {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 fn run_probe(_plan: &Path, _out: &Path, col: &mut Collect) -> Vec<String> {
-    col.note("probe: not supported on this host (cancellation is macOS only); nothing ran".into());
+    col.note("probe: not supported on this host (macOS and Windows only); nothing ran".into());
     Vec::new()
 }
 
