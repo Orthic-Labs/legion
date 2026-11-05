@@ -2374,7 +2374,6 @@ version = "0.3.23"
 dependencies = [
  "brotli",
  "clap",
- "ed25519-dalek 3.0.0",
  "flate2",
  "hex",
  "legion-audit",

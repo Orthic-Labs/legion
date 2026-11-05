@@ -1,4 +1,0 @@
-format = "dmg"
-
-[entitlements]
-file = "release/macos.entitlements"

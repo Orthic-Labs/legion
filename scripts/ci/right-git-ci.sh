@@ -40,9 +40,6 @@ fi
 # fail-closed set -e semantics. Later checks run right after their prerequisites.
 export PYTHONDONTWRITEBYTECODE=1
 (cd engine && cargo fmt --all -- --check)
-if [[ "${RUNNER_OS:-}" == "Linux" ]]; then
-  python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
-fi
 
 pnpm install --frozen-lockfile
 
@@ -138,8 +135,7 @@ fi
 # Lint gate (formerly the ci.yml lint job): clippy::correctness findings fail
 # the build; other warnings are allowed. rustfmt drift is checked at the top.
 
-# Preserve independent qualification evidence after a workspace failure;
-# every command records its own status before the installer delivery barrier.
+# Every command records its own status before the installer delivery barrier.
 workspace_failures=0
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   if (cd engine && cargo clippy --workspace --all-targets --locked --keep-going -- -A warnings -D clippy::correctness); then
@@ -165,112 +161,12 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   fi
 fi
 
-# Canonical checks above already built this exact legion-dev. Reuse it;
-# qualification adds no target, dependency or build admission.
 ci_target_root="$(cargo metadata --locked --no-deps --format-version 1 --manifest-path engine/Cargo.toml | node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => console.log(JSON.parse(input).target_directory.replace(/\\/g, "/")));')"
 ci_binary_root="${ci_target_root}${CARGO_BUILD_TARGET:+/${CARGO_BUILD_TARGET}}/debug"
-case "${RUNNER_OS:-}" in
-  macOS) ci_dev_helper="${ci_binary_root}/legion-dev" ;;
-  Windows) ci_dev_helper="${ci_binary_root}/legion-dev.exe" ;;
-  *) echo "Unsupported native helper retention platform: ${RUNNER_OS:-unset}" >&2; exit 1 ;;
-esac
-if [[ ! -f "$ci_dev_helper" ]]; then
-  echo "Compiled CI qualification owner helper missing: $ci_dev_helper" >&2
-  exit 1
-fi
-audit_native_command() {
-  "$ci_dev_helper" ci-qualification-child --sequence "${sequence:?qualification span missing}" -- "$@"
-}
-# Keep provisioning functions in this shell: their exports feed later controls.
-# Native leaves inside composed test functions use audit_native_command too.
-audit_qualification_dispatch() {
-  if declare -F "$1" >/dev/null; then
-    "$@"
-  else
-    audit_native_command "$@"
-  fi
-}
-
-audit_qualification_failures=0
-audit_qualification_sequence=0
-audit_cargo_bin="$(command -v cargo)"
-audit_runtime_app_qualification() {
-  audit_native_command "$audit_cargo_bin" test --locked --manifest-path engine/Cargo.toml -p legion \
-    --test runtime_app_accuracy real_runtime_app_accuracy -- --ignored --exact --nocapture --test-threads=1
-}
-
-run_audit_qualification() {
-  audit_qualification_sequence=$((audit_qualification_sequence + 1))
-  local sequence="$audit_qualification_sequence"
-  python3 - "$sequence" "$@" <<'PY'
-import json
-import sys
-print("AUDIT_QUALIFICATION_COMMAND_BEGIN " + json.dumps(
-    {"sequence": int(sys.argv[1]), "argv": sys.argv[2:]},
-    sort_keys=True, separators=(",", ":")))
-PY
-  local status=0
-  if audit_qualification_dispatch "$@"; then
-    status=0
-  else
-    status=$?
-    audit_qualification_failures=$((audit_qualification_failures + 1))
-    printf '::error::Audit qualification command failed (exit %s): %s\n' "$status" "$*" >&2
-  fi
-  printf 'AUDIT_QUALIFICATION_COMMAND_END %s %s\n' "$sequence" "$status"
-  # Runner disk after each control: run39520170497 macOS died of ENOSPC mid-gate.
-  printf 'AUDIT_QUALIFICATION_DISK %s %s\n' "$sequence" "$(df -k . 2>/dev/null | tail -1 | tr -s ' ')"
-  # Continue independent controls, then refuse delivery below if any failed.
-  return 0
-}
-
-printf 'AUDIT_QUALIFICATION_DISK 0 %s\n' "$(df -k . 2>/dev/null | tail -1 | tr -s ' ')"
-
-if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-  # Runtime app accuracy: the real runtime-app test target and its validator.
-  export LEGION_RUNTIME_APP_RECEIPTS="${RUNNER_TEMP}/legion-provider-qualification/runtime-app"
-  mkdir -p "$LEGION_RUNTIME_APP_RECEIPTS"
-  run_audit_qualification audit_runtime_app_qualification
-  run_audit_qualification python3 scripts/ci/audit-runtime-app-accuracy.py \
-    --root "$GITHUB_WORKSPACE" --receipts "$LEGION_RUNTIME_APP_RECEIPTS"
-  unset LEGION_RUNTIME_APP_RECEIPTS
-fi
 
 # Assemble the exact CI candidate and smoke the installed native CLI.
 export CARGO_INCREMENTAL=1
 (cd engine && cargo build --locked --bins)
-ci_dev_helper_dir="${RUNNER_TEMP}/legion-provider-qualification/native-helper"
-ci_dev_helper_copy="${ci_dev_helper_dir}/$(basename "$ci_dev_helper")"
-mkdir -p "$ci_dev_helper_dir"
-python3 - "$ci_dev_helper" "$ci_dev_helper_copy" "$RUNNER_OS" "${RUNNER_ARCH:-unknown}" "$GITHUB_SHA" <<'PY'
-import hashlib
-import json
-import shutil
-import stat
-import sys
-from pathlib import Path
-
-source, destination = Path(sys.argv[1]), Path(sys.argv[2])
-platform_os, platform_arch, revision = sys.argv[3:]
-if source.is_symlink() or not source.is_file():
-    raise SystemExit(f"already-built legion-dev helper is missing or not a regular file: {source}")
-shutil.copy2(source, destination)
-source_bytes, retained_bytes = source.read_bytes(), destination.read_bytes()
-source_sha = hashlib.sha256(source_bytes).hexdigest()
-retained_sha = hashlib.sha256(retained_bytes).hexdigest()
-if source_sha != retained_sha or len(source_bytes) != len(retained_bytes):
-    raise SystemExit("retained legion-dev helper does not match built source bytes")
-record = {
-    "source": str(source),
-    "sourceSHA": source_sha,
-    "sourceRevision": revision,
-    "platform": {"os": platform_os, "architecture": platform_arch},
-    "SHA256": retained_sha,
-    "bytes": len(retained_bytes),
-    "mode": stat.S_IMODE(source.stat().st_mode),
-}
-(destination.parent / "legion-dev.json").write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
-PY
 ci_xtask="${ci_binary_root}/xtask"
 if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
   ci_xtask="${ci_xtask}.exe"
@@ -284,12 +180,9 @@ test -f "$ci_xtask"
 # (Adrian: debug assertions gone). They return only when they run against a real installed home
 # as end-to-end cases (Orthic-Labs/legion#118).
 
-# Emit fresh native proof before asserting retained closures; stale closures still block delivery.
-run_audit_qualification python3 scripts/ci/audit-qualification-records.py --root "$GITHUB_WORKSPACE" --check
-
-if (( workspace_failures != 0 || audit_qualification_failures != 0 )); then
-  printf 'CI checks failed: %s workspace command(s), %s Audit qualification command(s); refusing installer delivery.\n' \
-    "$workspace_failures" "$audit_qualification_failures" >&2
+if (( workspace_failures != 0 )); then
+  printf 'CI checks failed: %s workspace command(s); refusing installer delivery.\n' \
+    "$workspace_failures" >&2
   exit 1
 fi
 

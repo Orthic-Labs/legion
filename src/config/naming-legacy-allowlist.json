@@ -459,14 +459,6 @@
       },
       "class": "R0",
       "reason": "ordinary security verb"
-    },
-    {
-      "pathPrefix": "qualification/provider-accuracy/records/legacy.security.sast/",
-      "tokens": [
-        "sentinel"
-      ],
-      "class": "R5",
-      "reason": "qualification record binds the provisioned semgrep venv closure, whose pydantic tree ships missing_sentinel.py"
     }
   ]
 }

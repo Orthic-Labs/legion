@@ -78,18 +78,7 @@ pub fn build_catalogs(root: &Path) -> Result<Value, String> {
     let support: Vec<Value> = coverage_records
         .iter()
         .filter_map(Value::as_object)
-        .map(|o| {
-            pick(
-                o,
-                &[
-                    "id",
-                    "tiers",
-                    "corpusDigest",
-                    "artifactDigest",
-                    "qualificationDigest",
-                ],
-            )
-        })
+        .map(|o| pick(o, &["id", "tiers", "corpusDigest", "artifactDigest"]))
         .collect();
 
     let mut out = Map::new();

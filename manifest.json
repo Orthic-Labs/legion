@@ -21,7 +21,7 @@
         "correctness",
         "platform-parity"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "architecture.decomposition",
@@ -34,7 +34,7 @@
         "architecture",
         "minimize"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "core.repo",
@@ -46,7 +46,7 @@
       "backs": [
         "prioritization"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.build",
@@ -58,7 +58,7 @@
       "backs": [
         "installer-hygiene"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.test",
@@ -83,7 +83,7 @@
         "dead-file",
         "ai-slop"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.debt-markers",
@@ -96,7 +96,7 @@
         "ai-slop",
         "maintainability"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.duplication",
@@ -109,7 +109,7 @@
         "ai-slop",
         "minimize"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.lint",
@@ -124,7 +124,7 @@
         "performance",
         "a11y"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.negative-space",
@@ -137,7 +137,7 @@
         "architecture",
         "maintainability"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.rust-unused-deps",
@@ -150,7 +150,7 @@
         "dead-file",
         "stack"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.swift-lint",
@@ -164,7 +164,7 @@
         "naming",
         "correctness"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.tool-coverage",
@@ -177,7 +177,7 @@
         "security",
         "correctness"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "quality.types",
@@ -190,7 +190,7 @@
         "schema",
         "architecture"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "react.hooks-config",
@@ -203,7 +203,7 @@
         "correctness",
         "ai-slop"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "runtime.app",
@@ -217,7 +217,7 @@
         "runtime",
         "a11y"
       ],
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "phase": "P2"
     },
     {
@@ -232,7 +232,7 @@
         "release-readiness",
         "stack"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.dependency-pinning",
@@ -244,7 +244,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.docker",
@@ -256,7 +256,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.github-actions-lint",
@@ -268,7 +268,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.js-licenses",
@@ -281,7 +281,7 @@
         "security",
         "release-readiness"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.node-dependencies",
@@ -293,7 +293,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.python-dependencies",
@@ -305,7 +305,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.rust-advisories",
@@ -317,7 +317,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.rust-policy",
@@ -330,7 +330,7 @@
         "security",
         "stack"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.rust-unsafe",
@@ -342,7 +342,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.sast",
@@ -354,7 +354,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.secrets",
@@ -366,7 +366,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "security.vendored-dependencies",
@@ -378,7 +378,7 @@
       "backs": [
         "security"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "stack.node-outdated",
@@ -390,7 +390,7 @@
       "backs": [
         "stack"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "stack.rust-outdated",
@@ -402,7 +402,7 @@
       "backs": [
         "stack"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "tauri.capabilities",
@@ -415,7 +415,7 @@
         "security",
         "platform-parity"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     },
     {
       "provider": "tauri.contract-mirror",
@@ -429,7 +429,7 @@
         "security",
         "dead-file"
       ],
-      "benchmark_status": "qualified"
+      "benchmark_status": "unproven"
     }
   ],
   "providers": [
@@ -441,7 +441,7 @@
         "kind": "runtime-script",
         "module": "architecture.core"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -471,7 +471,7 @@
         "kind": "runtime-script",
         "module": "code.dotnet"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -486,7 +486,7 @@
         "kind": "runtime-script",
         "module": "code.javascript"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -576,7 +576,7 @@
         "kind": "runtime-script",
         "module": "code.long-tail"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -591,7 +591,7 @@
         "kind": "runtime-script",
         "module": "code.mobile"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -621,7 +621,7 @@
         "kind": "runtime-script",
         "module": "code.python"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -636,7 +636,7 @@
         "kind": "runtime-script",
         "module": "code.rust"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -666,7 +666,7 @@
         "kind": "runtime-script",
         "module": "compatibility.core"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -681,7 +681,7 @@
         "kind": "runtime-script",
         "module": "container.iac"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -696,7 +696,7 @@
         "kind": "runtime-script",
         "module": "dependency.osv"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -711,7 +711,7 @@
         "kind": "runtime-script",
         "module": "docs.contract"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -726,7 +726,7 @@
         "kind": "runtime-script",
         "module": "framework.backend"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -741,7 +741,7 @@
         "kind": "runtime-script",
         "module": "framework.data"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -771,7 +771,7 @@
         "kind": "runtime-script",
         "module": "framework.frontend"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -786,7 +786,7 @@
         "kind": "runtime-script",
         "module": "governance.policy"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -820,7 +820,7 @@
         "kind": "runtime-script",
         "module": "imported.sarif"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -835,7 +835,7 @@
         "kind": "runtime-script",
         "module": "legacy.accessibility.internal-suite"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -850,7 +850,7 @@
         "kind": "legacy-check",
         "check": "apple_platform"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -865,7 +865,7 @@
         "kind": "legacy-check",
         "check": "decomposition"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -880,7 +880,7 @@
         "kind": "legacy-check",
         "check": "repo"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": true,
       "produces_security_candidates": false,
@@ -895,7 +895,7 @@
         "kind": "runtime-script",
         "module": "legacy.framework.major-suite"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -910,7 +910,7 @@
         "kind": "runtime-script",
         "module": "legacy.data.internal-suite"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -925,7 +925,7 @@
         "kind": "runtime-script",
         "module": "legacy.infrastructure.internal-suite"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -940,7 +940,7 @@
         "kind": "legacy-check",
         "check": "build"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -970,7 +970,7 @@
         "kind": "legacy-check",
         "check": "dead_code"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -985,7 +985,7 @@
         "kind": "legacy-check",
         "check": "debt_markers"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1000,7 +1000,7 @@
         "kind": "legacy-check",
         "check": "duplication"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1015,7 +1015,7 @@
         "kind": "legacy-check",
         "check": "lint"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1030,7 +1030,7 @@
         "kind": "legacy-check",
         "check": "negative_space"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1045,7 +1045,7 @@
         "kind": "legacy-check",
         "check": "cargo_unused_deps"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1060,7 +1060,7 @@
         "kind": "legacy-check",
         "check": "swift_lint"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1075,7 +1075,7 @@
         "kind": "legacy-check",
         "check": "tool_coverage"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1090,7 +1090,7 @@
         "kind": "legacy-check",
         "check": "types"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1105,7 +1105,7 @@
         "kind": "legacy-check",
         "check": "react_hooks"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1120,7 +1120,7 @@
         "kind": "legacy-check",
         "check": "runtime"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1135,7 +1135,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-doc-drift-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1150,7 +1150,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-architecture-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1165,7 +1165,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-correctness-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1180,7 +1180,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-ai-slop-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1195,7 +1195,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-naming-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1210,7 +1210,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-dead-file-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1225,7 +1225,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-schema-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1240,7 +1240,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-security-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1255,7 +1255,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-minimize-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1270,7 +1270,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-performance-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1285,7 +1285,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-a11y-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1300,7 +1300,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-data-safety-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1315,7 +1315,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-resilience-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1330,7 +1330,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-platform-parity-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1345,7 +1345,7 @@
         "kind": "reasoning-contract",
         "contract": "audit-lens-release-readiness-v1"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1375,7 +1375,7 @@
         "kind": "legacy-check",
         "check": "binary_pins"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1390,7 +1390,7 @@
         "kind": "legacy-check",
         "check": "dep_pinning"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1405,7 +1405,7 @@
         "kind": "legacy-check",
         "check": "docker"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1420,7 +1420,7 @@
         "kind": "legacy-check",
         "check": "ci_lint"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1435,7 +1435,7 @@
         "kind": "legacy-check",
         "check": "js_licenses"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1450,7 +1450,7 @@
         "kind": "legacy-check",
         "check": "deps_cve"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1465,7 +1465,7 @@
         "kind": "legacy-check",
         "check": "py_deps_cve"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1480,7 +1480,7 @@
         "kind": "legacy-check",
         "check": "cargo_audit"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1495,7 +1495,7 @@
         "kind": "legacy-check",
         "check": "cargo_deny"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1510,7 +1510,7 @@
         "kind": "legacy-check",
         "check": "cargo_unsafe"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1525,7 +1525,7 @@
         "kind": "legacy-check",
         "check": "sast"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1540,7 +1540,7 @@
         "kind": "legacy-check",
         "check": "secrets"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1570,7 +1570,7 @@
         "kind": "legacy-check",
         "check": "vendored_deps"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1585,7 +1585,7 @@
         "kind": "legacy-check",
         "check": "outdated"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1600,7 +1600,7 @@
         "kind": "legacy-check",
         "check": "cargo_outdated"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1615,7 +1615,7 @@
         "kind": "legacy-check",
         "check": "tauri_capabilities"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1630,7 +1630,7 @@
         "kind": "legacy-check",
         "check": "contract_mirror"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1645,7 +1645,7 @@
         "kind": "runtime-script",
         "module": "legacy.visual.core"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1660,7 +1660,7 @@
         "kind": "runtime-script",
         "module": "requirements.traceability"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1675,7 +1675,7 @@
         "kind": "runtime-script",
         "module": "secrets.current-history"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1690,7 +1690,7 @@
         "kind": "runtime-script",
         "module": "security.opengrep"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1705,7 +1705,7 @@
         "kind": "runtime-script",
         "module": "security.credentials"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1720,7 +1720,7 @@
         "kind": "runtime-script",
         "module": "security.insecure-defaults"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1735,7 +1735,7 @@
         "kind": "runtime-script",
         "module": "security.misuse-resistance"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1750,7 +1750,7 @@
         "kind": "runtime-script",
         "module": "security.agentic-ci"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1765,7 +1765,7 @@
         "kind": "runtime-script",
         "module": "security.agent-skill-mcp"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1780,7 +1780,7 @@
         "kind": "runtime-script",
         "module": "structural.ast-grep"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1795,7 +1795,7 @@
         "kind": "runtime-script",
         "module": "supply-chain.license-sbom-provenance"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1810,7 +1810,7 @@
         "kind": "runtime-script",
         "module": "test-quality.core"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": false,
@@ -1825,7 +1825,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-squawk"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1855,7 +1855,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-shellcheck"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1870,7 +1870,7 @@
         "kind": "runtime-script",
         "module": "security.scanner-zizmor"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,
@@ -1885,7 +1885,7 @@
         "kind": "runtime-script",
         "module": "security.suppression-changes"
       },
-      "benchmark_status": "qualified",
+      "benchmark_status": "unproven",
       "required_for_clean_claim": true,
       "allow_without_blueprint": false,
       "produces_security_candidates": true,

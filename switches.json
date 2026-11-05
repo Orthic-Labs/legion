@@ -479,22 +479,6 @@
       "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
     },
     {
-      "name": "LEGION_GITLEAKS_ARCHIVE_NAME",
-      "class": "S3",
-      "channel": "env",
-      "anchor": "engine/crates/legion-audit/src/native_providers/security/history_qualification_record.rs:395",
-      "compiledOut": "cfg:test",
-      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
-    },
-    {
-      "name": "LEGION_GITLEAKS_ARCHIVE_SHA256",
-      "class": "S3",
-      "channel": "env",
-      "anchor": "engine/crates/legion-audit/src/native_providers/security/history_qualification_record.rs:396",
-      "compiledOut": "cfg:test",
-      "note": "Every read sits in #[cfg(test)] code (or a module declared under #[cfg(test)])."
-    },
-    {
       "name": "LEGION_GRADLE_NATIVE_MODE",
       "class": "S1",
       "channel": "env",

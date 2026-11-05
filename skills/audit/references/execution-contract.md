@@ -285,8 +285,8 @@ the parent report, only when the follow-up is complete and its chain verifies; a
 chain to the parent (`securityVariantFollowup.status: invalid`) keeps the gap and fails `legion verify`.
 
 Qualification: a provider is qualified when its registry entry carries `benchmark.status: qualified`
-with a `qualificationDigest` (the five bench-recall classes `secret`, `dependency_cve`, `dead_code`,
-`duplication`, `type_error` carry a `benchmark.qualification` record citing the `bench` CI job). An
+with a `qualificationDigest`. No provider carries one: the retained qualification records were
+deleted on 2026-11-05, so every provider is `benchmark.status: unproven`. An
 unqualified provider that completed is a non-blocking `unqualified:<provider>` entry in
 `coverageNotes`; it blocks clean (`provider-unqualified:<provider>` gap) only when its registry entry
 sets `benchmark.requiredForCleanClaim: true`. Clean requires every applicable required provider

@@ -52,7 +52,7 @@ All paths relative to Legion checkout. Worker-owned files remain untouched until
 | `engine/crates/legion-report/src/{lib,markdown,html,sarif,ponytail}.rs` | Render assurance, inherited uncertainty, waiver/debt & trend distinctions from existing reports. A14 owns `review.rs` until return. |
 | `engine/bins/legion/src/{cli,apple_mcp}.rs`; `commands/{audit,audit_runtime,report}.rs` | Attach admission, profile/import/domain options & reporting; reuse Apple host operations without audit→CLI dependency. Extract shared Apple seam only if actual reuse requires it. |
 | `engine/bins/legion-dev/src/main.rs`; `engine/**/Cargo.toml`; `engine/Cargo.lock` | Register A18 command; add only required dependencies/exports/test targets. Lock through admitted Rust toolchain. No speculative owner upgrades. |
-| `scripts/ci/audit-*-sdk-inputs.json`; qualification sources under `qualification/provider-accuracy/**`; generated catalogs/schemas/manifests | Add exact scanner/SDK/config pins & observed qualifications. Extend managed CI source through existing owner; do not hand-edit generated workflow projections. |
+| `scripts/ci/audit-jvm-sdk-inputs.json`; generated catalogs/schemas/manifests | Add exact scanner/SDK/config pins. Providers stay `benchmark.status: "unproven"`; the retained qualification records and their validators were deleted (Adrian 2026-11-05). Extend managed CI source through existing owner; do not hand-edit generated workflow projections. |
 
 Where a listed module does not exist at implementation HEAD, use its current canonical parent; record mapping change. No whole-directory ownership is granted to workers by this table.
 
@@ -73,7 +73,7 @@ Target additions (not existing commands):
 - Add `--runtime-policy no-node-python`, `--product-contract <json>` & repeatable `--artifact-manifest <json>`. Native-only constraint is frozen into new profiles; imports disclose upstream runtime.
 - Extend `report --report assurance|trend|debt --format json|markdown` as projections over saved reports/store.
 - Add thin `audit gate --run <dir>`: validate frozen run + requirements, report structured `eligible|blocked-findings|incomplete` with reasons. CLI adapter maps these to established exit-code conventions; no second policy engine or new scan.
-- Register `legion-dev check-audit-assurance` for native A18 record validation; reuse existing benchmark runner for actual model observations.
+- Retired (Adrian 2026-11-05): `legion-dev check-audit-assurance` and the A18 qualification records were deleted; reuse the existing benchmark runner for actual model observations.
 - Reuse `audit findings` lifecycle routes & existing source scopes / since-last-completed behavior. No duplicate review engine, hook installer, auto-posting or update bot.
 
 CLI table is authoritative over earlier illustrative commands in parent design documents. Validate clap/help/error handling & old report v1/v2 round trips.
