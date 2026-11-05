@@ -3,12 +3,11 @@
 //! Obligations are the mandatory coverage inventory for one declared
 //! product target, resolved before provider selection. They are kept
 //! deliberately separate from the existing provider/report schemas: a
-//! `ProviderResult` proves one provider ran, a qualification record proves
-//! a provider was once measured, and neither proves that *this* product,
-//! target, variant and snapshot were examined. An obligation is therefore
-//! only `satisfied` by evidence bound to its full identity; anything
-//! missing, stale, fixture-only, differently-targeted or unqualified
-//! leaves it `unmet`. Waived never means executed.
+//! `ProviderResult` proves one provider ran, and does not prove that *this*
+//! product, target, variant and snapshot were examined. An obligation is
+//! therefore only `satisfied` by evidence bound to its full identity;
+//! anything missing, stale, differently-targeted or incomplete leaves it
+//! `unmet`. Waived never means executed.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -342,151 +341,6 @@ impl ProductionObligation {
     }
 }
 
-/// What a qualification record actually covers. The legacy qualified
-/// Boolean / `benchmark.status == "qualified"` alone is insufficient:
-/// every dimension here must match the run for accuracy to apply.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct QualificationScope {
-    pub provider_id: String,
-    pub provider_version: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rule_version: Option<String>,
-    pub host: String,
-    pub toolchain: String,
-    pub target: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub variant: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub features: Vec<String>,
-    /// `fixture`, `production`, or another named basis. Fixture scope
-    /// never qualifies a production clean claim.
-    pub evidence_basis: String,
-    pub fixture_scope: String,
-    /// RFC3339 UTC freshness bound for time-sensitive evidence (e.g.
-    /// advisories); evaluated as stale when `<= now`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fresh_until: Option<String>,
-    pub digest: String,
-}
-
-/// The exact context a qualification must match to apply to this run.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct QualificationContext {
-    pub provider_id: String,
-    pub provider_version: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rule_version: Option<String>,
-    pub host: String,
-    pub toolchain: String,
-    pub target: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub variant: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub features: Vec<String>,
-    pub requires_production_evidence: bool,
-}
-
-/// Outcome of applicability evaluation, kept separate from executed
-/// coverage: applicable qualification is necessary, never sufficient.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct QualificationVerdict {
-    pub applicable: bool,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub mismatches: Vec<String>,
-}
-
-/// Evaluate whether `record` qualifies `context`. Missing record,
-/// version/host/toolchain/target/variant/feature mismatch, fixture-only
-/// basis for a production claim, or stale `fresh_until` all yield
-/// `applicable: false` with named mismatches — never a clean default.
-pub fn evaluate_qualification(
-    record: Option<&QualificationScope>,
-    context: &QualificationContext,
-    now_rfc3339_utc: &str,
-) -> QualificationVerdict {
-    let Some(record) = record else {
-        return QualificationVerdict {
-            applicable: false,
-            mismatches: vec!["missing-qualification-record".into()],
-        };
-    };
-    let mut mismatches = Vec::new();
-    let check = |name: &str, record_value: &str, context_value: &str, out: &mut Vec<String>| {
-        if record_value != context_value {
-            out.push(format!("{name}: record={record_value} run={context_value}"));
-        }
-    };
-    check(
-        "providerId",
-        &record.provider_id,
-        &context.provider_id,
-        &mut mismatches,
-    );
-    check(
-        "providerVersion",
-        &record.provider_version,
-        &context.provider_version,
-        &mut mismatches,
-    );
-    match (&record.rule_version, &context.rule_version) {
-        (Some(r), Some(c)) => check("ruleVersion", r, c, &mut mismatches),
-        (None, Some(_)) => mismatches.push("ruleVersion: record missing".into()),
-        (Some(_), None) => mismatches.push("ruleVersion: run unknown".into()),
-        (None, None) => {}
-    }
-    check("host", &record.host, &context.host, &mut mismatches);
-    check(
-        "toolchain",
-        &record.toolchain,
-        &context.toolchain,
-        &mut mismatches,
-    );
-    check("target", &record.target, &context.target, &mut mismatches);
-    if record.variant != context.variant {
-        mismatches.push("variant: record/run mismatch".into());
-    }
-    let record_features: BTreeSet<&str> = record.features.iter().map(String::as_str).collect();
-    for feature in &context.features {
-        if !record_features.contains(feature.as_str()) {
-            mismatches.push(format!("feature-not-qualified:{feature}"));
-        }
-    }
-    // Exact comparison: a record qualified with features the run did not
-    // enable describes a different configuration.
-    let context_features: BTreeSet<&str> = context.features.iter().map(String::as_str).collect();
-    for feature in &record_features {
-        if !context_features.contains(feature) {
-            mismatches.push(format!("feature-not-executed:{feature}"));
-        }
-    }
-    if context.requires_production_evidence && record.evidence_basis != "production" {
-        mismatches.push(format!(
-            "evidenceBasis: {} does not qualify a production claim",
-            record.evidence_basis
-        ));
-    }
-    if record.fixture_scope.trim().is_empty() {
-        mismatches.push("fixtureScope: missing".into());
-    }
-    if !record.digest.starts_with("sha256:") {
-        mismatches.push("digest: must be sha256:-prefixed".into());
-    }
-    if let Some(fresh_until) = &record.fresh_until {
-        if !fresh_until.ends_with('Z') || !now_rfc3339_utc.ends_with('Z') {
-            mismatches.push("freshUntil: must be RFC3339 UTC (...Z)".into());
-        } else if fresh_until.as_str() <= now_rfc3339_utc {
-            mismatches.push("stale-qualification-or-advisory".into());
-        }
-    }
-    QualificationVerdict {
-        applicable: mismatches.is_empty(),
-        mismatches,
-    }
-}
-
 /// Declared product target from which the mandatory inventory resolves.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -608,14 +462,11 @@ pub struct ObligationEvidence {
     /// Runtime that produced imported evidence, for reporting only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub produced_by_runtime: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub qualification: Option<QualificationVerdict>,
 }
 
 /// Apply evidence to a frozen obligation. Any mismatch (wrong target /
 /// variant / snapshot / concern / kind / denominator, incomplete
-/// coverage, unauthenticated import, unverified artifact, inapplicable
-/// qualification) leaves the obligation `unmet` with a named reason.
+/// coverage, unauthenticated import, unverified artifact) leaves the obligation `unmet` with a named reason.
 /// Returns the updated obligation; never mutates identity.
 pub fn apply_evidence(
     obligation: &ProductionObligation,
@@ -630,18 +481,6 @@ pub fn apply_evidence(
     if evidence.obligation != obligation.id || evidence.kind != obligation.id.evidence_kind {
         unmet(&mut out, "evidence-identity-mismatch".into());
         return out;
-    }
-    if let Some(verdict) = &evidence.qualification {
-        if !verdict.applicable {
-            unmet(
-                &mut out,
-                format!(
-                    "qualification-not-applicable:{}",
-                    verdict.mismatches.join(",")
-                ),
-            );
-            return out;
-        }
     }
     match evidence.kind {
         EvidenceKind::ProviderExecution => {
@@ -1210,172 +1049,10 @@ pub fn reconcile(
     })
 }
 
-/// Host label a qualification record's `host` must equal: `<os>-<arch>` of
-/// the process that executed the run.
-pub fn run_host_label() -> String {
-    format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
-}
-
-/// Plan-bound key under which the registry's qualification scope record is
-/// frozen into `AuditProvider.bounds`.
-pub const QUALIFICATION_SCOPE_BOUND_KEY: &str = "qualificationScope";
-/// `ProviderResult.details` key under which a provider execution records the
-/// toolchain it actually ran with. Qualification compares against this value,
-/// never against the qualification record's own claim.
-pub const EXECUTED_TOOLCHAIN_DETAIL_KEY: &str = "executedToolchain";
-/// `ProviderResult.details` key recording the rule/rule-pack version (and
-/// ruleset digest, `version+sha256:...`) the execution actually applied.
-pub const EXECUTED_RULE_VERSION_DETAIL_KEY: &str = "executedRuleVersion";
-/// `ProviderResult.details` key recording the sorted list of features the
-/// execution actually enabled. Absent means UNKNOWN; `[]` means none.
-pub const EXECUTED_FEATURES_DETAIL_KEY: &str = "executedFeatures";
-/// Toolchain label when the execution recorded none.
-pub const TOOLCHAIN_UNKNOWN: &str = "UNKNOWN";
-/// Plan-bound key carrying the registry claim scope (e.g.
-/// `known-answer-fixture-cases`) when no full scope record exists.
-pub const CLAIM_SCOPE_BOUND_KEY: &str = "claimScope";
-
-/// Every reason `provider`'s qualification does not apply to this run.
-/// Empty means accepted. The legacy `benchmark_status == "qualified"` plus
-/// digest is necessary but never sufficient for a release (production)
-/// profile: a frozen scope record must match the run through
-/// `evaluate_qualification`, and fixture-scoped claims never qualify.
-fn provider_qualification_mismatches(
-    provider: &crate::plan::AuditProvider,
-    frozen: &AuditAssuranceV1,
-    executed_toolchain: Option<&str>,
-    executed_rule_version: Option<&str>,
-    executed_features: Option<&[String]>,
-) -> Vec<String> {
-    let id = &provider.id;
-    if provider.benchmark_status != "qualified" || provider.qualification_digest.is_none() {
-        return vec![format!("provider-unqualified:{id}")];
-    }
-    let production = frozen.profile.profile == AuditProfile::Release;
-    let claim_scope = provider
-        .bounds
-        .get(CLAIM_SCOPE_BOUND_KEY)
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let record: Option<QualificationScope> = provider
-        .bounds
-        .get(QUALIFICATION_SCOPE_BOUND_KEY)
-        .and_then(|value| serde_json::from_value(value.clone()).ok());
-    let mut out = Vec::new();
-    if production && claim_scope.to_ascii_lowercase().contains("fixture") {
-        out.push(format!(
-            "provider-fixture-scope-not-production:{id}:{claim_scope}"
-        ));
-    }
-    match record {
-        Some(record) => {
-            // The record's own digest must be the digest frozen for the
-            // provider, exactly: a record cannot vouch for itself.
-            if provider.qualification_digest.as_deref() != Some(record.digest.as_str()) {
-                out.push(format!(
-                    "provider-qualification:{id}:digest-mismatch: record={} frozen={}",
-                    record.digest,
-                    provider.qualification_digest.as_deref().unwrap_or("none")
-                ));
-            }
-            // The toolchain comes from what the execution recorded, never from
-            // the qualification record. When the execution recorded none the
-            // dimension is UNKNOWN: that cannot qualify a production claim.
-            let (toolchain, unknown) = match executed_toolchain.filter(|t| !t.trim().is_empty()) {
-                Some(executed) => (executed.to_owned(), false),
-                None => (TOOLCHAIN_UNKNOWN.to_owned(), true),
-            };
-            if unknown && production {
-                out.push(format!(
-                    "provider-qualification:{id}:toolchain-unknown: execution recorded no toolchain"
-                ));
-            }
-            // Rule version and features come from the execution, never the
-            // record. Unrecorded: UNKNOWN, which cannot qualify a production
-            // claim; outside production the record's value is borrowed as a
-            // disclosed gap.
-            let rule_version = executed_rule_version.filter(|v| !v.trim().is_empty());
-            if production && rule_version.is_none() {
-                out.push(format!(
-                    "provider-qualification:{id}:rule-version-unknown: execution recorded no rule version"
-                ));
-            }
-            if production && executed_features.is_none() {
-                out.push(format!(
-                    "provider-qualification:{id}:features-unknown: execution recorded no feature set"
-                ));
-            }
-            let context = QualificationContext {
-                provider_id: provider.id.clone(),
-                provider_version: provider.version.clone(),
-                rule_version: match rule_version {
-                    Some(v) => Some(v.to_owned()),
-                    None if production => Some("UNKNOWN".to_owned()),
-                    None => record.rule_version.clone(),
-                },
-                host: run_host_label(),
-                // Outside production an unrecorded toolchain is a disclosed gap
-                // (the record's value is borrowed for that one dimension only).
-                toolchain: if unknown && !production {
-                    record.toolchain.clone()
-                } else {
-                    toolchain
-                },
-                target: frozen.product_target.target.clone(),
-                variant: frozen.product_target.variant.clone(),
-                features: match executed_features {
-                    Some(f) => f.to_vec(),
-                    None if production => vec!["UNKNOWN".to_owned()],
-                    None => record.features.clone(),
-                },
-                requires_production_evidence: production,
-            };
-            let verdict = evaluate_qualification(Some(&record), &context, &now_utc_for_freshness());
-            out.extend(
-                verdict
-                    .mismatches
-                    .into_iter()
-                    .map(|m| format!("provider-qualification:{id}:{m}")),
-            );
-        }
-        None if production => out.push(format!(
-            "provider-qualification:{id}:missing-qualification-record"
-        )),
-        None => {}
-    }
-    out
-}
-
-fn now_utc_for_freshness() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0) as i64;
-    let days = secs.div_euclid(86_400);
-    let rem = secs.rem_euclid(86_400);
-    // civil-from-days (Howard Hinnant)
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = if m <= 2 { y + 1 } else { y };
-    format!(
-        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
-        rem / 3600,
-        (rem % 3600) / 60,
-        rem % 60
-    )
-}
-
 /// Derive `ProviderExecution` evidence from a signed-plan execution. Only an
 /// execution bound to `plan` (digest + signature present) yields evidence;
-/// every listed provider must have run (not skipped) and carry coverage, and
-/// a provider unqualified in the frozen plan cannot discharge an obligation.
+/// every listed provider must have run (not skipped), complete, and carry
+/// coverage.
 pub fn evidence_from_execution(
     frozen: &AuditAssuranceV1,
     plan: &FrozenPlan,
@@ -1397,7 +1074,6 @@ pub fn evidence_from_execution(
         }
         let mut coverages: Vec<&Coverage> = Vec::new();
         let mut finding_ids = BTreeSet::new();
-        let mut mismatches = Vec::new();
         let mut all_ran = true;
         for provider_id in &obligation.provider_ids {
             let ran = execution
@@ -1421,36 +1097,6 @@ pub fn evidence_from_execution(
             }
             for finding in &row.result.findings {
                 finding_ids.insert(finding.id.as_str().to_owned());
-            }
-            let executed_toolchain = row
-                .result
-                .details
-                .get(EXECUTED_TOOLCHAIN_DETAIL_KEY)
-                .and_then(Value::as_str);
-            let executed_rule_version = row
-                .result
-                .details
-                .get(EXECUTED_RULE_VERSION_DETAIL_KEY)
-                .and_then(Value::as_str);
-            let executed_features: Option<Vec<String>> = row
-                .result
-                .details
-                .get(EXECUTED_FEATURES_DETAIL_KEY)
-                .and_then(Value::as_array)
-                .and_then(|list| {
-                    list.iter()
-                        .map(|v| v.as_str().map(str::to_owned))
-                        .collect::<Option<Vec<_>>>()
-                });
-            match plan.provider(provider_id) {
-                Some(p) => mismatches.extend(provider_qualification_mismatches(
-                    p,
-                    frozen,
-                    executed_toolchain,
-                    executed_rule_version,
-                    executed_features.as_deref(),
-                )),
-                None => mismatches.push(format!("provider-unqualified:{provider_id}")),
             }
         }
         if !all_ran || coverages.is_empty() {
@@ -1481,10 +1127,6 @@ pub fn evidence_from_execution(
             attested_by: None,
             authenticated: false,
             produced_by_runtime: None,
-            qualification: (!mismatches.is_empty()).then_some(QualificationVerdict {
-                applicable: false,
-                mismatches,
-            }),
         });
     }
     out

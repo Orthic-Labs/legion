@@ -120,17 +120,15 @@ overrides it.
    `finding-history-store-missing-or-rolled-back`, never a pass.
 10. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens
-   coverage stays typed `incomplete`. Providers without a passing bench class or qualification record
-   appear as non-blocking `unqualified:<provider>` coverage notes (`coverageNotes`) unless the registry
-   marks them `requiredForCleanClaim`; report them, they do not block a clean verdict.
+   coverage stays typed `incomplete`. A clean verdict means every applicable required provider ran and completed.
+   `coverageNotes` carries only non-blocking notes (advisory ownership, declared capability, retries).
 11. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, & receipts, artifacts, &
 typed degradation; `quality_gate` stays separate, and `coverageMode` (`exhaustive` or `sampled`) is
 reported apart from both. A risk-sampled run is labelled "whole-repository risk-sampled audit" and reports
 `qualityGate: sampled`, never `proven`; its findings and missing evidence keep their own states. A zero-finding result is reportable only after
-every selected provider, lens, candidate adjudication, denominator, & required qualification
-reconciles. The frozen plan retains the full applicable provider/lens/path universe. If the bounded
+every selected provider, lens, candidate adjudication, & denominator reconciles. The frozen plan retains the full applicable provider/lens/path universe. If the bounded
 selection defers mandatory paths, record their exact paths and digest as `mandatoryDeferred`, emit
 explicit coverage gaps, and keep the run `incomplete`; never call deferred mandatory coverage clean
 or convert it into confidence. Explicit `exhaustive` mode remains strict and refuses when it cannot fit.
@@ -152,13 +150,12 @@ the plan before solving; a pass under a weaker profile never projects to a stron
   their own workspace/scheme/destination evidence and cannot reuse macOS SwiftPM results; native JS/TS lint
   (Oxlint/Biome) runs without Node; PostgreSQL, Nginx, dependency health, structure, domain contracts, and
   runtime journeys each keep their own denominators and gaps.
-- Four separate claims, reported distinctly and never merged:
+- Three separate claims, reported distinctly and never merged:
   - **implemented**: source integrated and relevant checks passed;
-  - **fixture-qualified**: rule/provider exercised on broken and valid fixtures with recorded error rates;
   - **host-qualified**: trusted owner invocation, containment, and receipts on an exact host/toolchain;
   - **app-qualified**: exact repository set, artifacts, and required journeys satisfy the selected profile.
   A rule can be implemented but shadow-only; a complete audit can carry blocking findings; a
-  fixture-qualified provider can leave release incomplete. Never state a claim that was not reached.
+  implemented provider can leave release incomplete. Never state a claim that was not reached.
 - Selectors over saved reports: `legion report <report.json> --report assurance|trend|debt [--format json|markdown]`.
   `assurance` projects the claims above, `trend` projects finding history over saved runs, and `debt`
   projects open debt. These are projections only; they add no scan.
@@ -180,7 +177,7 @@ the plan before solving; a pass under a weaker profile never projects to a stron
     executable is admission-checked; their PATH is pinned to trusted system directories.
   - Host state (`LEGION_STATE_ROOT`), owner policy, issuer and attestor enrollment are same-user
     authority until an out-of-process signer exists (bogusyogi/rightkit#944).
-  - No production qualification records exist yet; release eligibility needs enrolled CI evidence.
+  - Release eligibility needs enrolled CI evidence.
 - External tools (scanners, linters, build/type/test commands) run only through the host-owned policy file
   described in step 4. Without that admission, each tool stays an explicit typed gap
   (`native-owner-admission-unavailable`), never a clean result and never a direct fallback.

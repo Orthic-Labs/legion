@@ -90,15 +90,6 @@ pub fn default_issuers_path() -> Option<PathBuf> {
     crate::host_owner::default_policy_path().map(|p| p.with_file_name(ISSUERS_FILE))
 }
 
-/// Host-state file enrolling qualification attestor keys (same state root and
-/// hardening as the evidence issuers file).
-pub const QUALIFICATION_ATTESTORS_FILE: &str = "audit-qualification-attestors.json";
-
-/// `<LEGION state root>/audit-qualification-attestors.json`.
-pub fn default_qualification_attestors_path() -> Option<PathBuf> {
-    crate::host_owner::default_policy_path().map(|p| p.with_file_name(QUALIFICATION_ATTESTORS_FILE))
-}
-
 /// Read a host-state enrollment file with the issuer-file hardening: canonical
 /// non-symlink path, outside every audited root, owner-only 0600 regular file
 /// in a non-group/world-writable owner-controlled directory. `Ok(None)`: no

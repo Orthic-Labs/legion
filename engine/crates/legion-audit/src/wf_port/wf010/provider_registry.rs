@@ -629,17 +629,6 @@ pub fn adapt_provider_v2_registry(raw: &Value) -> Value {
             }
             out.insert("manifest".into(), manifest);
         }
-        let benchmark_in = get(provider, "benchmark").cloned().unwrap_or(Value::Null);
-        let mut benchmark = if benchmark_in.is_object() {
-            benchmark_in
-        } else {
-            json!({"status": benchmark_in})
-        };
-        benchmark
-            .as_object_mut()
-            .unwrap()
-            .insert("requiredForCleanClaim".into(), json!(true));
-        out.insert("benchmark".into(), benchmark);
         out.insert("producesSecurityCandidates".into(), json!(candidate));
         out.insert("mayCloseOwnCandidates".into(), json!(!candidate));
         if role == "adjudicator" {
@@ -1083,7 +1072,6 @@ pub fn render_manifest(registry: &Value) -> Value {
                 "applies": get(&manifest, "applies"),
                 "parallel": get(&manifest, "parallel"),
                 "backs": get(&manifest, "backs"),
-                "benchmark_status": get(p, "benchmark").and_then(|b| get(b, "status")).cloned().unwrap_or(json!("unproven")),
             });
             if get(&manifest, "flag_if_absent").and_then(|v| v.as_bool()) == Some(true) {
                 obj.as_object_mut().unwrap().insert("flag_if_absent".into(), json!(true));
@@ -1108,8 +1096,6 @@ pub fn render_manifest(registry: &Value) -> Value {
                 "role": get(p, "role"),
                 "phase": get(p, "phase"),
                 "runner": get(p, "runner"),
-                "benchmark_status": get(p, "benchmark").and_then(|b| get(b, "status")).cloned().unwrap_or(json!("unproven")),
-                "required_for_clean_claim": get(p, "benchmark").and_then(|b| get(b, "requiredForCleanClaim")).and_then(|v| v.as_bool()).unwrap_or(false),
                 "allow_without_blueprint": get(p, "allowWithoutBlueprint").and_then(|v| v.as_bool()).unwrap_or(false),
                 "produces_security_candidates": get(p, "producesSecurityCandidates").and_then(|v| v.as_bool()).unwrap_or(false),
                 "fresh_context_required": get(p, "freshContextRequired").and_then(|v| v.as_bool()).unwrap_or(false),

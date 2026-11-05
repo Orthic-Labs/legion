@@ -182,11 +182,7 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         host_capabilities: Vec::new(),
         execution: serde_json::json!({}),
         reasoning: serde_json::json!({}),
-        benchmark: serde_json::json!({
-            "status": "qualified",
-            "requiredForCleanClaim": true,
-            "qualificationDigest": "sha256:fixture"
-        }),
+        benchmark: serde_json::json!({}),
         clean_claim: "finding-producing".into(),
         control_ids: Vec::new(),
         scopes: Vec::new(),
@@ -285,11 +281,7 @@ fn fixture_specification() -> ProviderSpec {
         host_capabilities: Vec::new(),
         execution: serde_json::json!({}),
         reasoning: serde_json::json!({}),
-        benchmark: serde_json::json!({
-            "status": "qualified",
-            "requiredForCleanClaim": true,
-            "qualificationDigest": "sha256:fixture"
-        }),
+        benchmark: serde_json::json!({}),
         clean_claim: "finding-producing".into(),
         control_ids: Vec::new(),
         scopes: Vec::new(),

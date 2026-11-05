@@ -64,13 +64,9 @@ counts in `reasoningLensesRan` only through an ingested receipt; unsigned plans 
 (set `AUDIT_PLAN_SIGNING_KEY`). A rerun of `legion audit --out` replaces the epoch key and discards
 older receipts.
 
-Qualification: a provider is qualified when its registry entry carries `benchmark.status: qualified`
-with a `qualificationDigest`. No provider carries one: the retained qualification records were
-deleted on 2026-11-05, so every provider is `benchmark.status: unproven`. An
-unqualified provider that completed is a non-blocking `unqualified:<provider>` entry in
-`coverageNotes`; it blocks clean (`provider-unqualified:<provider>` gap) only when its registry entry
-sets `benchmark.requiredForCleanClaim: true`. Clean requires every applicable required provider
-complete and every required lens ingested.
+Clean verdict: clean requires every applicable required provider to have run and completed and every
+required lens to be ingested. An incomplete required provider is a `provider-incomplete:<provider>` gap;
+`coverageNotes` carries only non-blocking notes (advisory ownership, declared capability, retries).
 
 ## Network sandbox and runtime capture (step 4 detail)
 
@@ -109,7 +105,7 @@ audit incomplete. An unadjudicated security candidate stays `UNPROVEN` whatever 
   frozen plan → provider-bounded reasoning.
 - The agent never selects, adds, removes, or narrows providers after execution begins.
 - The declarative provider registry loaded by the native binary is the executable source of truth.
-  Loaders may validate and merge registry data, but may not invent providers or qualifications.
+  Loaders may validate and merge registry data, but may not invent providers or claims.
 - `plan.json` carries a SHA-256 integrity digest and an HMAC-SHA-256 authenticity signature bound
   to revision, dirty digest, Blueprint generation, registry digest, provider set, and denominators.
   An unsigned plan is valid only as an `UNPROVEN` artifact and cannot support a clean claim.

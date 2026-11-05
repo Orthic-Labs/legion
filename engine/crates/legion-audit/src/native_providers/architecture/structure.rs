@@ -111,10 +111,6 @@ pub struct StructureFileInput {
 pub struct StructureConfig {
     pub review_loc_threshold: u64,
     pub duplicate_min_tokens: usize,
-    /// Root-qualified token languages for which native duplication may replace
-    /// jscpd. Empty until root records a qualification; unqualified duplicate
-    /// spans remain facts with `qualified: false`.
-    pub qualified_token_languages: BTreeSet<StructureLanguage>,
     /// Reviewer/root-supplied invariant evidence, keyed by normalized span
     /// digest. A shared-abstraction suggestion exists only with this.
     pub shared_invariants: Vec<SharedInvariant>,
@@ -125,7 +121,6 @@ impl Default for StructureConfig {
         Self {
             review_loc_threshold: DEFAULT_REVIEW_LOC_THRESHOLD,
             duplicate_min_tokens: DEFAULT_DUPLICATE_MIN_TOKENS,
-            qualified_token_languages: BTreeSet::new(),
             shared_invariants: Vec::new(),
         }
     }
@@ -272,9 +267,6 @@ pub struct DuplicateSpan {
     pub token_count: u64,
     pub normalized_digest: String,
     pub occurrences: Vec<SpanRef>,
-    /// True only when root qualified this token language/metric; only then
-    /// may native duplication stand in for jscpd.
-    pub qualified: bool,
     /// Present only with root/reviewer invariant + ownership evidence.
     pub shared_abstraction: Option<SharedInvariant>,
 }
@@ -336,8 +328,6 @@ pub struct StructureFacts {
     pub suggestions: Vec<MinimizeSuggestion>,
     /// Generated/vendor/unsupported inputs, recorded — never silently dropped.
     pub exclusions: Vec<Exclusion>,
-    /// Token languages with at least one qualified duplicate span.
-    pub replaces_jscpd_for: Vec<StructureLanguage>,
     pub partial: bool,
     pub gaps: Vec<String>,
     /// Always `false`, mirroring `BlastRadiusContext::proves_dead_code`.
@@ -1145,7 +1135,6 @@ fn find_duplicates(
                 token_count: window as u64,
                 normalized_digest: digest,
                 occurrences,
-                qualified: config.qualified_token_languages.contains(&language),
                 shared_abstraction,
             });
         }
@@ -1349,16 +1338,6 @@ pub fn analyze_structure(
     }
 
     let duplicates = find_duplicates(&parsed_tokens, config);
-    let replaces_jscpd_for: Vec<StructureLanguage> = duplicates
-        .iter()
-        .filter(|d| d.qualified)
-        .map(|d| d.language)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
-    if !duplicates.is_empty() && replaces_jscpd_for.is_empty() {
-        gaps.push("duplication-unqualified; native spans do not replace jscpd until root qualifies token languages".into());
-    }
 
     // Logical modules: mechanical partNN/*_parts groups (and include!-
     // stitched roots) aggregate; a named barrel directory aggregates
@@ -1460,7 +1439,6 @@ pub fn analyze_structure(
         logical_modules,
         suggestions,
         exclusions,
-        replaces_jscpd_for,
         partial,
         gaps,
         proves_dead_code: false,

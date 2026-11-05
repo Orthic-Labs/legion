@@ -4054,7 +4054,7 @@ fn native_rule_diagnostic_application(
         "denominatorKind": "repository-inventory",
         "runner": {"kind":"built-in","implementation":"native-rule-manifest"},
         "hostCapabilities": [], "execution": {}, "reasoning": {},
-        "benchmark": {"status":"unproven","requiredForCleanClaim":false},
+        "benchmark": {},
         "cleanClaim": "finding-producing",
         "controlIds": [], "scopes": [], "selectable": true
     }))

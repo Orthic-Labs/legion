@@ -201,11 +201,8 @@ pub struct ExecutionReport {
     /// Coverage tags only; these are not reasoning lenses.
     #[serde(default)]
     pub deterministic_lens_tags: BTreeMap<String, usize>,
-    /// Non-blocking coverage notes. `unqualified:<provider>` records a provider
-    /// that completed but has no passing benchmark class or qualification
-    /// record and is not marked `benchmark.requiredForCleanClaim`. A note never
-    /// blocks a clean verdict; a required provider that is unqualified is a
-    /// `provider-unqualified:<provider>` gap instead.
+    /// Non-blocking coverage notes (advisory ownership, declared capability,
+    /// retry notes). A note never blocks a clean verdict.
     #[serde(default)]
     pub coverage_notes: Vec<String>,
     pub gaps: Vec<String>,
@@ -220,32 +217,6 @@ fn sorted_unique(mut values: Vec<String>) -> Vec<String> {
     values.sort();
     values.dedup();
     values
-}
-
-/// A provider is qualified when its registry entry carries a qualified
-/// benchmark status and a qualification digest (a passing bench class or an
-/// explicit qualification record).
-fn provider_qualified(provider: &AuditProvider) -> bool {
-    provider.benchmark_status == "qualified" && provider.qualification_digest.is_some()
-}
-
-/// Unqualified providers block a clean verdict only when the registry marks
-/// them `requiredForCleanClaim`. Otherwise a completed unqualified provider is
-/// reported as a non-blocking `unqualified:<id>` coverage note.
-fn record_qualification(
-    provider: &AuditProvider,
-    completed: &BTreeSet<String>,
-    gaps: &mut Vec<String>,
-    notes: &mut Vec<String>,
-) {
-    if provider.not_applicable() || provider_qualified(provider) {
-        return;
-    }
-    if provider.benchmark_required_for_clean_claim {
-        gaps.push(format!("provider-unqualified:{}", provider.id));
-    } else if completed.contains(&provider.id) {
-        notes.push(format!("unqualified:{}", provider.id));
-    }
 }
 
 /// `governance.capability-ownership` is advisory unless the host marks it
@@ -416,7 +387,7 @@ fn run_sync(
     recorder: Option<Arc<RunRecorder>>,
     seeds: BTreeMap<String, ProviderSeed>,
 ) -> Result<ExecutionReport, AuditError> {
-    let mut engine = Engine::new(plan, inventory, config, true, recorder.clone(), seeds)?;
+    let mut engine = Engine::new(plan, inventory, config, recorder.clone(), seeds)?;
     let sink = recorder.as_deref();
     while let Some(wave) = engine.next_wave()? {
         engine.record_started(&wave)?;
@@ -523,7 +494,7 @@ async fn run_async(
     recorder: Option<Arc<RunRecorder>>,
     seeds: BTreeMap<String, ProviderSeed>,
 ) -> Result<ExecutionReport, AuditError> {
-    let mut engine = Engine::new(plan, inventory, config, false, recorder.clone(), seeds)?;
+    let mut engine = Engine::new(plan, inventory, config, recorder.clone(), seeds)?;
     let sink = recorder.as_deref();
     while let Some(wave) = engine.next_wave()? {
         engine.record_started(&wave)?;
@@ -647,9 +618,8 @@ async fn run_unit_async(
 struct Slot {
     execution: Option<ProviderExecution>,
     /// Gaps describing this provider's own failure; an equivalent fallback may
-    /// retire them. Everything else stays in `gaps`.
+    /// retire them.
     failure_gaps: Vec<String>,
-    gaps: Vec<String>,
     notes: Vec<String>,
     pending_host: bool,
     completed: bool,
@@ -679,9 +649,6 @@ struct Engine<'a> {
     selected_lenses: Vec<String>,
     selected_reasoning: Vec<String>,
     unsigned: bool,
-    /// The synchronous path historically skipped qualification accounting for
-    /// an invalid provider result; the async path did not. Preserved as-is.
-    skip_qualification_on_invalid: bool,
     /// Journal sink; `None` for library callers without a run directory.
     recorder: Option<Arc<RunRecorder>>,
     /// Verified prior outcomes a resumed run feeds in instead of executing.
@@ -695,7 +662,6 @@ impl<'a> Engine<'a> {
         plan: &'a FrozenPlan,
         inventory: &'a InventoryEnvelope,
         config: &'a SchedulerConfig,
-        skip_qualification_on_invalid: bool,
         recorder: Option<Arc<RunRecorder>>,
         seeds: BTreeMap<String, ProviderSeed>,
     ) -> Result<Self, AuditError> {
@@ -817,7 +783,6 @@ impl<'a> Engine<'a> {
             selected_lenses,
             selected_reasoning: selected_reasoning_lenses(plan),
             unsigned: gaps_unsigned,
-            skip_qualification_on_invalid,
             recorder,
             seeded: seeds.keys().cloned().collect(),
             seeds,
@@ -934,7 +899,7 @@ impl<'a> Engine<'a> {
                     }
                 }
             }
-            self.close(position, false);
+            self.close(position);
             return Ok(true);
         }
         let policy = &self.policies[position];
@@ -1019,23 +984,12 @@ impl<'a> Engine<'a> {
                 }
             }
         }
-        self.close(position, true);
+        self.close(position);
         Ok(())
     }
 
-    /// Mark settled and apply qualification accounting.
-    fn close(&mut self, position: usize, qualify: bool) {
-        let plan = self.plan;
-        let provider = &plan.providers()[position];
-        if qualify {
-            let completed = if self.slots[position].completed {
-                BTreeSet::from([provider.id.clone()])
-            } else {
-                BTreeSet::new()
-            };
-            let slot = &mut self.slots[position];
-            record_qualification(provider, &completed, &mut slot.gaps, &mut slot.notes);
-        }
+    /// Mark a provider settled.
+    fn close(&mut self, position: usize) {
         self.settled[position] = true;
     }
 
@@ -1057,7 +1011,6 @@ impl<'a> Engine<'a> {
         let plan = self.plan;
         let provider = &plan.providers()[position];
         let attempts = outcome.attempts;
-        let mut qualify = true;
         let mut infrastructure_failure = false;
         let mut failure_gaps = Vec::new();
         let mut notes = Vec::new();
@@ -1078,9 +1031,7 @@ impl<'a> Engine<'a> {
                     skipped: false,
                 };
             }
-            Ok(mut result) => {
-                stamp_executed_toolchain(provider, &mut result);
-                stamp_executed_rule_and_features(provider, &mut result);
+            Ok(result) => {
                 let denominator = provider_denominator(provider, self.inventory, &self.candidates)?;
                 let result_error = result
                     .validate()
@@ -1105,7 +1056,6 @@ impl<'a> Engine<'a> {
                     failed = true;
                     proof = ProofState::Failed;
                     reason = Some("invalid-provider-result".into());
-                    qualify = !self.skip_qualification_on_invalid;
                     execution = failed_execution_with_diagnostic(
                         provider,
                         gap,
@@ -1213,7 +1163,7 @@ impl<'a> Engine<'a> {
                 }
             }
         }
-        self.close(position, qualify);
+        self.close(position);
         Ok(())
     }
 
@@ -1323,7 +1273,6 @@ impl<'a> Engine<'a> {
                 ))
             })?;
             gaps.extend(slot.failure_gaps);
-            gaps.extend(slot.gaps);
             coverage_notes.extend(slot.notes);
             if slot.pending_host {
                 pending_host.push(plan.providers()[position].id.clone());
@@ -2055,157 +2004,3 @@ fn string_array(value: Option<&Value>) -> bool {
     })
 }
 
-/// Tool identity (`name@version`) a receipt actually records. Receipt shapes:
-/// `executionReceipt(s)[].tool`, `sdkReceipt(s)[].tool` or `.sdk`, each with
-/// non-empty `name` and `version`.
-fn receipt_toolchain(value: &serde_json::Value) -> Option<String> {
-    let tool = value
-        .get("tool")
-        .or_else(|| value.get("sdk"))
-        .unwrap_or(value);
-    let name = tool.get("name").and_then(serde_json::Value::as_str)?;
-    let version = tool.get("version").and_then(serde_json::Value::as_str)?;
-    (!name.trim().is_empty() && !version.trim().is_empty()).then(|| format!("{name}@{version}"))
-}
-
-/// Record the rule version and enabled features the execution actually used,
-/// from the receipts the result carries (`ruleVersion` + optional
-/// `rulesetDigest`, `features`, on the receipt or its tool/sdk object) or, for
-/// in-process native algorithms with no receipt, the frozen provider version
-/// and its declared `rulesetDigest` / `features` configuration. Any pre-existing
-/// value is replaced; partial or absent identity leaves the key absent
-/// (UNKNOWN). Never taken from a qualification record.
-fn stamp_executed_rule_and_features(provider: &AuditProvider, result: &mut ProviderResult) {
-    use crate::assurance::{EXECUTED_FEATURES_DETAIL_KEY, EXECUTED_RULE_VERSION_DETAIL_KEY};
-    use serde_json::Value;
-    result.details.remove(EXECUTED_RULE_VERSION_DETAIL_KEY);
-    result.details.remove(EXECUTED_FEATURES_DETAIL_KEY);
-    let mut receipts: Vec<&Value> = Vec::new();
-    for field in [
-        "executionReceipt",
-        "sdkReceipt",
-        "executionReceipts",
-        "sdkReceipts",
-    ] {
-        match result.details.get(field) {
-            Some(Value::Array(list)) => receipts.extend(list.iter()),
-            Some(value) if !value.is_null() => receipts.push(value),
-            _ => {}
-        }
-    }
-    let rule_of = |holder: &Value| -> Option<String> {
-        let version = holder.get("ruleVersion").and_then(Value::as_str)?;
-        if version.trim().is_empty() {
-            return None;
-        }
-        match holder.get("rulesetDigest").and_then(Value::as_str) {
-            Some(d) if !d.trim().is_empty() => Some(format!("{version}+{d}")),
-            _ => Some(version.to_owned()),
-        }
-    };
-    let features_of = |holder: &Value| -> Option<Vec<String>> {
-        holder
-            .get("features")
-            .and_then(Value::as_array)?
-            .iter()
-            .map(|v| v.as_str().map(str::to_owned))
-            .collect()
-    };
-    let inner =
-        |r: &Value| -> Value { r.get("tool").or_else(|| r.get("sdk")).unwrap_or(r).clone() };
-    let (rule, features): (Option<String>, Option<Vec<String>>) = if receipts.is_empty() {
-        if provider.kind != crate::plan::ProviderKind::RustAlgorithm {
-            (None, None)
-        } else {
-            let digest = provider
-                .configuration
-                .get("rulesetDigest")
-                .and_then(Value::as_str)
-                .filter(|d| !d.trim().is_empty());
-            let rule = match digest {
-                Some(d) => format!("{}+{d}", provider.version),
-                None => provider.version.clone(),
-            };
-            let features = match provider.configuration.get("features") {
-                None => Some(Vec::new()),
-                Some(v) => features_of(&serde_json::json!({ "features": v })),
-            };
-            (Some(rule), features)
-        }
-    } else {
-        let mut rules: Vec<String> = receipts
-            .iter()
-            .filter_map(|r| rule_of(r).or_else(|| rule_of(&inner(r))))
-            .collect();
-        let all_rules = rules.len() == receipts.len();
-        rules.sort();
-        rules.dedup();
-        let mut union = std::collections::BTreeSet::new();
-        let mut all_features = true;
-        for r in &receipts {
-            match features_of(r).or_else(|| features_of(&inner(r))) {
-                Some(list) => union.extend(list),
-                None => all_features = false,
-            }
-        }
-        (
-            (all_rules && !rules.is_empty()).then(|| rules.join("+")),
-            all_features.then(|| union.into_iter().collect()),
-        )
-    };
-    if let Some(rule) = rule {
-        result
-            .details
-            .insert(EXECUTED_RULE_VERSION_DETAIL_KEY.into(), Value::String(rule));
-    }
-    if let Some(mut features) = features {
-        features.sort();
-        features.dedup();
-        result.details.insert(
-            EXECUTED_FEATURES_DETAIL_KEY.into(),
-            Value::Array(features.into_iter().map(Value::String).collect()),
-        );
-    }
-}
-
-/// Record the executed toolchain under `executedToolchain`. Derived only from
-/// receipts the provider's result carries, or, for in-process native
-/// algorithms with no receipt, the engine identity. A receipt without a tool
-/// identity leaves the key absent (UNKNOWN); the value is never taken from the
-/// qualification record or the registry, and any pre-existing value is replaced.
-fn stamp_executed_toolchain(provider: &AuditProvider, result: &mut ProviderResult) {
-    let key = crate::assurance::EXECUTED_TOOLCHAIN_DETAIL_KEY;
-    result.details.remove(key);
-    let mut receipts: Vec<&serde_json::Value> = Vec::new();
-    for field in [
-        "executionReceipt",
-        "sdkReceipt",
-        "executionReceipts",
-        "sdkReceipts",
-    ] {
-        match result.details.get(field) {
-            Some(serde_json::Value::Array(list)) => receipts.extend(list.iter()),
-            Some(value) if !value.is_null() => receipts.push(value),
-            _ => {}
-        }
-    }
-    let identity = if receipts.is_empty() {
-        (provider.kind == crate::plan::ProviderKind::RustAlgorithm)
-            .then(|| format!("{}@{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")))
-    } else {
-        let mut found: Vec<String> = receipts
-            .iter()
-            .filter_map(|r| receipt_toolchain(r))
-            .collect();
-        found.sort();
-        found.dedup();
-        // Every receipt must identify its tool; mixed or partial identity is UNKNOWN.
-        (!found.is_empty() && receipts.iter().all(|r| receipt_toolchain(r).is_some()))
-            .then(|| found.join("+"))
-    };
-    if let Some(identity) = identity {
-        result
-            .details
-            .insert(key.into(), serde_json::Value::String(identity));
-    }
-}

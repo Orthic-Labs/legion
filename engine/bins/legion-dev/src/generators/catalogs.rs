@@ -68,7 +68,6 @@ pub fn build_catalogs(root: &Path) -> Result<Value, String> {
                     "providerVersion",
                     "role",
                     "family",
-                    "benchmark",
                     "selectable",
                 ],
             )
@@ -118,7 +117,7 @@ pub fn run(root: &Path, check: bool) -> bool {
             eprintln!("catalog drift: {OUT_REL} does not match its canonical registry sources.");
             return false;
         }
-        println!("qualification catalogs: no drift");
+        println!("catalogs: no drift");
         true
     } else {
         if let Some(parent) = target.parent() {

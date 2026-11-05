@@ -333,7 +333,6 @@ pub fn reconcile_plan_with_facts(plan: &Map<String, Value>, facts: &Value) -> Va
         .iter()
         .map(|provider| {
             let runner_kind = provider.pointer("/runner/kind").and_then(|k| k.as_str());
-            let benchmark = provider.get("benchmark").cloned().unwrap_or(Value::Null);
             if runner_kind == Some("legacy-check") {
                 let check_name = provider
                     .pointer("/runner/check")
@@ -349,7 +348,6 @@ pub fn reconcile_plan_with_facts(plan: &Map<String, Value>, facts: &Value) -> Va
                         .map(|r| r.get("status").and_then(|s| s.as_str()) == Some("ran"))
                         .unwrap_or(false),
                     "findingsCount": result.and_then(|r| r.get("findings_count")).cloned().unwrap_or(Value::Null),
-                    "benchmark": benchmark,
                 })
             } else {
                 json!({
@@ -357,7 +355,6 @@ pub fn reconcile_plan_with_facts(plan: &Map<String, Value>, facts: &Value) -> Va
                     "phase": provider.get("phase").cloned().unwrap_or(Value::Null),
                     "status": "pending",
                     "complete": false,
-                    "benchmark": benchmark,
                 })
             }
         })

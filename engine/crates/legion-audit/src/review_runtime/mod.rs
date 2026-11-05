@@ -7,7 +7,6 @@ mod model;
 mod native;
 mod partial;
 pub(crate) mod projection;
-pub mod qualification;
 mod tools;
 mod verification;
 use crate::{
@@ -214,7 +213,7 @@ fn action(value: Value) -> Result<Action, AuditError> {
 }
 // finalResult.details is limited to the keys ingest accepts (semanticReview, changeRisk,
 // candidateDispositions) so the CLI rejects extras (observed: a free-text `coverage` note)
-/// Single-call packets (strict qualification or max one call) cannot serve a
+/// Single-call packets (strict no-retry or max one call) cannot serve a
 /// toolRequest, so the model is offered finalResult alone and no context tools.
 /// When every frozen denominator path is delivered raw and untruncated, say so:
 /// absence of a reference across the supplied files is then established

@@ -9,7 +9,7 @@
 //! * `--all-features` is only a legal selection when the product declares it
 //!   valid and no mutually-exclusive feature group exists.
 //! * Evidence for one target/variant/feature set never discharges another
-//!   (iOS or macOS qualification is not Linux, release is not dev).
+//!   (iOS or macOS evidence is not Linux evidence, release is not dev).
 //! * Miri evidence covers executed, Miri-supported unsafe paths only; sites
 //!   not executed or unsupported (FFI, inline asm, ...) remain unmet.
 //! * No declared matrix means an explicit gap, never an implied pass.
@@ -25,7 +25,7 @@ use crate::artifact_evidence::{
     is_rfc3339_utc_second, CommandBinding, EvidenceOutcome, ExpectedEvidence, ImportKind,
     ImportedEvidenceRecord, ReplayPolicy, RepositoryBinding,
 };
-use crate::assurance::{EvidenceKind, ObligationStatus, QualificationContext};
+use crate::assurance::{EvidenceKind, ObligationStatus};
 use crate::error::AuditError;
 
 pub const PROVIDER_ID: &str = "code.rust.targets";
@@ -68,7 +68,7 @@ impl FeatureSelection {
         }
     }
 
-    /// Explicit feature names (for qualification scope and conflict checks).
+    /// Explicit feature names (for conflict checks).
     pub fn explicit_features(&self) -> Vec<String> {
         match self {
             Self::NoDefaultFeatures { features } | Self::Explicit { features } => {
@@ -245,28 +245,6 @@ impl RustTargetObligation {
 
     pub fn concern(&self) -> String {
         self.kind.concern()
-    }
-
-    /// Qualification context for this exact selection. A record qualified
-    /// for another triple, variant or feature set cannot apply (N09).
-    pub fn qualification_context(
-        &self,
-        provider_id: &str,
-        provider_version: &str,
-        host: &str,
-        requires_production_evidence: bool,
-    ) -> QualificationContext {
-        QualificationContext {
-            provider_id: provider_id.to_string(),
-            provider_version: provider_version.to_string(),
-            rule_version: None,
-            host: host.to_string(),
-            toolchain: self.toolchain.clone(),
-            target: self.obligation_target(),
-            variant: Some(self.obligation_variant()),
-            features: self.features.explicit_features(),
-            requires_production_evidence,
-        }
     }
 
     /// Frozen A03 expectations for this obligation.

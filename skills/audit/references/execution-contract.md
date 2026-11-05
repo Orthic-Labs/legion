@@ -116,13 +116,12 @@ as run only after a built binary demonstrates it.
     results are never inferred from source results; missing typed inputs stay a gap.
   - Android: Android Lint runs per variant; manifest, SDK, and target evidence are per app.
   - Apple: Xcode/iOS targets need exact workspace, scheme, configuration, and destination. An iOS target
-    cannot use macOS SwiftPM qualification.
+    cannot use macOS SwiftPM results.
   - JS/TS: native lint (Oxlint or Biome) runs without Node.
   - PostgreSQL, Nginx, dependency health (advisories, freshness, EOL, licenses), structure facts, domain
     contracts, and runtime journeys each report their own applicable set and typed gaps.
-- **Four separate claims** are never merged: *implemented* (source integrated, relevant checks passed);
-  *fixture-qualified* (exact rule revision, broken and valid fixtures, raw outcomes, false-positive and
-  false-negative counts, excluded cases); *host-qualified* (trusted owner invocation, containment,
+- **Three separate claims** are never merged: *implemented* (source integrated, relevant checks passed);
+  *host-qualified* (trusted owner invocation, containment,
   termination, receipt validation, exact host and toolchain); *app-qualified* (exact repository set,
   target and deployed artifacts, required journeys, current receipts for the selected profile).
 - **External tools** run only through the host-owned policy file `<state>/audit-owner-policy.json` (absolute path and
@@ -284,13 +283,9 @@ variants is a valid complete result (`findings: []`). The parent gap clears, and
 the parent report, only when the follow-up is complete and its chain verifies; a follow-up that does not
 chain to the parent (`securityVariantFollowup.status: invalid`) keeps the gap and fails `legion verify`.
 
-Qualification: a provider is qualified when its registry entry carries `benchmark.status: qualified`
-with a `qualificationDigest`. No provider carries one: the retained qualification records were
-deleted on 2026-11-05, so every provider is `benchmark.status: unproven`. An
-unqualified provider that completed is a non-blocking `unqualified:<provider>` entry in
-`coverageNotes`; it blocks clean (`provider-unqualified:<provider>` gap) only when its registry entry
-sets `benchmark.requiredForCleanClaim: true`. Clean requires every applicable required provider
-complete and every required lens ingested.
+Clean verdict: clean requires every applicable required provider to have run and completed and every
+required lens to be ingested. An incomplete required provider is a `provider-incomplete:<provider>` gap;
+`coverageNotes` carries only non-blocking notes (advisory ownership, declared capability, retries).
 
 ## Network sandbox and runtime capture (step 4 detail)
 
@@ -352,7 +347,7 @@ audit incomplete. An unadjudicated security candidate stays `UNPROVEN` whatever 
   frozen plan → provider-bounded reasoning.
 - The agent never selects, adds, removes, or narrows providers after execution begins.
 - The declarative provider registry loaded by the native binary is the executable source of truth.
-  Loaders may validate and merge registry data, but may not invent providers or qualifications.
+  Loaders may validate and merge registry data, but may not invent providers or claims.
 - `plan.json` carries a SHA-256 integrity digest and an HMAC-SHA-256 authenticity signature bound
   to revision, dirty digest, Blueprint generation, registry digest, provider set, and denominators.
   An unsigned plan is valid only as an `UNPROVEN` artifact and cannot support a clean claim.

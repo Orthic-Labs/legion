@@ -288,7 +288,6 @@ fn import_manifest(
                 attested_by: Some(record.attestor.clone()),
                 authenticated: record.authenticated,
                 produced_by_runtime: upstream.clone(),
-                qualification: None,
             });
             request.import_records.push(json!({
                 "evidenceId": record.evidence_id, "verified": true,

@@ -56,10 +56,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "architecture.source-assurance"
@@ -137,10 +134,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "architecture.source-assurance"
@@ -204,10 +198,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -271,10 +262,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -348,10 +336,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -415,10 +400,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -486,10 +468,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -557,10 +536,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -629,10 +605,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -696,10 +669,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -763,10 +733,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -838,10 +805,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -905,10 +869,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -972,10 +933,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -1042,10 +1000,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "code.source-assurance"
@@ -1109,10 +1064,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "compatibility.source-assurance"
@@ -1176,10 +1128,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "container.source-assurance"
@@ -1243,10 +1192,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "dependency.source-assurance"
@@ -1310,10 +1256,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "docs.source-assurance"
@@ -1377,10 +1320,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "framework.source-assurance"
@@ -1444,10 +1384,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "framework.source-assurance"
@@ -1519,10 +1456,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "framework.source-assurance"
@@ -1586,10 +1520,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "framework.source-assurance"
@@ -1653,10 +1584,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "governance.source-assurance"
@@ -1725,10 +1653,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "governance.source-assurance"
@@ -1792,10 +1717,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "imported.source-assurance"
@@ -1874,10 +1796,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "accessibility.source-assurance"
@@ -1959,10 +1878,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -2038,10 +1954,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "architecture.source-assurance"
@@ -2114,10 +2027,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "prioritization.source-assurance"
@@ -2243,10 +2153,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "framework.source-assurance"
@@ -2328,10 +2235,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "data.source-assurance"
@@ -2432,10 +2336,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "infrastructure.source-assurance"
@@ -2522,10 +2423,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "installer-hygiene.source-assurance"
@@ -2612,10 +2510,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "test-quality.source-assurance"
@@ -2693,10 +2588,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "dead-file.source-assurance"
@@ -2772,10 +2664,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "ai-slop.source-assurance"
@@ -2851,10 +2740,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "ai-slop.source-assurance"
@@ -2934,10 +2820,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "ai-slop.source-assurance"
@@ -3012,10 +2895,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "architecture.source-assurance"
@@ -3094,10 +2974,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "dead-file.source-assurance"
@@ -3179,10 +3056,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "ai-slop.source-assurance"
@@ -3257,10 +3131,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -3340,10 +3211,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "schema.source-assurance"
@@ -3422,10 +3290,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "correctness.source-assurance"
@@ -3508,10 +3373,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "performance.source-assurance"
@@ -3592,10 +3454,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "docs.source-assurance"
@@ -3662,10 +3521,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "architecture.source-assurance"
@@ -3732,10 +3588,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "correctness.source-assurance"
@@ -3802,10 +3655,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "ai-slop.source-assurance"
@@ -3872,10 +3722,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "quality.source-assurance"
@@ -3942,10 +3789,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "quality.source-assurance"
@@ -4028,10 +3872,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "contracts.source-assurance"
@@ -4098,10 +3939,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -4168,10 +4006,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "architecture.source-assurance"
@@ -4238,10 +4073,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "performance.source-assurance"
@@ -4317,10 +4149,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "accessibility.source-assurance"
@@ -4412,10 +4241,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "data.source-assurance"
@@ -4482,10 +4308,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "reliability.source-assurance"
@@ -4559,10 +4382,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "platform.source-assurance"
@@ -4638,10 +4458,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "release.source-assurance"
@@ -4707,10 +4524,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -4788,10 +4602,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -4878,10 +4689,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -4958,10 +4766,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5037,10 +4842,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5118,10 +4920,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5197,10 +4996,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5278,10 +5074,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5357,10 +5150,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5439,10 +5229,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5519,10 +5306,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5596,10 +5380,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5672,10 +5453,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5741,10 +5519,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5818,10 +5593,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -5897,10 +5669,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "stack.source-assurance"
@@ -5976,10 +5745,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "stack.source-assurance"
@@ -6057,10 +5823,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6140,10 +5903,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "schema.source-assurance"
@@ -6210,10 +5970,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "visual.source-assurance"
@@ -6277,10 +6034,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "requirements.source-assurance"
@@ -6344,10 +6098,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "secrets.source-assurance"
@@ -6414,10 +6165,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6505,10 +6253,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6596,10 +6341,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6666,10 +6408,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6752,10 +6491,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6836,10 +6572,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -6903,10 +6636,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "structural.source-assurance"
@@ -6970,10 +6700,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "supply-chain.source-assurance"
@@ -7037,10 +6764,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "test-quality.source-assurance"
@@ -7109,10 +6833,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7181,10 +6902,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7256,10 +6974,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7337,10 +7052,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7406,10 +7118,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7476,10 +7185,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7551,10 +7257,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"
@@ -7622,10 +7325,7 @@
         "freshContext": true,
         "producerSeparation": true
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": false
-      },
+      "benchmark": {},
       "cleanClaim": "evidence-only",
       "controlIds": [
         "security.source-assurance"

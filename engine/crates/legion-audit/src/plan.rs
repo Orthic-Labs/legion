@@ -263,9 +263,6 @@ pub struct AuditProvider {
     #[serde(default)]
     pub bounds: BTreeMap<String, Value>,
     pub clean_claim: String,
-    pub benchmark_status: String,
-    pub benchmark_required_for_clean_claim: bool,
-    pub qualification_digest: Option<String>,
     pub required: bool,
 }
 
@@ -613,7 +610,6 @@ impl AuditPlan {
                     ),
                     ("execution".into(), spec.execution.clone()),
                     ("reasoning".into(), spec.reasoning.clone()),
-                    ("benchmark".into(), spec.benchmark.clone()),
                     ("controlIds".into(), serde_json::json!(spec.control_ids)),
                     ("scopes".into(), serde_json::json!(spec.scopes)),
                     ("selectable".into(), serde_json::json!(spec.selectable)),
@@ -683,24 +679,10 @@ impl AuditPlan {
                             .get("required")
                             .and_then(Value::as_bool)
                             .unwrap_or(true));
-                let mut bounds = BTreeMap::from([
+                let bounds = BTreeMap::from([
                     ("required".into(), serde_json::json!(required)),
                     ("cleanClaim".into(), serde_json::json!(spec.clean_claim)),
                 ]);
-                // Freeze the registry's qualification scope so acceptance of
-                // the provider can be evaluated against the run context
-                // (fixture-scoped claims never qualify production).
-                for (key, bound) in [
-                    ("claimScope", crate::assurance::CLAIM_SCOPE_BOUND_KEY),
-                    (
-                        "qualificationScope",
-                        crate::assurance::QUALIFICATION_SCOPE_BOUND_KEY,
-                    ),
-                ] {
-                    if let Some(value) = spec.benchmark.get(key) {
-                        bounds.insert(bound.into(), value.clone());
-                    }
-                }
                 Ok::<_, AuditError>(AuditProvider {
                     id: spec.id.to_string(),
                     version: spec.provider_version.clone(),
@@ -712,23 +694,6 @@ impl AuditPlan {
                     configuration,
                     bounds,
                     clean_claim: spec.clean_claim.clone(),
-                    benchmark_status: spec
-                        .benchmark
-                        .get("status")
-                        .and_then(Value::as_str)
-                        .unwrap_or("unproven")
-                        .to_owned(),
-                    benchmark_required_for_clean_claim: host_required
-                        || spec
-                            .benchmark
-                            .get("requiredForCleanClaim")
-                            .and_then(Value::as_bool)
-                            .unwrap_or(true),
-                    qualification_digest: spec
-                        .benchmark
-                        .get("qualificationDigest")
-                        .and_then(Value::as_str)
-                        .map(ToOwned::to_owned),
                     required,
                 })
             })
@@ -1076,7 +1041,6 @@ impl AuditPlan {
                 "hostCapabilities",
                 "execution",
                 "reasoning",
-                "benchmark",
                 "controlIds",
                 "scopes",
                 "selectable",

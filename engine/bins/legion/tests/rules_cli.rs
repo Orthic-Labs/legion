@@ -196,11 +196,7 @@ fn native_rules_evaluate_local_inventory_bound_source() {
             "hostCapabilities": [],
             "execution": {},
             "reasoning": {},
-            "benchmark": {
-                "status": "qualified",
-                "requiredForCleanClaim": true,
-                "qualificationDigest": "sha256:fixture"
-            },
+            "benchmark": {},
             "cleanClaim": "finding-producing",
             "controlIds": [],
             "scopes": [],
@@ -327,11 +323,7 @@ fn native_audit_runs_on_local_filesystem_inventory_only() {
             "hostCapabilities": [],
             "execution": {},
             "reasoning": {},
-            "benchmark": {
-                "status": "qualified",
-                "requiredForCleanClaim": true,
-                "qualificationDigest": "sha256:fixture"
-            },
+            "benchmark": {},
             "cleanClaim": "finding-producing",
             "controlIds": [],
             "scopes": [],

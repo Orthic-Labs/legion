@@ -222,7 +222,7 @@ pub struct RuntimeViolation {
 /// evidence and non-audit-owned producer steps do not. Unknown audit-
 /// owned runtimes are flagged, never assumed native. A non-empty result
 /// keeps dependent obligations `unmet` (see `assurance::apply_evidence`)
-/// unless satisfied by a qualified native check or an authenticated
+/// unless satisfied by a native check or an authenticated
 /// upstream CI receipt.
 pub fn validate_runtime_closure(
     constraint: RuntimeConstraint,

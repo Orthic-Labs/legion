@@ -15,10 +15,7 @@
         "kind": "runtime-script",
         "script": "src/providers/native-family-runner.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
@@ -97,10 +94,7 @@
         "kind": "runtime-script",
         "script": "src/providers/framework-suite.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
       "providerVersion": "1.0.0",
@@ -160,10 +154,7 @@
         "kind": "runtime-script",
         "script": "src/providers/data-suite.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
       "providerVersion": "1.0.0",
@@ -207,10 +198,7 @@
         "kind": "runtime-script",
         "script": "src/providers/infrastructure-suite.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "producesSecurityCandidates": true,
       "mayCloseOwnCandidates": false,
       "providerVersion": "1.0.0",
@@ -239,10 +227,7 @@
         "kind": "runtime-script",
         "script": "src/providers/generic-source-suite.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
@@ -301,10 +286,7 @@
         "kind": "runtime-script",
         "script": "src/providers/accessibility-suite.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [
@@ -356,10 +338,7 @@
         "kind": "runtime-script",
         "script": "src/providers/visual-core.mjs"
       },
-      "benchmark": {
-        "status": "unproven",
-        "requiredForCleanClaim": true
-      },
+      "benchmark": {},
       "providerVersion": "1.0.0",
       "dependsOn": [],
       "consumes": [

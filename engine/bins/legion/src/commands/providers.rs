@@ -66,20 +66,11 @@ fn project_provider(provider: &serde_json::Value) -> serde_json::Value {
     } else {
         provider["runner"]["kind"].as_str().unwrap_or_default()
     };
-    let mut benchmark = provider["benchmark"].clone();
-    if !benchmark.is_object() {
-        benchmark = json!({});
-    }
-    benchmark
-        .as_object_mut()
-        .expect("benchmark object")
-        .insert("requiredForCleanClaim".into(), json!(true));
     json!({
         "id": id,
         "role": provider["role"],
         "phase": phase,
         "runner": runner,
-        "benchmark": benchmark,
         "producesSecurityCandidates": provider["role"].as_str() == Some("candidate-generator"),
     })
 }
