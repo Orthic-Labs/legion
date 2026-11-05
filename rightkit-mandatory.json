@@ -1,0 +1,4 @@
+{
+  "$comment": "Legion declaration for the RightKit mandatory set, cli profile (ratified rightkit 5af20e42d, rightkit#1518; Adrian 2026-11-05: \"2 yes tell buggy to fix that in rk for cli tool\"). Owed rows still without a RightKit owner: M9 (rusqlite in legion-apple, owner rightkit-db), M10 (rightkit-app-settings), M11 (rightkit-credentials), M15 (rightkit-logs), M16 (rightkit-crash), M20 (rightkit-qa); each is adopted or ruled not applicable through appAmendments.legion before release. The installed sealed gate 0.6.47 predates the cli profile.",
+  "profile": "cli"
+}
