@@ -1074,10 +1074,14 @@ pub fn render_manifest(registry: &Value) -> Value {
                 "backs": get(&manifest, "backs"),
             });
             if get(&manifest, "flag_if_absent").and_then(|v| v.as_bool()) == Some(true) {
-                obj.as_object_mut().unwrap().insert("flag_if_absent".into(), json!(true));
+                obj.as_object_mut()
+                    .unwrap()
+                    .insert("flag_if_absent".into(), json!(true));
             }
             if let Some(phase) = get(&manifest, "phase") {
-                obj.as_object_mut().unwrap().insert("phase".into(), phase.clone());
+                obj.as_object_mut()
+                    .unwrap()
+                    .insert("phase".into(), phase.clone());
             }
             obj
         })

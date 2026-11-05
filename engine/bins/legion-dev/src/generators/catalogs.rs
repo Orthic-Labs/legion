@@ -63,13 +63,7 @@ pub fn build_catalogs(root: &Path) -> Result<Value, String> {
         .map(|o| {
             pick(
                 o,
-                &[
-                    "id",
-                    "providerVersion",
-                    "role",
-                    "family",
-                    "selectable",
-                ],
+                &["id", "providerVersion", "role", "family", "selectable"],
             )
         })
         .collect();

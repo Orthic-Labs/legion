@@ -2003,4 +2003,3 @@ fn string_array(value: Option<&Value>) -> bool {
             .is_some_and(|values| values.iter().all(Value::is_string))
     })
 }
-
