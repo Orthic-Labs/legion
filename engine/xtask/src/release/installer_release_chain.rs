@@ -154,13 +154,16 @@ fn record_from_value(size: u64, sha256: String, path: PathBuf, role: String) -> 
     }
 }
 
-fn right_release_cli(repository_root: &Path) -> PathBuf {
+/// `right-release build` runs only through RightKit's one door, so the sign
+/// lane enters it with `rightkit-gate --to package` (class A, compile, then
+/// `right-release build` under the live door run).
+fn rightkit_gate_cli(repository_root: &Path) -> PathBuf {
     repository_root
         .join("node_modules")
         .join("@rightkit")
         .join("release")
-        .join("cli")
-        .join("right-release.mjs")
+        .join("bin")
+        .join("rightkit-gate.mjs")
 }
 
 fn run_command(
@@ -404,8 +407,8 @@ pub struct FinalizationManifest {
 
 /// Mirrors `finalizationManifest`, shared by `finalize-windows`/`finalize-macos`.
 /// RightRelease is the exact signer/notarizer; no platform finalizer runs
-/// until `right-release build --skip-checks` succeeds (`--skip-checks` only
-/// skips package checks already run by candidate CI).
+/// until `rightkit-gate --to package` (which runs `right-release build` inside
+/// its door run) succeeds.
 pub fn finalization_manifest(
     platform: &str,
     options: FinalizationManifestOptions,
@@ -451,7 +454,7 @@ pub fn finalization_manifest(
         return Err(fail("unsigned candidate root is missing or unsafe"));
     }
 
-    let cli = right_release_cli(options.repository_root);
+    let cli = rightkit_gate_cli(options.repository_root);
     let build_platform = if platform == "windows" { "win" } else { "mac" };
     let build_options = CommandOptions {
         cwd: Some(options.repository_root.to_path_buf()),
@@ -462,10 +465,12 @@ pub fn finalization_manifest(
         "node",
         &[
             cli.to_string_lossy().to_string(),
-            "build".to_string(),
+            "--to".to_string(),
+            "package".to_string(),
             "--platform".to_string(),
             build_platform.to_string(),
-            "--skip-checks".to_string(),
+            "--commit".to_string(),
+            mapped.source_revision.clone(),
         ],
         &build_options,
         &format!("RightRelease {platform} finalization"),
