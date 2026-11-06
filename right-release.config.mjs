@@ -140,7 +140,7 @@ export default {
 	schema: 1,
 	app: "legion",
 	hostedWorkflows: "right-git-ci-only",
-	version: releaseVersion,
+	version: "0.3.23",
 	distribution: {
 		provider: "github-releases",
 		repository: "Orthic-Labs/legion",
