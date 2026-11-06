@@ -180,8 +180,8 @@ importers:
         specifier: 0.1.12
         version: 0.1.12
       '@rightkit/release':
-        specifier: 0.6.40
-        version: 0.6.40
+        specifier: 0.6.52
+        version: 0.6.52
 
 packages:
 
@@ -206,8 +206,8 @@ packages:
     resolution: {integrity: sha512-ZyjFSo3duHHLkshk40kvFYNJq6jwz5lcMEIL+TQsepHKh9Oz1mQ6uiybQTtJX64/bULtd7X4zA5kYYkWmaOI5w==}
     hasBin: true
 
-  '@rightkit/release@0.6.40':
-    resolution: {integrity: sha512-jL+YrcjwSzXyOj7jq6v3EASP0yhVdCR3myG7YEWkiq96jwrZMpXIiha1IBGWj6/Rm7bNIkb91Up6lcoYFglhLQ==}
+  '@rightkit/release@0.6.52':
+    resolution: {integrity: sha512-qJyiKooxlcCqFhx/DNCVKcsp1TiUKQw38RFpmSpsQ/Oav6HUXYctDky7jm5C/B3e2TPu9PNomw+LP30OyUSdwA==}
     hasBin: true
 
   smol-toml@1.9.1:
@@ -229,7 +229,7 @@ snapshots:
 
   '@rightkit/qa-chrome@0.1.12': {}
 
-  '@rightkit/release@0.6.40':
+  '@rightkit/release@0.6.52':
     dependencies:
       '@rightkit/outdated': 0.3.0
       smol-toml: 1.9.1

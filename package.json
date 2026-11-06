@@ -110,6 +110,6 @@
     "@rightkit/ax": "0.3.2",
     "@rightkit/ci": "0.3.2",
     "@rightkit/qa-chrome": "0.1.12",
-    "@rightkit/release": "0.6.40"
+    "@rightkit/release": "0.6.52"
   }
 }
