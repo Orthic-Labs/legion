@@ -1,5 +1,9 @@
 {
   "files": {
+    "engine/crates/legion-audit/tests/fixtures/cargo-audit/malformed-lock/Cargo.lock": {
+      "note": "Deliberately malformed Cargo.lock control for the Audit cargo-audit known-answer fixture.",
+      "sha256": "d6a6d791e8043447c985deed1ac4e70a0030927fff92a88f57a2b549572e67b8"
+    },
     "engine/crates/legion-audit/tests/fixtures/cargo-deny/absence.toml": {
       "note": "Deliberately invalid cargo-deny config control.",
       "sha256": "f20de00742ed59051007ffa2373b147800a5b04d55a467ecdd88f6c31a034ec0"

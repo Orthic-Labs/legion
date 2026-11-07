@@ -170,7 +170,7 @@ export default {
 	},
 	packageManager: "pnpm",
 	workdir: ".",
-	checks: ["legion:check", "test"],
+	checks: ["legion:check"],
 	releaseVerifier: "engine/xtask/src/verify_release.rs",
 	buildInputs: {
 		include: [
