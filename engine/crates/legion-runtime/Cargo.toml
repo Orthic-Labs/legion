@@ -8,9 +8,9 @@ license.workspace = true
 [dependencies]
 async-trait.workspace = true
 legion-catalog = { path = "../legion-catalog" }
-rightkit-evidence-contracts = "=0.1.0"
-rightkit-policy-rules = "=0.1.0"
-rightkit-code-audit-provider-sdk = "=0.1.0"
+rightkit-evidence-contracts = "=0.1.1"
+rightkit-policy-rules = "=0.1.1"
+rightkit-code-audit-provider-sdk = "=0.1.1"
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

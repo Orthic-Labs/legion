@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-rightkit-evidence-contracts = "=0.1.0"
+rightkit-evidence-contracts = "=0.1.1"
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

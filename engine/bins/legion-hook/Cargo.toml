@@ -10,7 +10,7 @@ name = "legion-hook"
 path = "src/main.rs"
 
 [dependencies]
-rightkit-evidence-contracts = "=0.1.0"
+rightkit-evidence-contracts = "=0.1.1"
 legion-identity = { path = "../../crates/legion-identity" }
 rightkit-http = "=0.3.9"
 serde_json.workspace = true

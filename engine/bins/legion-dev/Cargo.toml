@@ -22,7 +22,7 @@ tar.workspace = true
 flate2.workspace = true
 brotli.workspace = true
 zip.workspace = true
-rightkit-evidence-contracts = "=0.1.0"
+rightkit-evidence-contracts = "=0.1.1"
 legion-identity = { path = "../../crates/legion-identity" }
 legion-audit = { path = "../../crates/legion-audit" }
-rightkit-child-process = "=0.5.7"
+rightkit-child-process = "=0.5.9"
