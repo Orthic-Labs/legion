@@ -52,6 +52,8 @@ fn hooks_status_reads_host_configs_from_an_isolated_home() {
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_legion"))
         .env("HOME", &home)
         .env("USERPROFILE", &home)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .env_remove("CODEX_HOME")
         .args(["--json", "hooks", "status"])
         .output()
         .unwrap();
@@ -76,6 +78,8 @@ fn fix_defaults_to_dry_run_and_mcp_install_previews() {
         std::process::Command::new(env!("CARGO_BIN_EXE_legion"))
             .env("HOME", &home)
             .env("USERPROFILE", &home)
+            .env_remove("CLAUDE_CONFIG_DIR")
+            .env_remove("CODEX_HOME")
             .args(args)
             .output()
             .unwrap()
