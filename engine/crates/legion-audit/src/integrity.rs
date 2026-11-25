@@ -108,7 +108,7 @@ pub fn plan_key_id(key: &[u8]) -> String {
 /// A fresh opaque run id (random, no host or time information).
 pub fn new_run_id() -> Result<String, AuditError> {
     let mut nonce = [0u8; 16];
-    getrandom::fill(&mut nonce)
+    rightkit_crypto::random_fill(&mut nonce)
         .map_err(|error| AuditError::Invalid(format!("could not generate run id: {error}")))?;
     Ok(format!("run-{}", hex_bytes(&nonce)))
 }
@@ -116,7 +116,7 @@ pub fn new_run_id() -> Result<String, AuditError> {
 /// A fresh 32-byte plan-signing key.
 pub fn new_plan_key() -> Result<Vec<u8>, AuditError> {
     let mut key = [0u8; 32];
-    getrandom::fill(&mut key)
+    rightkit_crypto::random_fill(&mut key)
         .map_err(|error| AuditError::Invalid(format!("could not generate plan key: {error}")))?;
     Ok(key.to_vec())
 }

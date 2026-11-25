@@ -128,7 +128,7 @@ impl AttestedRunsEnrollment {
 
 pub(crate) fn fresh_nonce() -> Result<String, String> {
     let mut bytes = [0u8; 32];
-    getrandom::fill(&mut bytes).map_err(|error| format!("os-random-unavailable: {error}"))?;
+    rightkit_crypto::random_fill(&mut bytes).map_err(|error| format!("os-random-unavailable: {error}"))?;
     Ok(hex::encode(bytes))
 }
 

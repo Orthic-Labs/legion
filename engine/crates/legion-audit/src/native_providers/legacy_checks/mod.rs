@@ -202,7 +202,7 @@ impl ReportTempDir {
         std::fs::create_dir_all(base)?;
         let sequence = AUDIT_ARTIFACT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let mut nonce = [0u8; 16];
-        getrandom::fill(&mut nonce).map_err(|error| std::io::Error::other(error.to_string()))?;
+        rightkit_crypto::random_fill(&mut nonce).map_err(|error| std::io::Error::other(error.to_string()))?;
         let path = base.join(format!("report-{check}-{sequence}-{}", hex::encode(nonce)));
         #[cfg(unix)]
         {

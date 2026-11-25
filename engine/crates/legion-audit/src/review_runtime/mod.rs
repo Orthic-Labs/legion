@@ -1715,7 +1715,7 @@ pub fn run(run_dir: &Path, options: &RuntimeOptions) -> Result<Value, AuditError
     }
     let tools = tools::ContextTools::new(snapshot.clone()).map_err(invalid)?;
     let mut nonce = [0u8; 16];
-    getrandom::fill(&mut nonce).map_err(|error| invalid(error.to_string()))?;
+    rightkit_crypto::random_fill(&mut nonce).map_err(|error| invalid(error.to_string()))?;
     let mut controller = Controller {
         run: &run,
         options,
