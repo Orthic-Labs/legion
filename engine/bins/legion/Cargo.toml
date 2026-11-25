@@ -24,7 +24,7 @@ rightkit-agent-orchestration-handoff = "=0.1.2"
 legion-mcp = { path = "../legion-mcp" }
 legion-host = { path = "../../crates/legion-host" }
 legion-harness = { path = "../../crates/legion-harness" }
-rightkit-review = { version = "=0.4.1", features = ["code", "minimize"] }
+rightkit-review = { version = "=0.6.0", features = ["code", "minimize"] }
 rightkit-policy-rules = "=0.1.1"
 rightkit-code-audit-provider-sdk = "=0.1.1"
 rightkit-evidence-report = "=0.1.1"
@@ -32,7 +32,7 @@ rightkit-research = "=0.1.2"
 legion-runtime = { path = "../../crates/legion-runtime" }
 legion-topology = { path = "../../crates/legion-topology" }
 reqwest.workspace = true
-rightkit-child-process = "=0.5.9"
+rightkit-child-process = "=0.5.15"
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

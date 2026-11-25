@@ -203,6 +203,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-tungstenite"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6ab5b7664abf9ccae07576888c72bc93750c7090c1ff4ffee9317cc05d11618"
+dependencies = [
+ "atomic-waker",
+ "futures-core",
+ "futures-io",
+ "futures-task",
+ "log",
+ "pin-project-lite",
+ "tokio",
+ "tungstenite 0.30.0",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -519,7 +535,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26ed067eb6c1f660bdb87c05efb964421d2ca262bae0296cdfe38cf0cd949a3e"
 dependencies = [
- "async-tungstenite",
+ "async-tungstenite 0.32.1",
  "base64 0.22.1",
  "chromiumoxide_cdp",
  "chromiumoxide_types",
@@ -1306,7 +1322,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc 0.2.191",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2311,7 +2327,7 @@ dependencies = [
  "rightkit-evidence-contracts",
  "rightkit-evidence-effects",
  "rightkit-evidence-report",
- "rightkit-fs",
+ "rightkit-fs 0.5.0",
  "rightkit-ownership",
  "rightkit-policy-rules",
  "serde",
@@ -3250,7 +3266,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3586,9 +3602,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-agent-tools"
-version = "0.3.0"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30bc0fa579c8b707fddf9768bde4c6e1df74a699afb8011e4d79cea0e7f7a051"
+checksum = "aa8f4f55e2e9b3061c74aba98eb056ab1784eae3bdae5b27ad829637d9758c98"
 dependencies = [
  "rightkit-daemon",
  "serde",
@@ -3597,9 +3613,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-agents"
-version = "0.2.0"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82acf0e2445d01be59bd552f5865810b7900b6c70967f8c89d5fef0e9164679e"
+checksum = "52c0fd5383086fd2511473536df0a81bb293154bca19656cd13cf59b3d752fdc"
 dependencies = [
  "rightkit-child-process",
  "serde",
@@ -3608,14 +3624,14 @@ dependencies = [
 
 [[package]]
 name = "rightkit-browser"
-version = "0.3.6"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90c9d958a799c3d5db15b3d08748b1c8aa4d727a562a2985f5338095e704b281"
+checksum = "f3098b8f47e29f547f904aba6495c558241f0903a09c1ddac916b454cdffc640"
 dependencies = [
- "async-tungstenite",
+ "async-tungstenite 0.35.0",
  "chromiumoxide",
  "futures",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "rightkit-child-process",
  "rightkit-sandbox",
  "serde",
@@ -3629,20 +3645,20 @@ dependencies = [
 
 [[package]]
 name = "rightkit-cache"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "897692f1677298e6bd20b62db14b436dd1e676b2c8b75bf7ae91a0670e2e8ab0"
+checksum = "9fdb5dcdcb6dee032b165f57353be4afa706012b4bee5c8c878d23544e7548ca"
 dependencies = [
  "rightkit-child-process",
- "rightkit-fs",
+ "rightkit-fs 0.4.19",
  "sha2 0.11.1",
 ]
 
 [[package]]
 name = "rightkit-child-process"
-version = "0.5.9"
+version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07ebac80a4bb9451484a63dbffa2b7210b9aa578064c6cb893009956c0498ad3"
+checksum = "136082b9a60ea2bcf04a8dd1a02cf1e65f89d10d92928bb0b043176ab2ac8491"
 dependencies = [
  "libc 0.2.191",
  "tokio",
@@ -3673,18 +3689,22 @@ dependencies = [
 
 [[package]]
 name = "rightkit-daemon"
-version = "0.4.0"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd54a499fc9f757d00e69106b36a51564d0c8473e6e75f46cae27bafbdb7d19d"
+checksum = "42338b483431de3a9e4153dfab72dc54872919a40225cf5523f0ea24a46258c4"
 dependencies = [
+ "core-foundation",
  "getrandom 0.4.3",
  "rightkit-child-process",
- "rightkit-fs",
+ "rightkit-fs 0.5.0",
+ "rightkit-roots",
  "rightkit-sidecar",
+ "security-framework",
  "serde",
  "serde_json",
  "subtle",
  "windows",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3759,21 +3779,33 @@ dependencies = [
 
 [[package]]
 name = "rightkit-fs"
-version = "0.4.9"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8acdea81e5e8a8bad23b5ce97821890e1c958cc488d2eefec7cc781a030eb06"
+checksum = "2c50c1ba13de42984ca66a2dc8a09ba4d8de32ab4822c69d82d6fb2b84cdc6ec"
+dependencies = [
+ "libc 0.2.191",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
+name = "rightkit-fs"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e793dc951d6c15c61eeb70c5b7528f0e8a6f47fd3c2e41385608c56509c0482f"
 dependencies = [
  "libc 0.2.191",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "zeroize",
 ]
 
 [[package]]
 name = "rightkit-http"
-version = "0.3.9"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5011b57437a3c15b47b969b62dbbb018a13b935f48043dc0910be330f64214bd"
+checksum = "267072d33f7a5cd2ab1cf3ad3e9089ee2745465597338fb8e62184f4284b8caa"
 dependencies = [
  "getrandom 0.4.3",
  "serde",
@@ -3783,9 +3815,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-ownership"
-version = "0.4.4"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a60ee16f761fbd17e128fcd17f6c92438fd568bd5cc23c078a7467d1c9ac3f0"
+checksum = "12c4406ceb9edc9fb3abfab3c11bb76bad87a1fda09b95a9635f8af40373d935"
 dependencies = [
  "base64 0.23.1",
  "fancy-regex 0.20.0",
@@ -3849,9 +3881,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-review"
-version = "0.4.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a49fb7d8d009050adcc02c1c77fad3ed653735effbaae02ca3c8f3b1ed10001"
+checksum = "426307d05017a9aa963301f47c6a93ae35924dc88797e9b5e5126f6a1dbba01c"
 dependencies = [
  "hex",
  "icu_normalizer",
@@ -3862,6 +3894,18 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rightkit-roots"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d945d18e039c15ca4d2825746ebc4ab943b3ae0686cc735ab9192ddcfe6b7629"
+dependencies = [
+ "getrandom 0.4.3",
+ "rightkit-fs 0.5.0",
+ "serde_json",
+ "windows",
 ]
 
 [[package]]
@@ -3879,9 +3923,9 @@ dependencies = [
 
 [[package]]
 name = "rightkit-sidecar"
-version = "0.3.0"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9f3646e8bf0c6828f3476502ab83e92ecab1d299e3fe0a4995c6a85a8f8e956"
+checksum = "700a09f22a4eca98f87122f03809a5bece3bb9edc3efca1581c86e30d458dd84"
 dependencies = [
  "libc 0.2.191",
  "serde",
@@ -3974,7 +4018,7 @@ dependencies = [
  "errno",
  "libc 0.2.191",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4033,7 +4077,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4590,7 +4634,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4920,6 +4964,22 @@ dependencies = [
  "log",
  "rand 0.9.5",
  "sha1 0.10.7",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http",
+ "httparse",
+ "log",
+ "rand 0.10.3",
+ "sha1 0.11.0",
  "thiserror 2.0.21",
 ]
 
@@ -5279,7 +5339,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
