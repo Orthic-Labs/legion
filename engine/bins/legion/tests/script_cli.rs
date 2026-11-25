@@ -996,6 +996,24 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
         .map(|row| format!("{row}\n"))
         .collect::<String>();
     std::fs::write(&source, &transcript).unwrap();
+    // Bootstrap requires the source's live-state block and fills its open-items ledger from the
+    // workspace's git state (rightkit-agent-orchestration-handoff 0.1.2), so the workspace is a
+    // repository; its untracked transcript becomes the one prefilled ledger row.
+    let init = Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(home)
+        .output()
+        .unwrap();
+    assert!(init.status.success(), "{init:?}");
+    let live_state = home.join("live-state.json");
+    let block = serde_json::json!({
+        "schema": "legion.handoff.source-block.v1",
+        "trust": "source_assertion",
+        "in_flight": [],
+        "memory": {"absent_reason": "test fixture has no memory directory"},
+    });
+    std::fs::write(&live_state, block.to_string()).unwrap();
+    let saved_block = home.join("session-1.source-block.json");
     let bootstrap = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "script",
@@ -1009,6 +1027,10 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
             workspace,
             "--home",
             workspace,
+            "--live-state",
+            live_state.to_str().unwrap(),
+            "--live-state-out",
+            saved_block.to_str().unwrap(),
             "--json",
         ])
         .output()
