@@ -1,5 +1,37 @@
 {
   "files": {
+    "engine/crates/legion-audit/tests/fixtures/android-lint/plain-kotlin/build.gradle.kts": {
+      "note": "Audit known-answer input for the android-lint adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "84f2e091f1ff1a77a3ee6439043f5f37bcc73f796a64759c6acf0b068da8fb7a"
+    },
+    "engine/crates/legion-audit/tests/fixtures/android-lint/project/app/build.gradle.kts": {
+      "note": "Audit known-answer input for the android-lint adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "b95cfff70f930a83770d24415e61582d77dfe9d53cc2e243d8139c867eba848f"
+    },
+    "engine/crates/legion-audit/tests/fixtures/android-lint/project/lib/build.gradle.kts": {
+      "note": "Audit known-answer input for the android-lint adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "a89582ede87bb31d065de05685af27dbf846dbf8c327800a07139ba84efa5957"
+    },
+    "engine/crates/legion-audit/tests/fixtures/bench/003-vulnerable-dep/package.json": {
+      "note": "Audit known-answer input for the bench adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "f9cf7197a466d7c7ba2697e2d63da975d27ae1c2f7751102449af3cef5e3c3ab"
+    },
+    "engine/crates/legion-audit/tests/fixtures/bench/004-negative-dep-latest/package.json": {
+      "note": "Audit known-answer input for the bench adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "630ae2fabac5fc8e87e7944147c93410e5ba95c0307f68186d299f011fa14e9c"
+    },
+    "engine/crates/legion-audit/tests/fixtures/bench/005-dead-code/package.json": {
+      "note": "Audit known-answer input for the bench adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "78dabb9ed88a8ec9e3ffbc4502d08e2c680add1cec7b0d5945f961e6fdb623e8"
+    },
+    "engine/crates/legion-audit/tests/fixtures/bench/006-negative-reachable/package.json": {
+      "note": "Audit known-answer input for the bench adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "8930955475c9003ed34216db0409d330d6b5b29d2017142037c6a64862cde7b3"
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-audit/Cargo.toml": {
+      "note": "Audit known-answer input for the cargo-audit adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "a86b38920681eb24aeb86ffef354d20f3a923e3cafb0f39e76c1a8119ae51c53"
+    },
     "engine/crates/legion-audit/tests/fixtures/cargo-deny/absence.toml": {
       "note": "Deliberately invalid cargo-deny config control.",
       "sha256": "f20de00742ed59051007ffa2373b147800a5b04d55a467ecdd88f6c31a034ec0"
@@ -28,13 +60,25 @@
       "note": "Upstream cargo-deny source snapshot used as an Audit known-answer input.",
       "sha256": "05bd78762941d74f54893afb183755d2ae9716af25ffa2159122f925158f486a"
     },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/absence/Cargo.toml": {
+      "note": "Audit known-answer input for the cargo-geiger adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "7357e5a8a976cd564a30a64f52f80e34884ce4627b4e4d35e4cff00f1f33bb0d"
+    },
     "engine/crates/legion-audit/tests/fixtures/cargo-geiger/absence/build.rs": {
       "note": "cargo-geiger Audit fixture crate build script; formatting is part of the fixture.",
       "sha256": "d101bacfb6debb23c3937bb7ec746e441e1cddcdde74afe76ffc51cf437ef930"
     },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/positive/Cargo.toml": {
+      "note": "Audit known-answer input for the cargo-geiger adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "7357e5a8a976cd564a30a64f52f80e34884ce4627b4e4d35e4cff00f1f33bb0d"
+    },
     "engine/crates/legion-audit/tests/fixtures/cargo-geiger/positive/build.rs": {
       "note": "cargo-geiger Audit fixture crate build script; formatting is part of the fixture.",
       "sha256": "d101bacfb6debb23c3937bb7ec746e441e1cddcdde74afe76ffc51cf437ef930"
+    },
+    "engine/crates/legion-audit/tests/fixtures/cargo-geiger/process-error/Cargo.toml": {
+      "note": "Audit known-answer input for the cargo-geiger adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "7357e5a8a976cd564a30a64f52f80e34884ce4627b4e4d35e4cff00f1f33bb0d"
     },
     "engine/crates/legion-audit/tests/fixtures/cargo-geiger/process-error/build.rs": {
       "note": "cargo-geiger Audit fixture crate build script; formatting is part of the fixture.",
@@ -116,25 +160,89 @@
       "note": "Vendored upstream cargo-geiger source used as an Audit known-answer input; kept byte-identical to upstream, not Legion code.",
       "sha256": "f229347007e0a58f74a844b7d761e94306a39fa94838733917354b32e7f35156"
     },
+    "engine/crates/legion-audit/tests/fixtures/javascript-native/monorepo/apps/web/package.json": {
+      "note": "Audit known-answer input for the javascript-native adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "5728be39b0d4c21ee1e3f5d1f67115809a61d10231d8c011ae994c1c91787895"
+    },
+    "engine/crates/legion-audit/tests/fixtures/javascript-native/monorepo/package.json": {
+      "note": "Audit known-answer input for the javascript-native adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "7e37b0d9d10d0654e977e72ef044ffa7f5b9c4fd9160966aa419255be70e9e08"
+    },
+    "engine/crates/legion-audit/tests/fixtures/javascript-native/monorepo/packages/empty/package.json": {
+      "note": "Audit known-answer input for the javascript-native adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "840ade14bb139bde55f7fff12fc8b1f1e27d58779655d7ec799b0449f3522908"
+    },
+    "engine/crates/legion-audit/tests/fixtures/javascript-native/monorepo/packages/ui/package.json": {
+      "note": "Audit known-answer input for the javascript-native adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "b96c5b3973a6db10963e75c22ac167be1a7ba1c5f21b72745d10861ddebe6ca2"
+    },
+    "engine/crates/legion-audit/tests/fixtures/kotlin-detekt/plain-kotlin/app/build.gradle.kts": {
+      "note": "Audit known-answer input for the kotlin-detekt adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "c23fa2f0dd49a0c79c36c4ae28470144e19ba9464954560e288663c98efd25bb"
+    },
+    "engine/crates/legion-audit/tests/fixtures/kotlin-detekt/plain-kotlin/lib/build.gradle": {
+      "note": "Audit known-answer input for the kotlin-detekt adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "99c1d1b770243b6f8d92b71d3f99ec960b7c851609377f0ed78493741d24bc58"
+    },
     "engine/crates/legion-audit/tests/fixtures/kotlin-detekt/reports/malformed-truncated.sarif.json": {
       "note": "Deliberately truncated SARIF: detekt adapter must report it as malformed, never clean.",
       "sha256": "f5f06b564cd06995500c0e10775116cd83c2c5b5bcd8b53a9cfa12ac5d67939d"
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/absence/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "5a0c81d6f005b1db9fd0bf65011e12fc8b1faabc127be56546b7b305848c5895"
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.1/dist/esm/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "5a065fe7d8eab2a582f428e11c2ea63aaf70607a54f69cfd5c711b5c53d91b32"
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.1/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "b5d0386cb765d49b7c8a9850857c08abad912d67cc8ac6c80639af6db0763864"
     },
     "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.1/src/tiny-invariant.flow.js": {
       "note": "Published tiny-invariant package source (Flow syntax) used verbatim by the node-outdated Audit fixture.",
       "sha256": "3ec046c31eaefc126ef48552526ec9ca4efc4a9129eab7e1061867e7ca4e7e3a"
     },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.3/dist/esm/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "5a065fe7d8eab2a582f428e11c2ea63aaf70607a54f69cfd5c711b5c53d91b32"
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.3/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "27d6815b2577f3e7184f5c69af817377a2e6a0390a68acdfd852402f81d8ba2c"
+    },
     "engine/crates/legion-audit/tests/fixtures/node-outdated/packages/1.3.3/src/tiny-invariant.flow.js": {
       "note": "Published tiny-invariant package source (Flow syntax) used verbatim by the node-outdated Audit fixture.",
       "sha256": "3ec046c31eaefc126ef48552526ec9ca4efc4a9129eab7e1061867e7ca4e7e3a"
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/positive/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "e9ca82be19c748fb121f649d7ba5e7d0ea8542b4510fb15969a7646ab4ae126f"
+    },
+    "engine/crates/legion-audit/tests/fixtures/node-outdated/process-error/package.json": {
+      "note": "Audit known-answer input for the node-outdated adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "7a903569ead0939ca32e464b820ab46203fe2f63832eb0e04ba4a01056e48f4b"
     },
     "engine/crates/legion-audit/tests/fixtures/osv/malformed-lockfile/package-lock.json": {
       "note": "Deliberately malformed lockfile: OSV adapter must report a parse gap.",
       "sha256": "1f0b519c38a645e432073b7b94336ecfbc98ccca51374fa74196755663ed9601"
     },
+    "engine/crates/legion-audit/tests/fixtures/security-surface-model/cli-app/Cargo.toml": {
+      "note": "Audit known-answer input for the security-surface-model adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "259bf29979af88ddd53a971e663471c951d033bd0f51cb38611cf3bfc420cef8"
+    },
+    "engine/crates/legion-audit/tests/fixtures/security-surface-model/web-app/package.json": {
+      "note": "Audit known-answer input for the security-surface-model adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "81d68d2b0cf33be8cdc91ae9f8b3856eaa3eed961a2ef7789f72671eb2eb85dd"
+    },
     "engine/crates/legion-audit/tests/fixtures/structure-quality/unsupported/broken.rs": {
       "note": "Audit known-answer input: deliberately unparseable Rust (structure-quality unsupported case).",
       "sha256": "5e8d2a3da40d7a13e281f3a0e8c8b0a68d2801042fab58742c29df068a838ed0"
+    },
+    "engine/crates/legion-audit/tests/fixtures/xcode-targets/macos-swiftpm/Package.swift": {
+      "note": "Audit known-answer input for the xcode-targets adapter: a dependency manifest the adapter reads as data, not a Legion dependency.",
+      "sha256": "684636618b241ffdea927a4fbfc94167424442001fda476c2f2ed089b1da2d35"
     }
   },
   "schema": 1
