@@ -1,4 +1,4 @@
 {
-  "$comment": "Legion declaration for the RightKit mandatory set, cli profile (ratified rightkit 5af20e42d, rightkit#1518; Adrian 2026-11-05: \"2 yes tell buggy to fix that in rk for cli tool\"). Owed rows still without a RightKit owner: M9 (rusqlite in legion-apple, owner rightkit-db), M10 (rightkit-app-settings), M11 (rightkit-credentials), M15 (rightkit-logs), M16 (rightkit-crash), M20 (rightkit-qa); each is adopted or ruled not applicable through appAmendments.legion before release. The installed sealed gate 0.6.47 predates the cli profile.",
+  "$comment": "Legion declaration for RightKit's ownership check, cli profile (rightkit#1518). Adrian, 2026-11-26T06:28:08Z, Legion lead chat: \"Legion can use a few Rk packages and crates but no mandatory and doesn’t have to.\" No RightKit row, owner or allowlist binds Legion; see docs/LEGION-CANONICAL-SSOT.md 13.3. This file stays only so RightKit's check does not read Legion as a desktop app.",
   "profile": "cli"
 }

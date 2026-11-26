@@ -508,6 +508,24 @@ GitHub Actions; public & private differ only by runner, authentication, & spend 
 binds `release-manifest.json` to `release-manifest.cat`, a Windows Authenticode catalog. An unsigned CI
 candidate is not a published release.
 
+### 13.3 RightKit is optional for Legion
+
+Decision, Adrian, 2026-11-26T06:28:08Z, typed in the Legion lead chat: "Legion can use a few Rk
+packages and crates but no mandatory and doesn’t have to." Earlier the same day: "I had said that
+legion doesn’t belong in rightkit, since it’s different."
+
+Legion is a tool, not one of the Right apps. It follows that:
+
+- Legion may depend on a RightKit package or crate where that serves Legion. No RightKit package,
+  crate, or capability owner is mandatory for Legion.
+- RightKit's mandatory set, its dependency ownership allowlist, and its per-app exception records
+  do not bind Legion. A RightKit check that judges Legion against them may advise; it never
+  blocks a Legion build, package, or release.
+- Legion's own rules and limits live in Legion (`legion-dev` checks, hooks, skills, this file).
+  None is recorded in a RightKit rule file.
+- Legion still builds, signs, and releases through the RightKit gate and the RustRight broker
+  (§13.2). That is the build route, not a dependency obligation.
+
 ## 14. Model policy
 
 Model policy is tiered; concrete models are host configuration. Canonical architecture, role
