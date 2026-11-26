@@ -254,6 +254,8 @@ export default {
 			architecture: selectedWindows.architecture,
 		},
 	},
+	// Legion's Cargo workspace is engine/, not the repository root or src-tauri/.
+	releaseSwitches: { manifest: "engine/Cargo.toml" },
 	targets: {
 		win: {
 			// Portable RightKit signing remains fail-closed until every raw EXE has
