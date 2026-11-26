@@ -682,7 +682,7 @@ impl FrozenSnapshot {
         }
         let object_name = if sealed_path.exists() {
             let mut nonce = [0u8; 12];
-            rightkit_crypto::random_fill(&mut nonce).map_err(io)?;
+            getrandom::fill(&mut nonce).map_err(io)?;
             format!("cold-{}", hex::encode(nonce))
         } else {
             sealed_name

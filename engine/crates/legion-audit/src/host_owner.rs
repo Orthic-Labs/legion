@@ -494,7 +494,7 @@ impl TrustedOwner for HostPolicyOwner {
             _ => return deny("executable-bytes-do-not-match-policy-digest"),
         }
         let mut nonce = [0u8; 16];
-        if rightkit_crypto::random_fill(&mut nonce).is_err() {
+        if getrandom::fill(&mut nonce).is_err() {
             return OwnerVerdict::Unavailable("no entropy for grant nonce".into());
         }
         OwnerVerdict::Granted(OwnerGrant {

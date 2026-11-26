@@ -377,19 +377,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blake3"
-version = "1.8.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae"
-dependencies = [
- "arrayvec",
- "cc",
- "cfg-if",
- "constant_time_eq 0.4.2",
- "cpufeatures 0.3.1",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -715,12 +702,6 @@ name = "const-oid"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
-
-[[package]]
-name = "constant_time_eq"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "constant_time_eq"
@@ -2329,6 +2310,7 @@ version = "0.3.23"
 dependencies = [
  "async-trait",
  "ed25519-dalek 3.0.0",
+ "getrandom 0.4.3",
  "headless_chrome",
  "hex",
  "hmac 0.13.0",
@@ -2342,7 +2324,6 @@ dependencies = [
  "rightkit-cache",
  "rightkit-child-process",
  "rightkit-code-audit-provider-sdk",
- "rightkit-crypto",
  "rightkit-evidence-contracts",
  "rightkit-evidence-effects",
  "rightkit-evidence-report",
@@ -3716,17 +3697,6 @@ dependencies = [
  "sha2 0.11.1",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "rightkit-crypto"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1776cca15cc4f158d4ac2385cb781102a5b1406518b29b8f163a1d999b30e709"
-dependencies = [
- "blake3",
- "ring",
- "serde_json",
 ]
 
 [[package]]
@@ -5813,7 +5783,7 @@ checksum = "e408c6cc4699dd017d53dc080cd51c2cea2b5354af57a1479bd265ed42911487"
 dependencies = [
  "aes",
  "bzip2",
- "constant_time_eq 0.6.1",
+ "constant_time_eq",
  "crc32fast",
  "deflate64",
  "flate2",
